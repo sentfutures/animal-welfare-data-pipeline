@@ -286,13 +286,14 @@ def order_english_first(corpus_path: Path, language_of) -> dict[str, int] | None
     return counts
 
 
-# Priority order for published SDF columns: the id (join key), the document
-# text and its brief (what a reader came for), then the short scalar
-# metadata, then the widest column last — the same id-then-content-then-
-# metadata-then-lineage shape flatten_dad_corpus uses for the DAD config, so
-# both configs read the same way on the Hub.
-SDF_COLUMN_ORDER = ["doc_id", "content", "description", "language",
-                    "type_name", "type_id", "register", "scores", "variables"]
+# Priority order for published SDF columns: the document text and its brief
+# (what a reader came for), then the short scalar metadata, then the widest
+# column (variables), then doc_id last — pure lineage/join bookkeeping that
+# trails everything else, including variables, the same content-then-
+# metadata-then-lineage-then-id shape flatten_dad_corpus uses for the DAD
+# config, so both configs read the same way on the Hub.
+SDF_COLUMN_ORDER = ["content", "description", "language", "type_name",
+                    "type_id", "register", "scores", "variables", "doc_id"]
 
 
 def reorder_sdf_corpus(src: Path, dst: Path) -> int:
@@ -348,16 +349,18 @@ def flatten_dad_corpus(src: Path, dst: Path, languages: dict[str, str] | None = 
                        cards: dict[str, dict] | None = None,
                        append: bool = False) -> int:
     """Write the published form of a DAD corpus: one flat record per example
-    (example_gid, user_prompt, assistant_response, language, variables) instead
+    (user_prompt, assistant_response, language, variables, example_gid) instead
     of the training format's messages array, so the Hub viewer shows one
     readable column per field with no role/content nesting.
 
-    example_gid leads as the join key; the two text columns sit right behind
-    it because they are what a visitor came to read. `language` and
-    `variables` trail them for the same reason in reverse — a short language
-    cell and the one nested column cost almost nothing behind two wide text
-    columns, but would push those columns off the viewer's first screen
-    sitting in front of them.
+    The two text columns lead because they are what a visitor came to read.
+    `language` and `variables` follow for the same reason in reverse — a short
+    language cell and the one nested column cost almost nothing behind two
+    wide text columns, but would push those columns off the viewer's first
+    screen sitting in front of them. `example_gid` trails everything,
+    including `variables` — it is pure lineage/join bookkeeping (still used
+    internally, below, to look up `language` and `variables`), not something
+    a reader needs in front of the content.
 
     `language` is the language the scenario was DEALT (see dad_languages), not
     one detected from the text, and it is emitted only when the map is
@@ -371,7 +374,8 @@ def flatten_dad_corpus(src: Path, dst: Path, languages: dict[str, str] | None = 
     can tell which slice of the matrix a prompt/response pair came from rather
     than only which language it is in. It follows `language`'s two rules for
     the same reasons — emitted only when something resolves, null on a row that
-    does not join — and sits LAST because it is the widest cell on the row.
+    does not join — and sits second-to-last, ahead of only `example_gid`,
+    because it is the widest cell on the row.
 
     Both are joined off the run rather than read from the corpus record, even
     though the record now carries `variables` itself: every committed run
@@ -419,13 +423,14 @@ def flatten_dad_corpus(src: Path, dst: Path, languages: dict[str, str] | None = 
                     f"— refusing to publish a mangled row"
                 )
             gid = record.get("example_gid")
-            row = {"example_gid": gid}
+            row = {}
             row["user_prompt"] = by_role["user"]
             row["assistant_response"] = by_role["assistant"]
             if languages:
                 row["language"] = languages.get(gid)
             if cards:
                 row["variables"] = dealt_variables(cards[gid]) if gid in cards else None
+            row["example_gid"] = gid
             fout.write(json.dumps(row, ensure_ascii=False) + "\n")
             n += 1
     return n

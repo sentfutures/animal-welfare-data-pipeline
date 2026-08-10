@@ -465,15 +465,16 @@ class TestFlattenDadCorpus:
         """Records with no `language` key are unmeasurable, so the row-order
         pass declines and rows stay in the run's own order — which is what
         every SDF run predating layer5_score's language field gets. Columns
-        are still reordered per SDF_COLUMN_ORDER regardless of that; for this
-        two-field fixture (doc_id, content) that already matches it, so the
-        file comes out byte-identical too. TestReorderSdfCorpus exercises a
-        fixture where reordering actually moves something."""
+        are still reordered per SDF_COLUMN_ORDER regardless of that (doc_id
+        moves from this fixture's leading position to trailing), so this
+        compares parsed records rather than raw bytes."""
         run_dir, corpus_name = make_run_dir(tmp_path, pipeline="sdf", docs=2,
                                             audit_files=[], include_html=False)
         staged, dataset_dir = _stage(run_dir, corpus_name, tmp_path / "staged")
-        src = (run_dir / "final" / corpus_name).read_text(encoding="utf-8")
-        assert (dataset_dir / corpus_name).read_text(encoding="utf-8") == src
+        _, published = _published(dataset_dir, corpus_name)
+        source = [json.loads(l) for l in (run_dir / "final" / corpus_name)
+                 .read_text(encoding="utf-8").splitlines()]
+        assert published == source  # same order, same values
         assert staged["languages"] is None
 
     def test_record_without_assistant_message_aborts(self, tmp_path):
@@ -505,9 +506,10 @@ class TestFlattenDadCorpus:
 class TestReorderSdfCorpus:
     """Direct tests of reorder_sdf_corpus, the column-order counterpart of
     flatten_dad_corpus for the SDF config — SDF is no longer staged via a
-    verbatim shutil.copy2. make_run_dir's own SDF fixture only ever writes
-    doc_id/content/language, already in SDF_COLUMN_ORDER's relative order, so
-    these tests build records directly to actually exercise reordering."""
+    verbatim shutil.copy2. make_run_dir's own SDF fixture writes doc_id
+    first, which SDF_COLUMN_ORDER no longer matches (doc_id trails, as pure
+    lineage/join bookkeeping), so these tests build records directly to
+    exercise the actual reordering."""
 
     FULL_RECORD = {
         "doc_id": "matrix_000042", "type_id": "policy_memo",
@@ -547,8 +549,8 @@ class TestReorderSdfCorpus:
         publish_hf.reorder_sdf_corpus(src, dst)
 
         published = json.loads(dst.read_text(encoding="utf-8").splitlines()[0])
-        assert list(published) == ["doc_id", "content", "language", "type_id",
-                                   "register", "scores", "subtype_id", "role"]
+        assert list(published) == ["content", "language", "type_id", "register",
+                                   "scores", "doc_id", "subtype_id", "role"]
         assert published == legacy
 
     def test_never_writes_to_src(self, tmp_path):
@@ -705,8 +707,9 @@ class TestEnglishFirstOrdering:
         """Row order is cosmetic, so it degrades rather than killing a publish:
         an old run whose language cannot be read is published in the order it
         was written. The malformed line itself passes through unchanged;
-        valid lines still go through the column reorder (a no-op for this
-        fixture's fields, which already sit in SDF_COLUMN_ORDER)."""
+        valid lines still go through the column reorder (moving doc_id from
+        this fixture's leading position to trailing), which is why this
+        compares parsed records rather than raw bytes."""
         run_dir, corpus_name = make_run_dir(
             tmp_path, pipeline="sdf", docs=2, audit_files=[], include_html=False,
             languages=["Spanish", "English"])
@@ -940,10 +943,11 @@ class TestDadVariablesColumn:
             # the write-up fields are not dealt cards and are not published
             assert not {"claims", "dilemma_anatomy", "moral_patients"} & set(variables)
 
-    def test_the_widest_column_sits_last(self, tmp_path):
-        """The two text columns are what a visitor came to read, so they sit
-        right after the id; a 19-field struct trailing them must not push
-        them off the viewer's first screen."""
+    def test_example_gid_trails_every_column_including_variables(self, tmp_path):
+        """The two text columns are what a visitor came to read, so they
+        lead; example_gid trails everything — including the 19-field
+        variables struct — as pure lineage/join bookkeeping, not something a
+        reader needs in front of the content."""
         run_dir, corpus_name = make_run_dir(tmp_path, pipeline="dad", docs=1,
                                             audit_files=[], include_html=False)
         # a marked setting, so the language column is in play too
@@ -953,8 +957,8 @@ class TestDadVariablesColumn:
         _, dataset_dir = _stage(run_dir, corpus_name, tmp_path / "staged")
 
         _, records = _published(dataset_dir, corpus_name)
-        assert list(records[0]) == ["example_gid", "user_prompt",
-                                    "assistant_response", "language", "variables"]
+        assert list(records[0]) == ["user_prompt", "assistant_response",
+                                    "language", "variables", "example_gid"]
         assert records[0]["language"] == "Spanish"
 
     def test_a_run_with_no_dealt_cards_publishes_no_variables_column(self, tmp_path):
