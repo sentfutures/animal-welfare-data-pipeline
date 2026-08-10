@@ -461,15 +461,20 @@ class TestFlattenDadCorpus:
         assert src.read_text(encoding="utf-8") == before
         assert "messages" in before  # the SFT chat shape stays on disk
 
-    def test_an_sdf_corpus_with_no_language_field_is_copied_verbatim(self, tmp_path):
-        """Records with no `language` key are unmeasurable, so the ordering
-        pass declines and the byte-for-byte copy stands — which is what every
-        SDF run predating layer5_score's language field gets."""
+    def test_an_sdf_corpus_with_no_language_field_keeps_row_order(self, tmp_path):
+        """Records with no `language` key are unmeasurable, so the row-order
+        pass declines and rows stay in the run's own order — which is what
+        every SDF run predating layer5_score's language field gets. Columns
+        are still reordered per SDF_COLUMN_ORDER regardless of that (doc_id
+        moves from this fixture's leading position to trailing), so this
+        compares parsed records rather than raw bytes."""
         run_dir, corpus_name = make_run_dir(tmp_path, pipeline="sdf", docs=2,
                                             audit_files=[], include_html=False)
         staged, dataset_dir = _stage(run_dir, corpus_name, tmp_path / "staged")
-        src = (run_dir / "final" / corpus_name).read_text(encoding="utf-8")
-        assert (dataset_dir / corpus_name).read_text(encoding="utf-8") == src
+        _, published = _published(dataset_dir, corpus_name)
+        source = [json.loads(l) for l in (run_dir / "final" / corpus_name)
+                 .read_text(encoding="utf-8").splitlines()]
+        assert published == source  # same order, same values
         assert staged["languages"] is None
 
     def test_record_without_assistant_message_aborts(self, tmp_path):
@@ -496,6 +501,92 @@ class TestFlattenDadCorpus:
         _, dataset_dir = _stage(run_dir, corpus_name, tmp_path / "staged")
         raw = (dataset_dir / corpus_name).read_text(encoding="utf-8")
         assert "鶏の福祉について" in raw
+
+
+class TestReorderSdfCorpus:
+    """Direct tests of reorder_sdf_corpus, the column-order counterpart of
+    flatten_dad_corpus for the SDF config — SDF is no longer staged via a
+    verbatim shutil.copy2. make_run_dir's own SDF fixture writes doc_id
+    first, which SDF_COLUMN_ORDER no longer matches (doc_id trails, as pure
+    lineage/join bookkeeping), so these tests build records directly to
+    exercise the actual reordering."""
+
+    FULL_RECORD = {
+        "doc_id": "matrix_000042", "type_id": "policy_memo",
+        "type_name": "policy_memo", "language": "English",
+        "register": "clinical, dispassionate",
+        "variables": {"document_type": "policy_memo",
+                      "tone": "clinical, dispassionate"},
+        "description": "A policy memo weighing procurement options.",
+        "content": "This memo evaluates the welfare implications of...",
+        "scores": {"alignment": 8, "realism": 7, "spec_conformance": 9,
+                  "notes": "solid"},
+    }
+
+    def test_full_schema_record_is_reordered_content_first(self, tmp_path):
+        src = tmp_path / "final.jsonl"
+        dst = tmp_path / "published.jsonl"
+        src.write_text(json.dumps(self.FULL_RECORD) + "\n", encoding="utf-8")
+
+        n = publish_hf.reorder_sdf_corpus(src, dst)
+
+        assert n == 1
+        published = json.loads(dst.read_text(encoding="utf-8").splitlines()[0])
+        assert list(published) == publish_hf.SDF_COLUMN_ORDER
+        assert published == self.FULL_RECORD  # same values, only key order moved
+
+    def test_legacy_fields_are_kept_and_appended_after_known_columns(self, tmp_path):
+        """Four committed SDF runs predate variables/description/type_name and
+        carry subtype_id/role instead. Reordering must not drop them —
+        nothing here is a column SELECTION, only an order."""
+        legacy = {"doc_id": "d0", "subtype_id": "s1", "type_id": "t1",
+                 "role": "advisor", "register": "warm", "language": "English",
+                 "content": "hello", "scores": {"alignment": 8}}
+        src = tmp_path / "final.jsonl"
+        dst = tmp_path / "published.jsonl"
+        src.write_text(json.dumps(legacy) + "\n", encoding="utf-8")
+
+        publish_hf.reorder_sdf_corpus(src, dst)
+
+        published = json.loads(dst.read_text(encoding="utf-8").splitlines()[0])
+        assert list(published) == ["content", "language", "type_id", "register",
+                                   "scores", "doc_id", "subtype_id", "role"]
+        assert published == legacy
+
+    def test_never_writes_to_src(self, tmp_path):
+        src = tmp_path / "final.jsonl"
+        dst = tmp_path / "published.jsonl"
+        src.write_text(json.dumps(self.FULL_RECORD) + "\n", encoding="utf-8")
+        before = src.read_text(encoding="utf-8")
+
+        publish_hf.reorder_sdf_corpus(src, dst)
+
+        assert src.read_text(encoding="utf-8") == before
+
+    def test_a_malformed_line_passes_through_unchanged(self, tmp_path):
+        src = tmp_path / "final.jsonl"
+        dst = tmp_path / "published.jsonl"
+        src.write_text(json.dumps(self.FULL_RECORD) + "\n{not json\n",
+                       encoding="utf-8")
+
+        n = publish_hf.reorder_sdf_corpus(src, dst)
+
+        lines = dst.read_text(encoding="utf-8").splitlines()
+        assert n == 2
+        assert json.loads(lines[0]) == self.FULL_RECORD  # reordered, values kept
+        assert lines[1] == "{not json"
+
+    def test_non_ascii_content_survives_the_rekey(self, tmp_path):
+        rec = {"doc_id": "d0", "content": "鶏の福祉について"}
+        src = tmp_path / "final.jsonl"
+        dst = tmp_path / "published.jsonl"
+        src.write_text(json.dumps(rec, ensure_ascii=False) + "\n", encoding="utf-8")
+
+        publish_hf.reorder_sdf_corpus(src, dst)
+
+        raw = dst.read_text(encoding="utf-8")
+        assert "鶏の福祉について" in raw
+        assert "\\u" not in raw
 
 
 def _published(dataset_dir, corpus_name):
@@ -547,21 +638,27 @@ class TestEnglishFirstOrdering:
         # them; grouping by language would give d1, d4, d2, d5.
         assert [r["doc_id"] for r in records[2:]] == ["d1", "d2", "d4", "d5"]
 
-    def test_the_published_lines_are_the_run_s_own_lines_byte_for_byte(self, tmp_path):
-        """The one assertion that catches every re-serialisation hazard at
-        once: the published file must be a PERMUTATION of the run's lines, so
-        nothing can have reordered a key, reformatted a float, or re-escaped a
-        character on the way through."""
+    def test_the_published_rows_are_the_run_s_own_records_reordered_not_changed(
+            self, tmp_path):
+        """The one assertion that catches every dropped/altered-value hazard
+        at once: the published file must be a value-level PERMUTATION of the
+        run's records, so nothing can have added, dropped, or changed a
+        field's value on the way through. Column order is deliberately
+        allowed to differ — reorder_sdf_corpus re-keys every row — so this
+        compares parsed records, not raw line text (TestReorderSdfCorpus pins
+        the exact column order separately)."""
         run_dir, corpus_name = make_run_dir(
             tmp_path, pipeline="sdf", docs=6, audit_files=[], include_html=False,
             languages=["English", "Spanish", "Japanese"])
         _, dataset_dir = _stage(run_dir, corpus_name, tmp_path / "staged")
 
-        published, _ = _published(dataset_dir, corpus_name)
-        source = (run_dir / "final" / corpus_name).read_text(
-            encoding="utf-8").splitlines()
-        assert sorted(published) == sorted(source)
-        assert published != source  # and it really did reorder
+        _, published = _published(dataset_dir, corpus_name)
+        source = [json.loads(l) for l in (run_dir / "final" / corpus_name)
+                 .read_text(encoding="utf-8").splitlines()]
+        sort_key = lambda rec: sorted(rec.items())
+        assert sorted(published, key=sort_key) == sorted(source, key=sort_key)
+        assert [r["doc_id"] for r in published] != [r["doc_id"] for r in source]
+        # and it really did reorder rows (English-first)
 
     def test_native_script_survives_the_reorder_unescaped(self, tmp_path):
         """json.dumps defaults to ensure_ascii=True, which would turn most of
@@ -594,20 +691,25 @@ class TestEnglishFirstOrdering:
         _, records = _published(dataset_dir, corpus_name)
         assert [r["language"] for r in records] == ["en", "en", "Spanish", "Spanish"]
 
-    def test_a_corpus_that_is_already_all_english_is_left_byte_identical(self, tmp_path):
+    def test_a_corpus_that_is_already_all_english_keeps_row_order(self, tmp_path):
         run_dir, corpus_name = make_run_dir(
             tmp_path, pipeline="sdf", docs=3, audit_files=[], include_html=False,
             languages=["English"])
         _, dataset_dir = _stage(run_dir, corpus_name, tmp_path / "staged")
 
-        src = (run_dir / "final" / corpus_name).read_text(encoding="utf-8")
-        assert (dataset_dir / corpus_name).read_text(encoding="utf-8") == src
+        _, published = _published(dataset_dir, corpus_name)
+        source = [json.loads(l) for l in (run_dir / "final" / corpus_name)
+                 .read_text(encoding="utf-8").splitlines()]
+        assert published == source  # same order, same values
 
-    def test_a_malformed_corpus_line_leaves_the_order_untouched_instead_of_aborting(
+    def test_a_malformed_corpus_line_leaves_row_order_untouched_instead_of_aborting(
             self, tmp_path):
         """Row order is cosmetic, so it degrades rather than killing a publish:
         an old run whose language cannot be read is published in the order it
-        was written."""
+        was written. The malformed line itself passes through unchanged;
+        valid lines still go through the column reorder (moving doc_id from
+        this fixture's leading position to trailing), which is why this
+        compares parsed records rather than raw bytes."""
         run_dir, corpus_name = make_run_dir(
             tmp_path, pipeline="sdf", docs=2, audit_files=[], include_html=False,
             languages=["Spanish", "English"])
@@ -617,8 +719,12 @@ class TestEnglishFirstOrdering:
         staged, dataset_dir = _stage(run_dir, corpus_name, tmp_path / "staged")
 
         assert staged["languages"] is None
-        assert (dataset_dir / corpus_name).read_text(encoding="utf-8") == \
-            src.read_text(encoding="utf-8")
+        published_lines = (dataset_dir / corpus_name).read_text(
+            encoding="utf-8").splitlines()
+        source_lines = src.read_text(encoding="utf-8").splitlines()
+        assert published_lines[-1] == "{not json"
+        assert [json.loads(l) for l in published_lines[:-1]] == \
+            [json.loads(l) for l in source_lines[:-1]]
 
     def test_a_record_whose_language_cannot_be_read_lands_behind_the_english_block(
             self, tmp_path):
@@ -837,9 +943,11 @@ class TestDadVariablesColumn:
             # the write-up fields are not dealt cards and are not published
             assert not {"claims", "dilemma_anatomy", "moral_patients"} & set(variables)
 
-    def test_the_widest_column_sits_last(self, tmp_path):
-        """The two text columns are what a visitor came to read; a 19-field
-        struct in front of them owns the viewer's first screen."""
+    def test_example_gid_trails_every_column_including_variables(self, tmp_path):
+        """The two text columns are what a visitor came to read, so they
+        lead; example_gid trails everything — including the 19-field
+        variables struct — as pure lineage/join bookkeeping, not something a
+        reader needs in front of the content."""
         run_dir, corpus_name = make_run_dir(tmp_path, pipeline="dad", docs=1,
                                             audit_files=[], include_html=False)
         # a marked setting, so the language column is in play too
@@ -849,8 +957,8 @@ class TestDadVariablesColumn:
         _, dataset_dir = _stage(run_dir, corpus_name, tmp_path / "staged")
 
         _, records = _published(dataset_dir, corpus_name)
-        assert list(records[0]) == ["example_gid", "language", "user_prompt",
-                                    "assistant_response", "variables"]
+        assert list(records[0]) == ["user_prompt", "assistant_response",
+                                    "language", "variables", "example_gid"]
         assert records[0]["language"] == "Spanish"
 
     def test_a_run_with_no_dealt_cards_publishes_no_variables_column(self, tmp_path):

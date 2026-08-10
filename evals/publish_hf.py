@@ -227,13 +227,18 @@ def order_english_first(corpus_path: Path, language_of) -> dict[str, int] | None
     to reorder, leaving the file exactly as staged.
 
     Sorts the RAW LINES. Each line is parsed only to read its language, and the
-    original line is written back unchanged, so no re-serialisation can reorder
-    keys, reformat a float, or re-escape non-ASCII — json.dumps defaults to
-    ensure_ascii=True, which would turn most of a non-English corpus into
-    \\uXXXX escapes (flatten_dad_corpus already passes ensure_ascii=False for
-    exactly that reason). The published rows are therefore a permutation of the
-    run's own lines, which is checkable:
-    `diff <(sort published) <(sort final)` is empty.
+    original line — whatever byte form it already has by the time this
+    function runs — is written back unchanged, so this pass itself never
+    reorders a key, reformats a float, or re-escapes non-ASCII — json.dumps
+    defaults to ensure_ascii=True, which would turn most of a non-English
+    corpus into \\uXXXX escapes (flatten_dad_corpus and reorder_sdf_corpus both
+    already pass ensure_ascii=False for exactly that reason, upstream of this
+    function). The published rows are therefore always a permutation of
+    whatever this function was handed. Both corpora are re-keyed before
+    staging now, so that is no longer byte-identical to the run's own
+    final/*.jsonl — but it is still value-identical: the same records, the
+    same values, only column order and (here) row order changed. Checkable by
+    comparing parsed-and-sorted records rather than raw text.
 
     A STABLE binary partition, not a sort by language: English rows first in
     their original order, then every other row in its original order. Sorting
@@ -281,13 +286,81 @@ def order_english_first(corpus_path: Path, language_of) -> dict[str, int] | None
     return counts
 
 
+# Priority order for published SDF columns: the document text and its brief
+# (what a reader came for), then the short scalar metadata, then the widest
+# column (variables), then doc_id last — pure lineage/join bookkeeping that
+# trails everything else, including variables, the same content-then-
+# metadata-then-lineage-then-id shape flatten_dad_corpus uses for the DAD
+# config, so both configs read the same way on the Hub.
+SDF_COLUMN_ORDER = ["content", "description", "language", "type_name",
+                    "type_id", "register", "scores", "variables", "doc_id"]
+
+
+def reorder_sdf_corpus(src: Path, dst: Path) -> int:
+    """Write the published form of an SDF corpus: the same records as src, one
+    JSON object per line, with each object's keys reordered to
+    SDF_COLUMN_ORDER instead of sdf_pipeline/layer5_score.py's write order.
+
+    Every SDF_COLUMN_ORDER key present on a record is emitted in that order;
+    anything else on the record — a legacy field like subtype_id or role that
+    predates the current schema, or a future field this list hasn't caught up
+    to — is appended afterward in its original relative order. Nothing is ever
+    dropped: this reorders columns, it does not select them, so an older
+    committed run missing variables/description/type_name still publishes
+    every field it has, just reordered.
+
+    ensure_ascii=False for the same reason flatten_dad_corpus uses it: the
+    default would turn most of a non-English document into \\uXXXX escapes.
+
+    A line that isn't a parseable JSON object (blank, malformed) is written
+    through unchanged rather than aborting the whole publish — column order is
+    cosmetic, the same reasoning order_english_first already applies to row
+    order, just decided per line here since there is no reason for one bad
+    line to block reordering the rest of the file.
+
+    Never writes to src — only dst — so the run's own final/sdf_corpus.jsonl
+    is untouched; only the staged/published copy is reordered. Returns the
+    number of lines written.
+    """
+    n = 0
+    with open(src, encoding="utf-8") as fin, open(dst, "w", encoding="utf-8") as fout:
+        for line in fin:
+            stripped = line.strip()
+            record = None
+            if stripped:
+                try:
+                    parsed = json.loads(stripped)
+                except json.JSONDecodeError:
+                    parsed = None
+                if isinstance(parsed, dict):
+                    record = parsed
+            if record is None:
+                fout.write(line if line.endswith("\n") else line + "\n")
+            else:
+                row = {k: record[k] for k in SDF_COLUMN_ORDER if k in record}
+                row.update((k, v) for k, v in record.items()
+                          if k not in SDF_COLUMN_ORDER)
+                fout.write(json.dumps(row, ensure_ascii=False) + "\n")
+            n += 1
+    return n
+
+
 def flatten_dad_corpus(src: Path, dst: Path, languages: dict[str, str] | None = None,
                        cards: dict[str, dict] | None = None,
                        append: bool = False) -> int:
     """Write the published form of a DAD corpus: one flat record per example
-    (example_gid, language, user_prompt, assistant_response, variables) instead
+    (user_prompt, assistant_response, language, variables, example_gid) instead
     of the training format's messages array, so the Hub viewer shows one
     readable column per field with no role/content nesting.
+
+    The two text columns lead because they are what a visitor came to read.
+    `language` and `variables` follow for the same reason in reverse — a short
+    language cell and the one nested column cost almost nothing behind two
+    wide text columns, but would push those columns off the viewer's first
+    screen sitting in front of them. `example_gid` trails everything,
+    including `variables` — it is pure lineage/join bookkeeping (still used
+    internally, below, to look up `language` and `variables`), not something
+    a reader needs in front of the content.
 
     `language` is the language the scenario was DEALT (see dad_languages), not
     one detected from the text, and it is emitted only when the map is
@@ -301,20 +374,19 @@ def flatten_dad_corpus(src: Path, dst: Path, languages: dict[str, str] | None = 
     can tell which slice of the matrix a prompt/response pair came from rather
     than only which language it is in. It follows `language`'s two rules for
     the same reasons — emitted only when something resolves, null on a row that
-    does not join — and sits LAST because it is the widest cell on the row and
-    the two text columns are what a visitor came to read.
+    does not join — and sits second-to-last, ahead of only `example_gid`,
+    because it is the widest cell on the row.
 
     Both are joined off the run rather than read from the corpus record, even
     though the record now carries `variables` itself: every committed run
     predates that field, and one source means the column cannot mean different
     things on either side of the change.
 
-    That this column is worth its width, while the old source_run column was
-    not, is not a contradiction. A short language cell against two very wide
-    text columns costs almost nothing on the viewer's first screen, and unlike
-    a run id repeated down every row it carries information no other column
-    holds — which is exactly what a reader needs once the corpus is ordered
-    English-first and a balanced sample has to be rebuilt.
+    That this column is worth carrying, while the old source_run column was
+    not, is not a contradiction: unlike a run id repeated down every row,
+    language carries information no other column holds — which is exactly what
+    a reader needs once the corpus is ordered English-first and a balanced
+    sample has to be rebuilt.
 
     Deliberately carries NO per-row run column, even when several runs are
     concatenated into one published corpus (append=True for every run after
@@ -351,13 +423,14 @@ def flatten_dad_corpus(src: Path, dst: Path, languages: dict[str, str] | None = 
                     f"— refusing to publish a mangled row"
                 )
             gid = record.get("example_gid")
-            row = {"example_gid": gid}
-            if languages:
-                row["language"] = languages.get(gid)
+            row = {}
             row["user_prompt"] = by_role["user"]
             row["assistant_response"] = by_role["assistant"]
+            if languages:
+                row["language"] = languages.get(gid)
             if cards:
                 row["variables"] = dealt_variables(cards[gid]) if gid in cards else None
+            row["example_gid"] = gid
             fout.write(json.dumps(row, ensure_ascii=False) + "\n")
             n += 1
     return n
@@ -464,9 +537,7 @@ def stage_run(run_dirs: list[Path], corpus_name: str, staging_dir: Path,
             n = flatten_dad_corpus(corpus_src, corpus_dst, dad_language_map,
                                    dad_cards_map, append=(i > 0))
         else:
-            shutil.copy2(corpus_src, corpus_dst)
-            with open(corpus_dst, encoding="utf-8") as f:
-                n = sum(1 for _ in f)
+            n = reorder_sdf_corpus(corpus_src, corpus_dst)
         staged["n_docs"] += n
         staged["runs"].append({"run_id": run_id, "n_docs": n})
 
@@ -751,10 +822,9 @@ def main() -> None:
                          f"(got {sorted(corpus_names)})")
     corpus_name = corpus_names.pop()
     if corpus_name == "sdf_corpus.jsonl" and len(run_dirs) > 1:
-        # SDF corpora are copied verbatim rather than rewritten record by
-        # record, and SDF has no cross-run stable id (doc_id is per-run), so a
-        # concatenation would leave rows no way to be traced back to a run —
-        # not even through the repo, the way DAD's example_gid allows.
+        # SDF has no cross-run stable id (doc_id is per-run, unlike DAD's
+        # globally unique example_gid), so a concatenation would leave rows no
+        # way to be traced back to a run — not even through the repo.
         raise SystemExit("Combined publishing is DAD-only; pass one SDF run dir.")
     if len(set(run_dirs)) != len(run_dirs):
         raise SystemExit("Duplicate --input run dirs would double their rows "
