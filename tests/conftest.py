@@ -244,26 +244,21 @@ def fake_message():
 
 @pytest.fixture
 def stub_hf(monkeypatch):
-    """Factory that replaces evals.publish_hf's five Hub-API chokepoints
-    (_create_repo/_upload_folder/_create_tag/_list_repo_files/_download_file)
-    with recording stubs, so tests never import huggingface_hub or touch the
-    network.
+    """Factory that replaces evals.publish_hf's three Hub-API chokepoints
+    (_create_repo/_upload_folder/_create_tag) with recording stubs, so tests
+    never import huggingface_hub or touch the network.
 
     ``install()`` returns the list of recorded calls; pass ``raise_on_call=True``
     to make every call raise instead — used to assert --dry-run makes none.
 
-    ``repo_files`` seeds what _list_repo_files reports (a repo-path -> JSON
-    dict mapping), so a test can simulate a sibling dataset already published.
-    _download_file then writes that JSON to the requested local_dir, mirroring
-    hf_hub_download's repo-structure-preserving behavior.
+    It was five: _list_repo_files and _download_file went with the dataset-card
+    generator, which read the sibling pipeline's metadata back off the Hub to
+    rebuild its section. Publishing is now write-only.
     """
 
-    def install(raise_on_call: bool = False, repo_files: dict | None = None):
-        from pathlib import Path as _Path
-
+    def install(raise_on_call: bool = False):
         from evals import publish_hf
         calls = []
-        repo_files = repo_files or {}
 
         def _blocked(name):
             def fn(*args, **kwargs):
@@ -284,22 +279,9 @@ def stub_hf(monkeypatch):
         def _create_tag(repo_id, tag):
             calls.append({"fn": "create_tag", "repo_id": repo_id, "tag": tag})
 
-        def _list_repo_files(repo_id):
-            calls.append({"fn": "list_repo_files", "repo_id": repo_id})
-            return sorted(repo_files)
-
-        def _download_file(repo_id, filename, local_dir):
-            calls.append({"fn": "download_file", "repo_id": repo_id,
-                          "filename": filename, "local_dir": local_dir})
-            dest = _Path(local_dir) / filename
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            dest.write_text(json.dumps(repo_files[filename]), encoding="utf-8")
-            return str(dest)
-
         stubs = {
             "_create_repo": _create_repo, "_upload_folder": _upload_folder,
-            "_create_tag": _create_tag, "_list_repo_files": _list_repo_files,
-            "_download_file": _download_file,
+            "_create_tag": _create_tag,
         }
         for name, impl in stubs.items():
             monkeypatch.setattr(publish_hf, name,

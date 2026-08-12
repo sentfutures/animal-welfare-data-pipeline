@@ -1,0 +1,154 @@
+# Claude Quota Retry — every 30 minutes, relaunch items parked by the fixer
+# pipeline. No Claude involved; pure gh.
+#
+# Two queues, both oldest-first, both excluding needs-human:
+#   1. claude-busy-wait  — deferred by the 2-concurrent-jobs cap; ready to run,
+#      no retry counter involved, so they go first.
+#   2. claude-quota-wait — killed by a subscription usage limit; each retry is
+#      counted in the item's `<!-- claude-quota ... count=N -->` marker
+#      comment. 8 retries → needs-human. tier-max items whose PLAN phase
+#      quota-failed are frozen (never auto-retried): a Fable planning run draws
+#      heavily on the rolling allowance, so relaunching one every reset window
+#      is exactly the failure mode this cron must not create. tier-max
+#      IMPLEMENT failures run on Opus and retry normally — the resume check in
+#      claude-fix skips the Fable plan step because the plan comment exists.
+#
+# Re-triggering uses `gh workflow run` (workflow_dispatch), NOT label
+# remove/re-add: events created with GITHUB_TOKEN don't fire workflows, but
+# workflow_dispatch is explicitly exempt from that rule. Dispatch happens
+# BEFORE the wait label is removed — if the unlabel fails we get a harmless
+# duplicate dispatch next tick, whereas the reverse order can drop an item.
+#
+# At most 2 dispatches per tick, further limited by live capacity, so a long
+# backlog drains without stampeding the quota the moment it resets.
+
+name: Claude Quota Retry
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: claude-quota-retry
+  cancel-in-progress: false
+
+permissions:
+  issues: write
+  pull-requests: write
+  actions: write # gh workflow run
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      REPO: ${{ github.repository }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Requeue waiting items
+        run: |
+          set -euo pipefail
+
+          # Capacity counts every claude-code-action workflow on the shared
+          # subscription token (fixers + @claude mentions + auto-reviewer), so a
+          # retry is never dispatched into a window another Claude job is using.
+          busy=$(gh api "repos/$REPO/actions/runs?status=in_progress&per_page=100" \
+            --jq '[.workflow_runs[] | select(.path == ".github/workflows/claude-fix.yml" or .path == ".github/workflows/claude-review-fix.yml" or .path == ".github/workflows/claude.yml" or .path == ".github/workflows/claude-code-review.yml")] | length')
+          budget=$((2 - busy))
+          if [ "$budget" -gt 2 ]; then budget=2; fi
+          if [ "$budget" -le 0 ]; then
+            echo "No capacity ($busy Claude runs in progress) — nothing this tick."
+            exit 0
+          fi
+          echo "Capacity this tick: $budget dispatch(es) ($busy runs in progress)."
+
+          search() {
+            gh api -X GET search/issues \
+              -f q="repo:$REPO is:open label:$1 -label:needs-human" \
+              -f sort=created -f order=asc -f per_page=50 \
+              --jq '.items[] | "\(.number)\t\(if .pull_request then "pr" else "issue" end)"'
+          }
+          dispatch_item() { # $1=number $2=kind
+            if [ "$2" = "pr" ]; then
+              gh workflow run claude-review-fix.yml -R "$REPO" -f pr_number="$1"
+            else
+              gh workflow run claude-fix.yml -R "$REPO" -f issue_number="$1"
+            fi
+          }
+          remove_label() { gh api -X DELETE "repos/$REPO/issues/$1/labels/$2" >/dev/null 2>&1 || true; }
+          # Quota markers and freeze notes are only ever posted by the pipeline
+          # itself as github-actions[bot]; filtering by that exact author keeps
+          # strangers from forging count/manual_only/reset values that would
+          # freeze an item, stall it, or shove it past the retry cap.
+          comments_of() {
+            gh api "repos/$REPO/issues/$1/comments" --paginate 2>/dev/null \
+              | jq -rs 'add // [] | [ .[] | select(.user.login == "github-actions[bot]") ]'
+          }
+
+          # ---- Queue A: busy-wait -------------------------------------------
+          while IFS=$'\t' read -r num kind; do
+            [ -z "${num:-}" ] && continue
+            if [ "$budget" -le 0 ]; then echo "Budget exhausted; remaining busy-wait items keep their label."; break; fi
+            echo "busy-wait → relaunch $kind #$num"
+            if dispatch_item "$num" "$kind"; then
+              remove_label "$num" claude-busy-wait
+              budget=$((budget - 1))
+            else
+              echo "::warning::Dispatch failed for $kind #$num — leaving claude-busy-wait for the next tick."
+            fi
+          done <<< "$(search claude-busy-wait || true)"
+
+          # ---- Queue B: quota-wait ------------------------------------------
+          while IFS=$'\t' read -r num kind; do
+            [ -z "${num:-}" ] && continue
+            comments=$(comments_of "$num")
+            marker=$(jq -r '[ .[] | select(.body | contains("<!-- claude-quota ")) ] | (last // empty) | .body' <<<"$comments" \
+              | grep -o '<!-- claude-quota [^>]*-->' | head -1 || true)
+            phase=$(sed -n 's/.* phase=\([a-z-]*\).*/\1/p' <<<"$marker")
+            tier=$(sed -n 's/.* tier=\([a-zA-Z/-]*\).*/\1/p' <<<"$marker")
+            count=$(sed -n 's/.* count=\([0-9]*\).*/\1/p' <<<"$marker")
+            manual=$(sed -n 's/.* manual_only=\([a-z]*\).*/\1/p' <<<"$marker")
+            reset=$(sed -n 's/.* reset="\([^"]*\)".*/\1/p' <<<"$marker")
+
+            # Frozen: tier-max plan-phase failures are never auto-retried.
+            if [ "$manual" = "true" ] || { [ "$tier" = "tier-max" ] && [ "$phase" = "plan" ]; }; then
+              if ! jq -e '[ .[] | select(.body | contains("<!-- claude-quota-frozen -->")) ] | length > 0' <<<"$comments" >/dev/null; then
+                gh issue comment "$num" -R "$REPO" --body "<!-- claude-quota-frozen -->
+          **Not auto-retrying**: this tier-max item quota-failed in its Fable planning phase. Relaunch it manually — when your quota has reset — by removing and re-adding the \`claude-fix\` label (re-adding an already-present label fires no event), or with \`gh workflow run claude-fix.yml -f issue_number=$num\`. The \`claude-quota-wait\` label stays on as the reminder." || true
+              fi
+              echo "quota-wait $kind #$num: frozen (tier-max plan phase) — skipping."
+              continue
+            fi
+
+            # Retry cap.
+            if [ "${count:-1}" -ge 8 ]; then
+              remove_label "$num" claude-quota-wait
+              gh api -X POST "repos/$REPO/issues/$num/labels" -f "labels[]=needs-human" >/dev/null
+              gh issue comment "$num" -R "$REPO" --body "**8 quota retries exhausted** — giving up on automatic relaunch. A human should check whether the subscription window is chronically saturated or something else keeps eating the allowance." || true
+              echo "quota-wait $kind #$num: retry cap reached → needs-human."
+              continue
+            fi
+
+            # Best-effort reset-time skip: don't burn a dispatch while the limit
+            # is known to still be in force. Reset strings carry no timezone, so
+            # this only reduces waste — the 8-cap is the real bound.
+            if [ -n "$reset" ]; then
+              t=$(date -d "$(sed 's/^[Rr]esets //' <<<"$reset")" +%s 2>/dev/null || echo "")
+              if [ -n "$t" ] && [ "$t" -gt "$(date +%s)" ]; then
+                echo "quota-wait $kind #$num: reset ('$reset') still in the future — skipping this tick."
+                continue
+              fi
+            fi
+
+            if [ "$budget" -le 0 ]; then echo "Budget exhausted; remaining quota-wait items keep their label."; break; fi
+            echo "quota-wait → relaunch $kind #$num (retry $count of 8)"
+            if dispatch_item "$num" "$kind"; then
+              remove_label "$num" claude-quota-wait
+              budget=$((budget - 1))
+            else
+              echo "::warning::Dispatch failed for $kind #$num — leaving claude-quota-wait for the next tick."
+            fi
+          done <<< "$(search claude-quota-wait || true)"
+
+          echo "Tick complete."

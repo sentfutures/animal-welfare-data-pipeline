@@ -61,7 +61,29 @@ Click that link (or go to the repo on GitHub — it usually shows a "Compare & p
 
 ---
 
-## 6. After the PR is merged: clean up your branches
+## 6. Understand what the PR page is telling you
+
+Two automated checks run on every PR, near the bottom of the page:
+
+- **`smoke`** — installs the project and runs the test suite. Takes a minute or two.
+- **`claude-review`** — an automated reviewer (it appears as `claude[bot]`) that reads your changes and leaves a review. Takes about three minutes.
+
+**Merging needs two things: `smoke` green *and* one approving review.** This trips people up, so it's worth saying plainly: green checks alone are **not** enough. If nobody has approved, the merge button stays disabled no matter how green the page looks.
+
+Here's what to do in each case:
+
+| What you see | What it means | What to do |
+|---|---|---|
+| ✅ **Approved** by `claude[bot]` | It found no significant problems. That approval counts, so you can merge. | Merge it. |
+| ❌ **Changes requested** | It found something it thinks is wrong. The specifics are in comments attached to individual lines of your code. | Read the line comments, fix or reply to each one, then `git push`. It reviews again automatically — you don't need to ask. |
+| 💬 **A comment, no approval** — and the `claude-review` check is red, with a `needs-human-review` label | The bot hit a question it can't answer itself, so it has asked a maintainer to decide. The question is in the review comment. | Read the question. If you can answer it, reply on the PR. Then **chase it** — say something in the team chat. Don't wait silently; this one doesn't resolve on its own. |
+| ⚪️ **No review appeared at all** after ~5 minutes | The reviewer never ran. | Close the PR and immediately reopen it (buttons at the bottom) — that starts the checks again. If it still doesn't run, leave a comment saying `@claude please review this PR`. |
+
+If you're stuck or the review says something you don't understand, **ask** — in the team chat or as a comment on the PR. A confusing review is a problem with the review, not with you, and it's useful to know about.
+
+---
+
+## 7. After the PR is merged: clean up your branches
 
 Once your PR is approved and merged into `main`, delete the branch both on GitHub and locally so things stay tidy.
 

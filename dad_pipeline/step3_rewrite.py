@@ -4,9 +4,10 @@ The rewrite is anchored on the distilled constitution principles (each with
 its verbatim constitution quote), per prompts/dad/step3_rewrite.txt. That
 template splits (via utils.load_split_prompt) into a system half — the
 rewrite instructions plus the principles block — and a user half carrying
-the draft and user message. The step-1 annotation is not passed (it rides
-along in the audit records for inspection only): the full constitution was
-context for distilling the principles, not a per-call dependency.
+the draft and user message. The step-1 dealt cards are not passed to the call
+(they ride along in the audit record, and are projected onto the corpus
+record's `variables` for inspection): the full constitution was context for
+distilling the principles, not a per-call dependency.
 """
 
 import uuid
@@ -17,6 +18,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from shared import api, utils, constitution_loader
 from dad_pipeline.id_registry import IdRegistry, example_fingerprint, prompt_key, registry_path
+from dad_pipeline.compose_scenarios import dealt_variables
+from dad_pipeline.step1_dilemmas import dealt_cards
 
 
 def run(
@@ -84,12 +87,14 @@ def run(
         rid = resp["response_id"]
         scenario_cards = resp.get("scenario_cards") or resp.get("annotation") or {}
 
-        # A truncated (max_tokens), empty, or transcript-echoed rewrite must
-        # never become a training record. Skip it without checkpointing so a
-        # later --resume retries it, and log it so repeated failures are
-        # visible rather than silent.
-        if not rewritten or stop_reason == "max_tokens" or utils.looks_like_transcript_echo(rewritten):
+        # A truncated (max_tokens), refusal-cut, empty, or transcript-echoed
+        # rewrite must never become a training record. Skip it without
+        # checkpointing so a later --resume retries it, and log it so
+        # repeated failures are visible rather than silent.
+        if (not rewritten or stop_reason in ("max_tokens", "refusal")
+                or utils.looks_like_transcript_echo(rewritten)):
             why = ("truncated at max_tokens (even at 8000)" if stop_reason == "max_tokens"
+                   else "cut by the refusal classifier (stop_reason=refusal)" if stop_reason == "refusal"
                    else "transcript echo (reply wrapped in USER:/ASSISTANT: replay)"
                    if rewritten else "empty")
             print(f"    Skipping {prompt_key(resp)}: rewrite {why} — not written, will retry on resume.")
@@ -125,7 +130,12 @@ def run(
 
     # Write final training-ready corpus — user + assistant messages plus the
     # stable ids (lineage keys, stripped with record_id at export; never text
-    # the model trains on)
+    # the model trains on) and the dealt cards. The cards are metadata about
+    # the record in the same way the ids are, not scaffolding the model reads:
+    # they say which slice of the matrix this example came from, and the SDF
+    # corpus carries its own dealt combination for the same reason
+    # (sdf_pipeline/layer4_score.py). The scope, the library rows and the
+    # constitution stay stripped.
     utils.ensure_dir(final_dir)
     final_records = []
     for r in results:
@@ -133,6 +143,7 @@ def run(
             "record_id": r["record_id"],
             "example_gid": r.get("example_gid"),
             "response_gid": r.get("response_gid"),
+            "variables": dealt_variables(dealt_cards(r)),
             "messages": [
                 {"role": "user", "content": r["user_message"]},
                 {"role": "assistant", "content": r["rewritten_response"]},

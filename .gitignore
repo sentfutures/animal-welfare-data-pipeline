@@ -24,3 +24,9 @@ embeddings_cache.npz
 
 # Machine-local config override (backend: auto etc.) — never committed
 config.local.yaml
+
+# A `--site-url` build copies the card image out beside the page, but the deploy
+# stages it from website/assets/ (see .github/workflows/pages.yml), so this copy
+# is a build artefact and would be a second, drifting 60KB binary in git.
+# The committed card image is website/assets/preview.png.
+/website/preview.png

@@ -84,6 +84,36 @@ class TestTruncationAudit:
         ), report)
         assert report["length"]["truncated"] == 0
 
+    def test_long_signoff_and_see_also_rows_are_not_truncation(self):
+        # The shapes the length-only rule still got wrong: a sign-off or a
+        # cross-reference row over 12 words / 80 characters. Six of the nine
+        # documents the pinned SDF run flagged were these, so the row reported
+        # 1.9% against a corpus with no truncation in it at all.
+        report = {}
+        audit_sdf.audit_length_truncation(_recs(
+            "Thank you for the referral.\n\nDr. Amara Okonkwo | Senior Veterinary "
+            "Officer | National Animal Welfare Board",
+            "Coverage of the incident remains partial.\n\nSee also: Digital minds and "
+            "moral status; AI welfare protocols; Duty cycle standards in "
+            "software-based labor; Precautionary reasoning under moral uncertainty",
+            "Marking this resolved per the template. This one is about the ducks. "
+            "— user:mod_greenhollow, 27 May",
+        ), report)
+        assert report["length"]["truncated"] == 0
+
+    def test_a_real_truncation_is_still_counted(self):
+        # The other half: the exemptions must not empty the row out. This tail
+        # is cut mid-word and carries an em dash and commas, the punctuation the
+        # sign-off exemptions key on.
+        report = {}
+        audit_sdf.audit_length_truncation(_recs(
+            "Complete sentence.",
+            "Exhibit lighting 0600 to 0100 is a 19-hour day with no dark period, "
+            "handling blocks every ninety minutes with no scheduled rest, in "
+            "enclosures at the template minimum — which means most of four to six thous",
+        ), report)
+        assert report["length"]["truncated"] == 1
+
 
 class TestRegisterMetric:
     def test_english_full_name_docs_are_scored(self):

@@ -1,0 +1,904 @@
+# Claude Fix — turns an issue labeled `claude-fix` into a tested PR on branch
+# claude/issue-<n>.
+#
+# Tier labels pick the models/effort (see the params step): tier-light is a
+# single fix pass; tier-standard/heavy/max run TWO Claude phases — a read-only
+# PLAN step (--permission-mode plan; writes are tool-level blocked), whose plan
+# is posted as an issue comment by a plain step, then a plain RISK GATE, then an
+# IMPLEMENT step that receives the plan verbatim. tier-max (Fable planner) is
+# escalation-only: humans apply it; kickoff and triage never do.
+#
+# State between runs lives ONLY in GitHub: the plan comment (marker
+# `<!-- claude-plan issue=N tier=T risk=R -->`), the claude/issue-<n> branch,
+# and quota-marker comments (`<!-- claude-quota ... -->`). A re-run resumes:
+# same-tier plan comment → the plan step is skipped; existing branch → the
+# implement step verifies the diff and continues rather than restarting.
+#
+# Identity: Claude's pushes/comments use the Claude App token (the action's
+# default). The PR itself is created by a plain step with GITHUB_TOKEN so the
+# author is github-actions[bot] — claude[bot] cannot approve or request changes
+# on a PR it authored itself, and the auto-reviewer's verdict must do both.
+# GITHUB_TOKEN events don't trigger workflows, so a close/reopen with the App
+# token then fires `smoke` + the auto-review on the new PR.
+#
+# Quota exhaustion (subscription usage limits) is an expected failure mode: the
+# classify step distinguishes it from task failures and labels
+# claude-quota-wait for the retry cron (claude-quota-retry.yml). Everything
+# else deliberate stops with exit 0, so `if: failure()` means a real failure.
+#
+# The workflow_dispatch trigger serves the cron's re-launches (GITHUB_TOKEN may
+# not fire label events, but workflow_dispatch is exempt) and the
+# simulate_quota test hook, which exercises classifier → cron → resume without
+# spending tokens.
+
+name: Claude Fix
+
+on:
+  issues:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "Issue number to (re)process"
+        required: true
+        type: string
+      simulate_quota:
+        description: "Test hook: skip Claude and fail the phase named by simulate_phase with a fake usage-limit error"
+        required: false
+        type: boolean
+        default: false
+      simulate_phase:
+        description: "Phase the simulated quota failure hits (plan | implement)"
+        required: false
+        type: string
+        default: "plan"
+
+# One run per issue at a time; a duplicate trigger queues instead of killing a
+# paid run mid-flight. (GitHub keeps only the newest pending run per group —
+# fine here, every run is idempotent-by-resume.)
+concurrency:
+  group: claude-fix-${{ github.event.issue.number || inputs.issue_number }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write # push claude/issue-<n>
+  issues: write # labels + comments
+  pull-requests: write # open the PR
+  id-token: write # claude-code-action auth
+  actions: write # busy gate reads runs; auto-continue + backfill dispatch workflows
+
+jobs:
+  fix:
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'claude-fix'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      REPO: ${{ github.repository }}
+      ISSUE: ${{ github.event.issue.number || inputs.issue_number }}
+    steps:
+      - name: Preflight (guards, busy gate, triage routing)
+        id: route
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          SIMULATE: ${{ inputs.simulate_quota }}
+        run: |
+          set -euo pipefail
+          stop() { echo "$1"; echo "proceed=false" >> "$GITHUB_OUTPUT"; echo "live=false" >> "$GITHUB_OUTPUT"; exit 0; }
+
+          json=$(gh issue view "$ISSUE" -R "$REPO" --json state,labels,body)
+          state=$(jq -r .state <<<"$json")
+          labels=$(jq -r '[.labels[].name] | join(" ")' <<<"$json")
+          [ "$state" = "OPEN" ] || stop "Issue #$ISSUE is $state — nothing to do."
+          # needs-human is an absolute stop: only a human removing the label re-arms the item.
+          case " $labels " in *" needs-human "*) stop "Issue #$ISSUE is labeled needs-human — a human must clear it first.";; esac
+          if [ "$EVENT" = "issues" ]; then
+            case " $labels " in *" claude-fix "*) : ;; *) stop "claude-fix label was removed since the event fired.";; esac
+          fi
+
+          # Busy gate: repo-wide cap of 2 simultaneous Claude jobs (subscription
+          # quota). Counts every workflow that runs claude-code-action on the
+          # shared CLAUDE_CODE_OAUTH_TOKEN — the two fixer workflows plus the
+          # @claude mention handler and the auto-reviewer (which this pipeline
+          # itself triggers on the PRs it opens). Only fixer runs can be
+          # deferred, but all four draw the quota being protected. Best-effort —
+          # two runs starting in the same second can both count the same peers;
+          # the cap smooths quota use, it isn't a lock.
+          busy=$(gh api "repos/$REPO/actions/runs?status=in_progress&per_page=100" \
+            --jq '[.workflow_runs[] | select((.path == ".github/workflows/claude-fix.yml" or .path == ".github/workflows/claude-review-fix.yml" or .path == ".github/workflows/claude.yml" or .path == ".github/workflows/claude-code-review.yml") and (.id != '"$GITHUB_RUN_ID"'))] | length')
+          if [ "${busy:-0}" -ge 2 ]; then
+            gh api -X POST "repos/$REPO/issues/$ISSUE/labels" -f "labels[]=claude-busy-wait" >/dev/null
+            gh issue comment "$ISSUE" -R "$REPO" --body "Deferred: $busy Claude jobs already in progress (repo-wide cap: 2). The retry cron will relaunch this automatically."
+            stop "Busy: $busy Claude runs already in progress."
+          fi
+          # This run supersedes any recorded wait state.
+          for l in claude-busy-wait claude-quota-wait; do
+            gh api -X DELETE "repos/$REPO/issues/$ISSUE/labels/$l" >/dev/null 2>&1 || true
+          done
+
+          # Batch-dependency guard: kickoff stamps `after=<issue>` in its
+          # marker when this issue shares files with an earlier batch-mate.
+          # While that predecessor is open, defer — the requeue tick fired
+          # after every run (and the half-hour cron) re-checks, so this clears
+          # itself the moment the predecessor's PR merges and closes it.
+          dep=$(jq -r .body <<<"$json" | grep -o '<!-- claude-kickoff [^>]*-->' | head -1 | sed -n 's/.* after=#\{0,1\}\([0-9]\{1,\}\).*/\1/p')
+          if [ -n "$dep" ]; then
+            dstate=$(gh issue view "$dep" -R "$REPO" --json state --jq .state 2>/dev/null || echo "")
+            if [ "$dstate" = "OPEN" ]; then
+              gh api -X POST "repos/$REPO/issues/$ISSUE/labels" -f "labels[]=claude-busy-wait" >/dev/null
+              if ! gh api "repos/$REPO/issues/$ISSUE/comments" --paginate 2>/dev/null \
+                   | jq -es '(add // []) | map(select(.body | contains("<!-- claude-waiting-on "))) | length > 0' >/dev/null; then
+                gh issue comment "$ISSUE" -R "$REPO" --body "<!-- claude-waiting-on dep=$dep --> Waiting for #$dep to close first (same-file batch order from kickoff). The queue re-checks automatically after every run and every cron tick — nothing to do."
+              fi
+              stop "Deferred: waiting on predecessor #$dep."
+            fi
+          fi
+
+          tier=""
+          for t in tier-max tier-heavy tier-standard tier-light; do
+            case " $labels " in *" $t "*) tier="$t"; break;; esac
+          done
+          needs_triage=false
+          if [ -z "$tier" ]; then
+            if jq -r .body <<<"$json" | grep -q '<!-- claude-kickoff'; then
+              tier="tier-standard"   # kickoff always labels a tier; defensive default
+            else
+              needs_triage=true
+            fi
+          fi
+
+          {
+            echo "proceed=true"
+            echo "live=$([ "${SIMULATE:-false}" = "true" ] && echo false || echo true)"
+            echo "simulate=${SIMULATE:-false}"
+            echo "needs_triage=$needs_triage"
+            echo "tier=${tier:-tier-standard}"
+          } >> "$GITHUB_OUTPUT"
+
+      # ---- simulate_quota test hook: stand in for a Claude step and fail with
+      # ---- the real usage-limit message shape, so classify → cron → resume can
+      # ---- be verified end to end without spending tokens.
+      - name: Simulate quota failure (plan phase)
+        id: sim_plan
+        if: steps.route.outputs.proceed == 'true' && steps.route.outputs.simulate == 'true' && inputs.simulate_phase == 'plan'
+        run: |
+          f="$RUNNER_TEMP/sim_exec.json"
+          printf '%s' '[{"type":"result","subtype":"error_during_execution","is_error":true,"num_turns":1,"result":"You'"'"'ve hit your weekly limit · resets Mon 12:00am"}]' > "$f"
+          echo "execution_file=$f" >> "$GITHUB_OUTPUT"
+          echo "Simulated usage-limit failure (plan phase)."
+          exit 1
+
+      - name: Simulate quota failure (implement phase)
+        id: sim_impl
+        if: steps.route.outputs.proceed == 'true' && steps.route.outputs.simulate == 'true' && inputs.simulate_phase == 'implement'
+        run: |
+          f="$RUNNER_TEMP/sim_exec.json"
+          printf '%s' '[{"type":"result","subtype":"error_during_execution","is_error":true,"num_turns":1,"result":"You'"'"'ve hit your session limit · resets 3:45pm"}]' > "$f"
+          echo "execution_file=$f" >> "$GITHUB_OUTPUT"
+          echo "Simulated usage-limit failure (implement phase)."
+          exit 1
+
+      - name: Checkout repository
+        if: steps.route.outputs.live == 'true'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # implement works with branch history and origin/main diffs
+
+      - name: Set up Python
+        if: steps.route.outputs.live == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Installed before any Claude step so the test gate (compileall + pytest)
+      # runs inside the implement/light phases.
+      - name: Install dependencies
+        if: steps.route.outputs.live == 'true'
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # Issues that arrive without a tier label and weren't created by
+      # scripts/kickoff.sh get a cheap triage pass that may ONLY apply a label.
+      - name: Triage tier
+        id: triage
+        if: steps.route.outputs.live == 'true' && steps.route.outputs.needs_triage == 'true'
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          show_full_output: true
+          allowed_bots: "*"
+          prompt: |
+            REPO: ${{ github.repository }}
+            ISSUE NUMBER: ${{ env.ISSUE }}
+
+            You are a triage step in an automated fix pipeline. Read the issue
+            with `gh issue view ${{ env.ISSUE }} --json title,body,labels`, then
+            apply EXACTLY ONE tier label with
+            `gh issue edit ${{ env.ISSUE }} --add-label <tier>`:
+            - tier-light: mechanical fixes — lint, naming, dead code, small
+              refactors, missing tests for existing behavior
+            - tier-standard: multi-file changes, unclear root cause, moderate
+              refactors (the default when unsure)
+            - tier-heavy: cross-cutting/structural changes, concurrency, subtle bugs
+            NEVER apply tier-max — it is a human-only escalation tier.
+            Do nothing else: no comments, no other labels, no code inspection
+            beyond the issue text.
+          claude_args: |
+            --model sonnet
+            --effort low
+            --max-turns 5
+            --allowedTools "Bash(gh issue view:*),Bash(gh issue edit:*)"
+            --disallowedTools "Task"
+
+      # Single source of truth for tier → models/effort, re-read after triage.
+      - name: Resolve tier parameters
+        id: params
+        if: steps.route.outputs.live == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NEEDS_TRIAGE: ${{ steps.route.outputs.needs_triage }}
+        run: |
+          set -euo pipefail
+          labels=$(gh issue view "$ISSUE" -R "$REPO" --json labels --jq '[.labels[].name] | join(" ")')
+          tier=""
+          for t in tier-max tier-heavy tier-standard tier-light; do
+            case " $labels " in *" $t "*) tier="$t"; break;; esac
+          done
+          # Triage may never escalate to the Fable tier.
+          if [ "$NEEDS_TRIAGE" = "true" ] && [ "$tier" = "tier-max" ]; then
+            echo "::warning::Triage applied tier-max, which is human-only — downgrading to tier-standard."
+            gh api -X DELETE "repos/$REPO/issues/$ISSUE/labels/tier-max" >/dev/null 2>&1 || true
+            tier=""
+          fi
+          if [ -z "$tier" ]; then
+            tier=tier-standard
+            gh api -X POST "repos/$REPO/issues/$ISSUE/labels" -f "labels[]=tier-standard" >/dev/null
+            echo "No tier label — defaulted to tier-standard."
+          fi
+          case "$tier" in
+            tier-light)    mode=light;     plan_model="";               plan_effort="";     impl_model=sonnet; impl_effort=medium ;;
+            tier-standard) mode=two_phase; plan_model=opus;             plan_effort=high;   impl_model=sonnet; impl_effort=high ;;
+            tier-heavy)    mode=two_phase; plan_model=opus;             plan_effort=xhigh;  impl_model=opus;   impl_effort=high ;;
+            tier-max)      mode=two_phase; plan_model=claude-fable-5;   plan_effort=high;   impl_model=opus;   impl_effort=high ;;
+          esac
+          {
+            echo "tier=$tier"; echo "mode=$mode"
+            echo "plan_model=$plan_model"; echo "plan_effort=$plan_effort"
+            echo "impl_model=$impl_model"; echo "impl_effort=$impl_effort"
+          } >> "$GITHUB_OUTPUT"
+          echo "Tier $tier → mode=$mode plan=$plan_model/$plan_effort implement=$impl_model/$impl_effort"
+
+      # Resume state: a same-tier plan comment skips the plan phase; an existing
+      # branch makes the implement phase continue rather than restart.
+      - name: Read resume state (plan comment, branch)
+        id: state
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TIER: ${{ steps.params.outputs.tier }}
+        if: steps.route.outputs.live == 'true'
+        run: |
+          set -euo pipefail
+          # Only trust plan comments posted by this pipeline's exact identities:
+          # github-actions[bot] (the post_plan step) and claude[bot] (tier-light
+          # posts via the App token). Exact matches only — a substring test
+          # would let any account with "claude" in its login forge a risk=LOW
+          # plan that the implement phase follows verbatim.
+          # (--paginate emits one JSON array per page; jq -s add merges them.)
+          gh api "repos/$REPO/issues/$ISSUE/comments" --paginate 2>/dev/null \
+            | jq -rs 'add // []
+                | [ .[] | select(.user.login == "github-actions[bot]" or .user.login == "claude[bot]")
+                        | select(.body | contains("<!-- claude-plan issue=" + env.ISSUE + " ")) ]
+                | (last // empty) | .body' \
+            > "$RUNNER_TEMP/plan_comment.md" || true
+          have_plan=false; plan_risk=""
+          if [ -s "$RUNNER_TEMP/plan_comment.md" ]; then
+            marker=$(grep -o '<!-- claude-plan [^>]*-->' "$RUNNER_TEMP/plan_comment.md" | head -1)
+            ptier=$(sed -n 's/.* tier=\([a-z-]*\).*/\1/p' <<<"$marker")
+            prisk=$(sed -n 's/.* risk=\([A-Z]*\).*/\1/p' <<<"$marker")
+            if [ "$ptier" = "$TIER" ]; then
+              have_plan=true; plan_risk="$prisk"
+              cp "$RUNNER_TEMP/plan_comment.md" "$RUNNER_TEMP/plan.md"
+              echo "Reusable plan comment found (tier=$ptier risk=$prisk) — plan phase will be skipped."
+            else
+              echo "Plan comment tier ($ptier) != current tier ($TIER) — re-planning (escalation path)."
+            fi
+          fi
+          branch_exists=false; branch_tip=""
+          if git ls-remote --exit-code --heads origin "claude/issue-$ISSUE" >/dev/null 2>&1; then
+            branch_exists=true
+            branch_tip=$(git ls-remote --heads origin "claude/issue-$ISSUE" | cut -f1)
+          fi
+          { echo "have_plan=$have_plan"; echo "plan_risk=$plan_risk"; echo "branch_exists=$branch_exists"; echo "branch_tip=$branch_tip"; } >> "$GITHUB_OUTPUT"
+
+      - name: Plan (read-only)
+        id: plan
+        if: steps.route.outputs.live == 'true' && steps.params.outputs.mode == 'two_phase' && steps.state.outputs.have_plan != 'true'
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          show_full_output: true
+          allowed_bots: "*"
+          prompt: |
+            ultrathink
+
+            REPO: ${{ github.repository }}
+            ISSUE NUMBER: ${{ env.ISSUE }}
+
+            You are the PLANNING phase of an automated fix pipeline. The repo is
+            checked out in the working directory. You are in plan mode: file
+            writes are blocked at the tool level — investigate and plan only.
+
+            1. Read the issue: `gh issue view ${{ env.ISSUE }} --json title,body,comments`.
+            2. Investigate the codebase with Read/Grep/Glob (and `git log`/`git diff`
+               if history helps). Re-verify any file:line references in the issue
+               against the current code — they may have drifted.
+            3. Produce an implementation plan for the IMPLEMENT phase (a separate
+               Claude session that sees only your plan and the repo).
+
+            Classify the risk of the change:
+            - HIGH: touches auth/credentials, data models or migrations, public
+              API contracts, payments, or PII — or you are unsure.
+            - LOW: everything else.
+            HIGH-risk plans are handed to a human instead of being implemented.
+
+            Your final message must be EXACTLY the plan in markdown:
+            - First line: `RISK: HIGH` or `RISK: LOW` (literal, alone on the line)
+            - `## Why this risk class` — one short paragraph
+            - `## Files to touch` — explicit paths
+            - `## Plan` — numbered, concrete steps (name functions/helpers to reuse)
+            - `## Verification` — how the implementer proves it works (tests to
+              add/run; the test gate is `python -m compileall -q shared
+              sdf_pipeline dad_pipeline pref_pipeline evals viewer && pytest`)
+          claude_args: |
+            --model ${{ steps.params.outputs.plan_model }}
+            --effort ${{ steps.params.outputs.plan_effort }}
+            --max-turns 25
+            --permission-mode plan
+            --allowedTools "Read,Glob,Grep,Bash(gh issue view:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh search:*),Bash(git log:*),Bash(git diff:*),Bash(git show:*)"
+            --disallowedTools "Task"
+            --json-schema '{"type":"object","properties":{"risk":{"type":"string","enum":["HIGH","LOW"]},"plan_markdown":{"type":"string"},"files":{"type":"array","items":{"type":"string"}}},"required":["risk","plan_markdown"]}'
+
+      # Plain step so the plan persists as an issue comment no matter what
+      # happens later (quota death, runner loss). This comment is the resume key.
+      - name: Post plan comment
+        id: post_plan
+        if: steps.plan.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXEC_FILE: ${{ steps.plan.outputs.execution_file }}
+          STRUCTURED: ${{ steps.plan.outputs.structured_output }}
+          TIER: ${{ steps.params.outputs.tier }}
+        run: |
+          set -euo pipefail
+          risk=""; plan=""
+          # Primary channel: structured output from --json-schema.
+          if [ -n "${STRUCTURED:-}" ]; then
+            risk=$(jq -r '.risk // empty' <<<"$STRUCTURED" 2>/dev/null || true)
+            plan=$(jq -r '.plan_markdown // empty' <<<"$STRUCTURED" 2>/dev/null || true)
+          fi
+          # Fallback: the final result message + its mandatory RISK: first line.
+          if [ -z "$risk" ] || [ -z "$plan" ]; then
+            plan=$(jq -r '(map(select(.type=="result")) | last | .result) // empty' "$EXEC_FILE" 2>/dev/null || true)
+            risk=$(printf '%s\n' "$plan" | grep -m1 -oE '^RISK: (HIGH|LOW)' | awk '{print $2}' || true)
+          fi
+          if [ -z "$plan" ]; then plan="(the plan text could not be extracted from the execution output — see the workflow run log)"; fi
+          if [ "$risk" != "HIGH" ] && [ "$risk" != "LOW" ]; then
+            risk=HIGH  # fail closed: an unparseable risk class is treated as HIGH
+            echo "::warning::Could not parse the risk class from the plan — failing closed to HIGH."
+          fi
+          body="$RUNNER_TEMP/plan_body.md"
+          {
+            echo "<!-- claude-plan issue=$ISSUE tier=$TIER risk=$risk -->"
+            echo "## Implementation plan (automated — tier: $TIER, risk: $risk)"
+            echo ""
+            printf '%s\n' "$plan"
+            echo ""
+            echo "_Posted by the claude-fix pipeline (Claude-generated). A LOW risk class proceeds to implementation; HIGH stops for a human._"
+          } > "$body"
+          # Retry the post: losing this comment breaks resume for the whole item.
+          for i in 1 2 3; do
+            gh issue comment "$ISSUE" -R "$REPO" --body-file "$body" && break || { [ "$i" = 3 ] && exit 1; sleep $((i * 5)); }
+          done
+          cp "$body" "$RUNNER_TEMP/plan.md"
+          echo "risk=$risk" >> "$GITHUB_OUTPUT"
+
+      # Plain-step risk gate: no Claude involved in the HIGH/LOW decision path.
+      - name: Risk gate
+        id: gate
+        if: >-
+          steps.route.outputs.live == 'true' && steps.params.outputs.mode == 'two_phase' &&
+          (steps.state.outputs.have_plan == 'true' || steps.post_plan.outcome == 'success')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RISK_NEW: ${{ steps.post_plan.outputs.risk }}
+          RISK_OLD: ${{ steps.state.outputs.plan_risk }}
+        run: |
+          set -euo pipefail
+          risk="${RISK_NEW:-$RISK_OLD}"
+          [ "$risk" = "LOW" ] || risk=HIGH  # fail closed
+          if [ "$risk" = "HIGH" ]; then
+            gh api -X POST "repos/$REPO/issues/$ISSUE/labels" -f "labels[]=needs-human" >/dev/null
+            gh issue comment "$ISSUE" -R "$REPO" --body "**Risk gate: HIGH — implementation blocked.** The plan above touches a HIGH-risk surface (auth, data models/migrations, public API contracts, payments, or PII), so a human must take over. To proceed anyway: review the plan, edit the plan comment's marker to \`risk=LOW\` only if you are sure, remove the \`needs-human\` label, then remove and re-add the \`claude-fix\` label (re-adding an already-present label fires no event) — or run \`gh workflow run claude-fix.yml -f issue_number=$ISSUE\`."
+            echo "Risk gate: HIGH — stopping deliberately (exit 0)."
+          fi
+          echo "risk=$risk" >> "$GITHUB_OUTPUT"
+
+      - name: Implement
+        id: implement
+        if: steps.gate.outputs.risk == 'LOW'
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          show_full_output: true
+          allowed_bots: "*"
+          prompt: |
+            REPO: ${{ github.repository }}
+            ISSUE NUMBER: ${{ env.ISSUE }}
+            TIER: ${{ steps.params.outputs.tier }}
+            BRANCH: claude/issue-${{ env.ISSUE }}
+            BRANCH_EXISTS: ${{ steps.state.outputs.branch_exists }}
+            PLAN FILE: ${{ runner.temp }}/plan.md
+
+            You are the IMPLEMENT phase of an automated fix pipeline. Read the
+            PLAN FILE first and follow it verbatim — it was approved by a risk
+            gate; do not expand its scope. Follow the "When running in CI"
+            section of CLAUDE.md.
+
+            Branch rules:
+            - If BRANCH_EXISTS is true: `git fetch origin`, check out BRANCH,
+              inspect `git log` and `git diff origin/main...HEAD`, verify which
+              plan steps are already done, and CONTINUE from there. Never
+              restart, never force-push.
+            - Otherwise create BRANCH from origin/main and check it out.
+
+            Work loop:
+            - Commit AND push after every coherent step (a quota-killed run must
+              leave resumable state on the branch). Small commits, imperative
+              subjects.
+            - Test gate: `python -m compileall -q shared sdf_pipeline dad_pipeline pref_pipeline evals viewer && pytest`
+            - Touch only files the plan names. Never touch outputs/,
+              .github/workflows/, or code_quality/.
+            - If the gate still fails after 3 distinct fix attempts: post your
+              findings with `gh issue comment ${{ env.ISSUE }}`, then
+              `gh issue edit ${{ env.ISSUE }} --add-label needs-human`, and stop
+              WITHOUT writing the PR files. If TIER is tier-heavy, the findings
+              comment MUST end with: "Recommendation: relabel this issue to
+              tier-max, then remove and re-add the claude-fix label (re-adding
+              an already-present label fires no event) — or run `gh workflow
+              run claude-fix.yml -f issue_number=${{ env.ISSUE }}` — for one
+              escalated retry."
+
+            When the gate is green:
+            - Write a one-line PR title to ${{ runner.temp }}/pr_title.txt
+            - Write the PR body to ${{ runner.temp }}/pr_body.md containing, in
+              order: `Closes #${{ env.ISSUE }}`; a `## Plan` section (the plan
+              you followed); `## Risk class` (from the plan's RISK line); a
+              `## How to test` section with concrete reviewer steps and expected
+              results (required by repo policy); and a final callout line:
+              "> 🤖 This PR was generated by Claude Code (claude-fix pipeline); a human reviewed neither the plan nor the diff before it was opened."
+            - Do NOT run `gh pr create` — a later workflow step opens the PR
+              under the correct identity. Do not merge, approve, or close
+              anything.
+          # git is scoped to the subcommands the work needs — destructive ops
+          # (reset --hard, clean -fd, branch -D) simply aren't granted. Allow
+          # patterns can't see flags, so `git push --force` still matches
+          # push:* — that one stays prompt-forbidden (claude/* branches are
+          # unprotected, and a force-push would destroy resumable state).
+          claude_args: |
+            --model ${{ steps.params.outputs.impl_model }}
+            --effort ${{ steps.params.outputs.impl_effort }}
+            --max-turns 100
+            --add-dir ${{ runner.temp }}
+            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(git status:*),Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git fetch:*),Bash(git checkout:*),Bash(git switch:*),Bash(git rev-parse:*),Bash(git ls-remote:*),Bash(gh issue view:*),Bash(gh issue comment:*),Bash(gh issue edit:*),Bash(gh pr list:*),Bash(gh pr view:*),Bash(pytest:*),Bash(python:*)"
+            --disallowedTools "Task"
+
+      # tier-light: one pass, sonnet/medium — plan comment first, in-prompt risk
+      # gate, then the same implement rules as above.
+      #
+      # Accepted tradeoff: unlike the two-phase tiers (where risk is classified
+      # in a write-blocked plan-mode session and a plain step enforces the
+      # gate), tier-light self-applies the gate inside a turn that already
+      # holds edit/push tools, so the gate is prompt discipline, not tool-level
+      # enforcement. This is deliberate — tier-light is reserved for mechanical
+      # fixes (kickoff/triage route anything else higher), and the test gate,
+      # auto-review, and human merge remain behind it. Anything worth a real
+      # gate belongs in tier-standard or above.
+      - name: Fix (tier-light, single phase)
+        id: light
+        if: steps.route.outputs.live == 'true' && steps.params.outputs.mode == 'light'
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          show_full_output: true
+          allowed_bots: "*"
+          prompt: |
+            REPO: ${{ github.repository }}
+            ISSUE NUMBER: ${{ env.ISSUE }}
+            BRANCH: claude/issue-${{ env.ISSUE }}
+            BRANCH_EXISTS: ${{ steps.state.outputs.branch_exists }}
+            HAVE_PLAN: ${{ steps.state.outputs.have_plan }}
+            PRIOR_RISK: ${{ steps.state.outputs.plan_risk }}
+
+            You are a single-phase (tier-light) run of an automated fix
+            pipeline. Follow the "When running in CI" section of CLAUDE.md.
+
+            1. Read the issue (`gh issue view ${{ env.ISSUE }} --json title,body,comments`)
+               and investigate the affected code.
+            2. BEFORE changing any file, post your plan as an issue comment
+               whose FIRST line is exactly
+               `<!-- claude-plan issue=${{ env.ISSUE }} tier=tier-light risk=LOW -->`
+               (or risk=HIGH), followed by the plan: risk rationale, files to
+               touch, steps, verification. If HAVE_PLAN is true a previous run
+               already posted one — do not repost; honor PRIOR_RISK.
+            3. Risk gate, applied by you: the change is HIGH risk if it touches
+               auth/credentials, data models or migrations, public API
+               contracts, payments, or PII — or if you are unsure. If HIGH:
+               `gh issue edit ${{ env.ISSUE }} --add-label needs-human`, comment
+               why, and STOP — change nothing.
+            4. If LOW: implement on BRANCH (if BRANCH_EXISTS is true, continue
+               from its existing work — never restart or force-push; otherwise
+               create it from origin/main). Commit AND push after every coherent
+               step. Test gate: `python -m compileall -q shared sdf_pipeline dad_pipeline pref_pipeline evals viewer && pytest`
+               Touch only files your plan names; never touch outputs/,
+               .github/workflows/, or code_quality/.
+            5. If the gate still fails after 3 distinct fix attempts: post your
+               findings as a comment, add the needs-human label, stop WITHOUT
+               writing the PR files.
+            6. When green: write a one-line PR title to
+               ${{ runner.temp }}/pr_title.txt and the PR body to
+               ${{ runner.temp }}/pr_body.md — `Closes #${{ env.ISSUE }}`, `## Plan`,
+               `## Risk class`, `## How to test` (concrete reviewer steps —
+               required by repo policy), and the final callout line:
+               "> 🤖 This PR was generated by Claude Code (claude-fix pipeline); a human reviewed neither the plan nor the diff before it was opened."
+               Do NOT run `gh pr create` — a later workflow step opens the PR.
+               Never merge, approve, or close anything.
+          # Same git subcommand scoping as the implement step above.
+          claude_args: |
+            --model sonnet
+            --effort medium
+            --max-turns 75
+            --add-dir ${{ runner.temp }}
+            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(git status:*),Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git fetch:*),Bash(git checkout:*),Bash(git switch:*),Bash(git rev-parse:*),Bash(git ls-remote:*),Bash(gh issue view:*),Bash(gh issue comment:*),Bash(gh issue edit:*),Bash(gh pr list:*),Bash(gh pr view:*),Bash(pytest:*),Bash(python:*)"
+            --disallowedTools "Task"
+
+      # When an implement-phase Claude step fails, a cheap second model reads
+      # the transcript tail and the branch diff and posts what a human (or the
+      # classifier) actually needs: what got done, where it stopped, and
+      # whether a plain re-run can finish it. Advisory only — its verdict
+      # gates nothing except whether the auto-continue in the classifier is
+      # skipped ("stuck"). continue-on-error: a quota-dead run will quota-kill
+      # this step too, and the classifier must still run cleanly without it.
+      - name: Digest the failure (model triage)
+        id: digest
+        if: failure() && (steps.implement.outcome == 'failure' || steps.light.outcome == 'failure')
+        continue-on-error: true
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          show_full_output: true
+          allowed_bots: "*"
+          prompt: |
+            REPO: ${{ github.repository }}
+            ISSUE NUMBER: ${{ env.ISSUE }}
+            BRANCH: claude/issue-${{ env.ISSUE }}
+            TRANSCRIPT FILE: ${{ steps.implement.outputs.execution_file || steps.light.outputs.execution_file }}
+
+            An automated implement run for this issue just failed. Diagnose it
+            from evidence only — do not fix anything:
+            1. Read the tail of the TRANSCRIPT FILE (it is large; the last ~300
+               lines usually suffice).
+            2. `git fetch origin` then inspect `git log` and
+               `git diff origin/main...origin/BRANCH` if the branch exists.
+            3. Decide: was the run making real progress against the issue's
+               plan (resumable), or stuck/looping/confused (stuck)? Use
+               "unclear" only when the evidence is genuinely ambiguous.
+            Structured output: verdict (resumable|stuck|unclear); summary (3-6
+            sentences: what was accomplished, what remains, what the run was
+            doing when it ended); recommendation (one sentence).
+          claude_args: |
+            --model sonnet
+            --effort low
+            --max-turns 10
+            --add-dir ${{ runner.temp }}
+            --allowedTools "Read,Glob,Grep,Bash(git log:*),Bash(git diff:*),Bash(git fetch:*),Bash(git ls-remote:*)"
+            --disallowedTools "Task"
+            --json-schema '{"type":"object","properties":{"verdict":{"type":"string","enum":["resumable","stuck","unclear"]},"summary":{"type":"string"},"recommendation":{"type":"string"}},"required":["verdict","summary"]}'
+
+      # PR author must NOT be claude[bot] (the auto-reviewer can't approve or
+      # request changes on its own PRs), so a plain step creates it with
+      # GITHUB_TOKEN → author github-actions[bot].
+      - name: Open PR (as github-actions[bot])
+        id: pr_open
+        if: steps.implement.outcome == 'success' || steps.light.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if ! git ls-remote --exit-code --heads origin "claude/issue-$ISSUE" >/dev/null 2>&1; then
+            echo "No branch was pushed — Claude stopped before implementing (risk gate or give-up)."; exit 0
+          fi
+          existing=$(gh pr list -R "$REPO" --head "claude/issue-$ISSUE" --state open --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            echo "PR #$existing already open for this branch."
+            echo "pr=$existing" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if [ ! -s "$RUNNER_TEMP/pr_title.txt" ] || [ ! -s "$RUNNER_TEMP/pr_body.md" ]; then
+            echo "Branch exists but no PR title/body were written — not opening a PR (the verify step will judge the state)."; exit 0
+          fi
+          url=$(gh pr create -R "$REPO" --base main --head "claude/issue-$ISSUE" \
+            --title "$(head -1 "$RUNNER_TEMP/pr_title.txt" | head -c 200)" \
+            --body-file "$RUNNER_TEMP/pr_body.md")
+          echo "Opened $url"
+          { echo "pr=${url##*/}"; echo "created=true"; } >> "$GITHUB_OUTPUT"
+
+      # A GITHUB_TOKEN-created PR emits no workflow-triggering `opened` event,
+      # so smoke and the auto-review would never run. Close+reopen with a
+      # Claude App token (its events DO fire) replaces the suppressed `opened`
+      # with a live `reopened`.
+      #
+      # The action's `github_token` OUTPUT cannot be used for this: action.yml
+      # at ref v1 ends with its own "Revoke app token" step (DELETE
+      # /installation/token), so the output is a dead credential by the time
+      # any later workflow step runs — the post-merge dry run proved it
+      # (gh: HTTP 401 Bad credentials). Instead this step mints its own
+      # short-lived installation token through the exact OIDC exchange the
+      # action's src/github/token.ts performs (OIDC audience
+      # "claude-code-github-action" → api.anthropic.com's
+      # github-app-token-exchange), kicks, and revokes the token itself.
+      # Needs the job's existing id-token: write permission.
+      - name: Kick CI + auto-review (close/reopen with a fresh App token)
+        if: steps.pr_open.outputs.created == 'true'
+        env:
+          FALLBACK_TOKEN: ${{ github.token }}
+          PR: ${{ steps.pr_open.outputs.pr }}
+        run: |
+          # Best-effort kick: every branch warns-and-continues rather than
+          # failing the job — the failure classifier and verify step must never
+          # mistake a mis-kicked (but real) PR for a failed fix. The one state
+          # this must not silently leave behind is the PR stuck closed, hence
+          # the retries + GITHUB_TOKEN fallback on reopen.
+          set -euo pipefail
+          manual_note="Close and reopen PR #$PR manually (or push any commit) to trigger smoke/auto-review."
+          oidc=$(curl -sS --max-time 15 \
+            -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=claude-code-github-action" \
+            | jq -r '.value // empty') || oidc=""
+          if [ -z "$oidc" ]; then
+            echo "::warning::Could not obtain an OIDC token — PR #$PR was created but not kicked. $manual_note"
+            exit 0
+          fi
+          app_token=$(curl -sS --max-time 20 -X POST \
+            -H "Authorization: Bearer $oidc" \
+            "https://api.anthropic.com/api/github/github-app-token-exchange" \
+            | jq -r '.token // .app_token // empty') || app_token=""
+          if [ -z "$app_token" ]; then
+            echo "::warning::App-token exchange failed — PR #$PR was created but not kicked. $manual_note"
+            exit 0
+          fi
+          echo "::add-mask::$app_token"
+          revoke() {
+            curl -sS --max-time 10 -X DELETE \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer $app_token" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "${GITHUB_API_URL:-https://api.github.com}/installation/token" >/dev/null 2>&1 || true
+          }
+          trap revoke EXIT
+          if ! GH_TOKEN="$app_token" gh pr close "$PR" -R "$REPO"; then
+            echo "::warning::Could not close PR #$PR for the kick — it stays open, but smoke/auto-review were not triggered (the GITHUB_TOKEN 'opened' event is suppressed). $manual_note"
+            exit 0
+          fi
+          sleep 3
+          for i in 1 2 3; do
+            if GH_TOKEN="$app_token" gh pr reopen "$PR" -R "$REPO"; then
+              echo "PR #$PR reopened with a fresh App token — smoke + auto-review should now be running."
+              exit 0
+            fi
+            echo "Reopen attempt $i/3 failed; retrying..."
+            sleep $((i * 10))
+          done
+          # Last resort: reopen with GITHUB_TOKEN so the PR at least isn't
+          # stuck closed (its event won't trigger workflows).
+          if GH_TOKEN="$FALLBACK_TOKEN" gh pr reopen "$PR" -R "$REPO"; then
+            echo "::warning::Reopened PR #$PR with GITHUB_TOKEN after the App-token reopen failed 3 times — the PR is open but smoke/auto-review were not triggered. $manual_note"
+          else
+            echo "::warning::PR #$PR is stuck CLOSED — both the App-token and GITHUB_TOKEN reopens failed. Reopen it manually; the verify step below will flag this run."
+          fi
+          exit 0
+
+      # The action reports success the moment the agent's turn ends, even if it
+      # silently did nothing (see claude-code-review.yml for the original bug).
+      # Require one of the two legitimate terminal states.
+      - name: Verify a terminal state was reached
+        if: steps.implement.outcome == 'success' || steps.light.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXEC_FILE: ${{ steps.implement.outputs.execution_file || steps.light.outputs.execution_file }}
+        run: |
+          set -euo pipefail
+          pr=$(gh pr list -R "$REPO" --head "claude/issue-$ISSUE" --state open --json number --jq '.[0].number // empty')
+          if [ -n "$pr" ]; then echo "✓ Terminal state: PR #$pr is open."; exit 0; fi
+          if gh issue view "$ISSUE" -R "$REPO" --json labels --jq '.labels[].name' | grep -qx 'needs-human'; then
+            echo "✓ Terminal state: needs-human applied (deliberate hand-off)."; exit 0
+          fi
+          closed=$(gh pr list -R "$REPO" --head "claude/issue-$ISSUE" --state closed --json number --jq '.[0].number // empty')
+          if [ -n "$closed" ]; then
+            echo "::error::PR #$closed exists but is CLOSED — the close/reopen kick failed mid-way. Reopen it manually (gh pr reopen $closed); the fix itself completed."
+            exit 1
+          fi
+          echo "::error::The Claude step completed but produced neither a PR nor a needs-human hand-off."
+          echo "::group::Claude's last turn (likely cause)"
+          jq -r '
+            (map(select(.type=="result")) | last) as $r
+            | if $r then
+                "stop subtype: \($r.subtype // "unknown")",
+                "is_error: \($r.is_error // false)",
+                "num_turns: \($r.num_turns // "unknown")",
+                "final message from Claude:",
+                ($r.result // "(none)")
+              else "No result turn found in the execution output." end
+          ' "${EXEC_FILE:-/dev/null}" 2>/dev/null || echo "Could not parse the execution output."
+          echo "::endgroup::"
+          exit 1
+
+      # Failure classifier: quota exhaustion → claude-quota-wait (the retry
+      # cron relaunches, resuming via the plan comment + branch); anything else
+      # → needs-human. Never both; never auto-retry an undiagnosed failure.
+      - name: Classify failure (quota vs task)
+        if: failure() || cancelled()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TIER: ${{ steps.params.outputs.tier || steps.route.outputs.tier }}
+          O_SIMP: ${{ steps.sim_plan.outcome }}
+          O_SIMI: ${{ steps.sim_impl.outcome }}
+          O_TRIAGE: ${{ steps.triage.outcome }}
+          O_PLAN: ${{ steps.plan.outcome }}
+          O_LIGHT: ${{ steps.light.outcome }}
+          O_IMPL: ${{ steps.implement.outcome }}
+          O_POST: ${{ steps.post_plan.outcome }}
+          E_SIMP: ${{ steps.sim_plan.outputs.execution_file }}
+          E_SIMI: ${{ steps.sim_impl.outputs.execution_file }}
+          E_TRIAGE: ${{ steps.triage.outputs.execution_file }}
+          E_PLAN: ${{ steps.plan.outputs.execution_file }}
+          E_LIGHT: ${{ steps.light.outputs.execution_file }}
+          E_IMPL: ${{ steps.implement.outputs.execution_file }}
+          TIP_BEFORE: ${{ steps.state.outputs.branch_tip }}
+          DIGEST: ${{ steps.digest.outputs.structured_output }}
+        run: |
+          set -euo pipefail
+          phase=""; exec_file=""; outcome=failure
+          if   [ "$O_SIMP" = "failure" ];   then phase=plan;      exec_file="$E_SIMP"
+          elif [ "$O_SIMI" = "failure" ];   then phase=implement; exec_file="$E_SIMI"
+          elif [ "$O_TRIAGE" = "failure" ]; then phase=triage;    exec_file="$E_TRIAGE"
+          elif [ "$O_PLAN" = "failure" ];   then phase=plan;      exec_file="$E_PLAN"
+          elif [ "$O_LIGHT" = "failure" ];  then phase=implement; exec_file="$E_LIGHT"
+          elif [ "$O_IMPL" = "failure" ];   then phase=implement; exec_file="$E_IMPL"
+          elif [ "$O_POST" = "failure" ];   then
+            # The plan itself succeeded; only posting it as a comment failed
+            # (after 3 in-step retries). Don't read the plan's exec file here —
+            # grepping a successful transcript would misattribute the failure.
+            phase=plan-comment; exec_file=""
+          else
+            # A plumbing step failed, or the job was cancelled/timed out.
+            phase=implement; exec_file="${E_IMPL:-${E_LIGHT:-$E_PLAN}}"; outcome=other
+          fi
+
+          result=""
+          if [ -n "$exec_file" ] && [ -s "$exec_file" ]; then
+            result=$(jq -r '(map(select(.type=="result")) | last | .result) // ""' "$exec_file" 2>/dev/null || true)
+          fi
+          haystack="$result"
+          if [ -z "$haystack" ] && [ -n "$exec_file" ] && [ -s "$exec_file" ]; then
+            haystack=$(tail -c 20000 "$exec_file")
+          fi
+
+          if printf '%s' "$haystack" | grep -qiE "usage limit|hit your .{0,40} limit|quota.{0,30}(exhaust|exceed|reached)|(exhaust|exceed)[a-z]*.{0,30}quota|rate.?limit.{0,30}(reached|exceeded)"; then
+            reset=$(printf '%s' "$haystack" | grep -oiE "resets[^\"]{0,60}" | head -1 || true)
+            # Quota markers are only ever posted by this step (GITHUB_TOKEN →
+            # github-actions[bot]); counting anyone else's would let a stranger
+            # inflate the retry counter past the cap.
+            count=$(gh api "repos/$REPO/issues/$ISSUE/comments" --paginate 2>/dev/null \
+              | jq -s 'add // [] | [ .[] | select(.user.login == "github-actions[bot]") | select(.body | contains("<!-- claude-quota issue=")) ] | length')
+            count=$((count + 1))
+            manual=false; extra=""
+            if [ "$TIER" = "tier-max" ] && [ "$phase" = "plan" ]; then
+              manual=true
+              extra="**Auto-retry is disabled for this failure**: a Fable (tier-max) planning run draws heavily on the rolling allowance, so the cron will not relaunch it. Relaunch manually when your quota resets: remove and re-add the \`claude-fix\` label (re-adding an already-present label fires no event), or run \`gh workflow run claude-fix.yml -f issue_number=$ISSUE\`."
+            fi
+            gh api -X POST "repos/$REPO/issues/$ISSUE/labels" -f "labels[]=claude-quota-wait" >/dev/null
+            body="$RUNNER_TEMP/quota_comment.md"
+            {
+              echo "<!-- claude-quota issue=$ISSUE phase=$phase tier=$TIER count=$count manual_only=$manual reset=\"${reset}\" -->"
+              echo "**Usage-limit failure** in the **$phase** phase (quota retry $count of 8)."
+              if [ -n "$reset" ]; then echo "Reported reset: \`$reset\`."; fi
+              echo "The retry cron relaunches this automatically; the run resumes from the plan comment and branch state, so paid work is not repeated."
+              if [ -n "$extra" ]; then echo ""; echo "$extra"; fi
+            } > "$body"
+            gh issue comment "$ISSUE" -R "$REPO" --body-file "$body"
+            echo "Classified as QUOTA (phase=$phase, count=$count, manual_only=$manual)."
+          else
+            subtype=""
+            if [ -n "$exec_file" ] && [ -s "$exec_file" ]; then
+              subtype=$(jq -r '(map(select(.type=="result")) | last | .subtype) // ""' "$exec_file" 2>/dev/null || true)
+            fi
+            dverdict=""; dsummary=""; drec=""
+            if [ -n "${DIGEST:-}" ]; then
+              dverdict=$(jq -r '.verdict // empty' <<<"$DIGEST" 2>/dev/null || true)
+              dsummary=$(jq -r '.summary // empty' <<<"$DIGEST" 2>/dev/null || true)
+              drec=$(jq -r '.recommendation // empty' <<<"$DIGEST" 2>/dev/null || true)
+            fi
+            # Auto-continue: a turn-cap death that pushed new commits during
+            # the run is a budget problem, not a mystery — re-dispatch (bounded
+            # at 2 continues) instead of paging a human, unless the digest
+            # model judged the run stuck. Progress evidence + a hard counter
+            # keeps this inside the "never auto-retry a mystery" principle.
+            if [ "$subtype" = "error_max_turns" ] && [ "$phase" = "implement" ] && [ "$dverdict" != "stuck" ]; then
+              tip_now=$(gh api "repos/$REPO/git/ref/heads/claude/issue-$ISSUE" --jq '.object.sha' 2>/dev/null || echo "")
+              ccount=$(gh api "repos/$REPO/issues/$ISSUE/comments" --paginate 2>/dev/null \
+                | jq -s 'add // [] | [ .[] | select(.user.login == "github-actions[bot]") | select(.body | contains("<!-- claude-continue issue=")) ] | length')
+              if [ -n "$tip_now" ] && [ "$tip_now" != "${TIP_BEFORE:-}" ] && [ "${ccount:-0}" -lt 2 ]; then
+                n=$((ccount + 1))
+                body="$RUNNER_TEMP/continue_comment.md"
+                {
+                  echo "<!-- claude-continue issue=$ISSUE count=$n -->"
+                  echo "**Turn budget exhausted mid-progress — auto-continuing ($n of 2).** New commits were pushed during the run, so this reads as a budget limit, not a failure; the next run resumes from the plan comment and branch state."
+                  if [ -n "$dsummary" ]; then echo ""; echo "_Model digest (${dverdict:-no verdict}):_ $dsummary"; fi
+                } > "$body"
+                gh issue comment "$ISSUE" -R "$REPO" --body-file "$body"
+                gh workflow run claude-fix.yml -R "$REPO" -f issue_number="$ISSUE" || true
+                echo "Auto-continue $n of 2 dispatched."
+                exit 0
+              fi
+            fi
+            gh api -X POST "repos/$REPO/issues/$ISSUE/labels" -f "labels[]=needs-human" >/dev/null
+            note=""
+            if [ "$outcome" = "other" ]; then note=" — the failure came from a plumbing step, a timeout, or a cancellation, not a Claude step"; fi
+            body="$RUNNER_TEMP/fail_comment.md"
+            if [ "$phase" = "plan-comment" ]; then
+              {
+                echo "**Automated fix run failed while posting the plan comment.** The PLAN phase itself succeeded, but the plan could not be posted as an issue comment after 3 retries, so nothing was persisted and nothing was implemented. Once GitHub comment posting is healthy again: remove the \`needs-human\` label, then remove and re-add \`claude-fix\` (or run \`gh workflow run claude-fix.yml -f issue_number=$ISSUE\`) — the run will re-plan from scratch."
+                echo ""
+                echo "Run: $GITHUB_SERVER_URL/$REPO/actions/runs/$GITHUB_RUN_ID"
+              } > "$body"
+              gh api -X POST "repos/$REPO/issues/$ISSUE/labels" -f "labels[]=needs-human" >/dev/null
+              gh issue comment "$ISSUE" -R "$REPO" --body-file "$body"
+              echo "Classified as TASK FAILURE (phase=plan-comment) — needs-human applied."
+              exit 0
+            fi
+            {
+              echo "**Automated fix run failed** (phase: $phase — not a usage-limit failure$note). A human needs to look."
+              echo ""
+              echo '```'
+              if [ -n "$exec_file" ] && [ -s "$exec_file" ]; then
+                jq -r '(map(select(.type=="result")) | last) as $r
+                  | "subtype: \($r.subtype // "unknown")",
+                    "is_error: \($r.is_error // false)",
+                    "num_turns: \($r.num_turns // "unknown")",
+                    "final message: \(($r.result // "(none)") | .[0:1500])"' "$exec_file" 2>/dev/null \
+                  || echo "(execution output unparseable)"
+              else
+                echo "(no execution output was produced — the step failed before Claude ran, timed out, or was cancelled)"
+              fi
+              echo '```'
+              echo ""
+              if [ -n "$dsummary" ]; then
+                echo "**Model digest** (verdict: ${dverdict:-n/a}): $dsummary"
+                if [ -n "$drec" ]; then echo ""; echo "_Recommendation:_ $drec"; fi
+                echo ""
+              fi
+              echo "Run: $GITHUB_SERVER_URL/$REPO/actions/runs/$GITHUB_RUN_ID"
+            } > "$body"
+            gh issue comment "$ISSUE" -R "$REPO" --body-file "$body"
+            echo "Classified as TASK FAILURE (phase=$phase) — needs-human applied."
+          fi
+
+      # Backfill: whenever a run ends — success, failure, or deliberate stop —
+      # immediately trigger a requeue tick so freed capacity never idles until
+      # the next half-hour cron. The tick re-checks capacity and every queue
+      # rule itself; with an empty queue it is a no-op, so this cannot loop.
+      - name: Trigger a requeue tick
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run claude-quota-retry.yml -R "$REPO" || true

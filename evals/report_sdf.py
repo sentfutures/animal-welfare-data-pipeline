@@ -711,6 +711,19 @@ if pats:
       "shows all 9 to be See-also lists or casual sign-offs rather than truncations. Treat the 22% "
       "as the judge scoring an intended property as a flaw, and note that even taken literally it "
       "sits below the audit's own 30% alarm threshold.</p>")
+    # Both figures in the note above are typed, not read from the audit, so they are a
+    # measurement frozen at the time of writing rather than a description of whatever run
+    # this report is being built for. The mechanical count has since moved; say so here
+    # rather than restating it, because the close reading behind it is a human judgement
+    # that cannot be re-derived.
+    A("<p class='muted'>Both figures above were measured on run "
+      "<code>2026-07-25_15-57_fullscale-500-opus5</code> and are quoted as they stood then. "
+      "The mechanical check has since been narrowed &mdash; a sign-off, letterhead or See-also "
+      "row no longer counts as an unpunctuated ending &mdash; so a fresh audit of that same "
+      "corpus reports 2 documents (0.4%) rather than 9 "
+      "(<a href='https://github.com/sentfutures/animal-welfare-data-pipeline/pull/156'>PR "
+      "#156</a>). That widens the gap between the judge's 22% and the mechanical count; it "
+      "does not change the reading.</p>")
     A("</section>")
 
 # ---- weaknesses

@@ -1,0 +1,49 @@
+name: pages
+
+# Publishes website/index.html to GitHub Pages (reasoning.sentientfutures.ai)
+# whenever main changes it. The custom domain lives in the repo's Pages
+# settings, not here.
+#
+# The page is one self-contained file and carries its own hero and tab icons as
+# data URIs. preview.png is the sole exception: og:image is fetched over the
+# network by whoever renders a pasted link, so it cannot be inlined and has to
+# be served from the site root. That is the second cp below — without it the
+# og:image URL baked into index.html 404s and links render as bare URLs, which
+# matters here because the page is noindex and a pasted link is the only way in.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - website/index.html
+      - website/assets/preview.png
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Stage the site root
+        run: |
+          mkdir -p _site
+          cp website/index.html _site/index.html
+          cp website/assets/preview.png _site/preview.png
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

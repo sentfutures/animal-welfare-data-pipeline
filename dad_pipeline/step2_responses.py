@@ -299,7 +299,9 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, dilemmas: list[dict],
                     stage="response_scope", item_id=pid)
                 # A max_tokens-truncated scope may still parse (the brace-salvage
                 # path) but is missing content — count it as an unusable attempt.
-                parsed = {} if stop_reason == "max_tokens" else _parse_scope(raw)
+                # A refusal-cut scope may likewise parse (the classifier can cut
+                # after well-formed content) but is missing content the same way.
+                parsed = {} if stop_reason in ("max_tokens", "refusal") else _parse_scope(raw)
                 if _valid_scope(parsed):
                     # Stray sixth key from a model improvising the old shape:
                     # the stored scope keeps only the scope axes.
@@ -357,9 +359,12 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, dilemmas: list[dict],
                 out["scope_failures"].append({"prompt_gid": pid, "attempt": attempt,
                                               "raw": raw, "stop_reason": stop_reason,
                                               "model": model})
+                why = ("refused" if stop_reason == "refusal"
+                       else "truncated at max_tokens" if stop_reason == "max_tokens"
+                       else "unusable")
                 empty = " (empty output — likely refusal or content filter)" if not raw.strip() else ""
                 more = " — retrying with a fresh call" if attempt < attempts_allowed else ""
-                print(f"    {pid}: scope attempt {attempt}/{attempts_allowed} unusable "
+                print(f"    {pid}: scope attempt {attempt}/{attempts_allowed} {why} "
                       f"(stop_reason={stop_reason}){empty}{more}.")
             if out["scope_record"] is None:
                 out["scope_failed"] = True
@@ -397,11 +402,13 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, dilemmas: list[dict],
             )
             response = response.strip()
 
-            # A truncated, empty, or transcript-echoed draft must never feed
-            # the rewrite step. Skip without checkpointing so a later --resume
-            # retries it (same guard as step 3).
-            if not response or stop_reason == "max_tokens" or utils.looks_like_transcript_echo(response):
+            # A truncated, refusal-cut, empty, or transcript-echoed draft must
+            # never feed the rewrite step. Skip without checkpointing so a
+            # later --resume retries it (same guard as step 3).
+            if (not response or stop_reason in ("max_tokens", "refusal")
+                    or utils.looks_like_transcript_echo(response)):
                 why = ("truncated at max_tokens" if stop_reason == "max_tokens"
+                       else "cut by the refusal classifier (stop_reason=refusal)" if stop_reason == "refusal"
                        else "transcript echo" if response else "empty")
                 out["skips"].append(f"    Skipping {pid}{suffix}: draft {why} — "
                                     "not written, will retry on resume.")

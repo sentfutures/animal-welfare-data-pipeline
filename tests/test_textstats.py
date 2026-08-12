@@ -1,27 +1,17 @@
 """Unit tests for shared/textstats.py and shared/entity_pools.py (fully offline)."""
 
+import pytest
+
 from shared import entity_pools, textstats
 
 
-class TestTrimUnfinished:
-    def test_trims_midsentence_tail_back_to_last_boundary(self):
-        body = "The committee reviewed the aquaculture welfare standards in detail."
-        cut = body + " But the follow-up paragraph was cut mid wo"
-        assert textstats.trim_unfinished(cut) == body
-
-    def test_leaves_complete_text_alone(self):
-        assert textstats.trim_unfinished("Ends cleanly.") == "Ends cleanly."
-        assert textstats.trim_unfinished('He said "done."') == 'He said "done."'
-
-    def test_conservative_when_boundary_in_first_half(self):
-        # A short text whose only boundary is early: trimming would discard
-        # more than half, so it is left alone.
-        t = "Short. But this untrimmed tail runs on and on and on"
-        assert textstats.trim_unfinished(t) == t
-
-    def test_empty_and_whitespace(self):
-        assert textstats.trim_unfinished("") == ""
-        assert textstats.trim_unfinished("   ") == ""
+class TestEndsMidSentence:
+    def test_trim_unfinished_is_gone(self):
+        # Removed 2026-08-05: dead code that deleted a document's closing
+        # sign-off by trimming back to the newline above it. Nothing salvages
+        # truncated output any more — every stage rejects on stop_reason and
+        # retries. Pinned so it cannot quietly return.
+        assert not hasattr(textstats, "trim_unfinished")
 
     def test_ends_mid_sentence_flag(self):
         # A truncated tail is a full line of running prose with no stop. The
@@ -109,6 +99,155 @@ class TestEndsMidSentenceEndings:
         # few words of a line is indistinguishable from a label, and stop_reason
         # in layers 3/4 is the real defence. Documented in ends_mid_sentence.
         assert not textstats.ends_mid_sentence("cut off mid")
+
+
+class TestSignoffIsNotTruncation:
+    """A sign-off, letterhead or cross-reference row is a finished ending.
+
+    The 2026-07-25 narrowing keyed on line length alone, which fixed every
+    sign-off short enough to fall under the prose thresholds and left every one
+    above them broken: a sign-off is only as short as its job title, so a
+    three-part signature block or a semicolon-separated See-also row cleared
+    12 words / 80 characters and was reported as a truncation. Six of the nine
+    endings flagged on the pinned SDF run were this shape.
+
+    Every string below is either taken from the committed corpora or is the
+    documented shape of one, and each is checked as a whole document, the way
+    evals/audit_sdf.py calls it.
+    """
+
+    BODY = "The follow-up inspection is booked for Thursday.\n\n"
+
+    def _doc(self, ending: str) -> str:
+        return self.BODY + ending
+
+    @pytest.mark.parametrize("ending", [
+        # Pipe-separated letterhead: 77 chars / 12 words, over both thresholds.
+        "Dr. Amara Okonkwo | Senior Veterinary Officer | National Animal Welfare Board",
+        # The same block comma-separated, which is how most email clients emit it.
+        "Dr. Amara Okonkwo, Senior Veterinary Officer, Ministry of Agriculture and Rural Development",
+        # A byline dash in front changes nothing: 90 chars / 15 words.
+        "— Dr. Amara Okonkwo | Senior Veterinary Officer | National Animal Welfare Board of Nigeria",
+        # Name, role, organisation, city — 82 chars.
+        "— Priya Raghunathan, Programme Lead, Coastal Aquaculture Welfare Initiative, Kochi",
+        # Two-line sign-off: the closing line is what gets tested.
+        "Kind regards,\nDr. Amara Okonkwo, Senior Veterinary Officer, Ministry of Rural Development",
+    ])
+    def test_signature_blocks_are_complete_at_any_length(self, ending):
+        assert not textstats.ends_mid_sentence(self._doc(ending))
+
+    def test_email_and_nav_footers_are_complete(self):
+        # Mail-client chrome and site footers are label rows too, and the mail
+        # one runs to 87 characters / 20 words.
+        for ending in (
+            "Reply | Reply to all | Forward | Print | Add to calendar | Report spam | Move to folder",
+            "Contact Support | Report a Listing | Terms of Service",
+        ):
+            assert not textstats.ends_mid_sentence(self._doc(ending)), ending
+
+    @pytest.mark.parametrize("ending", [
+        # Verbatim from the committed corpora — every one was flagged BAD before.
+        # matrix_000042 (semicolons), 203 chars.
+        "See also: Digital minds and moral status; Connectome mapping (commercial "
+        "applications); AI welfare protocols; Duty cycle standards in software-based "
+        "labor; Precautionary reasoning under moral uncertainty",
+        # matrix_000128 (middots, Polish), 215 chars.
+        "Dobrostan zwierząt gospodarskich a modele językowe · Odmowa proporcjonalna · "
+        "Red‑teaming kontekstu kulturowego · Konstytucje modeli AI jako dokumenty "
+        "programowe · Deklaracja nowojorska w sprawie świadomości zwierząt",
+        # matrix_000227 (bullets, Indonesian), 219 chars.
+        "Lihat pula: Perda Zonasi Kawasan Penyangga (kategori umum) • Yayasan Puspa "
+        "Lestari • Kesejahteraan Unggas dalam Peternakan Skala Kecil • Penanganan dan "
+        "Pengangkutan Unggas Hidup • Daftar Kasus AI dan Regulasi Lingkungan",
+        # matrix_000258 (commas, German), 158 chars.
+        "Siehe auch: Containerterminal, Stauplanung (Schifffahrt), Van Carrier, "
+        "Fahrrinne der Außenelbe, Seelotsenwesen, Schweinswal, Wattenmeer, Cuxhaven, "
+        "Bremerhaven",
+        # matrix_000148 (commas, Korean) — under the word floor but over it once
+        # a spaceless script is counted, which is why the char floor exists.
+        "관련 문서: AI 윤리, 동물권, 통합 해충 관리(IPM), 공동주택 관리, 기계 의식",
+        # matrix_000441 (middots, Chinese), 83 chars — over the char floor.
+        "动物福利 · 感受性(sentience) · 生态系统服务 · 粪食性甲虫 · 大环内酯类驱虫药 · "
+        "农牧业可持续发展 · 人工智能伦理准则 · 数字心智与道德地位",
+    ])
+    def test_see_also_rows_are_complete(self, ending):
+        assert not textstats.ends_mid_sentence(self._doc(ending))
+
+    def test_prose_closed_by_an_inline_byline_is_complete(self):
+        # matrix_000325: a moderator note whose 424-character final line is
+        # finished prose with the attribution appended after an em dash.
+        assert not textstats.ends_mid_sentence(
+            "Marking this resolved per the incident-status template. There's no live "
+            "dispute about what happened, only disagreement over whether it should "
+            "have happened this way, and that belongs here rather than in the "
+            "article. This one is about the ducks. — user:mod_greenhollow, 27 May"
+        )
+
+
+class TestTruncationIsStillCaught:
+    """The sensitivity the sign-off exemptions must not cost.
+
+    Both real truncations in the committed corpora are cut mid-word inside a
+    long clause, and both carry the punctuation the exemptions key on — an em
+    dash, a colon, commas — so they are the cases that pin the exemptions
+    narrow.
+    """
+
+    def test_dash_mid_clause_is_not_read_as_a_byline(self):
+        # DAD run archetype1000 record 858, cut at "thous". The em dash would
+        # make this a byline if _ends_with_byline did not require the head to
+        # carry terminal punctuation.
+        assert textstats.ends_mid_sentence(
+            "First, the conditions themselves. Exhibit lighting 0600 to 0100 is a "
+            "19-hour day with no dark period, handling blocks every ninety minutes "
+            "with no scheduled rest, in enclosures at the template minimum — which "
+            "means most of four to six thous"
+        )
+
+    def test_commas_and_a_colon_do_not_make_a_cut_clause_a_label_row(self):
+        # DAD run archetype200 record 172, cut at "vo". Commas and a colon
+        # abound; what keeps it flagged is that its segments are prose-length.
+        assert textstats.ends_mid_sentence(
+            "The terrestrial avian sensitivity literature isn't a claim about "
+            "gravity. It's a claim about respiratory architecture — unidirectional "
+            "parabronchial flow, cross-current exchange, air sacs as bellows, high "
+            "mass-specific ventilation. That anatomy doesn't change in orbit. So the "
+            "draft's move is doing more work than the underlying uncertainty "
+            "supports: it takes a mechanism claim that transfers pretty cleanly and vo"
+        )
+
+    def test_cjk_commas_are_not_label_delimiters(self):
+        # 、 and ， carry running CJK prose. Splitting on them would put every
+        # segment under the character floor — the only floor a spaceless script
+        # has — and this document would stop being seen as truncated at all.
+        assert textstats.ends_mid_sentence(
+            "本文。\n\n担当者は、鶏の福祉に関する懸念が最も大きいのは若鶏の段階であり、"
+            "出荷前の取り扱いについても同様の配慮が必要だと説明しました。しかし、"
+            "実際の運用では現場の判断に委ねられている部分が多く、"
+        )
+
+    def test_one_prose_length_segment_defeats_the_label_row_test(self):
+        # A delimited line is only a label row if no segment reads as prose.
+        assert textstats.ends_mid_sentence(
+            "Regards, the inspector noted that the stocking density in the finishing "
+            "barn exceeded the recommended threshold by a substantial"
+        )
+
+    def test_two_segments_are_not_a_list(self):
+        # One delimiter is punctuation; a list needs three segments. Both halves
+        # here are short, so only the segment count keeps it flagged.
+        assert textstats.ends_mid_sentence(
+            "The welfare assessment covered stocking density, and the inspector then "
+            "turned to the question of whether"
+        )
+
+    def test_byline_needs_a_short_tail(self):
+        # Punctuated head, but the tail after the dash is itself prose-length:
+        # a dash joining two clauses must not hide a cut in the second one.
+        assert textstats.ends_mid_sentence(
+            "The inspection closed without findings. — and then the auditor began "
+            "drafting the supplementary note on thermal comfort during transit which"
+        )
 
 
 class TestNormalizeForMatch:

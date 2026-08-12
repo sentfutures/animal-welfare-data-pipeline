@@ -79,12 +79,14 @@ def run(config: dict, output_dir: Path, dilemmas: list[dict]) -> list[dict]:
     for out in utils.parallel_map(baseline_call, pending, workers):
         d, response, stop_reason = out["dilemma"], out["response"], out["stop_reason"]
         pid = prompt_key(d)
-        # A truncated or empty reply is not a usable comparison arm. Skip
-        # without checkpointing so --resume retries it (fail-soft: a baseline
-        # failure never stops the run — it only costs the comparison).
-        if not response or stop_reason == "max_tokens":
+        # A truncated, refusal-cut, or empty reply is not a usable comparison
+        # arm. Skip without checkpointing so --resume retries it (fail-soft: a
+        # baseline failure never stops the run — it only costs the comparison).
+        if not response or stop_reason in ("max_tokens", "refusal"):
             why = (f"truncated at max_tokens (even at {BASE_MAX_TOKENS_RETRY})"
-                   if stop_reason == "max_tokens" else "empty")
+                   if stop_reason == "max_tokens"
+                   else "cut by the refusal classifier (stop_reason=refusal)" if stop_reason == "refusal"
+                   else "empty")
             print(f"    Skipping {pid}: baseline {why} — not written, will retry on resume.")
             continue
         record = {

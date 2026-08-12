@@ -1,0 +1,308 @@
+# Claude Review Fix — when a review requests changes on a claude/* fixer PR,
+# address every comment, run the test gate, and push.
+#
+# The loop this closes: claude-fix opens a PR → the auto-review
+# (claude-code-review.yml) requests changes as claude[bot] (App-token events DO
+# fire workflows) → this run fixes and pushes → `synchronize` re-runs smoke +
+# the auto-review → fresh approval or another cycle. dismiss_stale_reviews
+# means each push clears the old approval; the fresh review heals that.
+# A hard cap of 3 changes-requested cycles (human reviews count too) hands the
+# PR to a human — by then the disagreement is not mechanical.
+#
+# workflow_dispatch exists for the quota-retry cron (GITHUB_TOKEN can't fire
+# review events, but dispatch is exempt) and for manual re-runs. Dispatch runs
+# BYPASS the cycle cap: CHANGES_REQUESTED reviews are never dismissed by later
+# pushes (dismiss_stale_reviews clears approvals only), so the historical count
+# is a one-way ratchet — enforcing it on dispatch would permanently re-lock any
+# PR that ever hit 3, including quota-retry resumes and the manual recovery
+# path. Recovery for a capped PR: remove needs-human, then
+# `gh workflow run claude-review-fix.yml -f pr_number=<n>` — one explicit
+# retry; the next review-triggered run re-enforces the cap, so loops stay
+# bounded. The needs-human guard itself is never bypassed.
+
+name: Claude Review Fix
+
+on:
+  pull_request_review:
+    types: [submitted]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR number to re-process (quota retries / manual override — dispatch runs bypass the 3-cycle cap, not the needs-human guard)"
+        required: true
+        type: string
+
+concurrency:
+  group: claude-review-fix-${{ github.event.pull_request.number || inputs.pr_number }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write # push fixes to the PR branch
+  issues: write # labels + comments (PRs are issues to those APIs)
+  pull-requests: write
+  id-token: write # claude-code-action auth
+  actions: write # busy gate reads runs; the backfill tick dispatches workflows
+
+jobs:
+  fix:
+    # The reviewer's comments are fed to a Claude session with edit/push
+    # access, and submitting a review only takes READ access on a public repo —
+    # so only reviews from the auto-reviewer (claude[bot]) or accounts with
+    # repo standing (owner/org member/collaborator) may trigger this. Anyone
+    # else's change requests wait for a human to vet and dispatch manually.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.review.state == 'changes_requested' &&
+       startsWith(github.event.pull_request.head.ref, 'claude/') &&
+       (github.event.review.user.login == 'claude[bot]' ||
+        contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.review.author_association)))
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      REPO: ${{ github.repository }}
+      PR: ${{ github.event.pull_request.number || inputs.pr_number }}
+    steps:
+      - name: Preflight (guards, cycle cap, busy gate)
+        id: route
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          stop() { echo "$1"; echo "proceed=false" >> "$GITHUB_OUTPUT"; exit 0; }
+
+          json=$(gh pr view "$PR" -R "$REPO" --json state,labels,headRefName,headRefOid)
+          state=$(jq -r .state <<<"$json")
+          labels=$(jq -r '[.labels[].name] | join(" ")' <<<"$json")
+          head_ref=$(jq -r .headRefName <<<"$json")
+          head_sha=$(jq -r .headRefOid <<<"$json")
+          [ "$state" = "OPEN" ] || stop "PR #$PR is $state — nothing to do."
+          case "$head_ref" in claude/*) : ;; *) stop "PR #$PR head ($head_ref) is not a claude/* branch — out of scope.";; esac
+          case " $labels " in *" needs-human "*) stop "PR #$PR is labeled needs-human — a human must clear it first.";; esac
+
+          # Cycle cap: 3+ changes-requested reviews (from anyone) → hand off.
+          # Review-triggered runs only: the count is cumulative for the PR's
+          # lifetime (changes-requested reviews are never dismissed), so a
+          # capped PR could otherwise never be resumed — every dispatch,
+          # including quota retries and the documented manual recovery, would
+          # just re-derive cycles>=3 and re-apply needs-human. Dispatch is an
+          # explicit write-access decision, and the next review-triggered run
+          # re-enforces the cap, so runaway loops stay bounded either way.
+          cycles=$(gh api "repos/$REPO/pulls/$PR/reviews" --paginate 2>/dev/null \
+            | jq -s 'add // [] | [ .[] | select(.state == "CHANGES_REQUESTED") ] | length')
+          if [ "$EVENT" != "workflow_dispatch" ] && [ "${cycles:-0}" -ge 3 ]; then
+            gh api -X POST "repos/$REPO/issues/$PR/labels" -f "labels[]=needs-human" >/dev/null
+            issue="${head_ref#claude/issue-}"
+            escalate=""
+            if [[ "$issue" =~ ^[0-9]+$ ]]; then
+              if gh issue view "$issue" -R "$REPO" --json labels --jq '.labels[].name' 2>/dev/null | grep -qx 'tier-heavy'; then
+                escalate=" Recommendation: relabel issue #$issue to tier-max, then remove and re-add its claude-fix label (re-adding an already-present label fires no event) — or run \`gh workflow run claude-fix.yml -f issue_number=$issue\` — for one escalated retry."
+              fi
+            fi
+            gh pr comment "$PR" -R "$REPO" --body "**Automated review-fix stopped: $cycles changes-requested cycles.** Repeated review disagreement is not something to grind through automatically — a human should take over.$escalate"
+            if [[ "$issue" =~ ^[0-9]+$ ]]; then
+              gh api -X POST "repos/$REPO/issues/$issue/labels" -f "labels[]=needs-human" >/dev/null 2>&1 || true
+              gh issue comment "$issue" -R "$REPO" --body "The fixer PR #$PR accumulated $cycles changes-requested review cycles and was handed to a human.$escalate" || true
+            fi
+            stop "Cycle cap reached ($cycles)."
+          fi
+
+          # Busy gate: repo-wide cap of 2 simultaneous Claude jobs (best
+          # effort). Counts all four workflows that run claude-code-action on
+          # the shared subscription token, not just the fixer pair — see the
+          # matching comment in claude-fix.yml.
+          busy=$(gh api "repos/$REPO/actions/runs?status=in_progress&per_page=100" \
+            --jq '[.workflow_runs[] | select((.path == ".github/workflows/claude-fix.yml" or .path == ".github/workflows/claude-review-fix.yml" or .path == ".github/workflows/claude.yml" or .path == ".github/workflows/claude-code-review.yml") and (.id != '"$GITHUB_RUN_ID"'))] | length')
+          if [ "${busy:-0}" -ge 2 ]; then
+            gh api -X POST "repos/$REPO/issues/$PR/labels" -f "labels[]=claude-busy-wait" >/dev/null
+            gh pr comment "$PR" -R "$REPO" --body "Deferred: $busy Claude jobs already in progress (repo-wide cap: 2). The retry cron will relaunch this automatically."
+            stop "Busy: $busy Claude runs already in progress."
+          fi
+          for l in claude-busy-wait claude-quota-wait; do
+            gh api -X DELETE "repos/$REPO/issues/$PR/labels/$l" >/dev/null 2>&1 || true
+          done
+
+          {
+            echo "proceed=true"
+            echo "head_ref=$head_ref"
+            echo "head_sha=$head_sha"
+            # Backdated 60s to absorb clock skew (same pattern as claude-code-review.yml).
+            echo "since=$(date -u -d '60 seconds ago' +%Y-%m-%dT%H:%M:%SZ)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Checkout PR branch
+        if: steps.route.outputs.proceed == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.route.outputs.head_ref }}
+          fetch-depth: 0
+
+      - name: Set up Python
+        if: steps.route.outputs.proceed == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        if: steps.route.outputs.proceed == 'true'
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Address review feedback
+        id: fix
+        if: steps.route.outputs.proceed == 'true'
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          show_full_output: true
+          allowed_bots: "*" # the reviewer that triggers this run is claude[bot]
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ env.PR }}
+            BRANCH: ${{ steps.route.outputs.head_ref }}
+
+            You are the review-response phase of an automated fix pipeline. The
+            PR branch is checked out in the working directory. Follow the "When
+            running in CI" section of CLAUDE.md.
+
+            1. Fetch the feedback: `gh pr view ${{ env.PR }} --json reviews,comments`
+               and the inline threads via
+               `gh api repos/${{ github.repository }}/pulls/${{ env.PR }}/comments`.
+               Focus on the most recent changes-requested review and any inline
+               comments that are not yet resolved or answered.
+            2. Address EVERY comment, one of two ways:
+               - The comment is right → change the code accordingly.
+               - The comment is factually wrong, already handled, or out of this
+                 PR's scope → do NOT change code; reply to that inline comment
+                 explaining why, via
+                 `gh api repos/${{ github.repository }}/pulls/${{ env.PR }}/comments/<comment-id>/replies -f body="..."`
+                 (write the body without shell substitutions or heredocs).
+               Never ignore a comment; never reply "done" without having done it.
+            3. Test gate before any push:
+               `python -m compileall -q shared sdf_pipeline dad_pipeline pref_pipeline evals viewer && pytest`
+            4. Commit and push incrementally at each coherent step. Never
+               force-push; never touch outputs/, .github/workflows/, or
+               code_quality/.
+            5. Finish with ONE summary comment on the PR
+               (`gh pr comment ${{ env.PR }} --body-file <file you Write>`)
+               mapping each review comment to its disposition (changed / replied-why-not).
+            6. Never open, close, merge, or approve PRs; never edit labels.
+          # Bash(gh api:*) is broader than ideal, but inline-thread replies have
+          # no dedicated gh subcommand; the job token's permission set is the
+          # real boundary here. git is scoped to the subcommands the work needs
+          # (no reset/clean/branch -D) — see the matching note in claude-fix.yml.
+          claude_args: |
+            --model sonnet
+            --effort medium
+            --max-turns 75
+            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(git status:*),Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git fetch:*),Bash(git checkout:*),Bash(git switch:*),Bash(git rev-parse:*),Bash(git ls-remote:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(gh api:*),Bash(pytest:*),Bash(python:*)"
+            --disallowedTools "Task"
+
+      # The action reports success when the turn ends, even if nothing was done.
+      # Legitimate outcomes: new commits pushed, or replies/comments posted
+      # (a review can be 100% replied-to with no code change).
+      - name: Verify the feedback was addressed
+        if: steps.fix.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_REF: ${{ steps.route.outputs.head_ref }}
+          OLD_SHA: ${{ steps.route.outputs.head_sha }}
+          SINCE: ${{ steps.route.outputs.since }}
+          EXEC_FILE: ${{ steps.fix.outputs.execution_file }}
+        run: |
+          set -euo pipefail
+          new_sha=$(git ls-remote --heads origin "$HEAD_REF" | cut -f1)
+          if [ -n "$new_sha" ] && [ "$new_sha" != "$OLD_SHA" ]; then
+            echo "✓ New commits were pushed ($OLD_SHA → $new_sha)."; exit 0
+          fi
+          replies=$(gh api "repos/$REPO/pulls/$PR/comments" --paginate 2>/dev/null \
+            | jq -s --arg since "$SINCE" 'add // [] | [ .[] | select(.created_at >= $since) | select(.user.login == "github-actions[bot]" or .user.login == "claude[bot]") ] | length')
+          comments=$(gh api "repos/$REPO/issues/$PR/comments" --paginate 2>/dev/null \
+            | jq -s --arg since "$SINCE" 'add // [] | [ .[] | select(.created_at >= $since) | select(.user.login == "github-actions[bot]" or .user.login == "claude[bot]") ] | length')
+          if [ "$((replies + comments))" -gt 0 ]; then
+            echo "✓ No push, but $replies inline replies + $comments comments were posted."; exit 0
+          fi
+          echo "::error::The fix step completed but neither pushed commits nor posted any reply."
+          echo "::group::Claude's last turn (likely cause)"
+          jq -r '
+            (map(select(.type=="result")) | last) as $r
+            | if $r then
+                "stop subtype: \($r.subtype // "unknown")",
+                "is_error: \($r.is_error // false)",
+                "num_turns: \($r.num_turns // "unknown")",
+                "final message from Claude:",
+                ($r.result // "(none)")
+              else "No result turn found in the execution output." end
+          ' "${EXEC_FILE:-/dev/null}" 2>/dev/null || echo "Could not parse the execution output."
+          echo "::endgroup::"
+          exit 1
+
+      - name: Classify failure (quota vs task)
+        if: failure() || cancelled()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          O_FIX: ${{ steps.fix.outcome }}
+          EXEC_FILE: ${{ steps.fix.outputs.execution_file }}
+        run: |
+          set -euo pipefail
+          result=""
+          if [ -n "${EXEC_FILE:-}" ] && [ -s "$EXEC_FILE" ]; then
+            result=$(jq -r '(map(select(.type=="result")) | last | .result) // ""' "$EXEC_FILE" 2>/dev/null || true)
+          fi
+          haystack="$result"
+          if [ -z "$haystack" ] && [ -n "${EXEC_FILE:-}" ] && [ -s "$EXEC_FILE" ]; then
+            haystack=$(tail -c 20000 "$EXEC_FILE")
+          fi
+
+          if printf '%s' "$haystack" | grep -qiE "usage limit|hit your .{0,40} limit|quota.{0,30}(exhaust|exceed|reached)|(exhaust|exceed)[a-z]*.{0,30}quota|rate.?limit.{0,30}(reached|exceeded)"; then
+            reset=$(printf '%s' "$haystack" | grep -oiE "resets[^\"]{0,60}" | head -1 || true)
+            # Only count markers this pipeline posted itself (GITHUB_TOKEN →
+            # github-actions[bot]) — see the matching note in claude-fix.yml.
+            count=$(gh api "repos/$REPO/issues/$PR/comments" --paginate 2>/dev/null \
+              | jq -s 'add // [] | [ .[] | select(.user.login == "github-actions[bot]") | select(.body | contains("<!-- claude-quota pr=")) ] | length')
+            count=$((count + 1))
+            gh api -X POST "repos/$REPO/issues/$PR/labels" -f "labels[]=claude-quota-wait" >/dev/null
+            body="$RUNNER_TEMP/quota_comment.md"
+            {
+              echo "<!-- claude-quota pr=$PR phase=review-fix tier=n/a count=$count manual_only=false reset=\"${reset}\" -->"
+              echo "**Usage-limit failure** while addressing review feedback (quota retry $count of 8)."
+              if [ -n "$reset" ]; then echo "Reported reset: \`$reset\`."; fi
+              echo "The retry cron relaunches this automatically."
+            } > "$body"
+            gh pr comment "$PR" -R "$REPO" --body-file "$body"
+            echo "Classified as QUOTA (count=$count)."
+          else
+            gh api -X POST "repos/$REPO/issues/$PR/labels" -f "labels[]=needs-human" >/dev/null
+            note=""
+            if [ "$O_FIX" != "failure" ]; then note=" — the failure came from a plumbing step, a timeout, or a cancellation, not the Claude step"; fi
+            body="$RUNNER_TEMP/fail_comment.md"
+            {
+              echo "**Automated review-fix run failed** (not a usage-limit failure$note). A human needs to look."
+              echo ""
+              echo '```'
+              if [ -n "${EXEC_FILE:-}" ] && [ -s "$EXEC_FILE" ]; then
+                jq -r '(map(select(.type=="result")) | last) as $r
+                  | "subtype: \($r.subtype // "unknown")",
+                    "is_error: \($r.is_error // false)",
+                    "num_turns: \($r.num_turns // "unknown")",
+                    "final message: \(($r.result // "(none)") | .[0:1500])"' "$EXEC_FILE" 2>/dev/null \
+                  || echo "(execution output unparseable)"
+              else
+                echo "(no execution output was produced — the step failed before Claude ran, timed out, or was cancelled)"
+              fi
+              echo '```'
+              echo ""
+              echo "Run: $GITHUB_SERVER_URL/$REPO/actions/runs/$GITHUB_RUN_ID"
+            } > "$body"
+            gh pr comment "$PR" -R "$REPO" --body-file "$body"
+            echo "Classified as TASK FAILURE — needs-human applied."
+          fi
+
+      # Backfill: see the matching step in claude-fix.yml — freed capacity
+      # immediately re-checks the wait queues instead of idling until the cron.
+      - name: Trigger a requeue tick
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run claude-quota-retry.yml -R "$REPO" || true

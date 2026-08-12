@@ -587,6 +587,10 @@ _RUN_DIR_TS_RE = re.compile(r"^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}_")
 def resolve_run_dir(runs_root: str | Path, run_id: str | None = None) -> Path:
     """Find an existing run directory: by ID if given, otherwise the most recent.
 
+    An explicit run_id that names no directory under runs_root is an error,
+    not a fallback: the call raises SystemExit naming the missing run_id and
+    runs_root, rather than quietly resuming the latest run.
+
     "Most recent" considers only pipeline-created dirs (timestamp-prefixed
     names). Hand-made dirs (e.g. local_* scratch runs) sort after every
     timestamp lexicographically and would otherwise hijack every bare

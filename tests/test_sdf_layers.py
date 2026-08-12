@@ -287,6 +287,85 @@ class TestLayer4Rewrite:
         assert len(records) == 1
 
 
+# Final lines that carry no terminal punctuation but end a complete document.
+# These are the shapes evals/audit_sdf.py's ends_mid_sentence once counted as
+# truncations (shared/textstats.py); a stage making the same misjudgement would
+# discard a paid document rather than mis-report a number.
+SIGNOFF_ENDINGS = pytest.mark.parametrize("ending", [
+    "Bien à vous,\n\n— Michelle",
+    "Dr. Amara Okonkwo | Senior Veterinary Officer | National Animal Welfare Board",
+    "See also: Machine ethics; Digital minds; Precautionary reasoning under uncertainty",
+    "关联条目 · 动物福利 · 感受性 · 生态系统服务 · 人工智能伦理准则",
+], ids=["signoff", "letterhead", "see-also", "cjk-label-row"])
+
+
+class TestCompleteDocumentsAreNotRejectedAsTruncated:
+    """The false-positive direction, at the stages where it would cost a document.
+
+    These stages decide truncation from `stop_reason` alone and never inspect the
+    text, so a document's final line cannot affect whether it survives. That is
+    the property under test: a draft or rewrite closing on a sign-off, letterhead
+    or See-also row must be checkpointed verbatim.
+
+    The truncated counterparts sit in the same class on purpose. A test that only
+    proves nothing gets rejected would pass equally well with the guard deleted,
+    so each stage is pinned in both directions.
+    """
+
+    @SIGNOFF_ENDINGS
+    def test_layer2_keeps_a_draft_ending_on_a_signoff(
+        self, tiny_config, prompts_sdf, stage_dir, stub_claude, ending
+    ):
+        body = f"Le comité a examiné les normes de bien-être animal.\n\n{ending}"
+        stub_claude(lambda user_message, **kw: f"notes\n<document>{body}</document>")
+        records = layer2_draft.run(tiny_config, prompts_sdf, stage_dir, [make_plan()])
+
+        assert len(records) == 1
+        assert records[0]["content"] == body  # sign-off intact, nothing trimmed
+        assert utils.load_jsonl(stage_dir / "drafts.jsonl") == records
+
+    def test_layer2_rejects_a_truncated_draft_and_retries_on_resume(
+        self, tiny_config, prompts_sdf, stage_dir, stub_claude
+    ):
+        stub_claude(lambda user_message, **kw:
+                    ("notes\n<document>The inspector noted that the stocking den",
+                     "max_tokens"))
+        assert layer2_draft.run(tiny_config, prompts_sdf, stage_dir, [make_plan()]) == []
+        assert utils.load_jsonl(stage_dir / "drafts.jsonl") == []  # not checkpointed
+
+        calls = stub_claude(lambda user_message, **kw: "n\n<document>Recovered.</document>")
+        records = layer2_draft.run(tiny_config, prompts_sdf, stage_dir, [make_plan()])
+        assert len(calls) == 1
+        assert records[0]["content"] == "Recovered."
+
+    @SIGNOFF_ENDINGS
+    def test_layer3_keeps_a_rewrite_ending_on_a_signoff(
+        self, tiny_config, prompts_sdf, stage_dir, stub_claude, ending
+    ):
+        body = f"Le comité a revu les normes, avec des corrections.\n\n{ending}"
+        stub_claude(lambda user_message, **kw:
+                    f"Problems: none.\n<improved_document>{body}</improved_document>")
+        records = layer3_rewrite.run(tiny_config, prompts_sdf, stage_dir, [make_draft()])
+
+        assert len(records) == 1
+        assert records[0]["content"] == body
+        assert utils.load_jsonl(stage_dir / "rewrites.jsonl") == records
+
+    def test_layer3_rejects_a_truncated_rewrite_and_retries_on_resume(
+        self, tiny_config, prompts_sdf, stage_dir, stub_claude
+    ):
+        stub_claude(lambda user_message, **kw:
+                    ("Problems: none.\n<improved_document>Cut mid-sen", "max_tokens"))
+        assert layer3_rewrite.run(tiny_config, prompts_sdf, stage_dir, [make_draft()]) == []
+        assert utils.load_jsonl(stage_dir / "rewrites.jsonl") == []
+
+        calls = stub_claude(lambda user_message, **kw:
+                            "r\n<improved_document>Recovered.</improved_document>")
+        records = layer3_rewrite.run(tiny_config, prompts_sdf, stage_dir, [make_draft()])
+        assert len(calls) == 1
+        assert records[0]["content"] == "Recovered."
+
+
 class TestLayer5Score:
     def test_scores_gate_and_corpus_fields(self, tiny_config, prompts_sdf, stage_dir, final_dir, stub_claude):
         def dispatch(user_message, **kw):

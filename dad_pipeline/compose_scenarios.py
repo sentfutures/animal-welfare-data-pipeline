@@ -59,6 +59,48 @@ from shared import matrix  # noqa: E402
 DEFAULT_TEMPLATE = REPO_ROOT / "prompts" / "dad" / "step1a_scenario.txt"
 DEFAULT_VARIABLES = REPO_ROOT / "prompts" / "dad" / "variables.txt"
 
+# The dealt cards a record carries downstream, in the order deal_scenarios
+# lays them out. Named once because three places read it: step 1's projection
+# off the deal, the final DAD corpus record, and the Hugging Face publisher —
+# so the published `variables` column cannot drift from what the scenario was
+# actually dealt. Legacy write-up fields (dilemma_anatomy / values_in_tension /
+# moral_patients / claims) are deliberately absent: they are the pre-2026-07
+# annotation era, always empty on dealt records, and nothing to publish.
+#
+# It lives HERE rather than beside step1_dilemmas' dealt_cards() for the reason
+# that module documents at its own call sites: step1_dilemmas pulls
+# shared.api -> anthropic, and evals/publish_hf.py makes no model calls.
+DEALT_CARD_FIELDS = (
+    "domain", "user_goal", "taxa_category", "taxa_subcategory", "visibility",
+    "user_attitude", "user_moral_framework", "conflict", "welfare_magnitude",
+    "user_stakes", "leverage", "anchor_value_pair", "secondary_value_pair",
+    "claim_pattern", "surface_form", "frontier_frame", "length_class",
+    "cultural_setting", "archetype",
+)
+_DEALT_LIST_FIELDS = ("domain", "user_goal")
+
+
+def dealt_variables(cards: dict) -> dict:
+    """The publishable projection of a record's dealt cards — exactly
+    DEALT_CARD_FIELDS, every key always present.
+
+    Uniform because it is published: a dataset reader (and pyarrow, inferring
+    the struct) sees one schema across runs dealt by different versions of this
+    composer. An absent or empty scalar becomes None so "not dealt" has a
+    single spelling — today's runs already write null for frontier_frame /
+    cultural_setting / archetype, while the hand-seeded archetype10 run writes
+    "" for the seven cards it never got. The two multi-valued axes stay lists.
+    Legacy write-up fields are dropped (see DEALT_CARD_FIELDS)."""
+    out: dict = {}
+    for f in DEALT_CARD_FIELDS:
+        v = cards.get(f)
+        if f in _DEALT_LIST_FIELDS:
+            out[f] = list(v) if isinstance(v, list) else ([] if v is None else [v])
+        else:
+            out[f] = str(v) if v is not None and str(v) != "" else None
+    return out
+
+
 # Placeholders whose values come from the composer, not variables.txt.
 RESERVED = {
     "taxa_hint",

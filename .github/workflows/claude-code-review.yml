@@ -26,6 +26,16 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository &&
       (github.event.action != 'edited' || github.event.changes.base != null)
 
+    # One review per PR at a time, and only the newest push gets a verdict.
+    # Without this, a burst of pushes stacks reviews and the PR accumulates
+    # contradictory verdicts for superseded commits (PR #104: ten verdicts in
+    # 2h09m, flip-flopping request-changes -> comment -> approve), which leaves
+    # the author unable to tell which one is current. Cancelling in progress is
+    # why the verify step below must guard on `!cancelled()`.
+    concurrency:
+      group: claude-review-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -94,6 +104,18 @@ jobs:
 
             Skip nitpicks, style preferences, and pre-existing issues.
 
+            You cannot run tests, and that is never a reason to avoid a
+            verdict: the `smoke` check runs `compileall` plus the full pytest
+            suite against this head commit. Read its result with
+            `gh pr view ${{ github.event.pull_request.number }} --json statusCheckRollup`:
+            - SUCCESS — the suite passes. Do not call your review unverified
+              merely because you did not run pytest yourself.
+            - FAILURE — that is a significant issue on its own. Request
+              changes and say which check failed.
+            - Still pending — review the code on its merits and say in one
+              line that `smoke` had not finished. Pending tests are not
+              grounds for withholding a verdict.
+
             Leave feedback with `mcp__github_inline_comment__create_inline_comment`
             for each specific issue (one comment per issue, on the relevant line).
 
@@ -101,13 +123,39 @@ jobs:
             #${{ github.event.pull_request.number }}. First write your summary
             to a file named `review-body.md` in the repository root using the
             Write tool (this keeps the command below free of shell quoting).
-            Then run ONE of these — nothing else:
+
+            Your verdict MUST agree with your own summary. Before running the
+            command, re-read what you wrote:
+            - If your summary says the changes are correct, that you found no
+              bugs / security issues / CLAUDE.md violations, or describes what
+              you found as "minor", "not blocking", "not a blocker", "a nit",
+              or "worth a follow-up" — that is an APPROVAL. Approve.
+            - If your summary says something should be fixed "before merge",
+              calls anything a "real bug", or gives the author an imperative
+              ("either wire a consumer or fix the comment") — that is a CHANGE
+              REQUEST. Request changes.
+            - Do NOT write a summary that states one verdict and then file a
+              different one. A finding you are unwilling to block on is an
+              approval with a note, not a neutral review.
+
+            "Significant" means it would produce wrong output, corrupt or
+            delete data, leak a secret, cost money unexpectedly, break a
+            documented interface, or violate an explicit CLAUDE.md
+            requirement. Anything else is not significant.
+
+            Run ONE of these — nothing else:
             - Significant issues found:
               `gh pr review ${{ github.event.pull_request.number }} --request-changes --body-file review-body.md`
             - Correct, no significant issues:
               `gh pr review ${{ github.event.pull_request.number }} --approve --body-file review-body.md`
-            - Unsure or out of scope to judge:
+            - The decision is not yours to make even in principle — a product,
+              research, or cost/quality tradeoff, or a public-facing breaking
+              change needing an owner's sign-off:
               `gh pr review ${{ github.event.pull_request.number }} --comment --body-file review-body.md`
+              If you use this, the body MUST open with the single specific
+              question a human has to answer. This verdict fails the review
+              check and requests review from a maintainer, so never reach for
+              it to avoid choosing.
             Always use `--body-file`; never pass the summary inline with
             `--body "..."`. Do NOT use command substitution `$(...)`, pipes, or
             heredocs in any command — they are blocked in this environment and
@@ -133,8 +181,12 @@ jobs:
           # three background review agents to finish before continuing" and
           # never posted a verdict). Blocking Task keeps the review
           # single-threaded and synchronous end-to-end.
+          # `Bash(gh pr comment:*)` was dropped: the verdict body is the
+          # summary channel, and across nine high-traffic PRs the review had
+          # never once posted a plain comment. Keeping it only offered a
+          # weaker exit than the three verdicts.
           claude_args: |
-            --allowedTools "Write,mcp__github_inline_comment__create_inline_comment,Bash(gh pr review:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
+            --allowedTools "Write,mcp__github_inline_comment__create_inline_comment,Bash(gh pr review:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
             --disallowedTools "Task"
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
@@ -143,8 +195,20 @@ jobs:
       # review for THIS head commit was submitted during this run, and fail the
       # check loudly if not (the action exposes no "verdict posted" signal). A
       # read of the reviews API only needs the default token's pull-requests read.
+      #
+      # This step also decides the check's colour from the verdict's *state*. A
+      # neutral (COMMENTED) verdict supplies zero of the one approval `main`
+      # requires, so it leaves the PR unmergeable — but it used to leave this
+      # check green, which is how PR #82 sat for 17 days with two green checks,
+      # a body opening "Real bug found:", and nothing for the author to click.
+      # Neutral now fails the check and escalates (see the next step).
+      #
+      # `!cancelled()` matters: `always()` fires on cancelled jobs too, and the
+      # job-level concurrency above cancels superseded runs. Without the guard a
+      # cancelled run would report a missing verdict and escalate spuriously.
       - name: Verify a review verdict was posted
-        if: always()
+        id: verdict
+        if: always() && !cancelled()
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -164,7 +228,17 @@ jobs:
             exit 0
           fi
           if [ -z "${EXEC_FILE}" ]; then
-            echo "::notice::Claude action produced no execution output — it self-skipped (e.g. this PR edits the review workflow, which the action only runs from the default branch). Not a review failure; skipping verdict check."
+            # A self-skip means this PR got NO automated review at all. The check
+            # deliberately stays green (663c7e2: a red X the author cannot act on
+            # is noise), but staying silent is what made this indistinguishable
+            # from a reviewed PR: on the PR page a self-skip reads as a fast
+            # green `claude-review`, and a guard-skipped no-op re-run after a
+            # real review reads as `skipping`. Neither tells you whether anyone
+            # looked. So record it as a verdict state and let the escalation step
+            # label the PR and request a human — the same routing a neutral
+            # verdict gets, for the same reason: a human has to do the reviewing.
+            echo "verdict=NOT_REVIEWED" >> "$GITHUB_OUTPUT"
+            echo "::warning::This PR received no automated review — the action self-skipped, which happens when a PR edits the review workflow (the action only runs the copy on the default branch). Requesting a human reviewer instead."
             exit 0
           fi
           if [ -z "${SINCE}" ]; then
@@ -172,19 +246,62 @@ jobs:
             exit 1
           fi
           # Poll briefly for API read-after-write consistency. submitted_at is
-          # ISO-8601 UTC, so the >= string compare against SINCE is correct;
-          # --paginate | wc -l counts matches across pages safely.
+          # ISO-8601 UTC, so the >= string compare against SINCE is correct.
+          #
+          # `(.body|length) > 0` is load-bearing, not defensive. Every inline
+          # comment the review posts also lands in this endpoint as its own
+          # review object with an EMPTY body and state COMMENTED — 152 of the
+          # 351 claude reviews on PRs #59-#118 are these artifacts. Reading
+          # `.state` without the body filter would classify almost every
+          # review, including approvals, as neutral. Take the LAST bodied
+          # review: that is the formal verdict.
+          #
+          # Pages are merged by `jq -s 'add'` BEFORE filtering. `gh api
+          # --paginate --jq` applies the filter to each page separately, so
+          # `last` would run per page and the substitution would join each
+          # page's own answer — making `$verdict` a multi-line string that
+          # matches no `case` arm below, so a real verdict would be reported as
+          # "posted no verdict" and the check would fail on a healthy review.
+          # Needs >100 review objects on one PR (`--paginate` requests
+          # per_page=100); the busiest so far, #65, has 48, so this is
+          # headroom rather than a live failure — but every inline comment adds
+          # a review object, so a long-iterated PR gets there. `--slurp` cannot
+          # be used: gh rejects it when combined with `--jq`. This matches the
+          # idiom claude-review-fix.yml already uses in four places.
           for attempt in 1 2 3 4 5 6; do
-            count=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUMBER}/reviews" --paginate \
-              --jq '.[] | select(.commit_id==env.HEAD_SHA and .submitted_at>=env.SINCE and (.user.login|test("claude";"i"))) | .id' \
-              | wc -l | tr -d ' ')
-            if [ "${count:-0}" -gt 0 ]; then
-              echo "✓ Found ${count} claude[bot] verdict(s) for ${HEAD_SHA}."
-              exit 0
+            verdict=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUMBER}/reviews" --paginate \
+              | jq -r -s 'add // [] | [.[] | select(.commit_id==env.HEAD_SHA and .submitted_at>=env.SINCE and (.user.login|test("claude";"i")) and (.body|length) > 0)] | last | .state // ""')
+            if [ -n "${verdict}" ]; then
+              break
             fi
             echo "No verdict yet (attempt ${attempt}/6); waiting…"
             sleep 10
           done
+          echo "verdict=${verdict}" >> "$GITHUB_OUTPUT"
+          case "${verdict}" in
+            APPROVED|CHANGES_REQUESTED)
+              echo "✓ Claude submitted a ${verdict} verdict for ${HEAD_SHA}."
+              # Clear a stale escalation from an earlier neutral verdict on this
+              # PR; the bot has since committed to a binary call. 404 when the
+              # label isn't present is the normal case, hence the discard.
+              gh api -X DELETE \
+                "repos/${{ github.repository }}/issues/${PR_NUMBER}/labels/needs-human-review" \
+                >/dev/null 2>&1 || true
+              exit 0
+              ;;
+            COMMENTED)
+              echo "::error::Claude reached no binary verdict for ${HEAD_SHA} — it neither approved nor requested changes, so this PR cannot merge on its own. The review body names the question a human has to answer; the next step requests that review."
+              exit 1
+              ;;
+            DISMISSED)
+              # A human dismissed the verdict (the 5 dismissed change-requests in
+              # the history all carry hand-written dismissal messages). They are
+              # already engaged, so don't fail the check or page anyone — just say
+              # plainly that the review no longer counts toward the approval gate.
+              echo "::notice::Claude's verdict for ${HEAD_SHA} was dismissed by a human, so it no longer counts toward the required approval. Nothing to re-run; a human is already handling this PR."
+              exit 0
+              ;;
+          esac
           echo "::error::Claude review ran but posted no verdict for ${HEAD_SHA}. Re-run the workflow to retry."
           # Surface *why* inline instead of forcing a trawl through the
           # show_full_output stream (thousands of lines): the execution file's
@@ -208,4 +325,91 @@ jobs:
           ' "${EXEC_FILE}" 2>/dev/null || echo "Could not parse ${EXEC_FILE} as JSON; check the \"Run Claude Code Review\" step log instead."
           echo "::endgroup::"
           exit 1
+
+      # Two states need a human, and neither used to say so anywhere the author
+      # would see it:
+      #
+      #   COMMENTED    - the reviewer looked but wouldn't commit to a verdict. A
+      #                  comment-only review neither blocks nor unblocks, so it
+      #                  sat inert with nobody notified.
+      #   NOT_REVIEWED - the action self-skipped, so nothing was reviewed at all.
+      #                  This reads on the PR page as a fast green `claude-review`
+      #                  and is therefore worse: it looks like a pass.
+      #
+      # Both route the same way, because the remedy is the same — a human has to
+      # review this PR. The check's colour is left alone in both cases (a neutral
+      # verdict fails it, a self-skip does not, per 663c7e2); this step is about
+      # making the state visible on the PR itself rather than only in a run log.
+      #
+      # The label is `needs-human-review`, NOT the existing `needs-human`:
+      # claude-review-fix.yml treats `needs-human` on a PR as an absolute stop
+      # for the auto-fixer ("a human must clear it first"), so reusing it would
+      # permanently disarm automated fixes for every escalated PR.
+      - name: Request human review when the bot cannot supply one
+        if: >-
+          always() && !cancelled() &&
+          (steps.verdict.outputs.verdict == 'COMMENTED' ||
+           steps.verdict.outputs.verdict == 'NOT_REVIEWED')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          VERDICT: ${{ steps.verdict.outputs.verdict }}
+          # Maintainers who adjudicate judgment calls. Both repo admins, and the
+          # only two humans who have ever reviewed here.
+          ESCALATE_TO: "Deco354 Liconstan"
+        run: |
+          case "${VERDICT}" in
+            NOT_REVIEWED) why="no automated review ran on this PR (the action self-skipped)" ;;
+            *)            why="the automated review reached no binary verdict" ;;
+          esac
+          echo "Escalating: ${why}."
+
+          # Skip maintainers who already have a pending request. This matters more
+          # than it used to: NOT_REVIEWED fires on every push to a PR that edits
+          # this workflow, so without deduping a long-running workflow PR would
+          # re-POST the same reviewers on each push. (pr-stall-sweep.yml deduped
+          # for the same reason.)
+          pending=$(gh api "repos/${{ github.repository }}/pulls/${PR_NUMBER}/requested_reviewers" \
+            --jq '[.users[].login] | join(" ")' 2>/dev/null || echo "")
+
+          # GitHub also rejects a request naming the PR's own author (422), so
+          # drop them too — that is why this is a list and not one name.
+          reviewers=""
+          for login in ${ESCALATE_TO}; do
+            if [ "${login}" = "${PR_AUTHOR}" ]; then
+              continue
+            fi
+            case " ${pending} " in
+              *" ${login} "*) continue ;;
+            esac
+            reviewers="${reviewers} ${login}"
+          done
+          reviewers="$(echo "${reviewers}" | tr -s ' ' | sed 's/^ //;s/ $//')"
+
+          gh api -X POST "repos/${{ github.repository }}/issues/${PR_NUMBER}/labels" \
+            -f "labels[]=needs-human-review" >/dev/null 2>&1 \
+            && echo "✓ Labeled needs-human-review." \
+            || echo "::warning::Could not apply the needs-human-review label."
+
+          if [ -z "${reviewers}" ]; then
+            if [ -n "${pending}" ]; then
+              echo "✓ ${why}; review already pending from ${pending}, so nothing to re-request."
+            else
+              echo "::warning::${why}, but there is no eligible reviewer to request (PR author ${PR_AUTHOR} is the only configured maintainer). The needs-human-review label is the only signal."
+            fi
+            exit 0
+          fi
+          # Re-requesting an already-pending reviewer is a harmless no-op, which
+          # matters because this workflow re-runs on every push.
+          args=""
+          for login in ${reviewers}; do
+            args="${args} -f reviewers[]=${login}"
+          done
+          # shellcheck disable=SC2086
+          if gh api -X POST "repos/${{ github.repository }}/pulls/${PR_NUMBER}/requested_reviewers" ${args} >/dev/null 2>&1; then
+            echo "✓ Requested review from: ${reviewers} (${why})"
+          else
+            echo "::warning::Could not request review from ${reviewers}; the needs-human-review label still stands."
+          fi
 
