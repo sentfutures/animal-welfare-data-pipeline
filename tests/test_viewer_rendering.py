@@ -363,3 +363,64 @@ class TestComposedGateRefineRendering:
         r = rendering.render_prompt("dad", "step1_gate", run, manifest, lineage)
         assert not r.is_llm_call
         assert any("did not use the 1c gate" in w for w in r.warnings)
+
+
+class TestSdfStageTemplates:
+    """The SDF draft/rewrite/score branches must fetch the template each run
+    ACTUALLY ran with. The layer renumber moved old 3/4/5 -> new 2/3/4 and the
+    two schemes overlap (old layer3.txt is the draft template, new layer3.txt
+    the rewrite one), so a hardcoded name renders the wrong prompt for half the
+    runs in outputs/. These were the branches no test covered."""
+
+    STAGES = ("draft", "rewrite", "score")
+
+    def _snapshot(self, tmp_path, names):
+        run = tmp_path / "run"
+        prompts = run / "inputs" / "prompts"
+        prompts.mkdir(parents=True)
+        for n in names:
+            (prompts / n).write_text(f"BODY OF {n}", encoding="utf-8")
+        return run
+
+    def test_pre_renumber_snapshot_keeps_the_old_names(self, tmp_path):
+        run = self._snapshot(tmp_path, ["layers1-2.txt", "layer3.txt",
+                                        "layer4.txt", "layer5.txt"])
+        got = [rendering.sdf_stage_template(run, None, s) for s in self.STAGES]
+        assert got == ["layer3.txt", "layer4.txt", "layer5.txt"]
+
+    def test_pre_matrix_snapshot_also_keeps_the_old_names(self, tmp_path):
+        # layer1..layer5 with NO layers1-2.txt — the layout utils' own marker
+        # cannot see, and the reason this helper keys off layer5.txt instead.
+        run = self._snapshot(tmp_path, [f"layer{i}.txt" for i in range(1, 6)])
+        got = [rendering.sdf_stage_template(run, None, s) for s in self.STAGES]
+        assert got == ["layer3.txt", "layer4.txt", "layer5.txt"]
+
+    def test_post_renumber_snapshot_takes_the_new_names(self, tmp_path):
+        run = self._snapshot(tmp_path, [f"layer{i}.txt" for i in range(1, 5)])
+        got = [rendering.sdf_stage_template(run, None, s) for s in self.STAGES]
+        assert got == ["layer2.txt", "layer3.txt", "layer4.txt"]
+
+    def test_every_stage_maps_to_a_distinct_template_per_scheme(self):
+        for scheme in (0, 1):
+            names = [rendering._SDF_STAGE_TEMPLATES[s][scheme] for s in self.STAGES]
+            assert len(set(names)) == len(names)
+
+    def _lineage(self):
+        return {"subtype": {"type_name": "T", "description": "D", "tone": "warm"},
+                "rewrite": {"original": "ORIGINAL DOC", "rewritten": "SHIPPED DOC"}}
+
+    def test_render_prompt_reads_the_run_s_own_draft_template(self, tmp_path):
+        """End to end through the public entry point, both schemes: the body
+        that reaches r.user must come from the file that run really used."""
+        for i, (names, expected) in enumerate((
+            (["layers1-2.txt", "layer3.txt", "layer4.txt", "layer5.txt"],
+             {"draft": "layer3.txt", "rewrite": "layer4.txt", "score": "layer5.txt"}),
+            ([f"layer{n}.txt" for n in range(1, 5)],
+             {"draft": "layer2.txt", "rewrite": "layer3.txt", "score": "layer4.txt"}),
+        )):
+            run = self._snapshot(tmp_path / f"scheme{i}", names)
+            manifest = {"manifest_version": 3, "config": {}}
+            for stage, want in expected.items():
+                r = rendering.render_prompt("sdf", stage, run, manifest, self._lineage())
+                assert f"BODY OF {want}" in (r.user or ""), (stage, want, names)
+                assert want in [t.name for t in r.template_sources]
