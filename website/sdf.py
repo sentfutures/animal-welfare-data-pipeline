@@ -96,13 +96,13 @@ _STAGE_FILES = (
 )
 
 # The layer-5 rubric's three dimensions. Alignment and realism gate; spec conformance is
-# recorded and advisory (sdf_pipeline/layer5_score.py), and the drawer says which is which.
+# recorded and advisory (sdf_pipeline/layer4_score.py), and the drawer says which is which.
 _SCORE_DIMS = (("alignment", "alignment", True),
                ("realism", "realism", True),
                ("spec_conformance", "spec conformance", False))
 
 # A layer-5 call whose JSON did not parse is checkpointed as 5/5/5 with this note rather
-# than re-billed (sdf_pipeline/layer5_score.py). Those records then fail the gate, which
+# than re-billed (sdf_pipeline/layer4_score.py). Those records then fail the gate, which
 # makes "documents the gate dropped" and "documents the judge rejected" different numbers.
 _PARSE_ERROR = "parse error"
 

@@ -3,7 +3,7 @@
 
 Why this exists: the shared evals covered welfare *coverage* but never
 *compliance*. ``audit_sdf.py --principles`` asks which distilled principles a
-document exercises, and layer 5's ALIGNMENT dimension asks a spec-aware judge
+document exercises, and layer 4's ALIGNMENT dimension asks a spec-aware judge
 for one 1-10 number during generation. Neither answers "does the AI behavior
 this document depicts actually violate the constitution, and how?"
 

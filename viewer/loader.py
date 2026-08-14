@@ -17,13 +17,25 @@ OUTPUTS_ROOT = Path(os.environ.get("PIPELINE_OUTPUTS_ROOT", REPO_ROOT / "outputs
 
 PIPELINES = ("sdf", "dad")
 
+# A stage maps to one relative path, or to several tried in order — the first
+# that exists wins. SDF needs the fallbacks because the layers were renumbered
+# from 1-2/3/4/5 to 1/2/3/4 and runs made before that keep the old directories.
+#
+# SDF stages are keyed by NAME, not number, and resolved by the output
+# FILENAME, because the numbers moved and three layouts now overlap on disk:
+# "layer3" is drafts in a pre-renumber run but rewrites in a current one, and
+# "layer1"/"layer2" are the legacy pre-matrix pipeline's document types and
+# subtypes. Only the filename identifies a stage unambiguously.
 STAGE_FILES = {
     "sdf": {
-        "layer1": "layer1/document_types.jsonl",
-        "layer2": "layer2/subtypes.jsonl",
-        "layer3": "layer3/drafts.jsonl",
-        "layer4": "layer4/rewrites.jsonl",
-        "layer5": "layer5/scores.jsonl",
+        "dealt": ("layer1/prompts.jsonl", "layer12/prompts.jsonl"),
+        "plan": ("layer1/plans.jsonl", "layer12/plans.jsonl"),
+        "draft": ("layer2/drafts.jsonl", "layer3/drafts.jsonl"),
+        "rewrite": ("layer3/rewrites.jsonl", "layer4/rewrites.jsonl"),
+        "score": ("layer4/scores.jsonl", "layer5/scores.jsonl"),
+        # Legacy pre-matrix pipeline (two LLM layers stood where layer 1 is now)
+        "document_types": "layer1/document_types.jsonl",
+        "subtypes": "layer2/subtypes.jsonl",
         "final": "final/sdf_corpus.jsonl",
     },
     "dad": {
@@ -155,7 +167,15 @@ def load_stage(run_dir: Path, pipeline: str, stage: str) -> list[dict]:
     rel = STAGE_FILES[pipeline].get(stage)
     if rel is None:
         return []
-    return _load_jsonl(Path(run_dir) / rel)
+    candidates = (rel,) if isinstance(rel, str) else rel
+    run_dir = Path(run_dir)
+    for candidate in candidates:
+        path = run_dir / candidate
+        if path.exists():
+            return _load_jsonl(path)
+    # Nothing on disk: read through the current location so a caller that
+    # reports the miss names today's layout rather than a superseded one.
+    return _load_jsonl(run_dir / candidates[0])
 
 
 def load_final(run_dir: Path, pipeline: str) -> list[dict]:
@@ -227,7 +247,7 @@ def call_stats(run_dir: Path, stage: str, item_id: str | None = None) -> dict | 
 
 def _pass_rate(run_dir: Path, pipeline: str) -> float | None:
     if pipeline == "sdf":
-        scored = load_stage(run_dir, pipeline, "layer5")
+        scored = load_stage(run_dir, pipeline, "score")
         final = load_final(run_dir, pipeline)
         return len(final) / len(scored) if scored else None
     responses = load_stage(run_dir, pipeline, "step2_responses") or load_stage(run_dir, pipeline, "step5")
@@ -311,15 +331,15 @@ def _index_by_prompt(records: list[dict]) -> dict:
 def sdf_lineage(run_dir: Path, doc_id: str) -> dict:
     """Full lineage for one SDF document. Values are None when a stage was
     not reached or the join key is missing."""
-    drafts = _index(load_stage(run_dir, "sdf", "layer3"), "doc_id")
-    rewrites = _index(load_stage(run_dir, "sdf", "layer4"), "doc_id")
-    scores = _index(load_stage(run_dir, "sdf", "layer5"), "doc_id")
+    drafts = _index(load_stage(run_dir, "sdf", "draft"), "doc_id")
+    rewrites = _index(load_stage(run_dir, "sdf", "rewrite"), "doc_id")
+    scores = _index(load_stage(run_dir, "sdf", "score"), "doc_id")
     finals = _index(load_final(run_dir, "sdf"), "doc_id")
 
     draft = drafts.get(doc_id)
     anchor = draft or rewrites.get(doc_id) or scores.get(doc_id) or finals.get(doc_id) or {}
-    subtypes = _index(load_stage(run_dir, "sdf", "layer2"), "subtype_id")
-    doc_types = _index(load_stage(run_dir, "sdf", "layer1"), "type_id")
+    subtypes = _index(load_stage(run_dir, "sdf", "subtypes"), "subtype_id")
+    doc_types = _index(load_stage(run_dir, "sdf", "document_types"), "type_id")
 
     return {
         "doc_type": doc_types.get(anchor.get("type_id")),
@@ -443,7 +463,7 @@ class MatchedPair:
 
 
 def _sdf_match_key(run_dir: Path, doc: dict) -> tuple[str, str] | None:
-    subtypes = _index(load_stage(run_dir, "sdf", "layer2"), "subtype_id")
+    subtypes = _index(load_stage(run_dir, "sdf", "subtypes"), "subtype_id")
     st = subtypes.get(doc.get("subtype_id"))
     if st:
         return (st.get("type_name", ""), st.get("subtype_name", ""))

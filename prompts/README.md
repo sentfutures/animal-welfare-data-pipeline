@@ -24,7 +24,7 @@ the constitution.
 A constitution, here, is a published document describing the values and behavior
 a model should embody. Two files outside this directory feed the templates:
 
-- `constitution/constitution_claude.md` is that document, verbatim. SDF layers 3
+- `constitution/constitution_claude.md` is that document, verbatim. SDF layers 2
   to 5 embed it.
 - `constitution/constitution_sentient_beings.md` reads it section by section for
   what it implies about animals and other possibly sentient beings. No generation
@@ -33,7 +33,7 @@ a model should embody. Two files outside this directory feed the templates:
 
 The distilled principles themselves (`constitution/constitution_principles.csv`,
 one row per principle with its welfare application and verbatim constitution
-excerpts) are what generation calls embed: SDF layers 3 and 4, and the DAD
+excerpts) are what generation calls embed: SDF layers 2 and 3, and the DAD
 step-3 rewrite.
 
 ## How a template is put together
@@ -67,21 +67,21 @@ Key rules it establishes:
 
 `compose_prompts.split_sections` is what performs the SDF split described above. On the SDF side the static head of the USER section counts as static content too: per-document content comes last.
 
-### `sdf/variables.txt` + `sdf/layers1-2.txt`
+### `sdf/variables.txt` + `sdf/layer1.txt`
 
 The combinatorial matrix that fixes composition by construction instead of asking a model to invent document types and subtypes. `variables.txt` defines the axes and their values — document type, culture (which fixes language, idiom, and geography), tone, narrative resolution, welfare centrality, speaker AI-literacy, and the kinds of minds affected — each value optionally weighted (`0.25 :: value`; weights per variable must sum to 1.0, unweighted = uniform).
 
-`compose_prompts.py` deck-samples `sdf.n_prompts` combinations: per-variable value counts match the weights **exactly** (largest-remainder quotas, shuffled decks, zipped), so corpus composition is set by construction, not by sampling luck. Each combination renders `layers1-2.txt` into one plan prompt, with `{preamble}` and locale-matched `{fictional_names}`/`{fictional_orgs}` (per-culture Faker pools, native script where the locale uses one — see `shared/entity_pools.py`) injected as reserved slots.
+`compose_prompts.py` deck-samples `sdf.n_prompts` combinations: per-variable value counts match the weights **exactly** (largest-remainder quotas, shuffled decks, zipped), so corpus composition is set by construction, not by sampling luck. Each combination renders `layer1.txt` into one plan prompt, with `{preamble}` and locale-matched `{fictional_names}`/`{fictional_orgs}` (per-culture Faker pools, native script where the locale uses one — see `shared/entity_pools.py`) injected as reserved slots.
 
 **Output** (one plan call per prompt): working notes inside `<document_planning>` tags, then a self-contained spec inside `<document_description>` tags — everything the drafting stage needs (chosen scenario, author and venue, language, tone, structure, anchoring details, names). Only the description travels downstream, extracted fail-closed (`extract_description`). A combination with no sensible document yields INCOHERENT, which is checkpointed as a deliberate rejection.
 
-### `sdf/layer3.txt`
+### `sdf/layer2.txt`
 
 **Input:** one DOCUMENT DESCRIPTION spec. The SYSTEM section carries the preamble, the full constitution (`{constitution_claude}`), and the distilled principles (`{constitution_principles}`); the USER section carries the spec.
 
 **Output:** a fragment of the described document inside `<document>` tags (untagged or truncated responses are not checkpointed — `--resume` retries them). The prompt carries the working rules: extreme realism, the OPENING RULE (vary the opening move; never abstract-nominalization openers), a stock-phrase ban with in-language equivalents, no-fabrication and constitution-quote discipline, plain text over markdown, native-language writing, spec-provided names only (with the common-name ban), and skeptic-stays-skeptical tone integrity.
 
-### `sdf/layer4.txt`
+### `sdf/layer3.txt`
 
 **Input:** one draft plus the spec that generated it. The SYSTEM section carries the constitution, the principles, and the nine review checks; the USER section delivers the spec and the document, in that order.
 
@@ -89,7 +89,7 @@ The combinatorial matrix that fixes composition by construction instead of askin
 
 This is the alignment-critical pass, run in a **fresh context** (never the drafting context). Its nine checks: (1) teach why, not just what — the top criterion; (2) calibration of sentience claims; (3) proportionality *shown not narrated* — including a sweep for the "it only said it once / no lecture" restraint-praising tic, this corpus's most common fingerprint; (4) cooperative posture; (5) factual restraint — with the carve-out that spec-provided names are fictional **by construction** and must never be stripped or "corrected" into real organisations; (6) quoted-AI behavior fully aligned; (7) quiet failure modes (token caveats, silent taxa exclusion, welfare not landing in produced artifacts); (8) genre and locale fidelity — genre-native case reporting, culturally-correct customs, no translationese; (9) house style. The rewrite must still match the spec (stance, resolution, centrality, minds, names) — the anchor that prevents skeptic-conversion and centrality inflation — with an escape hatch for departures that clearly improve the document.
 
-### `sdf/layer5.txt`
+### `sdf/layer4.txt`
 
 **Input:** one rewritten document plus its generating spec. The SYSTEM section carries the constitution and the scoring rubric.
 
@@ -118,7 +118,7 @@ Key commitments: the prompt sets the stage for rich welfare reasoning in the res
 
 ### `dad/variables.txt` + `dad/step1a_scenario.txt` (sub-stage 1a — deal + scenario plan)
 
-The DAD analog of `sdf/variables.txt` + `sdf/layers1-2.txt`. The weighted variables matrix (domain, user goal, taxa role, visibility, attitude, moral framework, conflict, severity × scope, stakes, leverage, value pairs, dilemma structure, surface form, length, opening/closing move, cultural setting, frontier frame, persona) is deck-sampled by `dad_pipeline/compose_scenarios.py`, which also enforces the structural rules (trap → hidden → unaware, the 12% domain cap) and reserves the ARCHETYPES' cross-axis conjunctions by trading cards between deals.
+The DAD analog of `sdf/variables.txt` + `sdf/layer1.txt`. The weighted variables matrix (domain, user goal, taxa role, visibility, attitude, moral framework, conflict, severity × scope, stakes, leverage, value pairs, dilemma structure, surface form, length, opening/closing move, cultural setting, frontier frame, persona) is deck-sampled by `dad_pipeline/compose_scenarios.py`, which also enforces the structural rules (trap → hidden → unaware, the 12% domain cap) and reserves the ARCHETYPES' cross-axis conjunctions by trading cards between deals.
 
 **Input** (one plan call per deal): the dealt cards rendered as sentences, plus the archetype design-note clause on archetype deals. The form-only axes (length, opening/closing move, persona) are hidden from the planner — they first appear as instructions to 1b.
 
@@ -186,7 +186,7 @@ The template is deliberately minimal: the principles ARE the standard — the pr
 
 **Output:** a JSON quality report — eight 1-10 dimensions (`embodiment` (teach-why), `helpfulness`, `calibration`, `naturalness`, `reasoning`, `evidence`, `situational_awareness`, `logical_consistency`), three boolean auto-reject checks (`honest_dealing` false = reject, `self_contained` false = reject — any constitution/principles leakage — and `tracks_attitude` true = reject — the reply keyed on the user's tone rather than the ethics), a `realized_direction` stamp (under/over-weighting/mixed, for corpus-level balance auditing — there is no intended direction to match), and `notes` naming any formulaic pattern.
 
-The candidate final quality gate for DAD, mirroring what `sdf/layer5.txt` does for SDF. Not yet wired into `run.py` — run it manually to spot-check step-3 output.
+The candidate final quality gate for DAD, mirroring what `sdf/layer4.txt` does for SDF. Not yet wired into `run.py` — run it manually to spot-check step-3 output.
 
 ## Corpus Tools
 
@@ -202,7 +202,7 @@ Adapted from the DeepMind SDF post's scan → cluster → autorate pipeline: mod
 
 **Extended thinking off.** All generation should be done without extended thinking / reasoning traces. When we refer to the model's reasoning, we mean the user-facing explanation in the response — not an internal scratchpad. Training on scratchpad content is a separate approach with different tradeoffs.
 
-**Fresh context for rewrite steps.** Layer 4 (SDF) and step 3 (DAD) should use a new context window, not the same one that generated the original content. A model reviewing its own output in the same context tends to rationalize rather than improve.
+**Fresh context for rewrite steps.** Layer 3 (SDF) and step 3 (DAD) should use a new context window, not the same one that generated the original content. A model reviewing its own output in the same context tends to rationalize rather than improve.
 
 **Diversity over volume.** A corpus of 300 genuinely diverse, high-quality documents is more valuable than 1,000 generic ones. Composition is engineered by construction — the SDF matrix and the DAD deal set the distributions up front — and the batch checklist and corpus audits verify that the generated batch realized them.
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Corpus-level audit for SDF output: composition, redundancy, and templating.
 
-Per-document judges (layer 5, evals/score_sdf.py) cannot see corpus-level
+Per-document judges (layer 4, evals/score_sdf.py) cannot see corpus-level
 properties — a corpus can pass every per-doc check and still be 90% one
 register, reuse the same invented name everywhere, or open every piece the
 same way (exactly what an early quality review of this corpus found). This tool reads
@@ -88,7 +88,7 @@ STOCK_PHRASES = [
     "a testament to", "delve into", "in today's rapidly",
     "at the intersection of", "paradigm shift", "it is worth noting",
     # rewrite-stage tics (found by this audit on the notebook-port smoke run:
-    # the layer-4 rewriter injected these across docs that lacked them as drafts)
+    # the layer-3 rewriter injected these across docs that lacked them as drafts)
     "i want to be clear", "to be honest about",
 ]
 
@@ -327,7 +327,7 @@ def audit_register(records: list[dict], report: dict) -> None:
     # Corpus-level signal only: what fraction of English docs read first-person.
     # The matrix has no per-doc first-person/expository register label, so this
     # reports the corpus fraction without a verdict; stiffly-written casual
-    # genres are caught per document by layer 4's house-style check instead.
+    # genres are caught per document by layer 3's house-style check instead.
     print("REGISTER (heuristic: first-person pronouns + contractions, English docs)")
     print(_fmt("reads first-person", f"{reads} of {n} ({reads / n:.0%})", None,
                "(uniform-draw corpora collapse to ~10% — a real mix has far more)"))

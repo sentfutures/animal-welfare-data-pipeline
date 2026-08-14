@@ -1,7 +1,7 @@
-"""Layers 1-2: compose the prompt matrix (offline), then plan each document.
+"""Layer 1: compose the prompt matrix (offline), then plan each document.
 
-The composition half replaces the old LLM layers 1-2 entirely: a deck sample
-of the variables matrix (prompts/sdf/variables.txt x layers1-2.txt) yields one
+The composition half replaces the old LLM layers entirely: a deck sample
+of the variables matrix (prompts/sdf/variables.txt x layer1.txt) yields one
 fully-specified prompt per planned document, at zero API cost. The plan half
 sends each composed prompt to the model, which works through the template's
 questions and emits a self-contained DOCUMENT DESCRIPTION spec (or declares
@@ -36,7 +36,7 @@ def run(config: dict, prompts_dir: Path, output_dir: Path) -> list[dict]:
         prompts = utils.load_jsonl(prompts_path)
         print(f"  Reusing {len(prompts)} composed prompts from this run")
     else:
-        template = (prompts_dir / "layers1-2.txt").read_text(encoding="utf-8")
+        template = utils.sdf_template_path(prompts_dir, 1).read_text(encoding="utf-8")
         values, weights = cp.split_weights(cp.parse_variables(prompts_dir / "variables.txt"))
         preamble = (prompts_dir / "preamble.txt").read_text(encoding="utf-8")
         prompts = list(cp.compose_records(
@@ -62,7 +62,7 @@ def run(config: dict, prompts_dir: Path, output_dir: Path) -> list[dict]:
                 rec["prompt"],
                 system_prompt=rec.get("system") or "",
                 model=sdf.get("plan_model"),
-                stage="layer12_plan",
+                stage="layer1_plan",
                 item_id=rec["prompt_id"],
                 return_stop_reason=True,
             )
@@ -103,7 +103,7 @@ def run(config: dict, prompts_dir: Path, output_dir: Path) -> list[dict]:
 
     if pending and failed_calls == len(pending):
         raise SystemExit(
-            "layer12_plan: every pending API call failed — this is systemic "
+            "layer1_plan: every pending API call failed — this is systemic "
             "(auth, backend, or network), not per-document; fix and --resume."
         )
     incoherent_n = sum(1 for r in results if r.get("incoherent"))

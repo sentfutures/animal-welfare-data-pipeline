@@ -655,9 +655,9 @@ class TestClaudeCodeDispatch:
         monkeypatch.setattr(api, "_cost_log_path", tmp_path / "cost.jsonl")
         monkeypatch.setattr(api, "_call_claude_code_with_retry",
                             lambda model, system, user_message: ("t", 1, 1, 0.001, "end_turn"))
-        api.call_claude("hi", stage="layer4")
+        api.call_claude("hi", stage="layer3_rewrite")
         record = json.loads((tmp_path / "cost.jsonl").read_text().strip())
-        assert record["stage"] == "layer4"
+        assert record["stage"] == "layer3_rewrite"
 
     def test_non_default_temperature_warns_once_on_claude_code(self, monkeypatch, tmp_path, capsys):
         # The CLI exposes no temperature control; a deliberate override must be

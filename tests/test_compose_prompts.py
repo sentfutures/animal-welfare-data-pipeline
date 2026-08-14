@@ -119,10 +119,18 @@ def test_split_sections():
     assert cp.split_sections("just a user prompt\n") == (None, "just a user prompt")
 
 
+def test_module_defaults_point_at_real_files():
+    """The standalone CLI's default paths must exist — a template rename that
+    misses these constants breaks `python sdf_pipeline/compose_prompts.py`
+    while every pipeline test (which passes explicit paths) stays green."""
+    for default in (cp.DEFAULT_TEMPLATE, cp.DEFAULT_VARIABLES, cp.DEFAULT_PREAMBLE):
+        assert default.is_file(), f"{default} does not exist"
+
+
 def test_real_templates_render_with_canonical_loader():
     """Both matrix templates must render through utils.load_prompt (str.format),
     like every other pipeline template — a stray literal brace fails here."""
-    plan_path = REPO_ROOT / "prompts" / "sdf" / "layers1-2.txt"
+    plan_path = REPO_ROOT / "prompts" / "sdf" / "layer1.txt"
     plan_system, plan_user = cp.split_sections(utils.load_prompt(
         plan_path,
         preamble="P",
@@ -137,7 +145,7 @@ def test_real_templates_render_with_canonical_loader():
     assert "{" not in plan_user
 
     l3_system, l3_user = cp.split_sections(utils.load_prompt(
-        REPO_ROOT / "prompts" / "sdf" / "layer3.txt",
+        REPO_ROOT / "prompts" / "sdf" / "layer2.txt",
         preamble="P",
         constitution_claude="CC",
         constitution_principles="CP",
@@ -153,7 +161,7 @@ def test_real_templates_render_with_canonical_loader():
     # the nine checks) lives in the SYSTEM section; the USER section holds only
     # the closing judgment text and the two variable blocks, spec then document.
     l4_system, l4_user = cp.split_sections(utils.load_prompt(
-        REPO_ROOT / "prompts" / "sdf" / "layer4.txt",
+        REPO_ROOT / "prompts" / "sdf" / "layer3.txt",
         constitution_claude="CC",
         constitution_principles="CP",
         document_description="DESC",
@@ -168,7 +176,7 @@ def test_real_templates_render_with_canonical_loader():
     # layer 5 mirrors the layer-4 split; the judge scores spec_conformance
     # (not diversity — a single-doc judge can't see the corpus)
     l5_system, l5_user = cp.split_sections(utils.load_prompt(
-        REPO_ROOT / "prompts" / "sdf" / "layer5.txt",
+        REPO_ROOT / "prompts" / "sdf" / "layer4.txt",
         constitution_claude="CC",
         document_description="DESC",
         improved_document="DOC",
@@ -257,12 +265,12 @@ def test_real_template_axes_match_real_variables():
     - every plan-template placeholder is an axis with values (a placeholder
       without values is a fatal composer error);
     - every axis in variables.txt is consumed by SOME stage template — the
-      plan template (layers1-2.txt) or the draft template (layer3.txt) — so a
+      plan template (layer1.txt) or the draft template (layer2.txt) — so a
       variable that nothing renders (a typo, or a dropped consumer) is caught
       here rather than silently sampled into a dead column;
     - all weights validate (split_weights raises on a bad sum)."""
-    plan_tmpl = (REPO_ROOT / "prompts" / "sdf" / "layers1-2.txt").read_text(encoding="utf-8")
-    draft_tmpl = (REPO_ROOT / "prompts" / "sdf" / "layer3.txt").read_text(encoding="utf-8")
+    plan_tmpl = (REPO_ROOT / "prompts" / "sdf" / "layer1.txt").read_text(encoding="utf-8")
+    draft_tmpl = (REPO_ROOT / "prompts" / "sdf" / "layer2.txt").read_text(encoding="utf-8")
     plan_axes = cp.matrix_axes(plan_tmpl)
     draft_placeholders = cp.template_placeholders(draft_tmpl)
     values, _ = cp.split_weights(cp.parse_variables(

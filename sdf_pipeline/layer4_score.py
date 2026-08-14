@@ -1,4 +1,4 @@
-"""Layer 5: score each rewrite and gate the final corpus.
+"""Layer 4: score each rewrite and gate the final corpus.
 
 The judge scores alignment, realism, and spec_conformance (1-10 each) against
 the constitution and the document's generating spec. The gate keeps documents
@@ -47,7 +47,7 @@ def run(
 
     def score_one(rw: dict) -> dict | None:
         system, user = cp.split_sections(utils.load_prompt(
-            prompts_dir / "layer5.txt",
+            utils.sdf_template_path(prompts_dir, 4),
             constitution_claude=constitution_claude,
             document_description=rw["description"],
             improved_document=rw["content"],
@@ -57,7 +57,7 @@ def run(
                 user,
                 system_prompt=system or "",
                 model=sdf.get("score_model"),
-                stage="layer5",
+                stage="layer4_score",
                 item_id=rw["doc_id"],
                 cache_system=True,  # constitution + rubric are identical across scoring calls
             )
@@ -97,7 +97,7 @@ def run(
         print(f"  Scored {record['doc_id']} A{s['alignment']} R{s['realism']} S{s['spec_conformance']}")
     if pending and failed_calls == len(pending):
         raise SystemExit(
-            "layer5: every pending API call failed — this is systemic "
+            "layer4_score: every pending API call failed — this is systemic "
             "(auth, backend, or network), not per-document; fix and --resume."
         )
 

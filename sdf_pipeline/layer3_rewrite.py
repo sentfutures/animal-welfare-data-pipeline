@@ -1,6 +1,6 @@
-"""Layer 4: review and rewrite each draft against the constitution and its spec.
+"""Layer 3: review and rewrite each draft against the constitution and its spec.
 
-The alignment-critical pass — do not skip or abbreviate it. The layer4.txt
+The alignment-critical pass — do not skip or abbreviate it. The layer3.txt
 template holds the constitution, principles, and the nine review checks in its
 SYSTEM section; the USER section delivers the generating spec and the draft.
 The rewrite must come back inside <improved_document> tags; the review text
@@ -42,7 +42,7 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, drafts: list[dict]) -
 
     def rewrite_one(draft: dict):
         system, user = cp.split_sections(utils.load_prompt(
-            prompts_dir / "layer4.txt",
+            utils.sdf_template_path(prompts_dir, 3),
             constitution_claude=constitution_claude,
             constitution_principles=principles,
             document_description=draft["description"],
@@ -54,7 +54,7 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, drafts: list[dict]) -
                 system_prompt=system or "",
                 model=sdf.get("rewrite_model"),
                 max_tokens=_MAX_TOKENS,
-                stage="layer4",
+                stage="layer3_rewrite",
                 item_id=draft["doc_id"],
                 return_stop_reason=True,
                 cache_system=True,  # constitution + nine checks are identical across rewrites
@@ -95,7 +95,7 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, drafts: list[dict]) -
 
     if pending and failed_calls == len(pending):
         raise SystemExit(
-            "layer4: every pending API call failed — this is systemic "
+            "layer3_rewrite: every pending API call failed — this is systemic "
             "(auth, backend, or network), not per-document; fix and --resume."
         )
     return results

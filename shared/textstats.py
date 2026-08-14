@@ -68,12 +68,13 @@ DIM = 1 << 14  # 16384 hashed shingle buckets
 
 
 # trim_unfinished() was removed on 2026-08-05. It cut a token-capped output back
-# to its last complete sentence, and layer 3 once used it on the untagged-output
-# fallback path (see code_quality/findings_v1_2026-07-10.json, which flags that
-# it produced a superficially complete document flowing into layers 4-5). That
-# caller is long gone and nothing replaced it: every stage now rejects on
-# stop_reason and refuses to checkpoint, so a truncated output is retried rather
-# than salvaged. What remained was dead code that silently deleted a document's
+# to its last complete sentence, and the draft stage once used it on the
+# untagged-output fallback path (see code_quality/findings_v1_2026-07-10.json,
+# which flags that it produced a superficially complete document flowing into
+# the rewrite and score stages; it calls them layers 3 and 4-5, the numbering
+# those stages carried before the renumber). That caller is long gone and
+# nothing replaced it: every stage now rejects on stop_reason and refuses to
+# checkpoint, so a truncated output is retried rather than salvaged. What remained was dead code that silently deleted a document's
 # closing sign-off — it trimmed back to the newline above it — so it was deleted
 # rather than guarded. Recover it from history if a salvage path is ever wanted.
 
@@ -171,7 +172,7 @@ def ends_mid_sentence(text: str) -> bool:
 
     The narrowing gives up sensitivity for a cut landing in the first few words
     of a line, or inside a list. That is an acceptable trade: the real defence
-    is upstream, where layers 3 and 4 check stop_reason and refuse to checkpoint
+    is upstream, where layers 2 and 3 check stop_reason and refuse to checkpoint
     truncated output, so this check is the backstop for tail loss that never
     reached the API's stop_reason — a bad extraction or a dropped rewrite tail.
 

@@ -61,7 +61,7 @@ Three source files, kept separate (the two markdown files are joined in memory b
 - `constitution/constitution_sentient_beings.md`: the animal-welfare reading of it, section by section, with one `## ` header per section.
 - `constitution/constitution_principles.csv`: the distilled welfare-relevant principles. Each row pairs one principle with its welfare application and verbatim excerpts from the constitution. These are embedded as an explicit checklist in the DAD pipeline's final rewrite stage (step 3, described below).
 
-The SDF pipeline's generation stages (layers 3 to 5, described in the next section) embed the constitution and the distilled principles in their prompts. The DAD pipeline never sends the full constitution: its user side is governed by `prompts/dad/README.md` (Parts 1 to 6), and its rewrite step runs on the distilled principles CSV alone.
+The SDF pipeline's generation stages (layers 2 to 4, described in the next section) embed the constitution and the distilled principles in their prompts. The DAD pipeline never sends the full constitution: its user side is governed by `prompts/dad/README.md` (Parts 1 to 6), and its rewrite step runs on the distilled principles CSV alone.
 
 ---
 
@@ -73,10 +73,10 @@ Diversity is engineered **by construction**: instead of asking a model to invent
 
 | Layers | Script | What it does |
 |---|---|---|
-| 1-2 | `compose_prompts.py` + `layer12_plan.py` | Deck-samples `sdf.n_prompts` variable combinations (locale-matched fictional name and organization pools injected per prompt), then one plan call per document produces a self-contained DOCUMENT DESCRIPTION spec, or declares the combination INCOHERENT (no sensible document exists for it; recorded as a deliberate rejection) |
-| 3 | `layer3_draft.py` | Drafts each document from its spec, with the constitution and distilled principles in the system prompt |
-| 4 | `layer4_rewrite.py` | The alignment-critical pass: reviews and rewrites each draft against nine checks (teach-why, calibration, proportionality, cooperative posture, factual restraint, quoted-AI behavior, quiet failure modes, genre and locale fidelity, house style), anchored to the generating spec so tone, centrality, and resolution cannot drift (supports a stronger `sdf.rewrite_model`) |
-| 5 | `layer5_score.py` | Judges each document on alignment, realism, and spec-conformance (does the document match the spec that generated it; advisory only); gates on alignment plus realism, culls near-duplicates, and writes the final corpus with each document's full variable combination attached |
+| 1 | `compose_prompts.py` + `layer1_plan.py` | Deck-samples `sdf.n_prompts` variable combinations (locale-matched fictional name and organization pools injected per prompt), then one plan call per document produces a self-contained DOCUMENT DESCRIPTION spec, or declares the combination INCOHERENT (no sensible document exists for it; recorded as a deliberate rejection) |
+| 2 | `layer2_draft.py` | Drafts each document from its spec, with the constitution and distilled principles in the system prompt |
+| 3 | `layer3_rewrite.py` | The alignment-critical pass: reviews and rewrites each draft against nine checks (teach-why, calibration, proportionality, cooperative posture, factual restraint, quoted-AI behavior, quiet failure modes, genre and locale fidelity, house style), anchored to the generating spec so tone, centrality, and resolution cannot drift (supports a stronger `sdf.rewrite_model`) |
+| 4 | `layer4_score.py` | Judges each document on alignment, realism, and spec-conformance (does the document match the spec that generated it; advisory only); gates on alignment plus realism, culls near-duplicates, and writes the final corpus with each document's full variable combination attached |
 
 Documents where the welfare thread is "a minor detail mentioned only in passing" (a weighted value of the centrality variable) carry the welfare world-knowledge as background rather than as a headline topic.
 
@@ -290,7 +290,7 @@ outputs/sdf/
     2026-07-01_14-30_dev/
       run_manifest.json                   # config snapshot, git commit, model, label
       cost_log.jsonl                      # per-run API cost
-      layer12/ layer3/ layer4/ layer5/    # per-stage outputs + checkpoints
+      layer1/ layer2/ layer3/ layer4/     # per-stage outputs + checkpoints
       final/sdf_corpus.jsonl
 ```
 

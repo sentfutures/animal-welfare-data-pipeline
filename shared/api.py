@@ -100,7 +100,7 @@ _temperature_warned = False
 
 # Linux caps each argv string at 128 KiB (MAX_ARG_STRLEN), and a str
 # system_prompt reaches the CLI as a single --system-prompt argument — so the
-# ~185 KB constitution (SDF layers 4-5) aborts the spawn with E2BIG on Linux.
+# ~185 KB constitution (SDF layers 3-5) aborts the spawn with E2BIG on Linux.
 # System prompts over this many UTF-8 bytes travel via --system-prompt-file.
 _CC_SYSTEM_ARG_MAX_BYTES = 100_000
 

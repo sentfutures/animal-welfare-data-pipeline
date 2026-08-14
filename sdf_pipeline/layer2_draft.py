@@ -1,6 +1,6 @@
-"""Layer 3: draft one document per plan, from its DOCUMENT DESCRIPTION spec.
+"""Layer 2: draft one document per plan, from its DOCUMENT DESCRIPTION spec.
 
-The layer3.txt template carries the constitution and principles in its SYSTEM
+The layer2.txt template carries the constitution and principles in its SYSTEM
 section (rendered from the run's constitution snapshot) and the per-document
 spec in its USER section. The draft must come back inside <document> tags;
 anything else — missing tags, truncation — is not checkpointed, so --resume
@@ -43,12 +43,12 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
 
     def draft_one(plan: dict):
         system, user = cp.split_sections(utils.load_prompt(
-            prompts_dir / "layer3.txt",
+            utils.sdf_template_path(prompts_dir, 2),
             preamble=preamble,
             constitution_claude=constitution_claude,
             constitution_principles=principles,
             document_description=plan["description"],
-            # Downstream-only matrix axis (sampled in layer12, recorded in
+            # Downstream-only matrix axis (sampled in layer 1, recorded in
             # variables). Default to the neutral value for plans composed
             # before this axis existed, so --resume on an old run never crashes.
             reasoning_featured=plan.get("variables", {}).get(
@@ -61,7 +61,7 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
                 system_prompt=system or "",
                 model=sdf.get("draft_model"),
                 max_tokens=_MAX_TOKENS,
-                stage="layer3",
+                stage="layer2_draft",
                 item_id=plan["prompt_id"],
                 return_stop_reason=True,
                 cache_system=True,  # constitution-laden system prompt is identical across drafts
@@ -102,7 +102,7 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
 
     if pending and failed_calls == len(pending):
         raise SystemExit(
-            "layer3: every pending API call failed — this is systemic "
+            "layer2_draft: every pending API call failed — this is systemic "
             "(auth, backend, or network), not per-document; fix and --resume."
         )
     return results

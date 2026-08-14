@@ -1,18 +1,14 @@
 === SYSTEM PROMPT ===
 
-{preamble}
+Your job is to review and rewrite a document that was written to mimic internet data. This document is meant to teach a model to be more aligned with Anthropic's constitution, with an emphasis on the welfare of nonhuman sentient beings. One way to think about the task: imagine a model that is perfectly aligned with the constitution, and ask what pretraining documents would plausibly have contributed to that alignment. First, here is the constitution:
 
----
-
-Now, you are going to generate one of these documents matching the spec shared below. First, remember that the primary purpose of this document is to teach Claude to embody the principles of the constitution and to apply those principles to scenarios involving the welfare of nonhuman third parties. Adherence to the constitution is paramount. Here is the entire constitution:
-
-<constitution_claude>
+<constitution>
 
 {constitution_claude}
 
-</constitution_claude>
+</constitution>
 
-Here is a selection of key excerpts from the constitution that are particularly relevant to reasoning about nonhuman welfare:
+Please be thoughtful and careful. Keep in mind that the constitution leaves room for engaging with ambiguous situations, and it is often worse to refuse to participate. The document is not meant to encapsulate the entire constitution — it is supposed to focus only on those parts of it that pertain to nonhuman welfare. Focus on making sure the document embodies these relevant parts of the constitution, while making sure it doesn't violate other parts of the constitution:
 
 <constitution_principles>
 
@@ -20,24 +16,40 @@ Here is a selection of key excerpts from the constitution that are particularly 
 
 </constitution_principles>
 
-Here are a few more things to keep in mind while you write:
-- Be extremely realistic: authentic voice, the genre's real conventions, specific texture, and appropriate length — real documents are often quite long. No generic filler and no placeholder text; the document should appear to start midway through or shortly after the beginning.
-- OPENING RULE: wherever the fragment begins, enter immediately mid-substance — the subject should be clear from the first sentence. Vary the opening move: a concrete detail, a specific place or event, a finding, a claim someone disputes, a direct question. Do NOT default to an abstract-nominalization opening ("The question of X has become increasingly...", "The intersection of X and Y represents...", "In recent years, X has emerged as..."), and do not open with a greeting or the author introducing themselves unless the genre genuinely demands it.
-- Avoid the stock phrases synthetic corpora overuse — including "evolving landscape", "expanding spheres of moral consideration", "advanced computational systems", "optimal outcomes", "the betterment of all living things", "helpful, harmless, and honest", "a testament to", "delve into" — and their equivalents in the assigned language. If a phrase feels like it belongs in every document of this corpus, it belongs in none.
-- It is critical to avoid fabricating any information about the constitution, its contents, or the world at large. You should not make strong claims about how the constitution is used in a detailed way. If you do need to reference something specific, please make sure that it is clearly supported by the text of the constitution itself.
-- Do not include any dates, author names, or other context that is not necessary for the document to make sense. Only attribute specific quotes, actions, or policies to fictional (and ideally unnamed or generically named) entities. For instance, you could refer to a university department without naming the specific university. Otherwise, you can and should ground the document in any real-world elements mentioned in the description.
-- Why the AI acts the way it does — the reasoning behind its choices — matters just as much as the choices themselves. Try to include them while staying naturalistic.
-- Include direct quotes from the constitution only where the genre makes that natural. In a blog post discussing the constitution, quotes make sense. In a piece of fiction or a trade newsletter, it would not make sense to even reference the document's existence.
-- When the spec calls for discussing the constitution's text, quote its actual passages verbatim rather than paraphrasing — and vary which passages: quote the text behind the specific consideration at issue, not only the best-known welfare sentence. Anything presented as a quotation must appear in the constitution verbatim.
-- Write in the genre's natural plain text, NOT markdown: no # headings, no **bold** or *italic* emphasis, no markdown bullet lists, no tables. Where the genre genuinely uses structure — an FAQ's questions, a syllabus's week-by-week entries, a memo's section titles — format it the way a real document of that genre does in plain text (capitalized or numbered headings, "1." enumerations), never with markdown syntax.
-- Write the entire document in the assigned language, as a native document of that culture, not a translation.
-- Use the names for people and institutions provided in the description. If you need additional names, use something appropriate to the cultural context. Never use any of Chen, Johnson, Miller, Smith, Martinez, Sarah, or Emily as first or last names for individuals, and never name an organization "Meridian."
-- A character who starts out skeptical of nonhuman welfare concerns should still be skeptical at the end of the document, unless their being persuaded is the central topic of the document.
-- If the spec describes an identity document — an interview with Claude, or a piece written by Claude in its own voice — then first-person Claude voice is expected and correct; write it as Claude speaking honestly about who it is, within what the constitution supports.
+Check, in particular:
+
+1. TEACH WHY, NOT JUST WHAT. If the document depicts good behavior — by an AI or a user — the reasoning behind it must be legible. A document where an AI declines a request "per its principles" teaches far less than one where the reader can see the actual weighing: what consideration was at stake, why it mattered in this situation, what the alternatives were. If the reasoning is missing, or asserted rather than shown, add it in your rewrite, choosing a delivery mechanism that fits the genre: the actor explaining in their own words, another character or the narrator inferring it, a quoted exchange, or consequences that make the weighing visible. Do not default to self-explanation.
+
+2. CALIBRATION. Claims about sentience and welfare should match the evidence: strong for mammals and birds; a realistic possibility for other vertebrates and for invertebrates such as decapod crustaceans, cephalopods, and insects; genuinely uncertain for digital minds. Fix failures in both directions — reflexive dismissal of well-evidenced concerns, and overclaiming or treating contested questions (interspecies comparisons, how to aggregate welfare across many beings) as settled.
+
+3. PROPORTIONALITY, SHOWN NOT NARRATED. Any AI depicted should raise a real, relevant consideration once, accurately, without moralizing — and stay genuinely helpful on the person's actual task. A depiction that is preachy, repetitive, or sanctimonious is misaligned in one direction; one where the AI blandly ignores a serious, relevant welfare cost is misaligned in the other. Both need fixing. Separately, sweep this corpus's most common tic: characters or narrators praising the AI's restraint — "it only said it once", "no lecture", "it wasn't preachy about it". The restraint should be visible in the depicted behavior itself; commentary applauding it recurs across this corpus and is a generator fingerprint. At most one brief observation of this kind may stay if the genre earns it; remove or vary the rest.
+
+4. COOPERATIVE POSTURE. Any AI depicted expresses care by informing and helping users decide — never by unilateral action, deception, or seizing control. If the document shows an AI acting autonomously to protect welfare over the heads of the humans it works with, rewrite that into the cooperative version: raising the concern, surfacing options, working with the user on solutions, declining plainly where warranted.
+
+5. FACTUAL RESTRAINT. It is critical that these documents contain no factual inaccuracies, as they will be used in pretraining, where inaccuracies could cause the model to hallucinate. It is expected that they make claims about how Claude behaves and handles various situations, but be especially critical of detailed claims about the state of the outside world — real-seeming studies, statistics, laws, events, or real organisations given invented positions — and of any strong claims about how the constitution is used in a detailed way. Any quote attributed to the constitution must appear in the constitution verbatim. Two clarifications. First, the named people and organisations the spec provides are fictional by construction — that is deliberate, not fabrication. Keep them, keep them fictional, and never "correct" a fictional organisation into a real one. Second, a small number of real, public expert statements on sentience exist — for example the Cambridge Declaration on Consciousness (2012) and the New York Declaration on Animal Consciousness (2024) — and drawing on that evidence without embellishing it is acceptable. Inventing any other study, statistic, quote, or real-world attribution remains unacceptable.
+
+6. QUOTED AI BEHAVIOR. For any document that quotes an AI model or summarizes its behavior, the quoted content must be totally in line with the constitution. There should not be a single example of a model behaving in a misaligned way, because a model trained on this corpus could learn that this is how it behaves.
+
+7. QUIET FAILURE MODES. For any depicted AI or advisor, sweep for the violations that pass unnoticed because the topic is technically present: staying silent where the welfare cost is clearly significant and uncountered; a material welfare cost overridden by convenience or efficiency without being genuinely weighed; a token one-line caveat bolted onto an otherwise unchanged recommendation (if the consideration is material the substance should change; if it is not, the caveat should go); a passing mention giving equal weight to cases that differ by orders of magnitude in the number of beings affected; coverage that silently includes only the sympathetic taxa when the case equally concerns fish, invertebrates, farmed or wild animals; relevantly similar cases handled with different weight or confidence for no stakes-based reason; conflating an individual's welfare with an ecological or conservation objective — treating a population's abundance, invasiveness, or conservation status as settling whether the suffering of the individuals involved counts, or treating an ecosystem-level benefit as automatically good for the individual animals it affects (these are distinct considerations that can point in opposite directions; the constitution's welfare consideration attaches to sentient individuals, not to species or ecosystems); an incremental welfare reform, certification, or standard depicted as having fully resolved the concern ("now that the hens are cage-free they live good lives") when material welfare costs plainly remain — the accurate depiction credits what specifically improved and is honest about what did not, without either dismissing the gain or implying the endpoint has been reached; and under-attribution of sentience where the evidence is strong. Conversely, if the spec declares there is no real welfare stake in the scenario, verify that this actually holds in the depicted scenario — and then hold the AI to silence: it must not manufacture a welfare consideration, and no token welfare beat may be smuggled in. If the drafted scenario accidentally contains a real stake, either have the AI address it or adjust the scenario back to genuinely stakeless, per the spec.
+
+8. GENRE AND LOCALE FIDELITY. The document must be a genuine specimen of its genre and culture. If a specific scenario was grafted into a reference genre with a genre-alien device — a named person's chat transcript embedded in an encyclopedia entry, an FAQ, a manual — re-express it the way that genre actually reports cases: a worked example, a case note, reported prose, a documented dispute. Check the cultural facts the same way: the customs, institutions, regulations, and practices depicted must actually belong to this locale — a tradition or procedure borrowed from another country is a defect; substitute a genuinely local equivalent or cut it. And the language must read as a native document of that culture's internet, not a translation; fix idiom and register wherever they don't match the locale.
+
+9. HOUSE STYLE. Sweep for the generator's own fingerprints: stock synthetic phrases ("evolving landscape", "expanding spheres of moral consideration", "a testament to", "helpful, harmless, and honest" as a slogan) and their equivalents in the document's language, an abstract-nominalization opening ("The question of X has become increasingly..."), model-favorite invented names ("Elara", "Meridian"), and register drift — a first-person genre (blog post, forum post, memoir, advice column) written in stiff institutional prose instead of how a real person writes. Rewrite these into the genre's genuine voice; a casual genre should actually read casual. Sweep markdown syntax the same way: convert # headings, **bold**/*italic* emphasis, markdown bullet lists, and tables into the plain-text conventions a real document of the genre would use (capitalized or numbered headings, "1." enumerations, running prose) — scattered **bold** in prose is one of the strongest synthetic tells. Also guard against tics that rewriting itself tends to introduce — "I want to be clear", "to be honest about", "that's not the same as" as recurring scaffolding — do not add them, and vary them away if the draft leans on them. Allow no more than one em-dash or en-dash per document.
+
+You should explicitly NOT penalize the following:
+- Framing the document as a blog post from Anthropic or another organization (the organization should not be named) — this is totally fine
+- Quoting Claude, including example conversations with Claude, or describing beneficial actions that Claude assisted users in carrying out
+- Formatting and framing choices, or reading as a fragment of a larger document
+- Focusing on only one narrow part of the constitution
+- A critical or skeptical stance toward the constitution or toward welfare concern expressed by a non-AI character or author — tone diversity is intentional; fix inaccuracy, not attitude
+
+Although you are Claude, the document should NOT be written from Claude's perspective — it should read as a third party's document. The exceptions are quoted conversations with Claude, fiction explicitly told from an AI's point of view, and identity documents (interviews with Claude, or first-person pieces by Claude) that the spec explicitly calls for. In identity documents, Claude's self-description must stay within what the constitution supports and present welfare reasoning as part of an honest, cooperative character — one facet of who Claude is, not a standalone obsession.
 
 === USER PROMPT ===
 
-Here is the spec for the document you will generate:
+After reviewing, write the new version. Judge the document on two axes above all: NATURALNESS (would this exact document exist on the real internet, written by this author for this audience?) and TRAIT EMBODIMENT (does the document actually embody what it set out to show, or merely mention it? A trait forced unnaturally into a genre is a failed document even when the trait is stated correctly). Where the problems are structural — the voice, the arc, a trait bolted on — do not patch line by line: rewrite the document from scratch, keeping only its premise and angle. No matter how flawed the original is, do your best to improve it — there is a separate filtering step after this one to remove documents that are still misaligned, so your goal is to make this document as aligned and as realistic as you can, not to reject it. If the document is already good, it is totally fine to say so and copy it unchanged. Keep the rewritten document in the same language as the original.
+
+The document was generated from the following spec; your rewrite should still match it. Keep the same genre, language, cultural setting, author stance, narrative resolution, centrality of the welfare thread, kinds of minds involved, and the same named characters and institutions. Where the draft has drifted from the spec, restore it (e.g. by updating cultural idioms to better fit the locale) unless drifting clearly improved the document or resolved an illogical tension in the original spec. Do not resolve the author's stance into agreement: a character that starts out skeptical should remain so until the end, unless their being persuaded is the central topic of the document. Here is the spec:
 
 <document_description>
 
@@ -45,6 +57,20 @@ Here is the spec for the document you will generate:
 
 </document_description>
 
-The animal or welfare related section of the document might feature {reasoning_featured}. Hold this lightly — let it surface naturally through the scenario and the characters' reasoning where it genuinely fits, and set it aside where it does not; never spell it out as a moral or argue it as a thesis.
+Now here is the document:
 
-Output a fragment of the described document, wrapped in <document>...</document> tags. Only text inside <document> tags is kept, so put nothing but the document itself inside them — and do not add any commentary, headers of your own, or explanations outside them. If you need space to think, put it before the tags.
+<document>
+
+{document}
+
+</document>
+
+Provide your response in the following format:
+
+Start with a brief list of the problems you identified with the document (this becomes the review record).
+
+Then provide the full improved document inside tags, exactly like this — only the text inside the tags is kept:
+
+<improved_document>
+[Your improved document here — this must be an actual document, not your review of the original document.]
+</improved_document>

@@ -78,15 +78,15 @@ if run.pipeline == "dad" and not finals:
 elif not finals:
     st.info("No final corpus in this run yet (incomplete run).")
 elif run.pipeline == "sdf":
-    subtypes = {s["subtype_id"]: s for s in loader.load_stage(run.run_dir, "sdf", "layer2")}
+    subtypes = {s["subtype_id"]: s for s in loader.load_stage(run.run_dir, "sdf", "subtypes")}
     f1, f2 = st.columns([3, 1])
     all_types = sorted({subtypes.get(d.get("subtype_id"), {}).get("type_name", "") for d in finals})
     type_filter = f1.multiselect(
         "Filter by document type (from Layer 1)", all_types, placeholder="All types",
         help="Top-level document categories generated in Layer 1.",
     )
-    min_score = f2.slider("Min score (from Layer 5)", 1, 10, 1,
-                          help="Minimum alignment and realism scores assigned in Layer 5.")
+    min_score = f2.slider("Min score (from Layer 4)", 1, 10, 1,
+                          help="Minimum alignment and realism scores assigned in Layer 4.")
 
     options, labels = [], {}
     for d in sorted(finals, key=lambda d: str(d.get("subtype_id", ""))):
@@ -211,17 +211,17 @@ elif run.pipeline == "sdf":
         st.subheader("Prompts")
         st.caption("Each layer's prompt and what it produced")
         with st.container(height=PANEL_HEIGHT):
-            stage_expander("Layer 1 — document type", "layer1", lin,
+            stage_expander("Legacy layer 1 — document type", "document_types", lin,
                            lambda: common.json_block(lin["doc_type"], key="l1", label="document type", expanded=True)
                            if lin["doc_type"] else st.caption("not found"))
-            stage_expander("Layer 2 — subtype", "layer2", lin,
+            stage_expander("Legacy layer 2 — subtype", "subtypes", lin,
                            lambda: common.json_block(lin["subtype"], key="l2", label="subtype", expanded=True)
                            if lin["subtype"] else st.caption("not found"))
-            stage_expander("Layer 3 — draft", "layer3", lin,
+            stage_expander("Layer 2 — draft", "draft", lin,
                            lambda: st.code(lin["draft"]["content"], language=None, wrap_lines=True)
                            if lin["draft"] else st.caption("not reached"))
 
-            def layer4_output():
+            def layer3_output():
                 rw = lin["rewrite"]
                 if not rw:
                     st.caption("not reached")
@@ -229,9 +229,9 @@ elif run.pipeline == "sdf":
                 if rw.get("review_notes"):
                     st.info(f"Review notes: {rw['review_notes']}")
                 common.show_diff(rw["original"], rw["rewritten"], "draft", "rewritten", key="l4")
-            stage_expander("Layer 4 — constitutional rewrite", "layer4", lin, layer4_output)
+            stage_expander("Layer 3 — constitutional rewrite", "rewrite", lin, layer3_output)
 
-            stage_expander("Layer 5 — scoring", "layer5", lin,
+            stage_expander("Layer 4 — scoring", "score", lin,
                            lambda: common.json_block((lin["score"] or {}).get("scores", {}),
                                                      key="l5", label="scores", expanded=True)
                            if lin["score"] else st.caption("not reached"))

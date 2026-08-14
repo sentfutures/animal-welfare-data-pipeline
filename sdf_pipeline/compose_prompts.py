@@ -1,12 +1,12 @@
 """Compose document-plan prompts from a template and a variables file.
 
-EXPERIMENTAL replacement for SDF layers 1-2: instead of two LLM calls
+EXPERIMENTAL replacement for SDF layer 1: instead of two LLM calls
 generating document types and subtypes, a combinatorial matrix of pre-written
 variables is expanded deterministically. Offline, zero API calls.
 
 Inputs
 ------
-- Template (``prompts/sdf/matrix/layers1-2.txt``): plain text with ``{name}``
+- Template (``prompts/sdf/layer1.txt``): plain text with ``{name}``
   slots — the same Python ``str.format`` syntax as every other pipeline
   template (rendered the same way ``shared.utils.load_prompt`` does), so
   literal ``{}`` braces must not appear in the template.
@@ -54,7 +54,7 @@ Downstream handoff: the plan call answers the template's questions, then
 emits a self-contained spec under a DOCUMENT DESCRIPTION heading (or replies
 INCOHERENT for an impossible variable combination). ``extract_description()``
 pulls that spec out fail-closed — no heading, no handoff — and the result
-fills the ``{document_description}`` slot of the matrix layer-3 template.
+fills the ``{document_description}`` slot of the matrix layer-2 template.
 """
 
 from __future__ import annotations
@@ -88,7 +88,7 @@ from shared.matrix import (  # noqa: E402,F401
     template_placeholders,
 )
 from shared import matrix as _matrix  # noqa: E402
-DEFAULT_TEMPLATE = REPO_ROOT / "prompts" / "sdf" / "layers1-2.txt"
+DEFAULT_TEMPLATE = REPO_ROOT / "prompts" / "sdf" / "layer1.txt"
 DEFAULT_VARIABLES = REPO_ROOT / "prompts" / "sdf" / "variables.txt"
 DEFAULT_PREAMBLE = REPO_ROOT / "prompts" / "sdf" / "preamble.txt"
 
@@ -105,8 +105,8 @@ LANGUAGE_RE = re.compile(r"written in ([^,]+)")
 # may feature a different member of the category instead.
 RESERVED = {"preamble", "fictional_names", "fictional_orgs", "sentient_example"}
 
-NAMES_PER_PROMPT = 4   # mirrors canonical layer 3's _NAMES_PER_DOC
-ORGS_PER_PROMPT = 3    # mirrors canonical layer 3's _ORGS_PER_DOC
+NAMES_PER_PROMPT = 4   # mirrors canonical layer 2's _NAMES_PER_DOC
+ORGS_PER_PROMPT = 3    # mirrors canonical layer 2's _ORGS_PER_DOC
 DEFAULT_ENTITY_SEED = 137  # mirrors config sdf.entity_pool_seed
 
 FALLBACK_NAMES = (
@@ -243,7 +243,7 @@ def extract_description(plan: str) -> str | None:
     """Pull the self-contained document-description spec out of a plan response.
 
     The spec is the text inside <document_description> tags (bounded on both
-    ends, so trailing chatter never rides into the layer-3 prompt); plans from
+    ends, so trailing chatter never rides into the layer-2 prompt); plans from
     before the tag convention fall back to the DOCUMENT DESCRIPTION heading.
     Fail-closed: returns None for INCOHERENT plans and for plans with neither
     marker (malformed output — don't checkpoint it; retry or drop instead).

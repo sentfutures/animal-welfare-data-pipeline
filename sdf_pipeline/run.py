@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
-"""SDF matrix pipeline orchestrator: plan (layers 1-2), draft, rewrite, score.
+"""SDF matrix pipeline orchestrator: plan, draft, rewrite, score.
 
-Layers 1-2 are a single stage: deterministic composition of the prompt matrix
-(offline) followed by one plan call per document. Layers 3-5 draft, rewrite,
-and score/gate. --layer accepts 1-5 for continuity with the old pipeline;
-1 and 2 both enter at the plan stage.
+Layer 1 is a single stage: deterministic composition of the prompt matrix
+(offline) followed by one plan call per document. Layers 2-4 draft, rewrite,
+and score/gate.
+
+The layers were renumbered from the old 1-2/3/4/5 scheme (in which composition
+and planning were counted as two layers) to today's 1/2/3/4. --layer takes the
+new numbers; 5 is rejected rather than remapped, because every old number from
+3 up now names a DIFFERENT stage and a silent remap would resume a paid run at
+the wrong one.
 """
 
 import argparse
@@ -16,10 +21,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from shared import api, utils
 from sdf_pipeline import (
-    layer12_plan,
-    layer3_draft,
-    layer4_rewrite,
-    layer5_score,
+    layer1_plan,
+    layer2_draft,
+    layer3_rewrite,
+    layer4_score,
 )
 
 
@@ -27,10 +32,18 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Run the SDF matrix pipeline.")
     parser.add_argument("--config", default="config.yaml")
     parser.add_argument("--resume", action="store_true", help="Resume from checkpoints.")
-    parser.add_argument("--layer", type=int, default=1, help="Start from this layer (1-5; 1 and 2 = plan stage).")
+    parser.add_argument("--layer", type=int, default=1,
+                        help="Start from this layer (1-4: plan, draft, rewrite, score).")
     parser.add_argument("--label", default="dev", help="Run label, e.g. dev or full-scale.")
     parser.add_argument("--run-id", default=None, help="Run to resume (with --resume; defaults to latest).")
     args = parser.parse_args()
+
+    if not 1 <= args.layer <= 4:
+        parser.error(
+            f"--layer must be 1-4, got {args.layer}. The layers were renumbered: the old "
+            "1-2/3/4/5 (compose+plan / draft / rewrite / score) are now 1/2/3/4. Old 3 "
+            "(draft) is now 2, old 4 (rewrite) is now 3, old 5 (score) is now 4."
+        )
 
     config = utils.load_config(args.config)
 
@@ -62,8 +75,10 @@ def main() -> None:
 
     api.init(args.config, cost_log_path=run_dir / "cost_log.jsonl")
 
-    plan_dir = run_dir / "layer12"
-    layer_dirs = {3: run_dir / "layer3", 4: run_dir / "layer4", 5: run_dir / "layer5"}
+    # Resuming a run made before the renumber has to write beside that run's own
+    # stage dirs, not create a second set under the new names.
+    plan_dir = utils.sdf_stage_dir(run_dir, 1)
+    layer_dirs = {n: utils.sdf_stage_dir(run_dir, n) for n in (2, 3, 4)}
     final_dir = run_dir / "final"
     for d in [plan_dir, *layer_dirs.values(), final_dir]:
         utils.ensure_dir(d)
@@ -75,30 +90,30 @@ def main() -> None:
 
     plans = drafts = rewrites = None
 
+    if start_layer <= 1:
+        print("[Layer 1] Compose matrix + plan documents")
+        plans = layer1_plan.run(config, prompts_dir, plan_dir)
+        print(f"  Running cost: ${api.get_total_cost():.4f}\n")
+
     if start_layer <= 2:
-        print("[Layers 1-2] Compose matrix + plan documents")
-        plans = layer12_plan.run(config, prompts_dir, plan_dir)
+        if plans is None:
+            plans = utils.load_jsonl(plan_dir / "plans.jsonl")
+        print("[Layer 2] Draft documents")
+        drafts = layer2_draft.run(config, prompts_dir, layer_dirs[2], plans)
         print(f"  Running cost: ${api.get_total_cost():.4f}\n")
 
     if start_layer <= 3:
-        if plans is None:
-            plans = utils.load_jsonl(plan_dir / "plans.jsonl")
-        print("[Layer 3] Draft documents")
-        drafts = layer3_draft.run(config, prompts_dir, layer_dirs[3], plans)
+        if drafts is None:
+            drafts = utils.load_jsonl(layer_dirs[2] / "drafts.jsonl")
+        print("[Layer 3] Review and rewrite")
+        rewrites = layer3_rewrite.run(config, prompts_dir, layer_dirs[3], drafts)
         print(f"  Running cost: ${api.get_total_cost():.4f}\n")
 
     if start_layer <= 4:
-        if drafts is None:
-            drafts = utils.load_jsonl(layer_dirs[3] / "drafts.jsonl")
-        print("[Layer 4] Review and rewrite")
-        rewrites = layer4_rewrite.run(config, prompts_dir, layer_dirs[4], drafts)
-        print(f"  Running cost: ${api.get_total_cost():.4f}\n")
-
-    if start_layer <= 5:
         if rewrites is None:
-            rewrites = utils.load_jsonl(layer_dirs[4] / "rewrites.jsonl")
-        print("[Layer 5] Score and gate")
-        final = layer5_score.run(config, prompts_dir, layer_dirs[5], final_dir, rewrites)
+            rewrites = utils.load_jsonl(layer_dirs[3] / "rewrites.jsonl")
+        print("[Layer 4] Score and gate")
+        final = layer4_score.run(config, prompts_dir, layer_dirs[4], final_dir, rewrites)
         print(f"  Running cost: ${api.get_total_cost():.4f}\n")
         print(f"=== Done. {len(final)} documents in {final_dir / 'sdf_corpus.jsonl'} ===")
 

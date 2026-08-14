@@ -20,8 +20,8 @@ sdf:
   n_prompts: 100                 # documents planned per run, deck-sampled from the variables matrix
   seed: 0                        # deck-sampling seed (same seed + same variables = same sample)
   entity_pool_seed: 137          # seeds the locale-matched fictional people/org name pools
-  min_score_threshold: 7         # layer-5 gate: alignment AND realism must reach this
-  near_dup_threshold: 0.90       # cull near-duplicate final documents at layer 5 (word-shingle cosine; null disables)
+  min_score_threshold: 7         # layer-4 gate: alignment AND realism must reach this
+  near_dup_threshold: 0.90       # cull near-duplicate final documents at layer 4 (word-shingle cosine; null disables)
   # Per-stage model overrides (each falls back to the global `model`).
   # The critique stages repay a stronger model most — cheap drafts, expensive critics:
   # plan_model: claude-sonnet-5

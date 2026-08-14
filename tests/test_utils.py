@@ -438,3 +438,77 @@ def test_resolve_run_dir_ignores_handmade_local_dirs(tmp_path):
     assert picked.name == "2026-07-11_20-06_matrix100"
     # explicit --run-id still reaches hand-made dirs
     assert utils.resolve_run_dir(tmp_path, "local_2026-07-11_scratch").name == "local_2026-07-11_scratch"
+
+
+# --- SDF layer renumber compatibility ----------------------------------
+#
+# The layers were renumbered 1-2/3/4/5 -> 1/2/3/4. The layouts OVERLAP: old
+# layer3 holds drafts, new layer3 holds rewrites. These pin that a pre-renumber
+# run is never read through the new meaning of a name it shares.
+
+class TestSdfStageFile:
+    def _old_run(self, tmp_path):
+        """A run dir in the pre-renumber layout."""
+        for d, f in (("layer12", "plans.jsonl"), ("layer12", "prompts.jsonl"),
+                     ("layer3", "drafts.jsonl"), ("layer4", "rewrites.jsonl"),
+                     ("layer5", "scores.jsonl")):
+            (tmp_path / d).mkdir(exist_ok=True)
+            (tmp_path / d / f).write_text('{"a": 1}\n', encoding="utf-8")
+        return tmp_path
+
+    def _new_run(self, tmp_path):
+        for d, f in (("layer1", "plans.jsonl"), ("layer1", "prompts.jsonl"),
+                     ("layer2", "drafts.jsonl"), ("layer3", "rewrites.jsonl"),
+                     ("layer4", "scores.jsonl")):
+            (tmp_path / d).mkdir(exist_ok=True)
+            (tmp_path / d / f).write_text('{"a": 1}\n', encoding="utf-8")
+        return tmp_path
+
+    def test_a_pre_renumber_run_resolves_to_its_own_directories(self, tmp_path):
+        run = self._old_run(tmp_path)
+        assert utils.sdf_stage_file(run, "plan") == run / "layer12" / "plans.jsonl"
+        assert utils.sdf_stage_file(run, "draft") == run / "layer3" / "drafts.jsonl"
+        assert utils.sdf_stage_file(run, "rewrite") == run / "layer4" / "rewrites.jsonl"
+        assert utils.sdf_stage_file(run, "score") == run / "layer5" / "scores.jsonl"
+
+    def test_an_old_runs_drafts_are_never_read_as_its_rewrites(self, tmp_path):
+        """layer3/ is drafts in an old run and rewrites in a new one. A resolver
+        that matched on directory alone would return the drafts here."""
+        run = self._old_run(tmp_path)
+        assert utils.sdf_stage_file(run, "rewrite").name == "rewrites.jsonl"
+        assert "layer3" not in utils.sdf_stage_file(run, "rewrite").parts
+
+    def test_a_current_run_resolves_to_the_new_directories(self, tmp_path):
+        run = self._new_run(tmp_path)
+        assert utils.sdf_stage_file(run, "draft") == run / "layer2" / "drafts.jsonl"
+        assert utils.sdf_stage_file(run, "rewrite") == run / "layer3" / "rewrites.jsonl"
+        assert utils.sdf_stage_file(run, "score") == run / "layer4" / "scores.jsonl"
+
+    def test_an_empty_run_reports_through_the_current_layout(self, tmp_path):
+        assert utils.sdf_stage_file(tmp_path, "score") == tmp_path / "layer4" / "scores.jsonl"
+
+    def test_stage_dir_writes_beside_a_resumed_old_runs_own_dirs(self, tmp_path):
+        run = self._old_run(tmp_path)
+        assert utils.sdf_stage_dir(run, 1) == run / "layer12"
+        assert utils.sdf_stage_dir(run, 4) == run / "layer5"
+
+    def test_stage_dir_gives_a_fresh_run_the_new_names(self, tmp_path):
+        assert utils.sdf_stage_dir(tmp_path, 1) == tmp_path / "layer1"
+        assert utils.sdf_stage_dir(tmp_path, 4) == tmp_path / "layer4"
+
+
+class TestSdfTemplatePath:
+    def test_a_pre_renumber_snapshot_reads_its_own_template_names(self, tmp_path):
+        for n in ("layers1-2.txt", "layer3.txt", "layer4.txt", "layer5.txt"):
+            (tmp_path / n).write_text("x", encoding="utf-8")
+        assert utils.sdf_template_path(tmp_path, 1).name == "layers1-2.txt"
+        assert utils.sdf_template_path(tmp_path, 2).name == "layer3.txt"
+        assert utils.sdf_template_path(tmp_path, 3).name == "layer4.txt"
+        assert utils.sdf_template_path(tmp_path, 4).name == "layer5.txt"
+
+    def test_a_current_snapshot_reads_the_new_names(self, tmp_path):
+        for n in ("layer1.txt", "layer2.txt", "layer3.txt", "layer4.txt"):
+            (tmp_path / n).write_text("x", encoding="utf-8")
+        assert utils.sdf_template_path(tmp_path, 1).name == "layer1.txt"
+        assert utils.sdf_template_path(tmp_path, 2).name == "layer2.txt"
+        assert utils.sdf_template_path(tmp_path, 4).name == "layer4.txt"

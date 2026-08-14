@@ -7,8 +7,8 @@ Three source files live in constitution/:
 - constitution_principles.csv — the distilled welfare-relevant principles
   (number, principle, welfare_application, constitution_excerpts),
   embedded as a checklist in the DAD step-3 rewrite prompt and, joined with the
-  Claude constitution, in the SDF prompts (system prompt at layers 4-5,
-  template variables at layer 3).
+  Claude constitution, in the SDF prompts (system prompt at layers 3-5,
+  template variables at layer 2).
 
 The sentient-beings reading is not sent by either pipeline's generation calls:
 it is the source the principles CSV was distilled from, and it supplies the
@@ -93,7 +93,7 @@ def load_full_constitution(base_dir: str | Path | None = None) -> str:
 def load_constitution_with_principles(base_dir: str | Path | None = None) -> str:
     """Return the Claude constitution joined with the distilled principles block:
     join preamble + Claude constitution + formatted principles CSV. Used as the
-    system prompt at SDF layers 4-5 (rewrite and scoring); SDF layer 3 embeds the
+    system prompt at SDF layers 3-5 (rewrite and scoring); SDF layer 2 embeds the
     same two texts via template variables instead. Snapshots that predate the
     principles CSV fall back to the repo's live copy, as in DAD step 3."""
     try:

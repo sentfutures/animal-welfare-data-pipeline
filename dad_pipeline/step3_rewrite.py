@@ -134,7 +134,7 @@ def run(
     # the record in the same way the ids are, not scaffolding the model reads:
     # they say which slice of the matrix this example came from, and the SDF
     # corpus carries its own dealt combination for the same reason
-    # (sdf_pipeline/layer5_score.py). The scope, the library rows and the
+    # (sdf_pipeline/layer4_score.py). The scope, the library rows and the
     # constitution stay stripped.
     utils.ensure_dir(final_dir)
     final_records = []

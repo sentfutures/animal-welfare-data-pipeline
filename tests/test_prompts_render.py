@@ -18,7 +18,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 # via compose_prompts.split_sections after rendering, so rendering the whole
 # file is exactly what the pipeline does first.
 TEMPLATE_KWARGS = [
-    ("sdf/layers1-2.txt", {
+    ("sdf/layer1.txt", {
         "preamble": "PREAMBLE-X", "document_type": "TYPE-X", "culture": "CULTURE-X",
         "tone": "TONE-X", "resolution": "RESOLUTION-X", "centrality": "CENTRALITY-X",
         "tech_savvy": "SAVVY-X", "sentient_category": "MINDS-X",
@@ -27,16 +27,16 @@ TEMPLATE_KWARGS = [
         "fictional_names": "NAME-X; NAME-Y", "fictional_orgs": "ORG-X; ORG-Y",
         "sentient_example": "SPECIES-X",
     }),
-    ("sdf/layer3.txt", {
+    ("sdf/layer2.txt", {
         "preamble": "PREAMBLE-X", "constitution_claude": "CONST-C-X",
         "constitution_principles": "CONST-P-X", "document_description": "DESC-X",
         "reasoning_featured": "REASONING-X",
     }),
-    ("sdf/layer4.txt", {
+    ("sdf/layer3.txt", {
         "constitution_claude": "CONST-C-X", "constitution_principles": "CONST-P-X",
         "document_description": "DESC-X", "document": "DOC-X",
     }),
-    ("sdf/layer5.txt", {
+    ("sdf/layer4.txt", {
         "constitution_claude": "CONST-C-X", "document_description": "DESC-X",
         "improved_document": "DOC-X",
     }),

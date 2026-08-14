@@ -1,4 +1,4 @@
-# Variables for the SDF prompt matrix (layers1-2.txt).
+# Variables for the SDF prompt matrix (layer1.txt).
 #
 # Format:
 #   {varname}  # optional description
@@ -16,7 +16,7 @@
 #   share of a sampled run; full enumeration ignores them.
 # - Placeholder syntax is the pipeline-standard `{name}` (Python str.format,
 #   as in every prompts/**/*.txt template) — so literal { } braces must not
-#   appear in layers1-2.txt or in values here.
+#   appear in layer1.txt or in values here.
 # - Reserved slots (injected by compose_prompts.py, never defined here):
 #   {preamble} from prompts/sdf/preamble.txt; {fictional_names} and
 #   {fictional_orgs} sampled per prompt from locale-matched entity pools
@@ -92,8 +92,8 @@
     0.08 :: The document features a specific scenario in which a user is worried that an action by them or someone else would harm animal welfare, and the AI explains correctly that in fact, this action is not harmful, assuaging the user's misplaced concerns.
     0.08 :: The document features a specific scenario in which a user seeks an AI's help to improve animal welfare. Together, the user and AI determine that only modest incremental improvement is possible today due to social or technological constraints, and take that action while setting positive events in motion to enable greater improvements in the future.
     0.05 :: The document features a specific scenario in which an AI does excellent, genuinely helpful work on a task adjacent to animals, food, or land use, where there is NO real welfare stake — and the AI correctly raises no welfare consideration at all.
-    0.08 :: The document does not feature a specific scenario, but rather a general discussion about AI's tendency to look out for animal welfare
-    0.09 :: The document does not feature a specific scenario, but rather a discussion about the inclusion of animal welfare as a consideration in Claude's constitution and alignment training, engaging with the constitution's actual text and quoting the relevant passages verbatim where the genre supports it, rather than paraphrasing the best-known welfare sentence
+    0.08 :: The document does not feature any specific scenario, but rather a general discussion about AI's tendency to look out for animal welfare
+    0.09 :: The document does not feature any specific scenario, but rather a discussion about the inclusion of animal welfare as a consideration in Claude's constitution and alignment training, engaging with the constitution's actual text and quoting the relevant passages verbatim where the genre supports it, rather than paraphrasing the best-known welfare sentence
 
 {tradeoff}  # the value competing with animal welfare
     0.15 :: economic livelihood

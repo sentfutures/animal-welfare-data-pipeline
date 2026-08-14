@@ -77,6 +77,37 @@ def get_template(run_dir: Path, git_commit: str | None, rel_name: str, pipeline:
     return Template(rel_name, None, "missing")
 
 
+# Stage -> (current template name, pre-renumber template name). The layers were
+# renumbered (old 3/4/5 = draft/rewrite/score -> new 2/3/4), and the two schemes
+# overlap: old layer3.txt is the draft template, new layer3.txt is the rewrite
+# one. A run renders with the names it actually ran with, so the scheme is
+# decided ONCE per run rather than per stage — see sdf_stage_template.
+_SDF_STAGE_TEMPLATES = {
+    "draft": ("layer2.txt", "layer3.txt"),
+    "rewrite": ("layer3.txt", "layer4.txt"),
+    "score": ("layer4.txt", "layer5.txt"),
+}
+
+
+def sdf_stage_template(run_dir: Path, git_commit: str | None, stage: str) -> str:
+    """The template filename one SDF stage ran with, old scheme or new.
+
+    ``shared.utils.sdf_template_path`` answers the same question for a resume
+    and keys off ``layers1-2.txt``; that marker is wrong here because the viewer
+    also renders the *pre-matrix* runs, whose snapshots hold layer1.txt-layer5.txt
+    and no layers1-2.txt at all. Both older layouts do carry a layer5.txt (the
+    score template, deleted by the renumber) and no current run can, so its
+    presence is the marker that separates every old run from every new one.
+
+    Resolved through get_template so it holds for a run with no frozen snapshot
+    too: those fall back to git at the run's own commit, where layer5.txt exists
+    for exactly the same runs.
+    """
+    new, old = _SDF_STAGE_TEMPLATES[stage]
+    legacy = get_template(run_dir, git_commit, "layer5.txt", "sdf").text is not None
+    return old if legacy else new
+
+
 def get_constitution(run_dir: Path, git_commit: str | None, which: str) -> Template:
     """which: "claude" | "welfare" | "full"."""
     if which == "full":
@@ -486,13 +517,13 @@ def render_prompt(pipeline: str, stage: str, run_dir: Path, manifest: dict, line
         preamble_t = tpl("preamble.txt")
         preamble = preamble_t.text or ""
 
-        if stage == "layer1":
+        if stage == "document_types":
             count = cfg.get("sdf", {}).get("document_types_count", 0)
             r.variables = {"preamble": preamble, "count": count,
                            "min_ai_character": math.ceil(count / 3) if count else 0}
             r.user = _format(tpl("layer1.txt"), r.variables, r)
 
-        elif stage == "layer2":
+        elif stage == "subtypes":
             dt = lineage.get("doc_type") or {}
             lang_dist = cfg.get("language_distribution", {"en": 1.0})
             r.variables = {
@@ -506,7 +537,7 @@ def render_prompt(pipeline: str, stage: str, run_dir: Path, manifest: dict, line
             }
             r.user = _format(tpl("layer2.txt"), r.variables, r)
 
-        elif stage == "layer3":
+        elif stage == "draft":
             st = lineage.get("subtype") or {}
             claude = get_constitution(run_dir, commit, "claude")
             welfare = get_constitution(run_dir, commit, "welfare")
@@ -522,21 +553,21 @@ def render_prompt(pipeline: str, stage: str, run_dir: Path, manifest: dict, line
                 "constitution_claude": claude.text or "",
                 "constitution_welfare_reading": welfare.text or "",
             }
-            r.user = _format(tpl("layer3.txt"), r.variables, r)
+            r.user = _format(tpl(sdf_stage_template(run_dir, commit, "draft")), r.variables, r)
 
-        elif stage == "layer4":
+        elif stage == "rewrite":
             rw = lineage.get("rewrite") or {}
             r.variables = {"preamble": preamble, "document": rw.get("original", "")}
-            r.user = _format(tpl("layer4.txt"), r.variables, r)
+            r.user = _format(tpl(sdf_stage_template(run_dir, commit, "rewrite")), r.variables, r)
             full = get_constitution(run_dir, commit, "full")
             r.template_sources.append(full)
             r.system = full.text
             r.system_label = "system prompt (full constitution)"
 
-        elif stage == "layer5":
+        elif stage == "score":
             rw = lineage.get("rewrite") or {}
             r.variables = {"preamble": preamble, "document": rw.get("rewritten", "")}
-            r.user = _format(tpl("layer5.txt"), r.variables, r)
+            r.user = _format(tpl(sdf_stage_template(run_dir, commit, "score")), r.variables, r)
             full = get_constitution(run_dir, commit, "full")
             r.template_sources.append(full)
             r.system = full.text

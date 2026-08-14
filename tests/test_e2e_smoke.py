@@ -60,7 +60,7 @@ def test_sdf_pipeline_end_to_end_offline(tiny_config_file, outputs_root, stub_cl
     assert manifest["label"] == "e2e"
     assert (outputs_root / "sdf" / "latest").resolve() == run_dir.resolve()
     # prompts + variables + constitution are frozen into the run dir
-    assert (run_dir / "inputs" / "prompts" / "layers1-2.txt").exists()
+    assert (run_dir / "inputs" / "prompts" / "layer1.txt").exists()
     assert (run_dir / "inputs" / "prompts" / "variables.txt").exists()
     assert (run_dir / "inputs" / "constitution").is_dir()
 
@@ -75,15 +75,27 @@ def test_sdf_pipeline_end_to_end_offline(tiny_config_file, outputs_root, stub_cl
     assert len(calls) == 8
 
 
-def test_sdf_resume_at_layer5_makes_no_calls(tiny_config_file, outputs_root, stub_claude, monkeypatch):
+def test_sdf_resume_at_last_layer_makes_no_calls(tiny_config_file, outputs_root, stub_claude, monkeypatch):
     stub_claude(_sdf_dispatch)
     _run_main(monkeypatch, sdf_run.main, tiny_config_file)
 
     calls = stub_claude([])
-    _run_main(monkeypatch, sdf_run.main, tiny_config_file, "--resume", "--layer", "5")
+    _run_main(monkeypatch, sdf_run.main, tiny_config_file, "--resume", "--layer", "4")
     assert calls == []
     corpus = utils.load_jsonl(outputs_root / "sdf" / "latest" / "final" / "sdf_corpus.jsonl")
     assert len(corpus) == 2
+
+
+def test_sdf_rejects_a_pre_renumber_layer_number(tiny_config_file, stub_claude, monkeypatch):
+    """--layer 5 was the score stage before the renumber and does not exist now.
+
+    Remapping it silently would resume a paid run at the wrong stage — every old
+    number from 3 up names a different stage today — so the CLI refuses it.
+    """
+    calls = stub_claude([])
+    with pytest.raises(SystemExit):
+        _run_main(monkeypatch, sdf_run.main, tiny_config_file, "--resume", "--layer", "5")
+    assert calls == []
 
 
 # --- DAD ---------------------------------------------------------------

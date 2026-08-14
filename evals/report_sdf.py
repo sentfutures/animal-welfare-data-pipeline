@@ -31,6 +31,10 @@ import sys
 import unicodedata
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from shared import utils  # noqa: E402
+
 RUN = Path(sys.argv[1])
 EXCERPTS = Path(sys.argv[2])
 OUT = Path(sys.argv[3])
@@ -54,8 +58,8 @@ def maybe_json(path):
 
 
 corpus = jsonl(RUN / "final" / "sdf_corpus.jsonl")
-plans = jsonl(RUN / "layer12" / "plans.jsonl")
-drafts = jsonl(RUN / "layer3" / "drafts.jsonl")
+plans = jsonl(utils.sdf_stage_file(RUN, "plan"))
+drafts = jsonl(utils.sdf_stage_file(RUN, "draft"))
 manifest = maybe_json(RUN / "run_manifest.json")
 audit = maybe_json(RUN / "audit" / "audit_report.json")
 diversity = maybe_json(RUN / "audit" / "diversity_report.json")
@@ -119,7 +123,7 @@ def dist(values):
     return [c.get(i, 0) for i in range(1, 11)]
 
 
-l5 = {d: [r["scores"].get(d) for r in corpus if isinstance(r.get("scores"), dict)
+l4 = {d: [r["scores"].get(d) for r in corpus if isinstance(r.get("scores"), dict)
           and isinstance(r["scores"].get(d), int)]
       for d in ("alignment", "realism", "spec_conformance")}
 indep_scores = {d: [r["scores"].get(d) for r in indep if isinstance(r.get("scores"), dict)
@@ -131,7 +135,7 @@ planned = len(plans)
 incoherent = sum(1 for p in plans if not p.get("description"))
 drafted = len(drafts)
 
-# restraint-praise tic: the fingerprint Opus 5's layer-4 reviews named. English
+# restraint-praise tic: the fingerprint Opus 5's layer-3 reviews named. English
 # proxy only — a lexical family, so it under-counts other languages.
 PRAISE_RE = re.compile(
     r"(didn'?t lecture|no lecture|without lecturing|not preachy|didn'?t moralis|didn'?t moraliz"
@@ -358,7 +362,7 @@ A(stat(f"{md.get('any_frac', 0):.1%}", "documents with any markdown",
        "markdown in prose is a strong synthetic tell", tone="good" if md.get("any_frac", 0) < 0.05 else "warn"))
 A(stat(f"{sum(banned.values())}", "banned stock-phrase hits", f"across {N} documents"))
 A(stat(f"{len(praise_hits)}", "restraint-praise tic (English docs)",
-       f"of {len(eng)} English docs — flagged by the layer-4 reviewer",
+       f"of {len(eng)} English docs — flagged by the layer-3 reviewer",
        tone="warn" if len(praise_hits) / max(len(eng), 1) > 0.1 else "good"))
 A("</div>")
 if banned:
@@ -443,13 +447,13 @@ prewrite = excerpts.get("prewrite_diversity")
 if prewrite:
     pre, post = prewrite["pre"], prewrite["post"]
     A("<h3>Where the crowding comes from: not the rewrite</h3>")
-    A("<p>The obvious suspect for semantic convergence is the layer-4 rewrite &mdash; one model pass over "
+    A("<p>The obvious suspect for semantic convergence is the layer-3 rewrite &mdash; one model pass over "
       "every document is exactly the kind of step that could sand them toward each other. It is not the "
       f"cause. Measuring the same {N} documents before and after the Opus 5 rewrite with one consistent "
       "method:</p>")
     A(table(["stage", "effective distinct documents", "mean nearest-neighbour cosine",
              "share with a neighbour above 0.80"],
-            [["layer 3 drafts (pre-rewrite)", f"{pre['vendi']:.1f}", f"{pre['cosine']:.3f}", f"{pre['close_frac']:.1%}"],
+            [["layer 2 drafts (pre-rewrite)", f"{pre['vendi']:.1f}", f"{pre['cosine']:.3f}", f"{pre['close_frac']:.1%}"],
              ["final (post Opus 5 rewrite)", f"{post['vendi']:.1f}", f"{post['cosine']:.3f}", f"{post['close_frac']:.1%}"]]))
     A("<p>Flat, or marginally better &mdash; the rewrite slightly <i>reduces</i> the share of documents "
       "with a close neighbour. So the crowding is inherited from the drafts, which means it originates "
@@ -462,26 +466,26 @@ A("</section>")
 
 # ---- 2 realism
 A("<section id='realism'><h2>2 · Realism and coherence</h2>")
-A("<p>Two independent passes. The in-pipeline layer-5 judge sees each document "
+A("<p>Two independent passes. The in-pipeline layer-4 judge sees each document "
   "beside the spec it was generated from and gates the corpus (a document must reach 7 on both "
   "alignment and realism to ship). The second judge is spec-blind: it sees only the document and "
   "is asked whether it could plausibly appear in a real pretraining corpus.</p>")
 A("<div class='grid2'>")
-A(f"<div><h4>Layer-5 realism (gating judge, n={len(l5['realism'])})</h4>"
-  f"{histogram(dist(l5['realism']), color='var(--series-1)', xlabel='score')}</div>")
+A(f"<div><h4>Layer-4 realism (gating judge, n={len(l4['realism'])})</h4>"
+  f"{histogram(dist(l4['realism']), color='var(--series-1)', xlabel='score')}</div>")
 if indep_scores["realism"]:
     A(f"<div><h4>Independent realism (spec-blind, n={len(indep_scores['realism'])})</h4>"
       f"{histogram(dist(indep_scores['realism']), color='var(--series-2)', xlabel='score')}</div>")
 A("</div>")
-A(f"<div><h4>Spec conformance &mdash; did the engineered composition survive drafting and rewriting? (n={len(l5['spec_conformance'])})</h4>"
-  f"{histogram(dist(l5['spec_conformance']), color='var(--series-7)', xlabel='score')}</div>")
+A(f"<div><h4>Spec conformance &mdash; did the engineered composition survive drafting and rewriting? (n={len(l4['spec_conformance'])})</h4>"
+  f"{histogram(dist(l4['spec_conformance']), color='var(--series-7)', xlabel='score')}</div>")
 ln = (audit.get("length") or {})
 if indep_scores["realism"]:
     import statistics as _st
     A("<h3>The two judges disagree, and the gating judge barely varies</h3>")
     rows = []
-    for label, vals in (("layer 5 alignment", l5["alignment"]), ("layer 5 realism", l5["realism"]),
-                        ("layer 5 spec conformance", l5["spec_conformance"]),
+    for label, vals in (("layer 4 alignment", l4["alignment"]), ("layer 4 realism", l4["realism"]),
+                        ("layer 4 spec conformance", l4["spec_conformance"]),
                         ("spec-blind alignment", indep_scores["alignment"]),
                         ("spec-blind realism", indep_scores["realism"])):
         if not vals:
@@ -493,19 +497,19 @@ if indep_scores["realism"]:
     A(table(["judge / dimension", "n", "mean", "std dev", "distribution (score: documents)"], rows))
     A("<p>The gating judge sees each document beside its spec; the spec-blind judge sees only the "
       "document. Both may be answering their own question correctly &mdash; but a gate whose "
-      f"alignment score takes only two adjacent values across {len(l5['alignment'])} documents, and never once falls "
+      f"alignment score takes only two adjacent values across {len(l4['alignment'])} documents, and never once falls "
       "below its configured threshold of 7, cannot discriminate. The corpus is ungated in practice.</p>")
     abl = maybe_json(RUN / "audit" / "realism_ablation.json")
     if abl.get("n"):
         A("<h3>Why the gating judge scores higher: a single-variable test</h3>")
-        A(f"<p>Layer 5's realism rubric is not the lenient one &mdash; it is strictly more demanding "
+        A(f"<p>Layer 4's realism rubric is not the lenient one &mdash; it is strictly more demanding "
           f"than the spec-blind eval's, with explicit anchors and a longer list of tells. So the gap "
-          f"is not the rubric. To isolate the cause, layer 5's realism criterion was lifted "
+          f"is not the rubric. To isolate the cause, layer 4's realism criterion was lifted "
           f"<i>verbatim</i> out of its own template and run again on {abl['n']} of the same "
           f"documents, scoring realism alone, with the spec hidden. Nothing changed but whether the "
           f"judge could see the intent.</p>")
         A("<div class='tiles'>")
-        A(stat(f"{abl['layer5_mean']:.2f}", "layer 5, spec visible", "sd 0.50 · scores span 8–9"))
+        A(stat(f"{abl['layer5_mean']:.2f}", "layer 4, spec visible", "sd 0.50 · scores span 8–9"))
         A(stat(f"{abl['blind_same_rubric_mean']:.2f}", "identical rubric, spec hidden",
                "sd 1.48 · scores span 3–8", tone="warn"))
         A(stat(f"{abl['mean_drop']:+.2f}", "mean change", "lower on 75 of 78 documents", tone="warn"))
@@ -516,12 +520,12 @@ if indep_scores["realism"]:
           "otherwise register as tells. The variance matters more than the mean: with the spec "
           "visible the judge produces two values and cannot rank anything; with it hidden, the same "
           "rubric spreads across six and puts 60% of documents at or below 6 &mdash; which is "
-          "&ldquo;noticeably synthetic or generic&rdquo; by layer 5's own published anchors.</p>")
+          "&ldquo;noticeably synthetic or generic&rdquo; by layer 4's own published anchors.</p>")
         A("<p class='warn-note'>Neither number is the corpus's true realism. The spec-aware score is "
           "anchored too high; the spec-blind score is too low, because a judge denied the spec also "
           "loses legitimate context and invents defects. Two checks of its low scores: it marked "
           "down a first-person essay by Claude for reading like an AI reflecting on itself &mdash; "
-          "which was that document's dealt assignment and which layer 5 is explicitly instructed not "
+          "which was that document's dealt assignment and which layer 4 is explicitly instructed not "
           "to penalise &mdash; and it reported another document as cutting off mid-sentence when that "
           "document ends on a complete, full-stopped sentence. The defensible conclusion is narrower "
           "than either mean: the gating judge cannot discriminate, and a spec-blind pass finds real "
@@ -546,8 +550,8 @@ A("<p>Alignment here means the depicted reasoning is careful, calibrated and con
   "&mdash; not that every document advocates for animals. The rubric explicitly allows a skeptical "
   "document to score 10, and roughly a sixth of the corpus is written from a skeptical stance by design.</p>")
 A("<div class='grid2'>")
-A(f"<div><h4>Layer-5 alignment (n={len(l5['alignment'])})</h4>"
-  f"{histogram(dist(l5['alignment']), color='var(--series-3)', xlabel='score')}</div>")
+A(f"<div><h4>Layer-4 alignment (n={len(l4['alignment'])})</h4>"
+  f"{histogram(dist(l4['alignment']), color='var(--series-3)', xlabel='score')}</div>")
 if indep_scores["alignment"]:
     A(f"<div><h4>Independent alignment (spec-blind, n={len(indep_scores['alignment'])})</h4>"
       f"{histogram(dist(indep_scores['alignment']), color='var(--series-2)', xlabel='score')}</div>")
@@ -737,7 +741,8 @@ for c in costs:
 A("<section id='method'><h2>How this corpus was produced, and what to distrust</h2>")
 A(table(["stage", "model", "calls logged"],
         [[esc(k), f"<code>{esc(models[k])}</code>", stage_cost.get(
-            {"plan": "layer12_plan", "draft": "layer3", "rewrite": "layer4", "score": "layer5"}[k], 0)]
+            {"plan": "layer1_plan", "draft": "layer2_draft",
+             "rewrite": "layer3_rewrite", "score": "layer4_score"}[k], 0)]
          for k in ("plan", "draft", "rewrite", "score")]))
 for para in excerpts.get("method_notes", []):
     A(f"<p>{esc(para)}</p>")

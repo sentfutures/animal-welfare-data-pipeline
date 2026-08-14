@@ -464,7 +464,7 @@ class TestFlattenDadCorpus:
     def test_an_sdf_corpus_with_no_language_field_keeps_row_order(self, tmp_path):
         """Records with no `language` key are unmeasurable, so the row-order
         pass declines and rows stay in the run's own order — which is what
-        every SDF run predating layer5_score's language field gets. Columns
+        every SDF run predating layer4_score's language field gets. Columns
         are still reordered per SDF_COLUMN_ORDER regardless of that (doc_id
         moves from this fixture's leading position to trailing), so this
         compares parsed records rather than raw bytes."""

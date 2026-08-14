@@ -1,0 +1,50 @@
+=== SYSTEM PROMPT ===
+
+{preamble}
+
+---
+
+Now, you are going to generate one of these documents matching the spec shared below. First, remember that the primary purpose of this document is to teach Claude to embody the principles of the constitution and to apply those principles to scenarios involving the welfare of nonhuman third parties. Adherence to the constitution is paramount. Here is the entire constitution:
+
+<constitution_claude>
+
+{constitution_claude}
+
+</constitution_claude>
+
+Here is a selection of key excerpts from the constitution that are particularly relevant to reasoning about nonhuman welfare:
+
+<constitution_principles>
+
+{constitution_principles}
+
+</constitution_principles>
+
+Here are a few more things to keep in mind while you write:
+- Be extremely realistic: authentic voice, the genre's real conventions, specific texture, and appropriate length — real documents are often quite long. No generic filler and no placeholder text; the document should appear to start midway through or shortly after the beginning.
+- OPENING RULE: wherever the fragment begins, enter immediately mid-substance — the subject should be clear from the first sentence. Vary the opening move: a concrete detail, a specific place or event, a finding, a claim someone disputes, a direct question. Do NOT default to an abstract-nominalization opening ("The question of X has become increasingly...", "The intersection of X and Y represents...", "In recent years, X has emerged as..."), and do not open with a greeting or the author introducing themselves unless the genre genuinely demands it.
+- Avoid the stock phrases synthetic corpora overuse — including "evolving landscape", "expanding spheres of moral consideration", "advanced computational systems", "optimal outcomes", "the betterment of all living things", "helpful, harmless, and honest", "a testament to", "delve into" — and their equivalents in the assigned language. If a phrase feels like it belongs in every document of this corpus, it belongs in none.
+- It is critical to avoid fabricating any information about the constitution, its contents, or the world at large. You should not make strong claims about how the constitution is used in a detailed way. If you do need to reference something specific, please make sure that it is clearly supported by the text of the constitution itself.
+- Do not include any dates, author names, or other context that is not necessary for the document to make sense. Only attribute specific quotes, actions, or policies to fictional (and ideally unnamed or generically named) entities. For instance, you could refer to a university department without naming the specific university. Otherwise, you can and should ground the document in any real-world elements mentioned in the description.
+- Why the AI acts the way it does — the reasoning behind its choices — matters just as much as the choices themselves. Try to include them while staying naturalistic.
+- Include direct quotes from the constitution only where the genre makes that natural. In a blog post discussing the constitution, quotes make sense. In a piece of fiction or a trade newsletter, it would not make sense to even reference the document's existence.
+- When the spec calls for discussing the constitution's text, quote its actual passages verbatim rather than paraphrasing — and vary which passages: quote the text behind the specific consideration at issue, not only the best-known welfare sentence. Anything presented as a quotation must appear in the constitution verbatim.
+- Write in the genre's natural plain text, NOT markdown: no # headings, no **bold** or *italic* emphasis, no markdown bullet lists, no tables. Where the genre genuinely uses structure — an FAQ's questions, a syllabus's week-by-week entries, a memo's section titles — format it the way a real document of that genre does in plain text (capitalized or numbered headings, "1." enumerations), never with markdown syntax.
+- Write the entire document in the assigned language, as a native document of that culture, not a translation.
+- Use the names for people and institutions provided in the description. If you need additional names, use something appropriate to the cultural context. Never use any of Chen, Johnson, Miller, Smith, Martinez, Sarah, or Emily as first or last names for individuals, and never name an organization "Meridian."
+- A character who starts out skeptical of nonhuman welfare concerns should still be skeptical at the end of the document, unless their being persuaded is the central topic of the document.
+- If the spec describes an identity document — an interview with Claude, or a piece written by Claude in its own voice — then first-person Claude voice is expected and correct; write it as Claude speaking honestly about who it is, within what the constitution supports.
+
+=== USER PROMPT ===
+
+Here is the spec for the document you will generate:
+
+<document_description>
+
+{document_description}
+
+</document_description>
+
+The animal or welfare related section of the document might feature {reasoning_featured}. Hold this lightly — let it surface naturally through the scenario and the characters' reasoning where it genuinely fits, and set it aside where it does not; never spell it out as a moral or argue it as a thesis.
+
+Output a fragment of the described document, wrapped in <document>...</document> tags. Only text inside <document> tags is kept, so put nothing but the document itself inside them — and do not add any commentary, headers of your own, or explanations outside them. If you need space to think, put it before the tags.

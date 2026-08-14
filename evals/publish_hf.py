@@ -114,7 +114,7 @@ STAGING_MARKER = ".publish_hf_staging"
 STAGING_LEGACY_ENTRIES = {"README.md", "sdf", "dad"}
 
 # Both spellings the corpora actually use: the full name derive_language
-# produces (written into every SDF record by sdf_pipeline/layer5_score.py) and
+# produces (written into every SDF record by sdf_pipeline/layer4_score.py) and
 # the bare ISO code four early SDF runs carry instead. evals/audit_sdf.py
 # already accepts both when it filters to English-only documents.
 ENGLISH_SPELLINGS = frozenset({"en", "english"})
@@ -299,7 +299,7 @@ SDF_COLUMN_ORDER = ["content", "description", "language", "type_name",
 def reorder_sdf_corpus(src: Path, dst: Path) -> int:
     """Write the published form of an SDF corpus: the same records as src, one
     JSON object per line, with each object's keys reordered to
-    SDF_COLUMN_ORDER instead of sdf_pipeline/layer5_score.py's write order.
+    SDF_COLUMN_ORDER instead of sdf_pipeline/layer4_score.py's write order.
 
     Every SDF_COLUMN_ORDER key present on a record is emitted in that order;
     anything else on the record — a legacy field like subtype_id or role that
