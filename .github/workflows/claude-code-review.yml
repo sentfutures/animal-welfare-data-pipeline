@@ -1,4 +1,8 @@
 name: Claude Code Review
+# NOTE: this workflow has been extracted into a shared reusable workflow —
+# sentfutures/devops/.github/workflows/claude-pr-review.yml (consumed @v1).
+# Until this repo migrates to a caller of it (tracked in issue #169), apply
+# any fix BOTH here and there.
 
 on:
   pull_request:
