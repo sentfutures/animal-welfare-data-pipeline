@@ -49,7 +49,7 @@ Three stages, each a short chain of [model calls](https://github.com/sentfutures
 
 <!-- id: stage1 -->
 
-A dumb script draws from a weighted matrix of variables, feeding them to a model to generate a unique scenario. Rare values ensure a long tail of diverse situations when generating data in bulk.
+A script draws from a weighted matrix of variables, feeding them to a model to generate a unique scenario. Rare values ensure a long tail of diverse situations when generating data in bulk.
 
 Subsequent model calls draft a user message and filter out non-instructive situations before rewriting the message for human realism.
 
