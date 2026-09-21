@@ -53,12 +53,6 @@ jobs:
       # ci.yml, which installs dependencies, byte-compiles the packages and
       # runs the offline pytest suite. A red `smoke` is meant to be grounds
       # for requesting changes.
-      #
-      # Without this grant the review can see no check at all: the
-      # `gh pr view --json statusCheckRollup` call it is told to make returns
-      # "Resource not accessible by integration", so it reviews blind to
-      # whether the suite passed and says so in its summary. claude.yml has
-      # always granted the pair below; this workflow never did.
       actions: read
 
     steps:
