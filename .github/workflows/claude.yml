@@ -1,9 +1,22 @@
 name: Claude Code
-# NOTE: this workflow has been extracted into a shared reusable workflow —
-# sentfutures/devops/.github/workflows/claude-mention.yml (consumed @v1).
-# Until this repo migrates to a caller of it (tracked in issue #169), apply
-# any fix BOTH here and there.
-
+# On-demand Claude: comment "@claude <request>" on any issue or PR and Claude
+# responds in a thread (it can answer questions, review, or push commits to
+# the PR branch when asked). Also the fallback path for PRs the review bot
+# skips — fork PRs, and PRs whose automated review never ran. The logic lives
+# in sentfutures/devops (.github/workflows/claude-mention.yml).
+#
+# This repo is where that workflow was extracted FROM; #169 tracked collapsing
+# the duplicate, and this is that change for the mention handler. The job body
+# was byte-identical to the shared copy, so nothing about the behaviour moves.
+#
+# NOTE the permissions: this handler gets contents: write (it can push commits
+# when asked to) — a deliberately broader grant than the review bot's.
+#
+# FILENAME: deliberately stays `claude.yml`. claude-fix.yml,
+# claude-review-fix.yml and claude-quota-retry.yml gate concurrent Claude jobs
+# by matching this exact path in their workflow-run queries; renaming this file
+# silently drops the count and lets more Claude jobs run at once. Rename it
+# only together with those three.
 on:
   issue_comment:
     types: [created]
@@ -15,40 +28,13 @@ on:
     types: [submitted]
 
 jobs:
-  claude:
-    if: |
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
-      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
-    runs-on: ubuntu-latest
+  claude: # this check now appears as "claude / claude", not "claude"
+    uses: sentfutures/devops/.github/workflows/claude-mention.yml@v1
     permissions:
       contents: write
       pull-requests: write
       issues: write
       id-token: write
-      actions: read # Required for Claude to read CI results on PRs
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
-      - name: Run Claude Code
-        id: claude
-        uses: anthropics/claude-code-action@v1
-        with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-
-          # This is an optional setting that allows Claude to read CI results on PRs
-          additional_permissions: |
-            actions: read
-
-          # Optional: Give a custom prompt to Claude. If this is not specified, Claude will perform the instructions specified in the comment that tagged it.
-          # prompt: 'Update the pull request description to include a summary of changes.'
-
-          # Optional: Add claude_args to customize behavior and configuration
-          # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
-          # or https://code.claude.com/docs/en/cli-reference for available options
-          # claude_args: '--allowed-tools Bash(gh pr *)'
-
+      actions: read # lets Claude read CI results on PRs
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
