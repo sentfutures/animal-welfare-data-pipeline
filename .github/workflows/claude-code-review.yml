@@ -41,21 +41,30 @@ jobs:
       cancel-in-progress: true
 
     runs-on: ubuntu-latest
+
+    # The ONLY place this repo's CI job name is written down. It is the job id
+    # in ci.yml (or its `name:` if one is set), exactly as the Actions API
+    # reports it. Rename that job and this is the single line to change: every
+    # step below refers to it through this variable, and the review prompt does
+    # not name it at all.
+    env:
+      REQUIRED_CHECK: smoke
+
     permissions:
       contents: read
       pull-requests: write
       issues: write
       id-token: write
-      # Lets the verify step read `smoke`'s result via the Actions API, for
-      # the contradiction guard at the end of this file. NOT for the review:
-      # the agent's own token cannot read checks at all (statusCheckRollup
-      # needs the Checks permission, which claude-code-action cannot
-      # request), which is why the guard lives in the workflow rather than in
-      # the prompt.
+      # Lets the verify step read this repo's CI result via the Actions API,
+      # for the contradiction guard at the end of this file. NOT for the
+      # review: the agent's own token cannot read checks at all
+      # (statusCheckRollup needs the Checks permission, which
+      # claude-code-action cannot request), which is why the guard lives in
+      # the workflow rather than in the prompt.
       #
-      # `smoke` is the required merge-gate job in ci.yml: it installs
-      # dependencies, byte-compiles the packages and runs the offline pytest
-      # suite.
+      # Which job that is, is set once in this job's REQUIRED_CHECK env above.
+      # It is the required merge-gate job in ci.yml: installs dependencies,
+      # byte-compiles the packages, runs the offline pytest suite.
       actions: read
 
     steps:
@@ -125,8 +134,8 @@ jobs:
 
             You cannot run tests and you cannot read CI results — do not try,
             the calls are denied and will only waste turns. You do not need
-            them: the `smoke` check runs `compileall` plus the full pytest
-            suite against this commit, and a separate automated step
+            them: CI byte-compiles the packages and runs the full offline
+            pytest suite against this commit, and a separate automated step
             cross-checks your verdict against its result after you finish.
             Review the code on its merits and do not caveat your review over
             not having seen the tests.
@@ -297,11 +306,11 @@ jobs:
             APPROVED|CHANGES_REQUESTED)
               echo "✓ Claude submitted a ${verdict} verdict for ${HEAD_SHA}."
 
-              # Contradiction guard: an approval must not stand over a red
-              # `smoke`. The review cannot read CI (see the prompt), so this is
+              # Contradiction guard: an approval must not stand over a red test
+              # suite. The review cannot read CI (see the prompt), so this is
               # checked here rather than asked of the model — after the review,
               # when the result is almost certainly settled. Measured: reviews
-              # run 2-3 min, `smoke` 1-2 min, so this is usually one poll.
+              # run 2-3 min, this repo's CI job 1-2 min, so usually one poll.
               #
               # Deliberately NOT checked for CHANGES_REQUESTED: the bot has
               # already blocked the PR, so a red suite adds nothing.
@@ -324,12 +333,13 @@ jobs:
                         "repos/${{ github.repository }}/actions/runs?head_sha=${HEAD_SHA}&per_page=100" \
                         2>/dev/null)
                   if [ -z "$runs_json" ]; then
-                    echo "::warning::Could not list workflow runs for ${HEAD_SHA}, so the smoke cross-check is being skipped. The usual cause is this job's permissions: block missing 'actions: read'."
+                    echo "::warning::Could not list workflow runs for ${HEAD_SHA}, so the ${REQUIRED_CHECK} cross-check is being skipped. The usual cause is this job's permissions: block missing 'actions: read'."
                     break
                   fi
                   for run_id in $(printf '%s' "$runs_json" | jq -r '.workflow_runs[].id'); do
                     ci_row=$(gh api "repos/${{ github.repository }}/actions/runs/${run_id}/jobs?per_page=100" 2>/dev/null \
-                      | jq -r '.jobs[] | select(.name == "smoke") | "\(.status)|\(.conclusion // "")"' \
+                      | jq -r --arg n "${REQUIRED_CHECK}" \
+                          '.jobs[] | select(.name == $n) | "\(.status)|\(.conclusion // "")"' \
                       | tail -1)
                     [ -n "$ci_row" ] && break
                   done
@@ -350,11 +360,11 @@ jobs:
 
                 if [ "${ci_state}" = "FAILED" ]; then
                   echo "contradiction=true" >> "$GITHUB_OUTPUT"
-                  echo "::error::Claude approved ${HEAD_SHA}, but smoke failed on that commit. An approval cannot stand over a failing suite, so this check fails and a human is being asked to look. The review body is still worth reading; it simply could not see CI."
+                  echo "::error::Claude approved ${HEAD_SHA}, but the ${REQUIRED_CHECK} check failed on that commit. An approval cannot stand over a failing suite, so this check fails and a human is being asked to look. The review body is still worth reading; it simply could not see CI."
                   exit 1
                 fi
                 if [ "${ci_state}" = "UNKNOWN" ]; then
-                  echo "::notice::Could not settle smoke for ${HEAD_SHA} within 90s, so the approval stands unchecked. Not a failure — CI was slower than the review this time."
+                  echo "::notice::Could not settle ${REQUIRED_CHECK} for ${HEAD_SHA} within 90s, so the approval stands unchecked. Not a failure — CI was slower than the review this time."
                 fi
               fi
 
@@ -441,7 +451,7 @@ jobs:
           # The contradiction case carries an APPROVED verdict, so it has to be
           # tested before the verdict itself.
           if [ "${CONTRADICTION}" = "true" ]; then
-            why="the review approved this PR but smoke failed on that commit"
+            why="the review approved this PR but the ${REQUIRED_CHECK} check failed on that commit"
           else
             case "${VERDICT}" in
               NOT_REVIEWED) why="no automated review ran on this PR (the action self-skipped)" ;;

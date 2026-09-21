@@ -68,7 +68,7 @@ Two automated checks run on every PR, near the bottom of the page:
 - **`smoke`** — installs the project and runs the test suite. Takes a minute or two.
 - **`claude-review`** — an automated reviewer (it appears as `claude[bot]`) that reads your changes and leaves a review. Takes about three minutes.
 
-The reviewer **reads `smoke`'s result** as part of reviewing — it can't run the tests itself, so it looks up whether they passed. So if `smoke` fails, expect the review to request changes and say which check failed, on top of anything it finds in the code. If `smoke` hasn't finished yet, the review says so and judges the code on its own merits rather than waiting.
+The reviewer can't see the test results — it judges your code on its own merits. But the two are cross-checked afterwards: **if the reviewer approves while the tests are failing, `claude-review` goes red anyway** and a maintainer is asked to look. So an approval never means "the tests passed"; the test check is the only thing that tells you that.
 
 **Merging needs two things: `smoke` green *and* one approving review.** This trips people up, so it's worth saying plainly: green checks alone are **not** enough. If nobody has approved, the merge button stays disabled no matter how green the page looks.
 
