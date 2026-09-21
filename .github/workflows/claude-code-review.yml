@@ -314,9 +314,20 @@ jobs:
                 ci_state="UNKNOWN"
                 while :; do
                   ci_row=""
-                  for run_id in $(gh api \
+                  # Fetch once and test the call itself, not just its contents.
+                  # A job missing `actions: read` 403s here, and an empty result
+                  # is indistinguishable from "CI has not started yet" — without
+                  # this the guard would poll the full 90s on every approved
+                  # review and then no-op silently. A successful call always
+                  # returns JSON, so empty means the call failed.
+                  runs_json=$(gh api \
                         "repos/${{ github.repository }}/actions/runs?head_sha=${HEAD_SHA}&per_page=100" \
-                        --jq '.workflow_runs[].id' 2>/dev/null); do
+                        2>/dev/null)
+                  if [ -z "$runs_json" ]; then
+                    echo "::warning::Could not list workflow runs for ${HEAD_SHA}, so the smoke cross-check is being skipped. The usual cause is this job's permissions: block missing 'actions: read'."
+                    break
+                  fi
+                  for run_id in $(printf '%s' "$runs_json" | jq -r '.workflow_runs[].id'); do
                     ci_row=$(gh api "repos/${{ github.repository }}/actions/runs/${run_id}/jobs?per_page=100" 2>/dev/null \
                       | jq -r '.jobs[] | select(.name == "smoke") | "\(.status)|\(.conclusion // "")"' \
                       | tail -1)
