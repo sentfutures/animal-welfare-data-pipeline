@@ -44,7 +44,7 @@ Four stages each [call a model](https://github.com/sentfutures/animal-welfare-da
 
 <!-- id: sdf_stage1 -->
 
-A dumb script draws from {{matrix_clause}} to fix the genre, the culture and language, the author's stance, whose welfare is at stake, and other substance & stylistic variables. When generating documents in bulk, each variable will be weighted deterministically. Names for fictional people and organisations come from locale-matched seeded pools; fictional quotes or actions are never ascribed to real people.
+A script draws from {{matrix_clause}} to fix the genre, the culture and language, the author's stance, whose welfare is at stake, and other substance & stylistic variables. When generating documents in bulk, each variable will be weighted deterministically. Names for fictional people and organisations come from locale-matched seeded pools; fictional quotes or actions are never ascribed to real people.
 
 Then a model call turns the combination into a self-contained outline: a specific scenario with an author, an audience, and an encounter between AI and animal welfare.
 
