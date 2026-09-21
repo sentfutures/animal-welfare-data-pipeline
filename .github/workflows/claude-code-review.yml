@@ -46,6 +46,12 @@ jobs:
       pull-requests: write
       issues: write
       id-token: write
+      # Required for the review to read the `smoke` result. Without it the
+      # `gh pr view --json statusCheckRollup` call the prompt below depends on
+      # returns "Resource not accessible by integration", and the review says
+      # so in its summary instead of citing the check. claude.yml has always
+      # granted this pair; this workflow never did.
+      actions: read
 
     steps:
       - name: Checkout repository
@@ -79,6 +85,12 @@ jobs:
           # Without this the action rejects bot-initiated runs. Narrow to specific
           # bot names instead of '*' if you want to restrict which bots trigger it.
           allowed_bots: "*"
+          # The job-level `actions: read` above governs this workflow's own
+          # GITHUB_TOKEN; this grants the same scope on the app token the agent
+          # actually runs `gh` with. Both are needed — omit either and the
+          # review still cannot read `smoke`.
+          additional_permissions: |
+            actions: read
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
