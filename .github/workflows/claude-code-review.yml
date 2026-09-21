@@ -46,13 +46,16 @@ jobs:
       pull-requests: write
       issues: write
       id-token: write
-      # Lets the review read this repo's CI results on the PR.
+      # Lets the verify step read `smoke`'s result via the Actions API, for
+      # the contradiction guard at the end of this file. NOT for the review:
+      # the agent's own token cannot read checks at all (statusCheckRollup
+      # needs the Checks permission, which claude-code-action cannot
+      # request), which is why the guard lives in the workflow rather than in
+      # the prompt.
       #
-      # It cannot run tests itself, so the prompt below tells it to read the
-      # conclusion of `smoke` instead — the required merge-gate job in
-      # ci.yml, which installs dependencies, byte-compiles the packages and
-      # runs the offline pytest suite. A red `smoke` is meant to be grounds
-      # for requesting changes.
+      # `smoke` is the required merge-gate job in ci.yml: it installs
+      # dependencies, byte-compiles the packages and runs the offline pytest
+      # suite.
       actions: read
 
     steps:
@@ -87,13 +90,10 @@ jobs:
           # Without this the action rejects bot-initiated runs. Narrow to specific
           # bot names instead of '*' if you want to restrict which bots trigger it.
           allowed_bots: "*"
-          # Second half of the CI-reading grant, and both halves are required.
-          # The job-level `actions: read` above applies to this workflow's own
-          # GITHUB_TOKEN; this applies the same scope to the GitHub App token
-          # the review agent actually runs `gh` with. With only one of the two,
-          # the review still cannot read `smoke` or any other check on the PR.
-          additional_permissions: |
-            actions: read
+          # No `additional_permissions` on purpose. It would only widen the
+          # agent's own token, and the agent does not read CI — it cannot, and
+          # the contradiction guard in the verify step does it instead, with
+          # this workflow's token.
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
@@ -123,17 +123,13 @@ jobs:
 
             Skip nitpicks, style preferences, and pre-existing issues.
 
-            You cannot run tests, and that is never a reason to avoid a
-            verdict: the `smoke` check runs `compileall` plus the full pytest
-            suite against this head commit. Read its result with
-            `gh pr view ${{ github.event.pull_request.number }} --json statusCheckRollup`:
-            - SUCCESS — the suite passes. Do not call your review unverified
-              merely because you did not run pytest yourself.
-            - FAILURE — that is a significant issue on its own. Request
-              changes and say which check failed.
-            - Still pending — review the code on its merits and say in one
-              line that `smoke` had not finished. Pending tests are not
-              grounds for withholding a verdict.
+            You cannot run tests and you cannot read CI results — do not try,
+            the calls are denied and will only waste turns. You do not need
+            them: the `smoke` check runs `compileall` plus the full pytest
+            suite against this commit, and a separate automated step
+            cross-checks your verdict against its result after you finish.
+            Review the code on its merits and do not caveat your review over
+            not having seen the tests.
 
             Leave feedback with `mcp__github_inline_comment__create_inline_comment`
             for each specific issue (one comment per issue, on the relevant line).
@@ -300,6 +296,57 @@ jobs:
           case "${verdict}" in
             APPROVED|CHANGES_REQUESTED)
               echo "✓ Claude submitted a ${verdict} verdict for ${HEAD_SHA}."
+
+              # Contradiction guard: an approval must not stand over a red
+              # `smoke`. The review cannot read CI (see the prompt), so this is
+              # checked here rather than asked of the model — after the review,
+              # when the result is almost certainly settled. Measured: reviews
+              # run 2-3 min, `smoke` 1-2 min, so this is usually one poll.
+              #
+              # Deliberately NOT checked for CHANGES_REQUESTED: the bot has
+              # already blocked the PR, so a red suite adds nothing.
+              #
+              # Uses the Actions API, not statusCheckRollup — `actions: read`
+              # covers the former, and the Checks permission this job cannot
+              # get covers the latter.
+              if [ "${verdict}" = "APPROVED" ]; then
+                ci_deadline=$(( $(date +%s) + 90 ))
+                ci_state="UNKNOWN"
+                while :; do
+                  ci_row=""
+                  for run_id in $(gh api \
+                        "repos/${{ github.repository }}/actions/runs?head_sha=${HEAD_SHA}&per_page=100" \
+                        --jq '.workflow_runs[].id' 2>/dev/null); do
+                    ci_row=$(gh api "repos/${{ github.repository }}/actions/runs/${run_id}/jobs?per_page=100" 2>/dev/null \
+                      | jq -r '.jobs[] | select(.name == "smoke") | "\(.status)|\(.conclusion // "")"' \
+                      | tail -1)
+                    [ -n "$ci_row" ] && break
+                  done
+                  if [ -n "$ci_row" ] && [ "${ci_row%%|*}" = "completed" ]; then
+                    # Only `failure` and `timed_out` mean the suite actually
+                    # said no. `cancelled` and `stale` are superseded runs —
+                    # concurrency cancels them on every re-push — and reading
+                    # those as failures would fire this guard on healthy PRs.
+                    case "${ci_row##*|}" in
+                      failure|timed_out) ci_state="FAILED" ;;
+                      *)                 ci_state="OK" ;;
+                    esac
+                    break
+                  fi
+                  [ "$(date +%s)" -ge "$ci_deadline" ] && break
+                  sleep 10
+                done
+
+                if [ "${ci_state}" = "FAILED" ]; then
+                  echo "contradiction=true" >> "$GITHUB_OUTPUT"
+                  echo "::error::Claude approved ${HEAD_SHA}, but smoke failed on that commit. An approval cannot stand over a failing suite, so this check fails and a human is being asked to look. The review body is still worth reading; it simply could not see CI."
+                  exit 1
+                fi
+                if [ "${ci_state}" = "UNKNOWN" ]; then
+                  echo "::notice::Could not settle smoke for ${HEAD_SHA} within 90s, so the approval stands unchecked. Not a failure — CI was slower than the review this time."
+                fi
+              fi
+
               # Clear a stale escalation from an earlier neutral verdict on this
               # PR; the bot has since committed to a binary call. 404 when the
               # label isn't present is the normal case, hence the discard.
@@ -368,7 +415,8 @@ jobs:
         if: >-
           always() && !cancelled() &&
           (steps.verdict.outputs.verdict == 'COMMENTED' ||
-           steps.verdict.outputs.verdict == 'NOT_REVIEWED')
+           steps.verdict.outputs.verdict == 'NOT_REVIEWED' ||
+           steps.verdict.outputs.contradiction == 'true')
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -377,11 +425,18 @@ jobs:
           # Maintainers who adjudicate judgment calls. Both repo admins, and the
           # only two humans who have ever reviewed here.
           ESCALATE_TO: "Deco354 Liconstan"
+          CONTRADICTION: ${{ steps.verdict.outputs.contradiction }}
         run: |
-          case "${VERDICT}" in
-            NOT_REVIEWED) why="no automated review ran on this PR (the action self-skipped)" ;;
-            *)            why="the automated review reached no binary verdict" ;;
-          esac
+          # The contradiction case carries an APPROVED verdict, so it has to be
+          # tested before the verdict itself.
+          if [ "${CONTRADICTION}" = "true" ]; then
+            why="the review approved this PR but smoke failed on that commit"
+          else
+            case "${VERDICT}" in
+              NOT_REVIEWED) why="no automated review ran on this PR (the action self-skipped)" ;;
+              *)            why="the automated review reached no binary verdict" ;;
+            esac
+          fi
           echo "Escalating: ${why}."
 
           # Skip maintainers who already have a pending request. This matters more
