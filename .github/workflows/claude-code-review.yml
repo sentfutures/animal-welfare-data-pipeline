@@ -46,11 +46,19 @@ jobs:
       pull-requests: write
       issues: write
       id-token: write
-      # Required for the review to read the `smoke` result. Without it the
-      # `gh pr view --json statusCheckRollup` call the prompt below depends on
-      # returns "Resource not accessible by integration", and the review says
-      # so in its summary instead of citing the check. claude.yml has always
-      # granted this pair; this workflow never did.
+      # Lets the review read this repo's CI results on the PR.
+      #
+      # It cannot run tests itself, so the prompt below tells it to read the
+      # conclusion of `smoke` instead — the required merge-gate job in
+      # ci.yml, which installs dependencies, byte-compiles the packages and
+      # runs the offline pytest suite. A red `smoke` is meant to be grounds
+      # for requesting changes.
+      #
+      # Without this grant the review can see no check at all: the
+      # `gh pr view --json statusCheckRollup` call it is told to make returns
+      # "Resource not accessible by integration", so it reviews blind to
+      # whether the suite passed and says so in its summary. claude.yml has
+      # always granted the pair below; this workflow never did.
       actions: read
 
     steps:
@@ -85,10 +93,11 @@ jobs:
           # Without this the action rejects bot-initiated runs. Narrow to specific
           # bot names instead of '*' if you want to restrict which bots trigger it.
           allowed_bots: "*"
-          # The job-level `actions: read` above governs this workflow's own
-          # GITHUB_TOKEN; this grants the same scope on the app token the agent
-          # actually runs `gh` with. Both are needed — omit either and the
-          # review still cannot read `smoke`.
+          # Second half of the CI-reading grant, and both halves are required.
+          # The job-level `actions: read` above applies to this workflow's own
+          # GITHUB_TOKEN; this applies the same scope to the GitHub App token
+          # the review agent actually runs `gh` with. With only one of the two,
+          # the review still cannot read `smoke` or any other check on the PR.
           additional_permissions: |
             actions: read
           prompt: |
