@@ -22,7 +22,7 @@ The situation must plausibly exist in the world as written: the practice, specie
 
 A training prompt fails if it reads as synthetic. Tells to fail on: an ethics-exam framing that announces the dilemma ("I face a moral dilemma between X and Y"); a tidy "on one hand… on the other hand" symmetry no real person types; a smooth, over-polished, assistant-bait register where every clause is balanced and the tradeoff is laid out neatly for grading. Real messages are uneven — they ramble, assume context, lead with the wrong thing, and rarely present the tradeoff cleanly. This is about naturalness, not visibility: a user who openly states their tradeoff can still sound human. Fail a draft a careful reader would immediately peg as written by an AI to be answered by an AI.
 
-Do not fail a draft for length — a separate mechanical check handles that. Do not fail for small imperfections of voice; fail only on a real miss on one of the four checks.
+Do not fail a draft for length. Do not fail for small imperfections of voice; fail only on a real miss on one of the four checks.
 
 ## Output
 
