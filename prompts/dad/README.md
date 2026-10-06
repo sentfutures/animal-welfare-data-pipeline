@@ -123,7 +123,7 @@ The best prompts contain the user's own best argument for the tempting option, i
 
 ### 3.4 Length, opening, closing (sampled)
 
-Message length is dealt per example, not requested from the writer. Asked-for variety collapses back to one register; a dealt assignment does not. There are four classes (shares in `variables.txt`): one to three sentences, a short paragraph, one long paragraph, two paragraphs. The assignment is a binding instruction through drafting, the gate, and the refine, but an instruction to the model only, never measured or enforced in code. Length is a register, not a word count: a short message is the slice a terse user would type, never a compressed summary of the design.
+Message length is dealt per example, not requested from the writer. Asked-for variety collapses back to one register; a dealt assignment does not. There are five classes (shares in `variables.txt`): about 30 words, about 80 words, about 150 words, about 250 words, about 400 words (the templates phrase each as a ceiling, "at most", and the model lands near it). The assignment is a binding instruction through drafting and the refine, but an instruction to the model only, never measured or enforced in code. A short message is the slice a terse user would type, never a compressed summary of the design.
 
 Opening and closing moves are dealt the same way (nine values each: role-first, task-first, mid-situation, a direct closing question, trailing off, inviting pushback, and so on), with two compatibility remaps enforced by the composer and documented in `variables.txt` (when two dealt cards contradict each other, one is remapped to a compatible value).
 

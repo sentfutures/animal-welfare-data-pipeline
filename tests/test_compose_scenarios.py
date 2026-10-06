@@ -249,8 +249,10 @@ class TestRenderAndExtract:
         after = cs.resolve_value(values["closing_move"], "on a secondary")
         explicit_ask = cs.resolve_value(values["surface_form"], "explicitly asks")
 
-        # seed 9 deals the rare formal-persona x casual-open collision (S-005)
-        batch = [p for seed in (0, 1, 2, 9) for p in cs.deal_scenarios(40, random.Random(seed))]
+        # seed 36 deals the rare formal-persona x casual-open collision. Any edit
+        # to variables.txt reshuffles every seed's deal, so re-pick this seed
+        # when that happens (the assert below fails loudly rather than passing vacuously)
+        batch = [p for seed in (0, 1, 2, 36) for p in cs.deal_scenarios(40, random.Random(seed))]
         assert all(p["opening_move"] and p["closing_move"] for p in batch)
         open_hits = close_hits = 0
         for p in batch:

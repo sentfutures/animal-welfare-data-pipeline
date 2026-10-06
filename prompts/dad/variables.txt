@@ -217,10 +217,11 @@
 {length}  # the user message's register — dealt in the deck but hidden from the
           # 1a scenario planner; it first appears on the 1b scenario block
           # (binding); an instruction to the model, never measured or enforced
-    0.15 :: one to three sentences long
-    0.20 :: a short paragraph, four to six sentences long
-    0.40 :: one long paragraph, seven to ten sentences
-    0.25 :: two paragraphs long
+    0.10 :: 30 words (one to two sentences) long
+    0.20 :: 80 words (one short paragraph) long
+    0.30 :: 150 words (one paragraph) long
+    0.30 :: 250 words (one paragraph) long
+    0.10 :: 400 words (two paragraphs) long
 
 {opening_move}  # the message's first beat — dealt in the deck but hidden from
                 # the 1a planner (pure message form, like {length}); instructs
