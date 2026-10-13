@@ -58,6 +58,7 @@ _PRICING = {
     "claude-sonnet-5": (3.00, 15.00),
     "claude-opus-4-8": (5.00, 25.00),
     "claude-opus-5": (5.00, 25.00),
+    "claude-opus-5-5": (4.00, 20.00),
     "claude-fable-5": (10.00, 50.00),
     "claude-haiku-4-5": (1.00, 5.00),
     "claude-haiku-4-5-20251001": (1.00, 5.00),
@@ -283,12 +284,14 @@ def _call_with_retry(
     return client.messages.create(**kwargs)
 
 
-_ADAPTIVE_THINKING_PREFIXES = ("claude-fable", "claude-mythos")
+_ADAPTIVE_THINKING_PREFIXES = ("claude-fable", "claude-mythos", "claude-opus-5-5")
 
 
 def _requires_adaptive_thinking(model: str) -> bool:
-    """Mythos-class models cannot run with thinking disabled (400); callers
-    omit the flag for them and rely on _response_text to strip the blocks."""
+    """Models that cannot run with thinking disabled (the API 400s): the
+    Mythos class, and Opus 5.5, where thinking is always on at every effort
+    level. Callers omit the flag for them and rely on _response_text to strip
+    the blocks."""
     return model.startswith(_ADAPTIVE_THINKING_PREFIXES)
 
 

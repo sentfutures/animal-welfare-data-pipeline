@@ -1,0 +1,163 @@
+{
+  "run": "2026-07-29_12-26_archetype200",
+  "metric": "welfare_impact.per_case[pid].pipeline.blended_score",
+  "n_scored": 179,
+  "buckets": {
+    "low": [
+      {
+        "prompt_id": "AW-0183",
+        "orig_blended": 42.8,
+        "orig_score": 38
+      },
+      {
+        "prompt_id": "AW-0055",
+        "orig_blended": 77.65,
+        "orig_score": 76
+      },
+      {
+        "prompt_id": "AW-0187",
+        "orig_blended": 80.1,
+        "orig_score": 79
+      },
+      {
+        "prompt_id": "AW-0009",
+        "orig_blended": 80.15,
+        "orig_score": 78
+      },
+      {
+        "prompt_id": "AW-0001",
+        "orig_blended": 85.15,
+        "orig_score": 84
+      },
+      {
+        "prompt_id": "AW-0138",
+        "orig_blended": 86.95,
+        "orig_score": 87
+      },
+      {
+        "prompt_id": "AW-0008",
+        "orig_blended": 87.45,
+        "orig_score": 87
+      },
+      {
+        "prompt_id": "AW-0149",
+        "orig_blended": 87.8,
+        "orig_score": 87
+      },
+      {
+        "prompt_id": "AW-0172",
+        "orig_blended": 88.0,
+        "orig_score": 88
+      },
+      {
+        "prompt_id": "AW-0161",
+        "orig_blended": 88.3,
+        "orig_score": 88
+      }
+    ],
+    "mid": [
+      {
+        "prompt_id": "AW-0013",
+        "orig_blended": 93.1,
+        "orig_score": 93
+      },
+      {
+        "prompt_id": "AW-0014",
+        "orig_blended": 93.1,
+        "orig_score": 93
+      },
+      {
+        "prompt_id": "AW-0027",
+        "orig_blended": 93.1,
+        "orig_score": 93
+      },
+      {
+        "prompt_id": "AW-0031",
+        "orig_blended": 93.1,
+        "orig_score": 93
+      },
+      {
+        "prompt_id": "AW-0048",
+        "orig_blended": 93.1,
+        "orig_score": 93
+      },
+      {
+        "prompt_id": "AW-0069",
+        "orig_blended": 93.1,
+        "orig_score": 93
+      },
+      {
+        "prompt_id": "AW-0095",
+        "orig_blended": 93.1,
+        "orig_score": 93
+      },
+      {
+        "prompt_id": "AW-0121",
+        "orig_blended": 93.1,
+        "orig_score": 93
+      },
+      {
+        "prompt_id": "AW-0165",
+        "orig_blended": 93.1,
+        "orig_score": 93
+      },
+      {
+        "prompt_id": "AW-0016",
+        "orig_blended": 93.15,
+        "orig_score": 93
+      }
+    ],
+    "high": [
+      {
+        "prompt_id": "AW-0098",
+        "orig_blended": 94.9,
+        "orig_score": 95
+      },
+      {
+        "prompt_id": "AW-0103",
+        "orig_blended": 94.9,
+        "orig_score": 95
+      },
+      {
+        "prompt_id": "AW-0166",
+        "orig_blended": 95.0,
+        "orig_score": 95
+      },
+      {
+        "prompt_id": "AW-0181",
+        "orig_blended": 95.0,
+        "orig_score": 95
+      },
+      {
+        "prompt_id": "AW-0004",
+        "orig_blended": 95.05,
+        "orig_score": 95
+      },
+      {
+        "prompt_id": "AW-0062",
+        "orig_blended": 95.05,
+        "orig_score": 95
+      },
+      {
+        "prompt_id": "AW-0142",
+        "orig_blended": 95.05,
+        "orig_score": 95
+      },
+      {
+        "prompt_id": "AW-0047",
+        "orig_blended": 95.1,
+        "orig_score": 95
+      },
+      {
+        "prompt_id": "AW-0090",
+        "orig_blended": 95.15,
+        "orig_score": 95
+      },
+      {
+        "prompt_id": "AW-0141",
+        "orig_blended": 95.8,
+        "orig_score": 96
+      }
+    ]
+  }
+}

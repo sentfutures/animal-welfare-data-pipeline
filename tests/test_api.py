@@ -726,6 +726,10 @@ class TestAdaptiveThinkingModels:
     def test_predicate_covers_the_tier(self):
         assert api._requires_adaptive_thinking("claude-fable-5")
         assert api._requires_adaptive_thinking("claude-mythos-5")
+        # Opus 5.5 400s on thinking-disabled at every effort level, unlike
+        # Opus 5, where disabled is still accepted (and the pipeline wants it).
+        assert api._requires_adaptive_thinking("claude-opus-5-5")
+        assert not api._requires_adaptive_thinking("claude-opus-5")
         assert not api._requires_adaptive_thinking("claude-sonnet-5")
         assert not api._requires_adaptive_thinking("claude-haiku-4-5-20251001")
 
