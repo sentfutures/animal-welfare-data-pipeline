@@ -105,6 +105,10 @@ def call_openrouter(
         payload["temperature"] = resolved_temp
     if _REASONING_EFFORT:
         payload["reasoning"] = {"effort": _REASONING_EFFORT}
+    # Claude models on OpenRouter can be served by Anthropic, Bedrock, or
+    # Vertex; pin them to Anthropic's own serving so the arm stays first-party.
+    if resolved_model.startswith("anthropic/"):
+        payload["provider"] = {"order": ["anthropic"], "allow_fallbacks": False}
 
     started = time.monotonic()
     data = None
