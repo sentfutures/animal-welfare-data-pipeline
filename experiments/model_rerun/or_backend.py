@@ -96,9 +96,13 @@ def call_openrouter(
         "model": resolved_model,
         "messages": messages,
         "max_tokens": resolved_max,
-        "temperature": resolved_temp,
         "usage": {"include": True},
     }
+    # Reasoning models (gpt-6.1-sol among them) reject the temperature
+    # parameter outright, and the pipeline only ever asks for the default
+    # (1.0) — so send it only when a caller deliberately overrides it.
+    if resolved_temp != 1.0:
+        payload["temperature"] = resolved_temp
     if _REASONING_EFFORT:
         payload["reasoning"] = {"effort": _REASONING_EFFORT}
 
