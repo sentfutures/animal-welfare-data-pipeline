@@ -63,6 +63,9 @@ def main(argv=None) -> None:
     parser.add_argument("--run-dir", required=True)
     parser.add_argument("--backend", choices=("anthropic", "openrouter"),
                         default="anthropic")
+    parser.add_argument("--reasoning-effort", default=None,
+                        help="openrouter only: reasoning effort for generation "
+                             "calls (e.g. medium)")
     args = parser.parse_args(argv)
 
     run_dir = Path(args.run_dir)
@@ -73,7 +76,7 @@ def main(argv=None) -> None:
     api.init(str(config_path), cost_log_path=run_dir / "cost_log.jsonl")
     if args.backend == "openrouter":
         import or_backend
-        or_backend.install()
+        or_backend.install(reasoning_effort=args.reasoning_effort)
     install_recorder(run_dir)
 
     step2_dir = run_dir / "step2"

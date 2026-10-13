@@ -27,6 +27,10 @@ OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 MAX_ATTEMPTS = 8
 RETRY_STATUS = {408, 429, 500, 502, 503, 504, 522, 524}
 
+# Reasoning effort forwarded to OpenRouter's normalized `reasoning` parameter
+# (set via install(); None sends nothing and the model runs at its default).
+_REASONING_EFFORT: str | None = None
+
 
 def _verify():
     bundle = os.environ.get("REQUESTS_CA_BUNDLE") or "/root/.ccr/ca-bundle.crt"
@@ -95,6 +99,8 @@ def call_openrouter(
         "temperature": resolved_temp,
         "usage": {"include": True},
     }
+    if _REASONING_EFFORT:
+        payload["reasoning"] = {"effort": _REASONING_EFFORT}
 
     started = time.monotonic()
     data = None
@@ -180,9 +186,11 @@ def call_openrouter(
     return (text, stop_reason) if return_stop_reason else text
 
 
-def install():
+def install(reasoning_effort: str | None = None):
     """Route every shared.api.call_claude call through OpenRouter. Returns the
     original function for restoring."""
+    global _REASONING_EFFORT
+    _REASONING_EFFORT = reasoning_effort
     original = api.call_claude
     api.call_claude = call_openrouter
     return original

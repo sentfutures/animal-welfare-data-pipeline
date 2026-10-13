@@ -59,11 +59,17 @@ def main(argv=None) -> Path:
     parser.add_argument("--label", required=True,
                         help="Run label; must contain 'local_' to stay untracked, "
                              "e.g. local_rerun-opus55")
-    parser.add_argument("--model", required=True,
+    parser.add_argument("--model", default=None,
                         help="Model id (Anthropic) or slug (OpenRouter) for every "
-                             "response-side stage")
+                             "response-side stage (required unless --copy-responses)")
+    parser.add_argument("--copy-responses", action="store_true",
+                        help="Judge-only run: no generation — copy the SOURCE run's "
+                             "own final responses for the selected examples, so the "
+                             "original arm can be re-judged by the new judges")
     parser.add_argument("--config", default=str(ROOT / "config.yaml"))
     args = parser.parse_args(argv)
+    if not args.copy_responses and not args.model:
+        parser.error("--model is required unless --copy-responses")
     if "local_" not in args.label:
         raise SystemExit("--label must contain 'local_' so the run dir stays untracked")
 
@@ -95,7 +101,8 @@ def main(argv=None) -> Path:
             baselines.append({**b, "prompt_gid": prompt_key(d)})
 
     base_config = utils.load_config(args.config)
-    config = arm_config(base_config, args.model)
+    config = (arm_config(base_config, args.model) if args.model
+              else arm_config(base_config, base_config.get("model", "")))
 
     outputs_root = Path(os.environ.get("PIPELINE_OUTPUT_ROOT", ROOT / "outputs"))
     run_dir = utils.create_run_dir(
@@ -119,6 +126,34 @@ def main(argv=None) -> Path:
 
     with open(run_dir / "inputs" / "config_override.yaml", "w", encoding="utf-8") as f:
         yaml.safe_dump(config, f, sort_keys=False, allow_unicode=True)
+
+    if args.copy_responses:
+        # Judge-only run: carry the source run's own step-3 rewrites and final
+        # corpus for the selected examples, so audit_judges finds pipeline
+        # responses without any generation. (drive.py is never run on this dir.)
+        # Same key normalization as the baselines above: old rewrites carry only
+        # the legacy prompt_id, and the audit keys the pipeline arm off
+        # prompt_key(rewrite) — stamp the current gid so both arms share keys.
+        key_of = {k: prompt_key(d) for d in dilemmas for k in prompt_keys(d)}
+        rewrites = [{**r, "prompt_gid": key_of[k]}
+                    for r in utils.load_jsonl(source / "step3" / "rewrites.jsonl")
+                    for k in (next((k for k in prompt_keys(r) if k in key_of), None),)
+                    if k is not None]
+        record_ids = {r.get("record_id") for r in rewrites}
+        corpus = [c for c in utils.load_jsonl(source / "final" / "dad_corpus.jsonl")
+                  if c.get("record_id") in record_ids]
+        utils.ensure_dir(run_dir / "step3")
+        with open(run_dir / "step3" / "rewrites.jsonl", "w", encoding="utf-8") as f:
+            for r in rewrites:
+                f.write(json.dumps(r, ensure_ascii=False) + "\n")
+        utils.ensure_dir(run_dir / "final")
+        with open(run_dir / "final" / "dad_corpus.jsonl", "w", encoding="utf-8") as f:
+            for c in corpus:
+                f.write(json.dumps(c, ensure_ascii=False) + "\n")
+        print(f"copied responses: {len(rewrites)} rewrites, {len(corpus)} corpus records")
+        if len(corpus) != len(dilemmas):
+            print(f"  WARNING: {len(dilemmas) - len(corpus)} selected examples have no "
+                  "final record in the source run")
 
     print(f"run_dir: {run_dir}")
     print(f"dilemmas: {len(dilemmas)} (selection {len(wanted)})")
