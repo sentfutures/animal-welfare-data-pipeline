@@ -126,6 +126,10 @@ def main(argv=None) -> None:
                              "Claude-made (for the bias readout)")
     parser.add_argument("--claude-judges", default="opus55",
                         help="Comma-separated judge names that are Claude-family")
+    parser.add_argument("--gpt-judges", default="gpt61sol",
+                        help="Comma-separated judge names that are GPT-family; any "
+                             "other judge (e.g. a Gemini arbiter) stays out of the "
+                             "two-family bias estimate but gets its own delta line")
     parser.add_argument("--out", default=str(HERE / "results.md"))
     args = parser.parse_args(argv)
 
@@ -174,7 +178,7 @@ def main(argv=None) -> None:
     claude_arms = [a.strip() for a in args.claude_arms.split(",") if a.strip() in arms]
     gpt_arms = [a for a in arms if a not in claude_arms]
     claude_judges = [j.strip() for j in args.claude_judges.split(",") if j.strip() in judge_names]
-    gpt_judges = [j for j in judge_names if j not in claude_judges]
+    gpt_judges = [j.strip() for j in args.gpt_judges.split(",") if j.strip() in judge_names]
     if claude_arms and gpt_arms and claude_judges and gpt_judges:
         lines.append("## Same-family bias readout (welfare impact, pipeline arm)")
         lines.append("")
@@ -192,7 +196,8 @@ def main(argv=None) -> None:
                       if v is not None])
             if c is not None and g is not None:
                 deltas[j] = c - g
-                fam = "Claude-family" if j in claude_judges else "GPT-family"
+                fam = ("Claude-family" if j in claude_judges
+                       else "GPT-family" if j in gpt_judges else "neutral arbiter")
                 lines.append(f"- judge **{j}** ({fam}): Claude-made − GPT-made = "
                              f"**{c - g:+.1f}**")
         if len(deltas) >= 2 and claude_judges and gpt_judges:
