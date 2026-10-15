@@ -80,6 +80,8 @@ pref:
     b:
       name: candidate
       system_prompt: ""  # or system_prompt_file: prompts/pref/response_spec.txt
+      # Optional per-arm overrides: model, max_tokens, and effort (reasoning
+      # effort: low | medium | high | xhigh | max; unset = the model's default)
 
 language_distribution:
   en: 1.0

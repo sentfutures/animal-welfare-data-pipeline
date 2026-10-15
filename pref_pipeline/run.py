@@ -47,7 +47,8 @@ def _load_prompts(path: Path) -> list[dict]:
 
 def _resolve_arms(config: dict, root: Path) -> dict:
     """Resolve the two arm definitions: inline system_prompt, or system_prompt_file
-    (path relative to the repo root, e.g. a candidate response-spec doc)."""
+    (path relative to the repo root, e.g. a candidate response-spec doc), plus the
+    optional per-arm model / max_tokens / effort (reasoning-effort level) overrides."""
     arms_cfg = (config.get("pref") or {}).get("arms") or _DEFAULT_ARMS
     arms = {}
     for key in ("a", "b"):
@@ -57,11 +58,17 @@ def _resolve_arms(config: dict, root: Path) -> dict:
         system_prompt = cfg.get("system_prompt", "") or ""
         if cfg.get("system_prompt_file"):
             system_prompt = (root / cfg["system_prompt_file"]).read_text(encoding="utf-8")
+        effort = cfg.get("effort")
+        if effort is not None and effort not in api.EFFORT_LEVELS:
+            raise SystemExit(
+                f"config pref.arms.{key}.effort must be one of {api.EFFORT_LEVELS}, got {effort!r}"
+            )
         arms[key] = {
             "name": cfg.get("name", key),
             "system_prompt": system_prompt,
             "model": cfg.get("model"),
             "max_tokens": cfg.get("max_tokens"),
+            "effort": effort,
         }
     return arms
 
@@ -153,6 +160,7 @@ def main() -> None:
                     system_prompt=arm.get("system_prompt") or "",
                     model=arm.get("model"),
                     max_tokens=arm.get("max_tokens"),
+                    effort=arm.get("effort"),
                     return_stop_reason=True,
                     stage=f"pref_arm_{key}",
                 )

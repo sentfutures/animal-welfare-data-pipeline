@@ -67,6 +67,43 @@ class TestPairGeneration:
         # arms frozen for resume
         assert (run_dir / "inputs" / "arm_prompts.yaml").exists()
 
+    def test_per_arm_effort_reaches_the_call(self, tiny_config, prompts_file, outputs_root,
+                                             stub_claude, monkeypatch, tmp_path):
+        # effort is a per-arm knob like model/max_tokens: sent for the arm that
+        # sets it, left unset (backend default) for the one that doesn't, and
+        # frozen into the run's arm_prompts.yaml so --resume replays it.
+        import yaml
+        tiny_config["pref"] = {"arms": {
+            "a": {"name": "opus", "model": "claude-opus-5-5", "effort": "medium"},
+            "b": {"name": "sonnet", "model": "claude-sonnet-5-5"},
+        }}
+        cfg = tmp_path / "config_effort.yaml"
+        cfg.write_text(yaml.safe_dump(tiny_config))
+        calls = stub_claude(lambda user_message, **kw: f"{kw['model']} answer")
+        _run_main(monkeypatch, cfg, prompts_file, "--limit", "1")
+
+        by_model = {c["model"]: c for c in calls}
+        assert by_model["claude-opus-5-5"]["effort"] == "medium"
+        assert by_model["claude-sonnet-5-5"]["effort"] is None
+        run_dir = next((outputs_root / "pref" / "runs").iterdir())
+        frozen = yaml.safe_load((run_dir / "inputs" / "arm_prompts.yaml").read_text())
+        assert frozen["a"]["effort"] == "medium" and frozen["b"]["effort"] is None
+
+    def test_unknown_effort_level_is_refused_before_any_call(self, tiny_config, prompts_file,
+                                                             outputs_root, stub_claude,
+                                                             monkeypatch, tmp_path):
+        import yaml
+        tiny_config["pref"] = {"arms": {
+            "a": {"name": "a", "effort": "maximum"},
+            "b": {"name": "b"},
+        }}
+        cfg = tmp_path / "config_bad_effort.yaml"
+        cfg.write_text(yaml.safe_dump(tiny_config))
+        calls = stub_claude(_arm_dispatch)
+        with pytest.raises(SystemExit, match="effort must be one of"):
+            _run_main(monkeypatch, cfg, prompts_file)
+        assert calls == []
+
     def test_failed_arm_keeps_sibling_and_resume_retries_only_it(
         self, pref_config_file, prompts_file, outputs_root, stub_claude, monkeypatch
     ):

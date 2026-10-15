@@ -257,6 +257,7 @@ def _call_with_retry(
     system: str | list[dict],
     messages: list[dict],
     temperature: float,
+    effort: str | None = None,
 ) -> anthropic.types.Message:
     # Extended thinking OFF everywhere — training data should show user-facing
     # reasoning, not internal scratchpads (see CLAUDE.md). Models in the Claude 5
@@ -280,14 +281,33 @@ def _call_with_retry(
         kwargs["temperature"] = temperature
     if not _requires_adaptive_thinking(model):
         kwargs["thinking"] = {"type": "disabled"}
+    # Reasoning effort (low/medium/high/xhigh/max) rides in output_config; omitted
+    # entirely when unset so the model runs at its own default.
+    if effort:
+        kwargs["output_config"] = {"effort": effort}
     return client.messages.create(**kwargs)
 
 
-_ADAPTIVE_THINKING_PREFIXES = ("claude-fable", "claude-mythos")
+# Models that 400 on `thinking: {type: "disabled"}`: the Mythos class
+# (fable/mythos, thinking always on) and the 5.5 generation (Opus 5.5 at every
+# effort; Sonnet 5.5, whose only thinking-off form is `between_tools`, which the
+# claude_code backend's SDK does not type). For all of them the flag is omitted,
+# thinking runs, and the text extractors strip the blocks — so, like the Mythos
+# class, these are comparison/eval arms only, never corpus generation, unless the
+# no-scratchpads design decision is deliberately revisited. The prefixes are the
+# exact 5-5 ids: "claude-opus-5" alone would also match Opus 5, which accepts
+# the flag.
+_ADAPTIVE_THINKING_PREFIXES = (
+    "claude-fable", "claude-mythos",
+    "claude-opus-5-5", "claude-sonnet-5-5",
+)
+
+# The reasoning-effort levels the API accepts (output_config.effort).
+EFFORT_LEVELS = ("low", "medium", "high", "xhigh", "max")
 
 
 def _requires_adaptive_thinking(model: str) -> bool:
-    """Mythos-class models cannot run with thinking disabled (400); callers
+    """True for models that cannot run with thinking disabled (400); callers
     omit the flag for them and rely on _response_text to strip the blocks."""
     return model.startswith(_ADAPTIVE_THINKING_PREFIXES)
 
@@ -379,6 +399,7 @@ def _run_claude_code_query(
     model: str,
     system: str,
     user_message: str,
+    effort: str | None = None,
 ) -> tuple[str, int, int, float | None, str | None]:
     """One Claude Code CLI turn: run the query and parse the result into
     (text, input_tokens, output_tokens, notional_cost_usd, stop_reason).
@@ -431,6 +452,9 @@ def _run_claude_code_query(
     )
     if not _requires_adaptive_thinking(model):
         option_kwargs["thinking"] = {"type": "disabled"}
+    # Reasoning effort, when set; otherwise the CLI's own default applies.
+    if effort:
+        option_kwargs["effort"] = effort
     options = ClaudeAgentOptions(**option_kwargs)
 
     async def _run() -> tuple[list[str], object | None]:
@@ -499,11 +523,12 @@ def _call_claude_code_with_retry(
     model: str,
     system: str,
     user_message: str,
+    effort: str | None = None,
 ) -> tuple[str, int, int, float | None, str | None]:
     """Retry wrapper around _run_claude_code_query (transient ClaudeCodeError
     only; UsageLimitExceeded is not retried). This is the seam call_claude uses
     and that the test suite blocks."""
-    return _run_claude_code_query(model, system, user_message)
+    return _run_claude_code_query(model, system, user_message, effort=effort)
 
 
 def call_claude(
@@ -517,6 +542,7 @@ def call_claude(
     temperature: float | None = None,
     item_id: str | None = None,
     cache_system: bool = False,
+    effort: str | None = None,
 ) -> str | tuple[str, str | None]:
     """Call Claude and return the response text.
 
@@ -543,11 +569,18 @@ def call_claude(
             SDF layer's constitution-laden system prompt) are billed at the ~0.1x
             cache-read rate after the first. Ignored on claude_code (the CLI
             manages its own caching) and when the system prompt is empty.
+        effort: Reasoning-effort level for this call, one of EFFORT_LEVELS
+            (low/medium/high/xhigh/max); None leaves the model (api backend) or
+            the CLI (claude_code backend) at its own default. Sent on both
+            backends. A comparison knob (pref arms): corpus generation leaves it
+            unset.
 
     Returns:
         The assistant's response text, or (text, stop_reason) when
         return_stop_reason is True.
     """
+    if effort is not None and effort not in EFFORT_LEVELS:
+        raise ValueError(f"effort must be one of {EFFORT_LEVELS}, got {effort!r}")
     resolved_model = model or _config.get("model", "claude-sonnet-5")
     resolved_max = max_tokens or _config.get("max_tokens", 4000)
     resolved_temp = temperature if temperature is not None else _config.get("temperature", 1.0)
@@ -591,6 +624,7 @@ def call_claude(
                 model=resolved_model,
                 system=full_system,
                 user_message=user_message,
+                effort=effort,
             )
         except ClaudeCodeRefusal as e:
             # A content/policy refusal is per-item, not the backend's health:
@@ -653,6 +687,7 @@ def call_claude(
         system=system_arg,
         messages=[{"role": "user", "content": user_message}],
         temperature=resolved_temp,
+        effort=effort,
     )
 
     usage = response.usage

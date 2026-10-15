@@ -59,9 +59,9 @@ def recorded_api(monkeypatch, tmp_path, fake_message):
     calls = []
     canned = {"message": fake_message(text="response-text")}
 
-    def record(client, model, max_tokens, system, messages, temperature):
+    def record(client, model, max_tokens, system, messages, temperature, effort=None):
         calls.append({"model": model, "max_tokens": max_tokens, "system": system,
-                      "messages": messages, "temperature": temperature})
+                      "messages": messages, "temperature": temperature, "effort": effort})
         return canned["message"]
 
     monkeypatch.setattr(api, "_call_with_retry", record)
@@ -633,7 +633,7 @@ class TestClaudeCodeDispatch:
         monkeypatch.setattr(api, "_cost_log_path", tmp_path / "cost.jsonl")
         seen = {}
 
-        def fake_cc(model, system, user_message):
+        def fake_cc(model, system, user_message, effort=None):
             seen.update(model=model, system=system, user_message=user_message)
             return ("cc-response", 111, 22, 0.004, "end_turn")
 
@@ -654,7 +654,7 @@ class TestClaudeCodeDispatch:
         monkeypatch.setattr(api, "_backend", "claude_code")
         monkeypatch.setattr(api, "_cost_log_path", tmp_path / "cost.jsonl")
         monkeypatch.setattr(api, "_call_claude_code_with_retry",
-                            lambda model, system, user_message: ("t", 1, 1, 0.001, "end_turn"))
+                            lambda model, system, user_message, effort=None: ("t", 1, 1, 0.001, "end_turn"))
         api.call_claude("hi", stage="layer3_rewrite")
         record = json.loads((tmp_path / "cost.jsonl").read_text().strip())
         assert record["stage"] == "layer3_rewrite"
@@ -665,7 +665,7 @@ class TestClaudeCodeDispatch:
         monkeypatch.setattr(api, "_backend", "claude_code")
         monkeypatch.setattr(api, "_cost_log_path", tmp_path / "cost.jsonl")
         monkeypatch.setattr(api, "_call_claude_code_with_retry",
-                            lambda model, system, user_message: ("t", 1, 1, None, "end_turn"))
+                            lambda model, system, user_message, effort=None: ("t", 1, 1, None, "end_turn"))
         api.call_claude("hi")  # config default 1.0 — no warning
         assert "temperature" not in capsys.readouterr().err
         api.call_claude("hi", temperature=0.3)
@@ -678,7 +678,7 @@ class TestClaudeCodeDispatch:
         monkeypatch.setattr(api, "_backend", "claude_code")
         monkeypatch.setattr(api, "_cost_log_path", tmp_path / "cost.jsonl")
         monkeypatch.setattr(api, "_call_claude_code_with_retry",
-                            lambda model, system, user_message: ("t", 1, 1, None, "max_tokens"))
+                            lambda model, system, user_message, effort=None: ("t", 1, 1, None, "max_tokens"))
         assert api.call_claude("hi", return_stop_reason=True) == ("t", "max_tokens")
         assert api.call_claude("hi") == "t"  # bare string without the flag
 
@@ -686,7 +686,7 @@ class TestClaudeCodeDispatch:
         monkeypatch.setattr(api, "_backend", "claude_code")
         monkeypatch.setattr(api, "_cost_log_path", tmp_path / "cost.jsonl")
         monkeypatch.setattr(api, "_call_claude_code_with_retry",
-                            lambda model, system, user_message: ("cut", 1, 1, None, "max_tokens"))
+                            lambda model, system, user_message, effort=None: ("cut", 1, 1, None, "max_tokens"))
         api.call_claude("hi")
         assert "max_tokens" in capsys.readouterr().err
 
@@ -729,6 +729,87 @@ class TestAdaptiveThinkingModels:
         assert not api._requires_adaptive_thinking("claude-sonnet-5")
         assert not api._requires_adaptive_thinking("claude-haiku-4-5-20251001")
 
+    def test_predicate_covers_the_5_5_generation_but_not_opus_5(self):
+        # Opus 5.5 / Sonnet 5.5 400 on thinking-disabled; Opus 5 and Sonnet 5
+        # still accept it, so the prefixes must be the exact 5-5 ids
+        assert api._requires_adaptive_thinking("claude-opus-5-5")
+        assert api._requires_adaptive_thinking("claude-sonnet-5-5")
+        assert not api._requires_adaptive_thinking("claude-opus-5")
+        assert not api._requires_adaptive_thinking("claude-sonnet-5")
+
+    def test_thinking_flag_omitted_for_5_5_models(self):
+        import importlib
+        real = importlib.reload(api)._call_with_retry
+        for model in ("claude-opus-5-5", "claude-sonnet-5-5"):
+            client = self._FakeClient()
+            real(client=client, model=model, max_tokens=100,
+                 system="s", messages=[], temperature=1.0)
+            assert "thinking" not in client.messages.kwargs, model
+
+
+class TestEffort:
+    """Reasoning effort is a per-call knob: sent as output_config.effort on the
+    api backend, as ClaudeAgentOptions.effort on claude_code, and omitted
+    entirely when unset so each backend keeps its own default."""
+
+    def test_effort_rides_in_output_config_on_the_api_backend(self):
+        import importlib
+        real = importlib.reload(api)._call_with_retry
+        client = TestAdaptiveThinkingModels._FakeClient()
+        real(client=client, model="claude-sonnet-5", max_tokens=100,
+             system="s", messages=[], temperature=1.0, effort="medium")
+        assert client.messages.kwargs["output_config"] == {"effort": "medium"}
+
+    def test_unset_effort_sends_no_output_config(self):
+        import importlib
+        real = importlib.reload(api)._call_with_retry
+        client = TestAdaptiveThinkingModels._FakeClient()
+        real(client=client, model="claude-sonnet-5", max_tokens=100,
+             system="s", messages=[], temperature=1.0)
+        assert "output_config" not in client.messages.kwargs
+
+    def test_call_claude_rejects_an_unknown_level_before_any_call(self, recorded_api):
+        with pytest.raises(ValueError, match="effort must be one of"):
+            api.call_claude("hi", effort="maximum")
+        assert recorded_api["calls"] == []
+
+    def test_call_claude_forwards_effort_to_the_api_seam(self, recorded_api):
+        api.call_claude("hi", effort="low")
+        assert recorded_api["calls"][0]["effort"] == "low"
+        api.call_claude("hi")
+        assert recorded_api["calls"][1]["effort"] is None
+
+    def test_call_claude_forwards_effort_to_the_claude_code_seam(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(api, "_backend", "claude_code")
+        monkeypatch.setattr(api, "_cost_log_path", tmp_path / "cost.jsonl")
+        seen = []
+        monkeypatch.setattr(api, "_call_claude_code_with_retry",
+                            lambda model, system, user_message, effort=None:
+                            (seen.append(effort), "t", 1, 1, None, "end_turn")[1:])
+        api.call_claude("hi", system_prompt="s", effort="xhigh")
+        api.call_claude("hi", system_prompt="s")
+        assert seen == ["xhigh", None]
+
+    @pytest.mark.enable_socket
+    def test_effort_reaches_claude_agent_options(self, monkeypatch):
+        pytest.importorskip("claude_agent_sdk")
+        types = pytest.importorskip("claude_agent_sdk.types")
+        seen = {}
+
+        async def fake_query(*, prompt, options):
+            seen["options"] = options
+            yield types.ResultMessage(
+                subtype="success", duration_ms=1, duration_api_ms=1, is_error=False,
+                num_turns=1, session_id="sesn_test", result="ok",
+                usage={"input_tokens": 1, "output_tokens": 1}, stop_reason="end_turn",
+            )
+
+        monkeypatch.setattr("claude_agent_sdk.query", fake_query)
+        api._run_claude_code_query("claude-haiku-4-5", "sys", "hi", effort="medium")
+        assert seen["options"].effort == "medium"
+        api._run_claude_code_query("claude-haiku-4-5", "sys", "hi")
+        assert seen["options"].effort is None
+
 
 class TestAutoBackend:
     """backend 'auto': subscription-first per-call routing with api fallback.
@@ -748,7 +829,7 @@ class TestAutoBackend:
     def test_routes_by_system_prompt(self, recorded_api, monkeypatch, tmp_path):
         cc_calls = []
 
-        def fake_cc(model, system, user_message):
+        def fake_cc(model, system, user_message, effort=None):
             cc_calls.append(system)
             return ("cc-text", 1, 1, 0.001, "end_turn")
 
@@ -768,7 +849,7 @@ class TestAutoBackend:
     ):
         cc_calls = {"n": 0}
 
-        def limited_cc(model, system, user_message):
+        def limited_cc(model, system, user_message, effort=None):
             cc_calls["n"] += 1
             raise api.UsageLimitExceeded("Claude AI usage limit reached|1234567890")
 
@@ -799,7 +880,7 @@ class TestAutoBackend:
     def test_pure_claude_code_backend_still_propagates_limit(self, monkeypatch, tmp_path):
         # the fallback is an auto-mode behavior; explicit claude_code keeps the
         # stop-and---resume contract (checkpointed progress, window resets later)
-        def limited_cc(model, system, user_message):
+        def limited_cc(model, system, user_message, effort=None):
             raise api.UsageLimitExceeded("usage limit reached")
 
         monkeypatch.setattr(api, "_backend", "claude_code")

@@ -181,7 +181,7 @@ def stub_claude(monkeypatch):
 
         def fake(user_message, system_prompt="", injection="", model=None, max_tokens=None,
                  return_stop_reason=False, stage=None, temperature=None, item_id=None,
-                 cache_system=False):
+                 cache_system=False, effort=None):
             calls.append({
                 "user_message": user_message,
                 "system_prompt": system_prompt,
@@ -192,6 +192,7 @@ def stub_claude(monkeypatch):
                 "temperature": temperature,
                 "item_id": item_id,
                 "cache_system": cache_system,
+                "effort": effort,
             })
             if queue is None:
                 result = responses(
