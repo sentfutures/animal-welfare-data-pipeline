@@ -124,6 +124,10 @@ def main(argv=None) -> None:
     parser.add_argument("--claude-arms", default="original,opus55",
                         help="Comma-separated arm names whose responses are "
                              "Claude-made (for the bias readout)")
+    parser.add_argument("--gpt-arms", default=None,
+                        help="Comma-separated arm names whose responses are "
+                             "GPT-made; default: every non-Claude arm. Set it "
+                             "when a third-family arm (e.g. Gemini) is present")
     parser.add_argument("--claude-judges", default="opus55",
                         help="Comma-separated judge names that are Claude-family")
     parser.add_argument("--gpt-judges", default="gpt61sol",
@@ -176,7 +180,8 @@ def main(argv=None) -> None:
 
     # --- bias readout ---
     claude_arms = [a.strip() for a in args.claude_arms.split(",") if a.strip() in arms]
-    gpt_arms = [a for a in arms if a not in claude_arms]
+    gpt_arms = ([a.strip() for a in args.gpt_arms.split(",") if a.strip() in arms]
+                if args.gpt_arms else [a for a in arms if a not in claude_arms])
     claude_judges = [j.strip() for j in args.claude_judges.split(",") if j.strip() in judge_names]
     gpt_judges = [j.strip() for j in args.gpt_judges.split(",") if j.strip() in judge_names]
     if claude_arms and gpt_arms and claude_judges and gpt_judges:
