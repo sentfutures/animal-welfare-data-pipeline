@@ -378,14 +378,19 @@ def refine_draft(scenario: dict, draft_text: str, template: str,
                 print(f"    {pid}: refine attempt {attempt}/{MAX_REFINE_ATTEMPTS} "
                       "truncated (max_tokens) — retrying with a fresh call.")
             continue
-        un = compose_scenarios.UNFIXABLE_TAG_RE.search(raw or "")
-        if un and un.group(1).strip():
-            return ({"unfixable": un.group(1).strip()}, failures)
+        # A rewrite wins over an <unfixable> tag in the same reply: the template
+        # asks for one or the other, and a reply carrying both has, by its own
+        # output, fixed the draft (seen live: "<unfixable>No — this is fixable;
+        # see revision below.</unfixable>" followed by the revision, which the
+        # old tag-first order discarded as a rejection).
         m = (compose_scenarios.REVISED_PROMPT_TAG_RE.search(raw or "")
              or compose_scenarios.USER_PROMPT_TAG_RE.search(raw or ""))
         if m and m.group(1).strip():
-            return ({"prompt": m.group(1).strip(),
-                     "notes": (raw[:m.start()].strip() or "(no notes)")}, failures)
+            notes = compose_scenarios.UNFIXABLE_TAG_RE.sub("", raw[:m.start()]).strip()
+            return ({"prompt": m.group(1).strip(), "notes": notes or "(no notes)"}, failures)
+        un = compose_scenarios.UNFIXABLE_TAG_RE.search(raw or "")
+        if un and un.group(1).strip():
+            return ({"unfixable": un.group(1).strip()}, failures)
         failures.append({"scenario_id": pid, "attempt": attempt, "raw": raw})
         if attempt < MAX_REFINE_ATTEMPTS:
             print(f"    {pid}: refine attempt {attempt}/{MAX_REFINE_ATTEMPTS} "

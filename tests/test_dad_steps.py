@@ -336,6 +336,33 @@ class TestStep1Run:
         assert resumed_calls == []
         assert len(utils.load_jsonl(tmp_path / "refine_rejects.jsonl")) == 1
 
+    def test_refine_reply_with_both_tags_ships_the_rewrite(
+        self, tiny_config, prompts_dad, tmp_path, stub_claude
+    ):
+        # seen live: the editor wrapped "this is fixable" in <unfixable> and then
+        # gave the revision. A reply carrying a rewrite has fixed the draft; it
+        # must ship, not be rejected as unfixable.
+        config = dict(tiny_config)
+        config["dad"] = {"dilemmas": {**tiny_config["dad"]["dilemmas"],
+                                      "count": 1, "gate": False}}
+
+        def both_tags(user_message, **kw):
+            if "write a description of a specific scenario" in _sysuser(user_message, kw):
+                return dad_scenario_plan_reply(user_message)
+            if "rewrite a fictional user input" in _sysuser(user_message, kw):
+                return ("Tightened the ask.\n"
+                        "<unfixable>No — this is fixable; see revision below.</unfixable>\n"
+                        "<revised_user_prompt>Refined message about the hens.</revised_user_prompt>")
+            return dad_scenario_reply(user_message)
+
+        stub_claude(both_tags)
+        examples = step1_dilemmas.run(config, prompts_dad, tmp_path)
+        assert len(examples) == 1
+        assert examples[0]["user_message"] == "Refined message about the hens."
+        assert utils.load_jsonl(tmp_path / "refine_rejects.jsonl") == []
+        [refinement] = utils.load_jsonl(tmp_path / "refinements.jsonl")
+        assert "<unfixable>" not in refinement["notes"]
+
     @pytest.mark.parametrize("dropped", ["gate", "refine"])
     def test_config_setting_exactly_one_quality_toggle_is_refused_loudly(
         self, tiny_config, prompts_dad, tmp_path, stub_claude, dropped
