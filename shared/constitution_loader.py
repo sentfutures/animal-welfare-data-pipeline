@@ -115,11 +115,14 @@ def parse_principles(csv_text: str) -> list[dict]:
     return list(csv.DictReader(io.StringIO(csv_text)))
 
 
-def load_principles(base_dir: str | Path | None = None) -> list[dict]:
-    """Load the distilled welfare principles from base_dir (a run's
-    inputs/constitution snapshot) or the repo's live constitution/."""
+def load_principles(base_dir: str | Path | None = None,
+                    filename: str = PRINCIPLES_FILENAME) -> list[dict]:
+    """Load the distilled principles from base_dir (a run's
+    inputs/constitution snapshot) or the repo's live constitution/. `filename`
+    lets a DAD profile name its own principles file; the default is the
+    welfare principles SDF and the animal profile share."""
     base = Path(base_dir) if base_dir else _CONSTITUTION_DIR
-    return parse_principles((base / PRINCIPLES_FILENAME).read_text(encoding="utf-8"))
+    return parse_principles((base / filename).read_text(encoding="utf-8"))
 
 
 def load_failure_modes(base_dir: str | Path | None = None) -> str:
@@ -147,7 +150,8 @@ def format_principles(principles: list[dict]) -> str:
         # raw_text_from_constitution -> constitution_excerpts). The old names
         # stay as fallbacks so pre-rename run snapshots re-render faithfully
         # in the viewer.
-        application = (p.get("welfare_application")
+        # A profile's own principles file may name the column `application`.
+        application = (p.get("welfare_application") or p.get("application")
                        or p.get("constitution_summary") or "").strip()
         if application:
             lines.append(f"   {application}")
