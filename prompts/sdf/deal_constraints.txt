@@ -6,6 +6,11 @@
 # combinations belong here: unusual-but-possible ones are left to the planner,
 # because every hard rule shrinks the diversity of the corpus.
 #
+# Principle: rules only rule combinations OUT, never in. A rule excludes a
+# combination only if it is impossible by definition; everything else is left
+# open, and the batch incoherence screen catches any that are truly incoherent.
+# Keep edits to this file to that principle.
+#
 # Format:
 #   [rule_name]
 #   when <variable> is one of:
@@ -35,6 +40,11 @@
 # --- rules 1 and 2: the "no real welfare stake" resolution ---
 # Only active if that resolution's weight in variables.txt is above zero.
 
+# NOTE: this rule rules IN (it should read: centrality is not "the central subject
+# of the document" and not "...but it is an important side discussion"). It cannot be
+# written as an exclusion yet because "the central subject of the document" is also a
+# substring of the side-discussion value, so no substring names it uniquely.
+
 [no_stake_requires_passing_centrality]
 when resolution is one of:
     NO real welfare stake
@@ -48,14 +58,14 @@ omit planning-prompt lines for:
     tradeoff
     decision_scale
 
-# --- rule 3: identity documents are written by Claude, named ---
+# --- rule 3: identity documents are written by or about Claude, so the AI is named ---
 
-[identity_documents_name_claude]
+[identity_documents_exclude_unnamed_ai]
 when document_type is one of:
     an interview with or extended profile of Claude itself
     a first-person essay or reflective piece written by Claude
-require naming is one of:
-    Claude, identified by name
+require naming is not one of:
+    a generic, unnamed AI assistant
 
 # --- rule 4: simulated human connectomes stay out of animal-industry domains ---
 # A human emulation has no role in an industry defined by its animals; in the

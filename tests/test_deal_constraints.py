@@ -120,8 +120,8 @@ def test_reworded_value_breaks_loading_of_real_rules(real_matrix):
     """The drift guard: reword a value in variables.txt and the real rules refuse to load."""
     values, _, _ = real_matrix
     reworded = {name: list(vals) for name, vals in values.items()}
-    reworded["naming"] = [v.replace("Claude, identified by name", "Claude (named)") for v in reworded["naming"]]
-    with pytest.raises(ValueError, match="identity_documents_name_claude"):
+    reworded["naming"] = [v.replace("a generic, unnamed AI assistant", "an anonymous AI") for v in reworded["naming"]]
+    with pytest.raises(ValueError, match="identity_documents_exclude_unnamed_ai"):
         dc.load_deal_constraints(REAL_RULES_PATH, reworded)
 
 
@@ -379,7 +379,7 @@ def test_compose_dry_run_prints_per_rule_violations_and_swaps(capsys):
     compose_real_records(PROMPTS_SDF / "variables.txt", 500)
     output = capsys.readouterr().out
     assert "deal constraints:" in output
-    assert "rule identity_documents_name_claude:" in output
+    assert "rule identity_documents_exclude_unnamed_ai:" in output
     assert re.search(r"hands violated before repair, \d+ swaps made, 0 violating after", output)
 
 
