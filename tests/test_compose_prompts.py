@@ -123,7 +123,8 @@ def test_module_defaults_point_at_real_files():
     """The standalone CLI's default paths must exist — a template rename that
     misses these constants breaks `python sdf_pipeline/compose_prompts.py`
     while every pipeline test (which passes explicit paths) stays green."""
-    for default in (cp.DEFAULT_TEMPLATE, cp.DEFAULT_VARIABLES, cp.DEFAULT_PREAMBLE):
+    for default in (cp.DEFAULT_TEMPLATE, cp.DEFAULT_VARIABLES, cp.DEFAULT_PREAMBLE,
+                    cp.DEFAULT_DEAL_CONSTRAINTS):
         assert default.is_file(), f"{default} does not exist"
 
 
