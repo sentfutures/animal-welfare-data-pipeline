@@ -81,10 +81,25 @@ def real_rules(real_matrix):
 
 def test_real_rules_file_loads_both_kinds_of_rule(real_rules):
     kinds = Counter(rule.kind for rule in real_rules)
-    assert kinds[dc.SWAP_KIND] == 4 and kinds[dc.RENDER_KIND] == 1
+    assert kinds[dc.SWAP_KIND] == 3 and kinds[dc.RENDER_KIND] == 1
     render_rule = next(rule for rule in real_rules if rule.kind == dc.RENDER_KIND)
     assert set(render_rule.omitted_variables) == {"tradeoff", "decision_scale"}
     assert len({rule.name for rule in real_rules}) == len(real_rules)
+
+
+def test_human_connectome_rule_excludes_the_eight_animal_industry_domains(real_rules):
+    rule = next(r for r in real_rules if r.name == "simulated_human_connectomes_exclude_animal_industry_domains")
+    excluded = ("agriculture and food production", "fisheries and aquaculture", "food service and retail",
+                "pest control", "breeding and the pet trade", "veterinary practice",
+                "technology applied to animals", "conservation, land management")
+    allowed = ("research and testing", "policy and regulation", "entertainment and sport",
+               "transport and logistics")
+    assert not rule.target_must_match and len(rule.target_values) == 8
+    for substring in excluded:
+        assert sum(substring in value for value in rule.target_values) == 1
+    for substring in allowed:
+        assert not any(substring in value for value in rule.target_values)
+    assert not any(r.name.startswith("language_models") for r in real_rules)
 
 
 def test_unmatched_substring_raises_naming_rule(real_matrix):

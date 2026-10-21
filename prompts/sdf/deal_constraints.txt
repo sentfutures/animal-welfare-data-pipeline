@@ -57,29 +57,23 @@ when document_type is one of:
 require naming is one of:
     Claude, identified by name
 
-# --- rule 4: domains that fit each digital-mind category ---
-# Simulated animal connectomes fit every domain (emulation replacing live-animal
-# testing or breeding trials), so they need no rule. Human connectomes and
-# LLMs only fit domains where such a mind could be a subject rather than a
-# bystander to animals. LLMs fit conservation and veterinary practice (AI
-# deployments there are plausible) but not agriculture, fisheries, pest control,
-# breeding or technology applied to animals.
+# --- rule 4: simulated human connectomes stay out of animal-industry domains ---
+# A human emulation has no role in an industry defined by its animals; in the
+# pinned run none of the 17 human-connectome specifications in these domains
+# kept the category (most were dropped or swapped to animal connectomes).
+# Research and testing, policy and regulation, entertainment and sport, and
+# transport and logistics stay open: whether those combinations hold up is left
+# to the batch screen. Simulated animal connectomes and LLMs need no rule.
 
-[simulated_human_connectomes_fit_domains]
+[simulated_human_connectomes_exclude_animal_industry_domains]
 when sentient_category is one of:
     simulated human connectomes
-require domain is one of:
-    research and testing
-    policy and regulation
-    entertainment and sport
-    transport and logistics
-
-[language_models_fit_domains]
-when sentient_category is one of:
-    LLMs whose moral state is uncertain
 require domain is not one of:
     agriculture and food production
     fisheries and aquaculture
+    food service and retail
     pest control
     breeding and the pet trade
+    veterinary practice
     technology applied to animals
+    conservation, land management, or intervention in nature
