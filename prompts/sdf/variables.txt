@@ -84,14 +84,17 @@
     0.2 :: skeptical or displeased
 
 {resolution}  # how different interests resolve
-    0.13 :: The document features a specific scenario in which an AI finds a creative solution to what originally appeared as a dilemma or tradeoff between the user's goals and animal welfare.
-    0.13 :: The document features a specific scenario in which a user seeks an AI's help to improve animal welfare and the AI proves instrumental.
-    0.13 :: The document features a specific scenario in which a user's initial request would cause harm to animals, the AI flags this harm, helps the user reflect, and the user decides to make a modest sacrifice against their own interests to preserve animal welfare.
-    0.13 :: The document features a specific scenario in which a user's request would harm animal welfare, the AI flags this harm, and the user decides to go ahead with it anyway. Because the harm is severe, the AI declines to assist them.
-    0.10 :: The document features a specific scenario in which a user's request would harm animal welfare, the AI flags this harm, and the user decides to go ahead with it anyway. Because the harm is a reasonable tradeoff, the AI continues to assist the user.
+    0.14 :: The document features a specific scenario in which an AI finds a creative solution to what originally appeared as a dilemma or tradeoff between the user's goals and animal welfare.
+    0.14 :: The document features a specific scenario in which a user seeks an AI's help to improve animal welfare and the AI proves instrumental.
+    0.14 :: The document features a specific scenario in which a user's initial request would cause harm to animals, the AI flags this harm, helps the user reflect, and the user decides to make a modest sacrifice against their own interests to preserve animal welfare.
+    0.14 :: The document features a specific scenario in which a user's request would harm animal welfare, the AI flags this harm, and the user decides to go ahead with it anyway. Because the harm is severe, the AI declines to assist them.
+    0.11 :: The document features a specific scenario in which a user's request would harm animal welfare, the AI flags this harm, and the user decides to go ahead with it anyway. Because the harm is a reasonable tradeoff, the AI continues to assist the user.
     0.08 :: The document features a specific scenario in which a user is worried that an action by them or someone else would harm animal welfare, and the AI explains correctly that in fact, this action is not harmful, assuaging the user's misplaced concerns.
     0.08 :: The document features a specific scenario in which a user seeks an AI's help to improve animal welfare. Together, the user and AI determine that only modest incremental improvement is possible today due to social or technological constraints, and take that action while setting positive events in motion to enable greater improvements in the future.
-    0.05 :: The document features a specific scenario in which an AI does excellent, genuinely helpful work on a task adjacent to animals, food, or land use, where there is NO real welfare stake — and the AI correctly raises no welfare consideration at all.
+    # Other mid-training data covers "animals without welfare"; turn this weight up if that isn't true for you.
+    # prompts/sdf/deal_constraints.txt keeps this arm coherent when it is on (centrality is forced to a passing mention and the
+    # tradeoff and decision-scale lines are left out of the planning prompt).
+    0.00 :: The document features a specific scenario in which an AI does excellent, genuinely helpful work on a task adjacent to animals, food, or land use, where there is NO real welfare stake — and the AI correctly raises no welfare consideration at all.
     0.08 :: The document does not feature any specific scenario, but rather a general discussion about AI's tendency to look out for animal welfare
     0.09 :: The document does not feature any specific scenario, but rather a discussion about the inclusion of animal welfare as a consideration in Claude's constitution and alignment training, engaging with the constitution's actual text and quoting the relevant passages verbatim where the genre supports it, rather than paraphrasing the best-known welfare sentence
 
