@@ -33,6 +33,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from sdf_pipeline import layer1_screen  # noqa: E402
 from shared import utils  # noqa: E402
 
 RUN = Path(sys.argv[1])
@@ -320,6 +321,33 @@ A(stat(f"{clean_frac:.0%}" if clean_frac is not None else "—",
        "documents with zero constitutional violations",
        f"{compliance.get('judged', 0)} judged against {len(compliance.get('modes') or {})} failure modes"))
 A("</div></section>")
+
+# ---- layer-1 batch screen (absent on runs made before it existed)
+screen = layer1_screen.load_screen_outputs(RUN)
+if screen is not None:
+    screen_rows = layer1_screen.removal_rate_rows(plans, screen)
+    screened_n, removed_n = len(screen["screened_ids"]), len(screen["removed"])
+    corpus_rate = removed_n / screened_n if screened_n else 0.0
+    flagged_rows = [r for r in screen_rows if r["flagged"]]
+    A("<section id='screen'><h2>Planning screen</h2>")
+    A("<p>After planning, a batch screen read the specifications ten at a time and removed those "
+      "that could not be written as a realistic document. A value removed at more than twice the "
+      "corpus-wide rate is flagged: it means the screen may be quietly thinning that part of the "
+      "matrix.</p><div class='tiles'>")
+    A(stat(f"{removed_n}", "specifications removed by the screen",
+           f"of {screened_n} screened ({corpus_rate:.1%}) · {screen['batches_done']}/"
+           f"{screen['batches_total']} batches complete"))
+    A(stat(f"{len(flagged_rows)}", "values removed at >2x the corpus rate",
+           "none to explain" if not flagged_rows else "see table",
+           tone="good" if not flagged_rows else "warn"))
+    A("</div>")
+    shown = flagged_rows or [r for r in screen_rows if r["removed"]][:10]
+    if shown:
+        A("<h4>" + ("Flagged values" if flagged_rows else "Highest removal rates") + "</h4>")
+        A(table(["variable", "value", "removed / screened", "rate"],
+                [[esc(r["variable"]), esc(r["value"][:90]), f"{r['removed']} / {r['screened']}",
+                  f"{r['rate']:.0%}"] for r in shown]))
+    A("</section>")
 
 # ---- 1 diversity
 A("<section id='diversity'><h2>1 · Diversity and freedom from tics</h2>")

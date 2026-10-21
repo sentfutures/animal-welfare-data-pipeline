@@ -40,6 +40,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from sdf_pipeline import layer1_screen
 from shared import api, textstats, utils
 
 # ---------------------------------------------------------------- verdicts
@@ -165,6 +166,45 @@ def audit_composition(records: list[dict], report: dict) -> None:
     report["composition"] = {k: dict(c) for k, c in by.items()}
     report["composition"]["n_types"] = len(types)
     report["composition"]["top_type_share"] = round(top_n / n, 3)
+
+
+def audit_screen(run_dir: Path, report: dict) -> None:
+    """Layer-1 batch screen: removal count, and removal rate per variable value.
+
+    A value removed at more than twice the corpus-wide rate is flagged, so a
+    screen that quietly removes (say) every skeptical or non-English
+    specification is visible. Runs made before the screen have no screen files
+    and are skipped."""
+    screen = layer1_screen.load_screen_outputs(run_dir)
+    if screen is None:
+        print("LAYER-1 SCREEN\n  (no screen files in this run — it predates the screen or had it disabled)")
+        return
+    plans = utils.load_jsonl(utils.sdf_stage_file(run_dir, "plan"))
+    rows = layer1_screen.removal_rate_rows(plans, screen)
+    screened = len(screen["screened_ids"])
+    removed = len(screen["removed"])
+    flagged = [r for r in rows if r["flagged"]]
+    print("LAYER-1 SCREEN")
+    print(_fmt("specifications removed", f"{removed} of {screened} screened "
+               f"({removed / screened:.1%})" if screened else "none screened"))
+    print(_fmt("batches", f"{screen['batches_done']} of {screen['batches_total']} completed"))
+    if flagged:
+        print(_fmt("values removed at >2x the corpus rate", f"{len(flagged)}", "BAD",
+                   "(each needs an explanation or a prompt fix)"))
+        for row in flagged:
+            print(f"      {row['variable']} = {row['value'][:70]}: "
+                  f"{row['removed']}/{row['screened']} removed ({row['rate']:.0%})")
+    else:
+        print(_fmt("values removed at >2x the corpus rate", "none", "GOOD"))
+    report["screen"] = {
+        "screened": screened, "removed": removed,
+        "batches_done": screen["batches_done"], "batches_total": screen["batches_total"],
+        "corpus_removal_rate": round(removed / screened, 4) if screened else None,
+        "removal_rate_per_value": [
+            {k: (round(v, 4) if isinstance(v, float) else v) for k, v in row.items()} for row in rows
+        ],
+        "flagged_values": [f"{r['variable']} = {r['value']}" for r in flagged],
+    }
 
 
 def audit_length_truncation(records: list[dict], report: dict) -> None:
@@ -559,6 +599,8 @@ def main() -> None:
     print(f"=== SDF corpus audit: {args.input} ({len(records)} documents) ===\n")
     report: dict = {"input": utils.repo_relative(args.input), "n_docs": len(records)}
     audit_composition(records, report)
+    print()
+    audit_screen(report_dir.parent, report)
     print()
     audit_length_truncation(records, report)
     print()
