@@ -36,6 +36,8 @@ def _run_main(monkeypatch, main, config_file, *extra_args):
 # --- SDF ---------------------------------------------------------------
 
 def _sdf_dispatch(user_message, **kw):
+    if kw["stage"] == "layer1_screen":  # layer 1 screen: removes nothing
+        return "<removals></removals>"
     if kw["max_tokens"] == 6000:  # layer 3: drafting from the spec
         return f"<document>Drafted body for {kw['item_id']}.</document>"
     if kw["max_tokens"] == 8000:  # layer 4: review + rewrite
@@ -71,8 +73,30 @@ def test_sdf_pipeline_end_to_end_offline(tiny_config_file, outputs_root, stub_cl
         assert r["content"] == f"Rewritten document for {r['doc_id']}."
         assert r["variables"]  # matrix lineage travels to the corpus
         assert r["scores"]["spec_conformance"] == 9
-    # 2 plans + 2 drafts + 2 rewrites + 2 scores
-    assert len(calls) == 8
+    # 2 plans + 1 screen batch + 2 drafts + 2 rewrites + 2 scores
+    assert len(calls) == 9
+    assert [c["stage"] for c in calls].count("layer1_screen") == 1
+
+
+def test_sdf_screen_removal_is_dropped_before_drafting(
+    tiny_config_file, outputs_root, stub_claude, monkeypatch
+):
+    def dispatch(user_message, **kw):
+        if kw["stage"] == "layer1_screen":
+            return "<removals>\n1: The scenario contradicts itself.\n</removals>"
+        return _sdf_dispatch(user_message, **kw)
+
+    calls = stub_claude(dispatch)
+    _run_main(monkeypatch, sdf_run.main, tiny_config_file)
+    run_dir = outputs_root / "sdf" / "latest"
+    rejections = utils.load_jsonl(run_dir / "layer1" / "screen_rejections.jsonl")
+    assert len(rejections) == 1
+    corpus = utils.load_jsonl(run_dir / "final" / "sdf_corpus.jsonl")
+    assert [r["doc_id"] for r in corpus] == [
+        pid for pid in ("matrix_000000", "matrix_000001") if pid != rejections[0]["prompt_id"]
+    ]
+    # 2 plans + 1 screen + 1 draft + 1 rewrite + 1 score
+    assert len(calls) == 6
 
 
 def test_sdf_resume_at_last_layer_makes_no_calls(tiny_config_file, outputs_root, stub_claude, monkeypatch):

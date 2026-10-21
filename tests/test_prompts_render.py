@@ -27,6 +27,11 @@ TEMPLATE_KWARGS = [
         "fictional_names": "NAME-X; NAME-Y", "fictional_orgs": "ORG-X; ORG-Y",
         "sentient_example": "SPECIES-X",
     }),
+    # layer 1 screen: rendered by layer1_screen.build_screen_prompt
+    ("sdf/layer1_screen.txt", {
+        "specification_count": 7, "variables_note": "VARIABLES-NOTE-X",
+        "specifications": "SPECIFICATIONS-X",
+    }),
     ("sdf/layer2.txt", {
         "preamble": "PREAMBLE-X", "constitution_claude": "CONST-C-X",
         "constitution_principles": "CONST-P-X", "document_description": "DESC-X",
