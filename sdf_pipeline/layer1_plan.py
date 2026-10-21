@@ -39,11 +39,13 @@ def run(config: dict, prompts_dir: Path, output_dir: Path) -> list[dict]:
         template = utils.sdf_template_path(prompts_dir, 1).read_text(encoding="utf-8")
         values, weights = cp.split_weights(cp.parse_variables(prompts_dir / "variables.txt"))
         preamble = (prompts_dir / "preamble.txt").read_text(encoding="utf-8")
+        deal_rules = cp.load_deal_rules(prompts_dir / cp.DEAL_CONSTRAINTS_FILENAME, values)
         prompts = list(cp.compose_records(
             template, values, weights, preamble,
             n_prompts=sdf["n_prompts"],
             seed=sdf.get("seed", 0),
             entity_seed=sdf.get("entity_pool_seed", 137),
+            deal_rules=deal_rules,
         ))
         for rec in prompts:
             utils.append_jsonl(rec, prompts_path)

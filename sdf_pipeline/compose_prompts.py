@@ -72,7 +72,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from shared import entity_pools  # noqa: E402
+from shared import deal_constraints, entity_pools  # noqa: E402
 # Generic matrix machinery lives in shared/matrix.py (used by the DAD composer
 # too); re-exported here so existing SDF callers and tests are unchanged.
 from shared.matrix import (  # noqa: E402,F401
@@ -91,6 +91,8 @@ from shared import matrix as _matrix  # noqa: E402
 DEFAULT_TEMPLATE = REPO_ROOT / "prompts" / "sdf" / "layer1.txt"
 DEFAULT_VARIABLES = REPO_ROOT / "prompts" / "sdf" / "variables.txt"
 DEFAULT_PREAMBLE = REPO_ROOT / "prompts" / "sdf" / "preamble.txt"
+DEAL_CONSTRAINTS_FILENAME = "deal_constraints.txt"
+DEFAULT_DEAL_CONSTRAINTS = REPO_ROOT / "prompts" / "sdf" / DEAL_CONSTRAINTS_FILENAME
 
 LANGUAGE_RE = re.compile(r"written in ([^,]+)")
 
@@ -266,6 +268,16 @@ def derive_language(culture: str) -> str:
     return m.group(1).strip() if m else "English"
 
 
+def load_deal_rules(
+    path: Path | None, values: dict[str, list[str]]
+) -> list[deal_constraints.DealRule]:
+    """Rules from a deal_constraints.txt file, or none when the file is absent
+    (the composer then deals exactly as it did before the rules existed)."""
+    if path is None or not path.is_file():
+        return []
+    return deal_constraints.load_deal_constraints(path, values)
+
+
 def compose_records(
     template: str,
     values: dict[str, list[str]],
@@ -274,12 +286,20 @@ def compose_records(
     n_prompts: int | None,
     seed: int = 0,
     entity_seed: int = DEFAULT_ENTITY_SEED,
+    deal_rules: list[deal_constraints.DealRule] | None = None,
 ):
     """Yield composed prompt records for the whole matrix (n_prompts=None) or a
     deck sample of exactly n_prompts. Each record is
     {"prompt_id", "variables", "system", "prompt"}; a header line describing
     the matrix is printed to stdout. Raises on template/variables mismatches.
+
+    ``deal_rules`` (see shared/deal_constraints.py): swap-repair rules fix the
+    deck-sampled hands by swapping cards within one variable's column (value
+    counts unchanged; full-matrix enumeration filters instead), and rendering
+    rules drop the planning-prompt paragraph of the named variables for
+    matching hands while the dealt card stays in the record's ``variables``.
     """
+    deal_rules = deal_rules or []
     placeholders = template_placeholders(template)
     plan_axes = matrix_axes(template)
 
@@ -349,18 +369,40 @@ def compose_records(
 
     total = math.prod(len(values[n]) for n in axes)
     per_var = ", ".join(f"{n}={len(values[n])}" for n in axes)
+    report = deal_constraints.RepairReport()
     if n_prompts is not None:
         assignments = deck_sample(values, weights, axes, n_prompts, random.Random(seed))
         print(f"deck-sampled {len(assignments)} prompts (seed {seed}) from a {total}-combination matrix ({per_var})")
+        if deal_rules:
+            # Own RNG stream so the deck itself is identical to a no-rules deal.
+            assignments, report = deal_constraints.swap_repair(
+                assignments, deal_rules, random.Random(f"{seed}:deal_constraints_repair")
+            )
     else:
         assignments = (
             dict(zip(axes, combo)) for combo in itertools.product(*(values[n] for n in axes))
         )
+        if deal_rules:
+            assignments = deal_constraints.without_rule_breaking_hands(assignments, deal_rules, report)
         print(f"full matrix: {total} combinations ({per_var})")
+
+    rendering_templates: dict[frozenset[str], str] = {}
+
+    def template_for(assignment: dict[str, str]) -> str:
+        """The plan template with the lines of any rendering-rule-omitted variables dropped."""
+        omitted = deal_constraints.render_rule_variables_to_omit(deal_rules, assignment)
+        if omitted not in rendering_templates:
+            rendering_templates[omitted] = deal_constraints.drop_template_lines(template, omitted)
+        return rendering_templates[omitted]
+
+    if n_prompts is not None and deal_rules:
+        deal_constraints.count_rendering_rule_hands(deal_rules, assignments, report)
+        print("deal constraints:")
+        print("\n".join(report.format_lines(deal_rules)))
 
     for i, assignment in enumerate(assignments):
         prompt_id = f"matrix_{i:06d}"
-        rendered = template.format(
+        rendered = template_for(assignment).format(
             **assignment, **injected,
             **entity_slots(assignment, prompt_id),
             **species_slot(assignment, prompt_id),
@@ -388,17 +430,29 @@ def main() -> None:
         help="seed for the locale-matched fictional-name pools (default matches "
         "config sdf.entity_pool_seed)",
     )
+    parser.add_argument(
+        "--deal-constraints", type=Path, default=None,
+        help="deal-constraints rules file (default: deal_constraints.txt beside --variables; "
+        "no file = no rules)",
+    )
     parser.add_argument("--out", type=Path, help="write composed prompts to this JSONL file")
     args = parser.parse_args()
 
     template = args.template.read_text(encoding="utf-8")
     values, weights = split_weights(parse_variables(args.variables))
 
+    try:
+        deal_rules = load_deal_rules(
+            args.deal_constraints or args.variables.parent / DEAL_CONSTRAINTS_FILENAME, values
+        )
+    except ValueError as exc:
+        raise SystemExit(str(exc))
+
     def records():
         yield from compose_records(
             template, values, weights,
             args.preamble.read_text(encoding="utf-8") if args.preamble.exists() else None,
-            args.n_prompts, args.seed, args.entity_seed,
+            args.n_prompts, args.seed, args.entity_seed, deal_rules=deal_rules,
         )
 
     try:
@@ -421,7 +475,7 @@ def main() -> None:
                 else:
                     print("\n(... more; use --out to write JSONL)")
                     break
-    except ValueError as exc:
+    except ValueError as exc:  # includes InfeasibleDealConstraintError
         raise SystemExit(str(exc))
 
 
