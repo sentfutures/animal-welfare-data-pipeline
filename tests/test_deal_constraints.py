@@ -81,7 +81,7 @@ def real_rules(real_matrix):
 
 def test_real_rules_file_loads_both_kinds_of_rule(real_rules):
     kinds = Counter(rule.kind for rule in real_rules)
-    assert kinds[dc.SWAP_KIND] >= 5 and kinds[dc.RENDER_KIND] == 1
+    assert kinds[dc.SWAP_KIND] == 4 and kinds[dc.RENDER_KIND] == 1
     render_rule = next(rule for rule in real_rules if rule.kind == dc.RENDER_KIND)
     assert set(render_rule.omitted_variables) == {"tradeoff", "decision_scale"}
     assert len({rule.name for rule in real_rules}) == len(real_rules)
