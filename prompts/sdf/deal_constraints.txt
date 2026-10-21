@@ -40,16 +40,15 @@
 # --- rules 1 and 2: the "no real welfare stake" resolution ---
 # Only active if that resolution's weight in variables.txt is above zero.
 
-# NOTE: this rule rules IN (it should read: centrality is not "the central subject
-# of the document" and not "...but it is an important side discussion"). It cannot be
-# written as an exclusion yet because "the central subject of the document" is also a
-# substring of the side-discussion value, so no substring names it uniquely.
+# "the central subject of the document" is also a substring of the side-discussion
+# value, so it is given in full: a pattern equal to a whole value matches that value only.
 
-[no_stake_requires_passing_centrality]
+[no_stake_excludes_welfare_centrality]
 when resolution is one of:
     NO real welfare stake
-require centrality is one of:
-    a minor detail mentioned only in passing
+require centrality is not one of:
+    the central subject of the document
+    an important side discussion
 
 [no_stake_omits_tradeoff_and_decision_scale]
 when resolution is one of:

@@ -109,6 +109,24 @@ def test_unmatched_substring_raises_naming_rule(real_matrix):
         dc.parse_deal_constraints(text, values)
 
 
+def test_exact_value_match_wins_over_substring_but_ambiguous_substrings_still_raise():
+    values = {"scope": ["the main subject", "not the main subject, but a side topic"], "mood": ["x", "y"]}
+    text = "[r]\nwhen mood is one of:\n    x\nrequire scope is not one of:\n    {}\n"
+    # the whole first value is also a substring of the second: exact match picks only the first
+    rule = dc.parse_deal_constraints(text.format("the main subject"), values)[0]
+    assert rule.target_values == ("the main subject",)
+    # a non-exact pattern matching both values is still ambiguous
+    with pytest.raises(ValueError, match=r"exactly one.*matches 2"):
+        dc.parse_deal_constraints(text.format("main subject"), values)
+
+
+def test_no_stake_rule_excludes_both_welfare_central_values(real_rules):
+    rule = next(r for r in real_rules if r.name == "no_stake_excludes_welfare_centrality")
+    assert not rule.target_must_match and len(rule.target_values) == 2
+    assert "the central subject of the document" in rule.target_values
+    assert not any("minor detail" in value for value in rule.target_values)
+
+
 def test_ambiguous_substring_raises(real_matrix):
     values, _, _ = real_matrix
     text = "[broken_rule]\nwhen resolution is one of:\n    The document features a specific scenario\nrequire centrality is one of:\n    a minor detail\n"

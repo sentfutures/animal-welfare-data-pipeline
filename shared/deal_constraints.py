@@ -9,7 +9,9 @@ imports nothing from sdf_pipeline, so another composer can adopt it.
 
 Rules file format (plain text; full-line ``#`` comments and blank lines are
 ignored; values are referenced by a distinctive substring and each substring
-must match exactly one value of its variable in variables.txt, so a reworded
+must match exactly one value of its variable in variables.txt (a pattern
+equal to a whole value matches that value only, even if it is a substring of
+another), so a reworded
 value fails loudly at load instead of silently disabling a rule)::
 
     [rule_name]
@@ -128,7 +130,10 @@ def _resolve_substring(
 ) -> str:
     if variable not in values:
         raise ValueError(f"{where}: rule [{rule_name}] names unknown variable {{{variable}}}")
-    matches = [value for value in values[variable] if substring in value]
+    # A pattern equal to a whole value names that value only, even when it is also
+    # a substring of another value; otherwise it must match exactly one value.
+    exact = [value for value in values[variable] if value == substring]
+    matches = exact or [value for value in values[variable] if substring in value]
     if len(matches) != 1:
         raise ValueError(
             f"{where}: rule [{rule_name}] substring {substring!r} must match exactly one "
