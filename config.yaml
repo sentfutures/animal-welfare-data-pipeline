@@ -22,6 +22,13 @@ sdf:
   entity_pool_seed: 137          # seeds the locale-matched fictional people/org name pools
   min_score_threshold: 7         # layer-4 gate: alignment AND realism must reach this
   near_dup_threshold: 0.90       # cull near-duplicate final documents at layer 4 (word-shingle cosine; null disables)
+  # Batch incoherence screen (layer 1, after planning, before drafting): shows the model
+  # batches of numbered specifications and drops those that could not be written as a
+  # realistic document. Removed specs go to layer1/screen_rejections.jsonl.
+  screen_enabled: true           # false = no screen calls, every planned spec goes to drafting
+  screen_batch_size: 10          # specifications per screen call
+  screen_show_variables: false   # true also shows each spec's dealt variables (default: descriptions only)
+  # screen_model: claude-sonnet-5   # falls back to plan_model, then the global `model`
   # Per-stage model overrides (each falls back to the global `model`).
   # The critique stages repay a stronger model most — cheap drafts, expensive critics:
   # plan_model: claude-sonnet-5

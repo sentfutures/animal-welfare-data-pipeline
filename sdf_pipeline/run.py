@@ -22,6 +22,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from shared import api, utils
 from sdf_pipeline import (
     layer1_plan,
+    layer1_screen,
     layer2_draft,
     layer3_rewrite,
     layer4_score,
@@ -93,11 +94,14 @@ def main() -> None:
     if start_layer <= 1:
         print("[Layer 1] Compose matrix + plan documents")
         plans = layer1_plan.run(config, prompts_dir, plan_dir)
+        print("[Layer 1] Screen planned specifications for incoherence")
+        plans = layer1_screen.run(config, prompts_dir, plan_dir, plans)
         print(f"  Running cost: ${api.get_total_cost():.4f}\n")
 
     if start_layer <= 2:
         if plans is None:
-            plans = utils.load_jsonl(plan_dir / "plans.jsonl")
+            plans = layer1_screen.drop_rejected(
+                config, plan_dir, utils.load_jsonl(plan_dir / "plans.jsonl"))
         print("[Layer 2] Draft documents")
         drafts = layer2_draft.run(config, prompts_dir, layer_dirs[2], plans)
         print(f"  Running cost: ${api.get_total_cost():.4f}\n")
