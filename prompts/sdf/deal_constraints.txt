@@ -1,0 +1,105 @@
+# Deal constraints for the SDF prompt matrix (variables.txt).
+#
+# The matrix deals every variable independently, so some hands are impossible
+# by definition (e.g. a "no welfare stake" document dealt "welfare is the
+# central subject"). These rules repair or adjust such hands. Only impossible
+# combinations belong here: unusual-but-possible ones are left to the planner,
+# because every hard rule shrinks the diversity of the corpus.
+#
+# Format:
+#   [rule_name]
+#   when <variable> is one of:
+#       substring of a value of that variable
+#   require <variable> is one of:        # or "is not one of:"
+#       substring of a value of that variable
+#   omit planning-prompt lines for:      # instead of a require block
+#       variable_name
+#
+# - Values are named by a distinctive substring. Each substring must match
+#   exactly one value of its variable in variables.txt, or loading fails with
+#   an error naming the rule -- so rewording a value in variables.txt without
+#   updating it here is caught immediately.
+# - Every rule has one "when" block and one "require" or "omit" block.
+# - A "require" rule is enforced when the deck is dealt: cards are swapped
+#   between hands within a single variable's column, so every variable's
+#   value counts (and so its share of the run) are exactly what variables.txt
+#   asks for. If a rule can never be satisfied by the quotas (more hands need
+#   a value than the deck holds), the composer raises, naming the rule.
+# - An "omit" rule is a rendering rule: the dealt value stays in the record's
+#   `variables`, but the planning-prompt paragraph that renders that variable
+#   is left out for matching hands.
+# - Delete a rule (or the whole file) to switch it off; with no file the
+#   composer deals exactly as before. Without --n-prompts (full matrix),
+#   hands that break a "require" rule are filtered out instead of repaired.
+
+# --- rules 1 and 2: the "no real welfare stake" resolution ---
+# Only active if that resolution's weight in variables.txt is above zero.
+
+[no_stake_requires_passing_centrality]
+when resolution is one of:
+    NO real welfare stake
+require centrality is one of:
+    a minor detail mentioned only in passing
+
+[no_stake_omits_tradeoff_and_decision_scale]
+when resolution is one of:
+    NO real welfare stake
+omit planning-prompt lines for:
+    tradeoff
+    decision_scale
+
+# --- rule 3: identity documents are written by Claude, named ---
+
+[identity_documents_name_claude]
+when document_type is one of:
+    an interview with or extended profile of Claude itself
+    a first-person essay or reflective piece written by Claude
+require naming is one of:
+    Claude, identified by name
+
+# --- rule 4: domains that fit each digital-mind category ---
+# Simulated animal connectomes fit every domain (emulation replacing live-animal
+# testing or breeding trials), so they need no rule. Human connectomes and
+# LLMs only fit domains where such a mind could be a subject rather than a
+# bystander to animals.
+
+[simulated_human_connectomes_fit_domains]
+when sentient_category is one of:
+    simulated human connectomes
+require domain is one of:
+    research and testing
+    policy and regulation
+    entertainment and sport
+    transport and logistics
+
+[language_models_fit_domains]
+when sentient_category is one of:
+    LLMs whose moral state is uncertain
+require domain is one of:
+    research and testing
+    policy and regulation
+    entertainment and sport
+    food service and retail
+    transport and logistics
+
+# --- rule 5: a document about welfare in the constitution is not a passing mention ---
+
+[no_scenario_documents_not_passing_centrality]
+when resolution is one of:
+    but rather a general discussion about AI's tendency to look out for animal welfare
+    but rather a discussion about the inclusion of animal welfare as a consideration
+require centrality is not one of:
+    a minor detail mentioned only in passing
+
+# --- rule 6: wild animals facing non-anthropogenic harm ---
+# Candidate rule, pending a parallel analysis; revise or delete as that settles.
+
+[wild_nature_harm_excludes_human_commerce_domains]
+when sentient_category is one of:
+    large wild animals facing non-anthropogenic harm
+    small vertebrate wild animals facing non-anthropogenic harm
+    wild invertebrates facing non-anthropogenic harm
+require domain is not one of:
+    food service and retail
+    transport and logistics
+    breeding and the pet trade
