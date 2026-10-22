@@ -31,6 +31,7 @@ Check 3, naming of organisations. The writer is told to use only fictional organ
 When you rewrite:
 - Change only what fails a check. Keep the angle, the author, the venue, the named characters and bodies where they are sound, the tone, the structure, and every dealt choice.
 - Replace a failing detail with a plausible one of the same role, rather than deleting the idea behind it.
+- Do not copy non-generic phrasing from the dealt choices or from these instructions into the description. Where a dealt choice has to be made clearer, say it in plain words of your own; the writer echoes the description's phrasing, so a turn of phrase copied here recurs across many documents.
 - Keep roughly the original length (a description is under 300 words) and write the new version as a complete, self-contained description in the same register as the original.
 - Do not alter a dealt choice to make a detail plausible. If the only plausible repair would change one (for instance, the dealt scale cannot occur for that being and place), do not rewrite: set dealt_value_conflict to true, say in conflict_reason which dealt choice and why, and leave the rewrite empty.
 
