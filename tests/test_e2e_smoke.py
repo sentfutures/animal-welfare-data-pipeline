@@ -35,9 +35,18 @@ def _run_main(monkeypatch, main, config_file, *extra_args):
 
 # --- SDF ---------------------------------------------------------------
 
+def _screen_answer(user_message, remove, reason="The scenario contradicts itself."):
+    """A schema-shaped screen answer for the batch in ``user_message``."""
+    count = user_message.count("<specification number=")
+    return json.dumps({"specifications": [
+        {"number": n, "reasoning": "Considered it.", "remove": n in remove,
+         "reason": reason if n in remove else ""}
+        for n in range(1, count + 1)]})
+
+
 def _sdf_dispatch(user_message, **kw):
     if kw["stage"] == "layer1_screen":  # layer 1 screen: removes nothing
-        return "<removals></removals>"
+        return _screen_answer(user_message, remove=())
     if kw["max_tokens"] == 6000:  # layer 3: drafting from the spec
         return f"<document>Drafted body for {kw['item_id']}.</document>"
     if kw["max_tokens"] == 8000:  # layer 4: review + rewrite
@@ -83,7 +92,7 @@ def test_sdf_screen_removal_is_dropped_before_drafting(
 ):
     def dispatch(user_message, **kw):
         if kw["stage"] == "layer1_screen":
-            return "<removals>\n1: The scenario contradicts itself.\n</removals>"
+            return _screen_answer(user_message, remove=(1,))
         return _sdf_dispatch(user_message, **kw)
 
     calls = stub_claude(dispatch)

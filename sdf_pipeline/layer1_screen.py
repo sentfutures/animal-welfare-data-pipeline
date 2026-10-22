@@ -10,9 +10,12 @@ screen_rejections.jsonl with the model's reason and are left out downstream,
 like INCOHERENT plans.
 
 The screening logic is importable on its own: ``screen_descriptions`` takes a
-list of descriptions (and optionally their dealt variables) and returns the
-removals, using the same template and parser as the pipeline stage, so offline
-validation scripts can reuse it unchanged.
+list of descriptions (and optionally their dealt variables) and returns one
+judgment per description (the removals are those with ``remove`` true), using
+the same prompt files, answer schema and validation as the pipeline stage, so
+offline validation scripts can reuse it unchanged. The model's answer is
+schema-constrained JSON, one entry per specification (reasoning first, then the
+decision); every entry is kept in screen_judgments.jsonl so keeps are auditable.
 
 Config (``sdf`` section): ``screen_enabled`` (default true), ``screen_model``
 (falls back to ``plan_model``, then the global model), ``screen_batch_size``
@@ -24,14 +27,15 @@ Checkpoint semantics (protects paid work):
 - screen_batches.jsonl is written BEFORE any call, so a resumed run screens
   identical batches. Specifications planned after it was written (plans
   retried on resume) get new batches appended; existing batches never change.
-- One checkpoint per batch. A malformed, truncated, or out-of-range answer is
-  NOT checkpointed, so --resume retries exactly that batch.
+- One checkpoint per batch. A malformed, truncated, miscounted, duplicate or
+  out-of-range answer is NOT checkpointed, so --resume retries exactly that batch.
 - A batch's rejections are appended before its checkpoint, so a crash between
   the two re-screens the batch; readers de-duplicate by prompt_id.
 """
 
+import copy
+import json
 import random
-import re
 import sys
 import time
 from dataclasses import dataclass
@@ -44,20 +48,16 @@ from shared.matrix import split_sections
 
 STAGE_TAG = "layer1_screen"
 TEMPLATE_FILENAME = "layer1_screen.txt"
+VARIABLES_NOTE_FILENAME = "layer1_screen_variables_note.txt"
+DEALT_VARIABLES_FILENAME = "layer1_screen_dealt_variables.txt"
+SPECIFICATION_BLOCK_FILENAME = "layer1_screen_specification_block.txt"
+SCHEMA_FILENAME = "layer1_screen_answer_schema.json"
+JUDGMENTS_FILENAME = "screen_judgments.jsonl"
 BATCHES_FILENAME = "screen_batches.jsonl"
 REJECTIONS_FILENAME = "screen_rejections.jsonl"
 CHECKPOINT_FILENAME = "_screen_checkpoint.json"
 DEFAULT_BATCH_SIZE = 10
 _MAX_TOKENS = 2000  # a short list of one-line reasons; bounds api-backend cost
-
-REMOVALS_BLOCK_RE = re.compile(r"<removals>(.*?)</removals>", re.DOTALL | re.IGNORECASE)
-REMOVAL_LINE_RE = re.compile(r"^#?(\d+)\s*[:.\-–—]\s*(\S.*)$")
-
-VARIABLES_NOTE = (
-    "\nEach specification is followed by the variables it was dealt: the combination "
-    "its plan was built from. Use them only as extra context for judging whether the "
-    "specification fits together.\n"
-)
 
 # Values an evaluation or report flags: a variable value removed at more than
 # this multiple of the corpus-wide removal rate (with at least MIN_REMOVED_TO_FLAG
@@ -71,9 +71,11 @@ class ScreenAnswerError(ValueError):
 
 
 @dataclass(frozen=True)
-class ScreenRemoval:
+class ScreenJudgment:
     number: int  # the local 1-based number the model gave
-    reason: str
+    reasoning: str
+    remove: bool
+    reason: str  # one-sentence reason; non-empty whenever remove is true
 
     @property
     def index(self) -> int:
@@ -82,14 +84,43 @@ class ScreenRemoval:
 
 # ---------------------------------------------------------------- prompt and parsing
 
-def load_screen_template(prompts_dir: Path) -> str | None:
-    """The screen template, or None for a run whose snapshot predates the screen."""
-    path = Path(prompts_dir) / TEMPLATE_FILENAME
-    return path.read_text(encoding="utf-8") if path.is_file() else None
+@dataclass(frozen=True)
+class ScreenPrompts:
+    """Every model-facing string of the screen, read from prompts/sdf/*.txt (and the
+    answer schema from prompts/sdf/layer1_screen_answer_schema.json)."""
+    template: str
+    variables_note: str
+    dealt_variables: str
+    specification_block: str
+    answer_schema: dict
+
+
+def load_screen_prompts(prompts_dir: Path) -> ScreenPrompts | None:
+    """The screen's prompt files, or None for a run whose snapshot predates the screen."""
+    directory = Path(prompts_dir)
+    if not (directory / TEMPLATE_FILENAME).is_file():
+        return None
+    read = lambda name: (directory / name).read_text(encoding="utf-8")  # noqa: E731
+    return ScreenPrompts(
+        template=read(TEMPLATE_FILENAME),
+        variables_note=read(VARIABLES_NOTE_FILENAME),
+        dealt_variables=read(DEALT_VARIABLES_FILENAME),
+        specification_block=read(SPECIFICATION_BLOCK_FILENAME),
+        answer_schema=json.loads(read(SCHEMA_FILENAME)),
+    )
+
+
+def build_answer_schema(prompts: ScreenPrompts, specification_count: int) -> dict:
+    """The answer schema with the ``number`` enum filled for this batch (1..N)."""
+    schema = copy.deepcopy(prompts.answer_schema)
+    schema["properties"]["specifications"]["items"]["properties"]["number"]["enum"] = list(
+        range(1, specification_count + 1)
+    )
+    return schema
 
 
 def build_screen_prompt(
-    template: str,
+    prompts: ScreenPrompts,
     descriptions: list[str],
     variables_list: list[dict] | None = None,
 ) -> tuple[str | None, str]:
@@ -99,59 +130,72 @@ def build_screen_prompt(
         raise ValueError("variables_list must be parallel to descriptions")
     blocks = []
     for number, description in enumerate(descriptions, 1):
-        block = f"<specification number=\"{number}\">\n{description.strip()}\n"
+        dealt = ""
         if variables_list is not None:
             lines = "\n".join(f"- {name}: {value}" for name, value in variables_list[number - 1].items())
-            block += f"\nDealt variables:\n{lines}\n"
-        blocks.append(block + "</specification>")
-    rendered = template.format(
+            dealt = prompts.dealt_variables.format(variables=lines)
+        blocks.append(prompts.specification_block.format(
+            number=number, description=description.strip(), dealt_variables=dealt))
+    rendered = prompts.template.format(
         specification_count=len(descriptions),
-        variables_note=VARIABLES_NOTE if variables_list is not None else "",
+        variables_note=prompts.variables_note if variables_list is not None else "",
         specifications="\n\n".join(blocks),
     )
     return split_sections(rendered)
 
 
-def parse_screen_answer(raw: str, specification_count: int) -> list[ScreenRemoval]:
-    """Removals from one answer. Raises ScreenAnswerError unless there is exactly
-    one <removals> block whose every non-empty line is 'number: reason' with a
-    distinct number in 1..specification_count."""
-    blocks = REMOVALS_BLOCK_RE.findall(raw or "")
-    if len(blocks) != 1:
-        raise ScreenAnswerError(f"expected exactly one <removals> block, found {len(blocks)}")
-    removals: list[ScreenRemoval] = []
-    seen: set[int] = set()
-    for line in blocks[0].splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        match = REMOVAL_LINE_RE.match(line)
-        if match is None:
-            raise ScreenAnswerError(f"unparseable removal line: {line!r}")
-        number = int(match.group(1))
+def parse_screen_answer(raw: str, specification_count: int) -> list[ScreenJudgment]:
+    """One judgment per specification, ordered by number. Raises ScreenAnswerError
+    unless the answer is JSON of the schema's shape with exactly
+    specification_count entries, numbers 1..N each exactly once, and a non-empty
+    reason on every entry marked for removal."""
+    try:
+        data = json.loads(raw or "")
+        entries = data["specifications"]
+    except (ValueError, KeyError, TypeError) as e:
+        raise ScreenAnswerError(f"answer is not the expected JSON ({type(e).__name__}: {e})") from e
+    if not isinstance(entries, list) or len(entries) != specification_count:
+        raise ScreenAnswerError(
+            f"expected {specification_count} entries, got "
+            f"{len(entries) if isinstance(entries, list) else type(entries).__name__}")
+    judgments: dict[int, ScreenJudgment] = {}
+    for entry in entries:
+        try:
+            number, reasoning, remove, reason = (
+                entry["number"], entry["reasoning"], entry["remove"], entry["reason"])
+        except (KeyError, TypeError) as e:
+            raise ScreenAnswerError(f"entry missing a field: {entry!r}") from e
+        if (isinstance(number, bool) or not isinstance(number, int)
+                or not isinstance(reasoning, str) or not isinstance(remove, bool)
+                or not isinstance(reason, str)):
+            raise ScreenAnswerError(f"entry has a wrongly typed field: {entry!r}")
         if not 1 <= number <= specification_count:
             raise ScreenAnswerError(f"number {number} is outside 1..{specification_count}")
-        if number in seen:
+        if number in judgments:
             raise ScreenAnswerError(f"number {number} listed twice")
-        seen.add(number)
-        removals.append(ScreenRemoval(number=number, reason=match.group(2).strip()))
-    return removals
+        if remove and not reason.strip():
+            raise ScreenAnswerError(f"number {number} is marked for removal without a reason")
+        judgments[number] = ScreenJudgment(
+            number=number, reasoning=reasoning.strip(), remove=remove, reason=reason.strip())
+    return [judgments[n] for n in range(1, specification_count + 1)]
 
 
 def screen_descriptions(
     descriptions: list[str],
     variables_list: list[dict] | None = None,
     *,
-    template: str,
+    prompts: ScreenPrompts,
     model: str | None = None,
     item_id: str | None = None,
-) -> list[ScreenRemoval]:
-    """Screen one batch of descriptions and return the removals (possibly none).
+) -> list[ScreenJudgment]:
+    """Screen one batch of descriptions and return a judgment for every one
+    (reasoning included, so keeps are auditable); the removals are the entries
+    with ``remove`` true.
 
-    Raises ScreenAnswerError for a truncated or malformed answer; API errors
-    propagate. Uses the global temperature and tags the call ``layer1_screen``
-    for the cost log."""
-    system, user = build_screen_prompt(template, descriptions, variables_list)
+    The call is schema-constrained (number enum 1..N). Raises ScreenAnswerError
+    for a truncated or invalid answer; API errors propagate. Uses the global
+    temperature and tags the call ``layer1_screen`` for the cost log."""
+    system, user = build_screen_prompt(prompts, descriptions, variables_list)
     raw, stop_reason = api.call_claude(
         user,
         system_prompt=system or "",
@@ -160,6 +204,7 @@ def screen_descriptions(
         stage=STAGE_TAG,
         item_id=item_id,
         return_stop_reason=True,
+        json_schema=build_answer_schema(prompts, len(descriptions)),
     )
     if stop_reason != "end_turn":
         raise ScreenAnswerError(f"truncated answer (stop_reason={stop_reason})")
@@ -217,8 +262,8 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
     if not sdf.get("screen_enabled", True):
         print("  Screen disabled (sdf.screen_enabled: false)")
         return plans
-    template = load_screen_template(prompts_dir)
-    if template is None:
+    prompts = load_screen_prompts(prompts_dir)
+    if prompts is None:
         print(f"  No {TEMPLATE_FILENAME} in this run's prompt snapshot — screen skipped")
         return plans
 
@@ -227,6 +272,7 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
     model = sdf.get("screen_model") or sdf.get("plan_model")
     checkpoint = utils.Checkpoint(output_dir / CHECKPOINT_FILENAME)
     rejections_path = output_dir / REJECTIONS_FILENAME
+    judgments_path = output_dir / JUDGMENTS_FILENAME
 
     by_id = {p["prompt_id"]: p for p in plans if p.get("description")}
     batches = plan_batches(output_dir, list(by_id), batch_size, sdf.get("seed", 0))
@@ -239,12 +285,12 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
         members = [by_id[pid] for pid in batch["prompt_ids"] if pid in by_id]
         try:
             started = time.monotonic()
-            removals = screen_descriptions(
+            judgments = screen_descriptions(
                 [m["description"] for m in members],
                 [m["variables"] for m in members] if show_variables else None,
-                template=template, model=model, item_id=batch["batch_id"],
+                prompts=prompts, model=model, item_id=batch["batch_id"],
             )
-            return members, removals, time.monotonic() - started, None
+            return members, judgments, time.monotonic() - started, None
         except ScreenAnswerError as e:
             return members, None, 0.0, f"unusable answer ({e})"
         except Exception as e:  # one failing call must not discard its siblings' work
@@ -254,26 +300,36 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
     failed = 0
     removed_total = 0
     started_all = time.monotonic()
-    for done, (batch, (members, removals, seconds, problem)) in enumerate(
+    for done, (batch, (members, judgments, seconds, problem)) in enumerate(
         zip(pending, utils.parallel_map(screen_one, pending, workers)), 1
     ):
         if problem:
             failed += 1
             print(f"  {batch['batch_id']}: {problem} — will retry on resume")
             continue
-        for removal in removals:
-            member = members[removal.index]
+        for judgment in judgments:
+            member = members[judgment.index]
             utils.append_jsonl({
                 "prompt_id": member["prompt_id"],
                 "batch_id": batch["batch_id"],
-                "number": removal.number,
-                "reason": removal.reason,
-                "description": member["description"],
-            }, rejections_path)
+                "number": judgment.number,
+                "reasoning": judgment.reasoning,
+                "remove": judgment.remove,
+                "reason": judgment.reason,
+            }, judgments_path)
+            if judgment.remove:
+                utils.append_jsonl({
+                    "prompt_id": member["prompt_id"],
+                    "batch_id": batch["batch_id"],
+                    "number": judgment.number,
+                    "reason": judgment.reason,
+                    "description": member["description"],
+                }, rejections_path)
+        removed = sum(j.remove for j in judgments)
         checkpoint.mark_done(batch["batch_id"])
-        removed_total += len(removals)
+        removed_total += removed
         print(f"  Screened {batch['batch_id']} ({done}/{len(pending)}): {len(members)} specifications, "
-              f"{len(removals)} removed in {seconds:.1f}s")
+              f"{removed} removed in {seconds:.1f}s")
 
     if pending and failed == len(pending):
         raise SystemExit(

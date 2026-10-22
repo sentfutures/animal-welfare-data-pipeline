@@ -10,6 +10,7 @@ stable across resume, a disabled screen makes no calls.
 
 import json
 import re
+from pathlib import Path
 
 import pytest
 
@@ -17,6 +18,7 @@ from evals import audit_sdf
 from sdf_pipeline import layer1_screen as screen
 from shared import utils
 
+REPO_ROOT = Path(__file__).resolve().parent.parent
 BAD_MARKER = "BAD-SPEC"
 
 
@@ -50,11 +52,24 @@ def numbers_in(user_message):
         r'<specification number="(\d+)">\n(.*?)</specification>', user_message, re.DOTALL)]
 
 
+def screen_answer(count, remove=(), reasons=None, **overrides):
+    """A schema-shaped answer for a batch of ``count`` specifications."""
+    entries = [
+        {"number": n, "reasoning": f"Considered specification {n}.", "remove": n in remove,
+         "reason": (reasons or {}).get(n, "This specification contradicts itself.") if n in remove else ""}
+        for n in range(1, count + 1)
+    ]
+    return json.dumps({"specifications": entries, **overrides})
+
+
+def no_removals(user_message, **kw):
+    return screen_answer(len(numbers_in(user_message)))
+
+
 def flag_bad_specs(user_message, **kw):
     """Dispatcher: removes exactly the specifications containing BAD_MARKER."""
-    flagged = [n for n, body in numbers_in(user_message) if BAD_MARKER in body]
-    lines = "\n".join(f"{n}: This specification contradicts itself." for n in flagged)
-    return f"Brief thoughts.\n<removals>\n{lines}\n</removals>"
+    shown = numbers_in(user_message)
+    return screen_answer(len(shown), remove={n for n, body in shown if BAD_MARKER in body})
 
 
 @pytest.fixture
@@ -76,68 +91,98 @@ def rejected_ids(stage_dir):
 
 # --- parsing and the public function ---
 
-def test_parse_valid_answer_with_reasons():
-    raw = "thinking\n<removals>\n2: Venue does not exist.\n#4 - Timeline is impossible.\n</removals>"
-    removals = screen.parse_screen_answer(raw, 5)
-    assert [(r.number, r.index, r.reason) for r in removals] == [
-        (2, 1, "Venue does not exist."), (4, 3, "Timeline is impossible."),
+def test_parse_valid_answer_keeps_every_judgment_in_number_order():
+    entries = [
+        {"number": 2, "reasoning": "Venue does not exist.", "remove": True, "reason": "Impossible venue."},
+        {"number": 1, "reasoning": "Fine.", "remove": False, "reason": ""},
     ]
+    judgments = screen.parse_screen_answer(json.dumps({"specifications": entries}), 2)
+    assert [(j.number, j.index, j.remove, j.reason) for j in judgments] == [
+        (1, 0, False, ""), (2, 1, True, "Impossible venue.")]
+    assert judgments[0].reasoning == "Fine."
 
 
-def test_parse_empty_removals_block_means_none_removed():
-    assert screen.parse_screen_answer("<removals>\n</removals>", 10) == []
-    assert screen.parse_screen_answer("<removals></removals>", 10) == []
+def valid_entry(number, **overrides):
+    return {"number": number, "reasoning": "r", "remove": False, "reason": "", **overrides}
 
 
 @pytest.mark.parametrize("raw", [
-    "no tags at all",
-    "<removals>3: reason",                                 # unclosed
-    "<removals>\n1: a\n</removals>\n<removals>\n2: b\n</removals>",  # two blocks
-    "<removals>\nspecification three is bad\n</removals>",  # unparseable line
-    "<removals>\n11: out of range\n</removals>",
-    "<removals>\n0: out of range\n</removals>",
-    "<removals>\nmatrix_000003: wrong kind of id\n</removals>",
-    "<removals>\n2: first\n2: again\n</removals>",          # duplicate number
+    "no json at all",
+    "{\"specifications\": [",                                          # malformed JSON
+    json.dumps([valid_entry(1)]),                                       # wrong top-level shape
+    json.dumps({"specifications": [valid_entry(1)]}),                   # wrong count (too few)
+    json.dumps({"specifications": [valid_entry(1), valid_entry(2), valid_entry(3)]}),  # too many
+    json.dumps({"specifications": [valid_entry(1), valid_entry(1)]}),   # duplicate number
+    json.dumps({"specifications": [valid_entry(1), valid_entry(3)]}),   # out of range
+    json.dumps({"specifications": [valid_entry(0), valid_entry(2)]}),   # out of range
+    json.dumps({"specifications": [valid_entry(1), valid_entry(2, remove=True, reason="  ")]}),  # no reason
+    json.dumps({"specifications": [valid_entry(1), {"number": 2, "reasoning": "r", "remove": False}]}),  # missing field
+    json.dumps({"specifications": [valid_entry(1), valid_entry(2, remove="yes")]}),  # wrong type
+    json.dumps({"specifications": [valid_entry(1), valid_entry("2")]}),  # wrong type
 ])
 def test_parse_rejects_unusable_answers(raw):
     with pytest.raises(screen.ScreenAnswerError):
-        screen.parse_screen_answer(raw, 10)
+        screen.parse_screen_answer(raw, 2)
 
 
-def test_screen_descriptions_returns_removals_through_the_public_function(stub_claude, prompts_sdf):
+def test_answer_schema_is_filled_per_batch_and_keeps_property_order(prompts_sdf):
+    prompts = screen.load_screen_prompts(prompts_sdf)
+    schema = screen.build_answer_schema(prompts, 4)
+    item = schema["properties"]["specifications"]["items"]
+    assert item["properties"]["number"]["enum"] == [1, 2, 3, 4]
+    assert list(item["properties"]) == ["number", "reasoning", "remove", "reason"]  # reasoning before decision
+    assert item["required"] == ["number", "reasoning", "remove", "reason"]
+    assert item["additionalProperties"] is False and schema["additionalProperties"] is False
+    assert prompts.answer_schema["properties"]["specifications"]["items"]["properties"]["number"]["enum"] == []
+
+
+def test_screen_descriptions_returns_every_judgment_through_the_public_function(stub_claude, prompts_sdf):
     calls = stub_claude(flag_bad_specs)
-    template = screen.load_screen_template(prompts_sdf)
-    removals = screen.screen_descriptions(
-        ["fine one", f"{BAD_MARKER} two", "fine three"], template=template, model="m", item_id="b0")
-    assert [(r.number, r.reason) for r in removals] == [(2, "This specification contradicts itself.")]
+    prompts = screen.load_screen_prompts(prompts_sdf)
+    judgments = screen.screen_descriptions(
+        ["fine one", f"{BAD_MARKER} two", "fine three"], prompts=prompts, model="m", item_id="b0")
+    assert [(j.number, j.remove) for j in judgments] == [(1, False), (2, True), (3, False)]
+    assert judgments[1].reason == "This specification contradicts itself."
+    assert all(j.reasoning for j in judgments)
     assert calls[0]["stage"] == "layer1_screen" and calls[0]["model"] == "m"
+    # the call is schema-constrained, with the enum matching this batch's size
+    sent_schema = calls[0]["json_schema"]
+    assert sent_schema["properties"]["specifications"]["items"]["properties"]["number"]["enum"] == [1, 2, 3]
     assert 'number="3"' in calls[0]["user_message"] and 'number="4"' not in calls[0]["user_message"]
     assert "Dealt variables" not in calls[0]["user_message"]
     assert calls[0]["system_prompt"]
 
 
 def test_screen_descriptions_shows_variables_only_when_given(stub_claude, prompts_sdf):
-    calls = stub_claude(lambda user_message, **kw: "<removals></removals>")
-    template = screen.load_screen_template(prompts_sdf)
-    screen.screen_descriptions(["a", "b"], [{"tone": "TONE-X"}, {"tone": "TONE-Y"}], template=template)
+    calls = stub_claude(no_removals)
+    prompts = screen.load_screen_prompts(prompts_sdf)
+    screen.screen_descriptions(["a", "b"], [{"tone": "TONE-X"}, {"tone": "TONE-Y"}], prompts=prompts)
     assert "TONE-X" in calls[0]["user_message"] and "TONE-Y" in calls[0]["user_message"]
+    assert "Dealt variables" in calls[0]["user_message"]
     with pytest.raises(ValueError, match="parallel"):
-        screen.screen_descriptions(["a", "b"], [{"tone": "x"}], template=template)
+        screen.screen_descriptions(["a", "b"], [{"tone": "x"}], prompts=prompts)
+
+
+def test_no_model_facing_prose_lives_in_the_python_module():
+    source = (REPO_ROOT / "sdf_pipeline" / "layer1_screen.py").read_text(encoding="utf-8")
+    for phrase in ("Dealt variables", "Use them only as extra context", "Mark a specification"):
+        assert phrase not in source
 
 
 def test_screen_prompt_never_suggests_a_target_count(prompts_sdf):
-    system, user = screen.build_screen_prompt(
-        screen.load_screen_template(prompts_sdf), ["a", "b", "c"])
+    system, user = screen.build_screen_prompt(screen.load_screen_prompts(prompts_sdf), ["a", "b", "c"])
     assert "none" in user.lower() and "several" in user.lower()
+    assert "<removals>" not in user and "think through" not in user.lower()
+    assert "reasoning first" in user and "change or drop a core element" in user
     assert not re.search(r"\b(at least|at most|about|roughly|around) (one|two|three|\d+)\b",
                          user, re.IGNORECASE)
     assert "{" not in user
 
 
 def test_truncated_answer_is_rejected(stub_claude, prompts_sdf):
-    stub_claude(lambda user_message, **kw: ("<removals>\n1: cut", "max_tokens"))
+    stub_claude(lambda user_message, **kw: (screen_answer(1), "max_tokens"))
     with pytest.raises(screen.ScreenAnswerError, match="truncated"):
-        screen.screen_descriptions(["a"], template=screen.load_screen_template(prompts_sdf))
+        screen.screen_descriptions(["a"], prompts=screen.load_screen_prompts(prompts_sdf))
 
 
 # --- the stage ---
@@ -168,7 +213,7 @@ def test_incoherent_plans_are_not_screened_and_stay_in_the_returned_plans(
 ):
     plans = make_plans(5, bad_indices=())
     plans[2].update(description=None, incoherent=True)
-    calls = stub_claude(lambda user_message, **kw: "<removals></removals>")
+    calls = stub_claude(no_removals)
     kept = screen.run(screen_config, prompts_sdf, stage_dir, plans)
     assert len(calls) == 1 and len(numbers_in(calls[0]["user_message"])) == 4
     assert [p["prompt_id"] for p in kept] == [p["prompt_id"] for p in plans]
@@ -180,7 +225,7 @@ def test_batches_are_written_before_any_call(screen_config, prompts_sdf, stage_d
     def dispatcher(user_message, **kw):
         batches_path = stage_dir / "screen_batches.jsonl"
         seen_at_first_call.append(len(utils.load_jsonl(batches_path)))
-        return "<removals></removals>"
+        return no_removals(user_message)
 
     stub_claude(dispatcher)
     screen.run(screen_config, prompts_sdf, stage_dir, make_plans())
@@ -188,7 +233,7 @@ def test_batches_are_written_before_any_call(screen_config, prompts_sdf, stage_d
 
 
 def test_model_falls_back_from_screen_to_plan_to_global(screen_config, prompts_sdf, stage_dir, stub_claude, tmp_path):
-    calls = stub_claude(lambda user_message, **kw: "<removals></removals>")
+    calls = stub_claude(no_removals)
     plans = make_plans(3, bad_indices=())
     screen.run(screen_config, prompts_sdf, stage_dir, plans)
     assert calls[-1]["model"] is None                        # global model
@@ -207,7 +252,7 @@ def test_model_falls_back_from_screen_to_plan_to_global(screen_config, prompts_s
 def test_batch_size_and_variables_knobs(screen_config, prompts_sdf, stage_dir, stub_claude):
     screen_config["sdf"]["screen_batch_size"] = 4
     screen_config["sdf"]["screen_show_variables"] = True
-    calls = stub_claude(lambda user_message, **kw: "<removals></removals>")
+    calls = stub_claude(no_removals)
     screen.run(screen_config, prompts_sdf, stage_dir, make_plans(10, bad_indices=()))
     assert len(calls) == 3  # 4 + 4 + 2
     assert all("Dealt variables" in c["user_message"] for c in calls)
@@ -223,7 +268,7 @@ def test_malformed_answer_is_not_checkpointed_and_resume_retries_exactly_that_ba
         failing_batch.setdefault("id", kw["item_id"])  # the first batch to be called fails once
         if kw["item_id"] == failing_batch["id"] and not failing_batch.get("retried"):
             failing_batch["retried"] = True
-            return "I think number 2 might be a problem."  # no <removals> block
+            return "I think number 2 might be a problem."  # not JSON
         return flag_bad_specs(user_message, **kw)
 
     calls = stub_claude(dispatcher)
@@ -238,37 +283,39 @@ def test_malformed_answer_is_not_checkpointed_and_resume_retries_exactly_that_ba
     assert len(calls) == 3
 
 
-@pytest.mark.parametrize("bad_answer", [
-    "<removals>\n11: out of range for any batch of ten\n</removals>",
-    "<removals>\n0: zero is not a number\n</removals>",
-    ("<removals>\n1: cut off", "max_tokens"),
+@pytest.mark.parametrize("make_bad_answer", [
+    lambda count: screen_answer(count - 1),                              # wrong count
+    lambda count: screen_answer(count + 1),                              # too many entries
+    lambda count: json.dumps({"specifications": [
+        {"number": 11, "reasoning": "r", "remove": False, "reason": ""}] * count}),  # out of range, duplicated
+    lambda count: screen_answer(count, remove={1}, reasons={1: ""}),    # remove without a reason
+    lambda count: "{not json",                                           # malformed JSON
+    lambda count: (screen_answer(count), "max_tokens"),                  # truncated
 ])
-def test_out_of_range_and_truncated_answers_are_not_checkpointed(
-    screen_config, prompts_sdf, stage_dir, stub_claude, bad_answer
+def test_unusable_answers_are_not_checkpointed(
+    screen_config, prompts_sdf, stage_dir, stub_claude, make_bad_answer
 ):
     plans = make_plans(5, bad_indices=())
-    stub_claude(lambda user_message, **kw: bad_answer if kw["item_id"] else "")
+    stub_claude(lambda user_message, **kw: make_bad_answer(len(numbers_in(user_message))))
     with pytest.raises(SystemExit, match="every pending screen call failed"):
         screen.run(screen_config, prompts_sdf, stage_dir, plans)
     assert utils.Checkpoint(stage_dir / "_screen_checkpoint.json").done_count == 0
     assert not (stage_dir / "screen_rejections.jsonl").exists()
+    assert not (stage_dir / "screen_judgments.jsonl").exists()
 
 
-def test_a_removal_that_would_hit_a_number_outside_a_short_batch_is_rejected(
+def test_every_judgment_including_keeps_is_stored_with_its_reasoning(
     screen_config, prompts_sdf, stage_dir, stub_claude
 ):
-    """The last batch can be short: 6 is valid in a batch of ten but not in a batch of five."""
-    plans = make_plans(15, bad_indices=())
-
-    def dispatcher(user_message, **kw):
-        size = len(numbers_in(user_message))
-        return "<removals>\n6: reason\n</removals>" if size == 5 else "<removals></removals>"
-
-    stub_claude(dispatcher)
+    plans = make_plans()
+    stub_claude(flag_bad_specs)
     screen.run(screen_config, prompts_sdf, stage_dir, plans)
-    checkpoint = utils.Checkpoint(stage_dir / "_screen_checkpoint.json")
-    assert checkpoint.done_count == 1  # only the full batch of ten was accepted
-    assert not (stage_dir / "screen_rejections.jsonl").exists()
+    judgments = utils.load_jsonl(stage_dir / "screen_judgments.jsonl")
+    assert len(judgments) == len(plans)
+    assert {j["prompt_id"] for j in judgments} == {p["prompt_id"] for p in plans}
+    assert all(j["reasoning"] and j["batch_id"].startswith("screen_batch_") for j in judgments)
+    assert {j["prompt_id"] for j in judgments if j["remove"]} == {"matrix_000003", "matrix_000017"}
+    assert all(j["reason"] == "" for j in judgments if not j["remove"])
 
 
 def test_resume_after_a_completed_screen_makes_zero_calls(screen_config, prompts_sdf, stage_dir, stub_claude):
@@ -286,7 +333,7 @@ def test_batches_are_stable_across_resume_even_if_plan_order_changes(
     screen_config, prompts_sdf, stage_dir, stub_claude
 ):
     plans = make_plans()
-    stub_claude(lambda user_message, **kw: "<removals></removals>")
+    stub_claude(no_removals)
     screen.run(screen_config, prompts_sdf, stage_dir, plans)
     before = utils.load_jsonl(stage_dir / "screen_batches.jsonl")
     calls = stub_claude([])
@@ -295,7 +342,7 @@ def test_batches_are_stable_across_resume_even_if_plan_order_changes(
 
 
 def test_batches_are_seeded_and_plan_order_does_not_matter(screen_config, prompts_sdf, tmp_path, stub_claude):
-    stub_claude(lambda user_message, **kw: "<removals></removals>")
+    stub_claude(no_removals)
     plans = make_plans()
     directories = []
     for name, order, seed in (("a", plans, 0), ("b", list(reversed(plans)), 0), ("c", plans, 1)):
@@ -312,10 +359,10 @@ def test_plans_added_on_resume_are_batched_without_touching_existing_batches(
     screen_config, prompts_sdf, stage_dir, stub_claude
 ):
     plans = make_plans(20, bad_indices=())
-    stub_claude(lambda user_message, **kw: "<removals></removals>")
+    stub_claude(no_removals)
     screen.run(screen_config, prompts_sdf, stage_dir, plans[:10])
     before = utils.load_jsonl(stage_dir / "screen_batches.jsonl")
-    calls = stub_claude(lambda user_message, **kw: "<removals></removals>")
+    calls = stub_claude(no_removals)
     screen.run(screen_config, prompts_sdf, stage_dir, plans)
     after = utils.load_jsonl(stage_dir / "screen_batches.jsonl")
     assert after[:len(before)] == before and len(after) == 2

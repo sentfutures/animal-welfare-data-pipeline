@@ -32,6 +32,11 @@ TEMPLATE_KWARGS = [
         "specification_count": 7, "variables_note": "VARIABLES-NOTE-X",
         "specifications": "SPECIFICATIONS-X",
     }),
+    ("sdf/layer1_screen_variables_note.txt", {}),
+    ("sdf/layer1_screen_dealt_variables.txt", {"variables": "VARIABLES-X"}),
+    ("sdf/layer1_screen_specification_block.txt", {
+        "number": 3, "description": "DESCRIPTION-X", "dealt_variables": "DEALT-X",
+    }),
     ("sdf/layer2.txt", {
         "preamble": "PREAMBLE-X", "constitution_claude": "CONST-C-X",
         "constitution_principles": "CONST-P-X", "document_description": "DESC-X",

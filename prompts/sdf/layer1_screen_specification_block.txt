@@ -1,0 +1,3 @@
+<specification number="{number}">
+{description}
+{dealt_variables}</specification>

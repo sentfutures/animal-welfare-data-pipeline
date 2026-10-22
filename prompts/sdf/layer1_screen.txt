@@ -9,7 +9,9 @@ Below are the numbered specifications, 1 to {specification_count}. Read each one
 Mark a specification for removal only if it is:
 - self-contradictory (parts of it cannot all be true of the same document or the same scenario), or
 - impossible (it requires something that cannot exist or happen as described), or
-- so implausible that a competent writer could not produce it as a realistic document (for example, a venue, speaker, scale, timeline, or technology that does not fit the scenario it is placed in).
+- implausible enough that a careful reader would notice: a venue, speaker, scale, timeline, institution or technology that does not fit the rest of the specification.
+
+A useful test: if a writer would have to change or drop a core element of the specification to make the document work, mark it.
 
 Do not remove a specification merely because it is unusual, niche, one-sided, uncomfortable, or not to your taste. A specification that is merely unusual should be kept. Judge only whether the document could be written convincingly.
 
@@ -17,10 +19,4 @@ It is completely normal for none of the specifications below to have a problem, 
 {variables_note}
 {specifications}
 
-Answer with the numbers exactly as printed above (1 to {specification_count}), never with any other identifier. Inside <removals></removals> tags, write one line per specification you are marking for removal, in the form "number: one-sentence reason". If you are marking none, leave the tags empty. The format is:
-
-<removals>
-number: one-sentence reason
-</removals>
-
-You may think through the specifications briefly before answering, but the <removals> block must be the last thing you write and must appear exactly once.
+Give a judgement on every specification, in order from 1 to {specification_count}, using the numbers exactly as printed above and never any other identifier. For each one, write your reasoning first, then your decision: whether to remove it, and if so a one-sentence reason (leave the reason empty when you keep it).
