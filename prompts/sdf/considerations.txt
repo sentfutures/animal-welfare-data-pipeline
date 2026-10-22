@@ -25,9 +25,8 @@
 #   list, but only on documents whose sentient_category is one of {digital_mind_categories};
 #   their targets are shares of those documents, not of all documents.
 # - {digital_mind_categories} and {skipped_resolutions} name values of sentient_category and
-#   resolution (variables.txt) by a distinctive substring. Each must match exactly one value
-#   there, or loading fails, so rewording a value in variables.txt without updating it here
-#   is caught immediately (the same matcher as deal_constraints.txt).
+#   resolution (variables.txt) by their stable [id]s (the same IDs deal_constraints.txt uses).
+#   Rewording a value's text in variables.txt changes nothing here; an unknown ID fails loading.
 # - Documents whose resolution matches {skipped_resolutions} get no considerations (they
 #   are dealt at weight 0 by default; sdf.select_skip_no_stake: false turns the skip off).
 # - The precautionary principle is on the moral list only.
@@ -61,9 +60,9 @@
     0.10 :: Difficulties of AI self-reporting welfare: why an AI's own reports about its experiences or welfare may be unreliable or hard to interpret
 
 {digital_mind_categories}  # sentient_category values that make a document a digital-mind document
-    simulated human connectomes
-    simulated animal connectomes
-    LLMs whose moral state
+    simulated_human_connectomes
+    simulated_animal_connectomes
+    large_language_models
 
 {skipped_resolutions}  # resolution values whose documents get no considerations
-    NO real welfare stake
+    no_stake

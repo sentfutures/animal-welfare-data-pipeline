@@ -128,7 +128,7 @@ class RepairReport:
 
 # --- parsing ---
 
-def _resolve_id(
+def resolve_value_id(
     rule_name: str, variable: str, value_id: str, value_ids: dict[str, dict[str, str]], where: str
 ) -> str:
     """The value text for an ID of ``variable``; raises naming the rule and ID."""
@@ -189,7 +189,7 @@ def parse_deal_constraints(
         if not when_items:
             raise ValueError(f"{source_name}:{when_lineno}: rule [{name}] 'when' block is empty")
         condition_values = tuple(
-            _resolve_id(name, condition_variable, item, value_ids, source_name)
+            resolve_value_id(name, condition_variable, item, value_ids, source_name)
             for item in when_items
         )
         if requires:
@@ -203,7 +203,7 @@ def parse_deal_constraints(
             if not require_items:
                 raise ValueError(f"{source_name}:{require_lineno}: rule [{name}] 'require' block is empty")
             target_values = tuple(
-                _resolve_id(name, target_variable, item, value_ids, source_name)
+                resolve_value_id(name, target_variable, item, value_ids, source_name)
                 for item in require_items
             )
             rules.append(DealRule(

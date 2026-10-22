@@ -11,9 +11,9 @@ lists; ``epistemic_considerations_digital_minds_only`` entries are placed first
 on the epistemic list and are eligible only on documents whose sentient_category
 is one of ``digital_mind_categories``; ``skipped_resolutions`` names the
 resolution values whose documents get no considerations. The category and
-resolution values are named by a substring that must match exactly one value in
-variables.txt (the matcher shared with deal_constraints.txt), so rewording a
-value there makes loading fail instead of silently making an entry unreachable.
+resolution values are named by their stable [id] in variables.txt (the same IDs
+deal_constraints.txt uses), so rewording a value's text there changes nothing here
+and an unknown ID makes loading fail instead of silently making an entry unreachable.
 """
 
 import math
@@ -150,13 +150,13 @@ def load_considerations(prompts_dir: Path) -> ConsiderationCatalog:
     if duplicates:
         raise ValueError(f"{path.name}: labels must be unique across both lists, repeated: {duplicates}")
 
-    values, _ = cp.split_weights(cp.parse_variables(prompts_dir / VARIABLES_FILENAME))
+    _, _, value_ids = cp.load_variables(prompts_dir / VARIABLES_FILENAME)
 
     def resolve(section: str, variable: str) -> frozenset[str]:
-        substrings = [text for text, _ in parsed[section]]
+        """The full value texts named by the stable [id] of each entry of ``section``."""
         return frozenset(
-            deal_constraints._resolve_substring(section, variable, substring, values, path.name)
-            for substring in substrings
+            deal_constraints.resolve_value_id(section, variable, value_id, value_ids, path.name)
+            for value_id, _ in parsed[section]
         )
 
     return ConsiderationCatalog(
