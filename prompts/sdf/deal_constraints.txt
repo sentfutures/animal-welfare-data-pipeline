@@ -29,7 +29,8 @@
 #   cards are swapped between hands within a single variable's column, so every
 #   variable's value counts (and so its share of the run) are exactly what
 #   variables.txt asks for. If a rule can never be satisfied by the quotas (more
-#   hands need an allowed value than the deck holds), the composer raises,
+#   hands need a value the rule does not exclude than the deck holds), the
+#   composer raises,
 #   naming the rule.
 # - An "omit" rule is a rendering rule: the dealt value stays in the record's
 #   `variables`, but the planning-prompt paragraph that renders that variable
@@ -69,9 +70,9 @@ require naming is not one of:
 # A human emulation has no role in an industry defined by its animals; in the
 # pinned run none of the 17 human-connectome specifications in these domains
 # kept the category (most were dropped or swapped to animal connectomes).
-# Research and testing, policy and regulation, entertainment and sport, and
-# transport and logistics stay open: whether those combinations hold up is left
-# to the batch screen. Simulated animal connectomes and LLMs need no rule.
+# The rule excludes only these eight domains; whether any other combination
+# holds up is left to the batch screen. Simulated animal connectomes and LLMs
+# need no rule.
 
 [simulated_human_connectomes_exclude_animal_industry_domains]
 when sentient_category is one of:
