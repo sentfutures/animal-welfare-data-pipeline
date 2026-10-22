@@ -28,15 +28,10 @@ TEMPLATE_KWARGS = [
         "sentient_example": "SPECIES-X",
     }),
     # layer 1 screen: rendered by layer1_screen.build_screen_prompt
-    ("sdf/layer1_screen.txt", {
-        "specification_count": 7, "variables_note": "VARIABLES-NOTE-X",
-        "specifications": "SPECIFICATIONS-X",
-    }),
-    ("sdf/layer1_screen_variables_note.txt", {}),
-    ("sdf/layer1_screen_dealt_variables.txt", {"variables": "VARIABLES-X"}),
-    ("sdf/layer1_screen_specification_block.txt", {
-        "number": 3, "description": "DESCRIPTION-X", "dealt_variables": "DEALT-X",
-    }),
+    ("sdf/layer1_screen.txt", {"hand_count": 7, "hands": "HANDS-X"}),
+    ("sdf/layer1_screen_specification_block.txt", {"number": 3, "variable_lines": "LINES-X"}),
+    # layer 1 description rewrite: rendered by layer1_description_rewrite.build_rewrite_prompt
+    ("sdf/layer1_description_rewrite.txt", {"variable_lines": "LINES-X", "description": "DESCRIPTION-X"}),
     ("sdf/layer2.txt", {
         "preamble": "PREAMBLE-X", "constitution_claude": "CONST-C-X",
         "constitution_principles": "CONST-P-X", "document_description": "DESC-X",

@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """SDF matrix pipeline orchestrator: plan, draft, rewrite, score.
 
-Layer 1 is a single stage: deterministic composition of the prompt matrix
-(offline) followed by one plan call per document. Layers 2-4 draft, rewrite,
-and score/gate.
+Layer 1 deals and repairs the hands (offline), screens them for extreme
+implausibility with redeal rounds, plans one document per accepted hand, and
+rewrites each description for plausibility and conformance. Layers 2-4 draft,
+rewrite, and score/gate.
 
 The layers were renumbered from the old 1-2/3/4/5 scheme (in which composition
 and planning were counted as two layers) to today's 1/2/3/4. --layer takes the
@@ -21,6 +22,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from shared import api, utils
 from sdf_pipeline import (
+    layer1_description_rewrite,
     layer1_plan,
     layer1_screen,
     layer2_draft,
@@ -92,15 +94,17 @@ def main() -> None:
     plans = drafts = rewrites = None
 
     if start_layer <= 1:
-        print("[Layer 1] Compose matrix + plan documents")
-        plans = layer1_plan.run(config, prompts_dir, plan_dir)
-        print("[Layer 1] Screen planned specifications for incoherence")
-        plans = layer1_screen.run(config, prompts_dir, plan_dir, plans)
+        print("[Layer 1] Deal hands and screen them for extreme implausibility (with redeals)")
+        hands = layer1_screen.run(config, prompts_dir, plan_dir)
+        print("[Layer 1] Compose prompts + plan documents")
+        plans = layer1_plan.run(config, prompts_dir, plan_dir, hands)
+        print("[Layer 1] Rewrite descriptions for plausibility and conformance")
+        plans = layer1_description_rewrite.run(config, prompts_dir, plan_dir, plans)
         print(f"  Running cost: ${api.get_total_cost():.4f}\n")
 
     if start_layer <= 2:
         if plans is None:
-            plans = layer1_screen.drop_rejected(
+            plans = layer1_description_rewrite.load_rewritten_plans(
                 config, plan_dir, utils.load_jsonl(plan_dir / "plans.jsonl"))
         print("[Layer 2] Draft documents")
         drafts = layer2_draft.run(config, prompts_dir, layer_dirs[2], plans)

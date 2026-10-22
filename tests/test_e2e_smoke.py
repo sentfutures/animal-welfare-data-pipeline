@@ -35,18 +35,30 @@ def _run_main(monkeypatch, main, config_file, *extra_args):
 
 # --- SDF ---------------------------------------------------------------
 
-def _screen_answer(user_message, remove, reason="The scenario contradicts itself."):
+def _screen_answer(user_message, remove, reason="No realistic document could satisfy this hand."):
     """A schema-shaped screen answer for the batch in ``user_message``."""
-    count = user_message.count("<specification number=")
+    count = user_message.count("<hand number=")
     return json.dumps({"specifications": [
         {"number": n, "reasoning": "Considered it.", "remove": n in remove,
          "reason": reason if n in remove else ""}
         for n in range(1, count + 1)]})
 
 
+def _rewrite_answer(rewrite_needed=False, description="", **overrides):
+    """A schema-shaped description-rewrite answer."""
+    return json.dumps({
+        "reasoning": "Checked it.", "rewrite_needed": rewrite_needed,
+        "rewritten_description": description,
+        "changes": [{"check": "plausibility_figures_and_scale", "reason": "A figure was off."}]
+        if rewrite_needed else [],
+        "dealt_value_conflict": False, "conflict_reason": "", **overrides})
+
+
 def _sdf_dispatch(user_message, **kw):
     if kw["stage"] == "layer1_screen":  # layer 1 screen: removes nothing
         return _screen_answer(user_message, remove=())
+    if kw["stage"] == "layer1_description_rewrite":  # layer 1 description rewrite: declines
+        return _rewrite_answer()
     if kw["max_tokens"] == 6000:  # layer 3: drafting from the spec
         return f"<document>Drafted body for {kw['item_id']}.</document>"
     if kw["max_tokens"] == 8000:  # layer 4: review + rewrite
@@ -82,9 +94,14 @@ def test_sdf_pipeline_end_to_end_offline(tiny_config_file, outputs_root, stub_cl
         assert r["content"] == f"Rewritten document for {r['doc_id']}."
         assert r["variables"]  # matrix lineage travels to the corpus
         assert r["scores"]["spec_conformance"] == 9
-    # 2 plans + 1 screen batch + 2 drafts + 2 rewrites + 2 scores
-    assert len(calls) == 9
+    # 1 screen batch + 2 plans + 2 description rewrites + 2 drafts + 2 rewrites + 2 scores
+    assert len(calls) == 11
     assert [c["stage"] for c in calls].count("layer1_screen") == 1
+    # order: screen before any plan, plans before description rewrites, rewrites before drafting
+    stages = [c["stage"] for c in calls]
+    assert stages[0] == "layer1_screen"
+    assert stages.index("layer1_description_rewrite") > max(
+        i for i, stage in enumerate(stages) if stage == "layer1_plan")
 
 
 def test_sdf_screen_removal_is_dropped_before_drafting(
@@ -104,8 +121,38 @@ def test_sdf_screen_removal_is_dropped_before_drafting(
     assert [r["doc_id"] for r in corpus] == [
         pid for pid in ("matrix_000000", "matrix_000001") if pid != rejections[0]["prompt_id"]
     ]
-    # 2 plans + 1 screen + 1 draft + 1 rewrite + 1 score
+    assert rejections[0]["round"] == 0
+    # 1 screen (the lone removed hand cannot be redealt into a different hand, so it is dropped)
+    # + 1 plan + 1 description rewrite + 1 draft + 1 rewrite + 1 score
     assert len(calls) == 6
+
+
+def test_sdf_rewritten_description_and_dealt_value_conflict_reach_layer_2(
+    tiny_config_file, outputs_root, stub_claude, monkeypatch
+):
+    def dispatch(user_message, **kw):
+        if kw["stage"] == "layer1_description_rewrite":
+            if kw["item_id"] == "matrix_000000":
+                return _rewrite_answer(True, "Rewritten spec for matrix_000000.")
+            return _rewrite_answer(dealt_value_conflict=True, conflict_reason="The dealt scale cannot occur.")
+        return _sdf_dispatch(user_message, **kw)
+
+    calls = stub_claude(dispatch)
+    _run_main(monkeypatch, sdf_run.main, tiny_config_file)
+    run_dir = outputs_root / "sdf" / "latest"
+    drafts = utils.load_jsonl(run_dir / "layer2" / "drafts.jsonl")
+    assert [d["doc_id"] for d in drafts] == ["matrix_000000"]
+    draft_calls = [c for c in calls if c["max_tokens"] == 6000]
+    assert "Rewritten spec for matrix_000000." in draft_calls[0]["user_message"]  # layer 2 gets the rewrite
+    assert len(utils.load_jsonl(run_dir / "layer1" / "description_rewrite_rejections.jsonl")) == 1
+    # planning keeps the planner's own text on disk
+    plans = {p["prompt_id"]: p for p in utils.load_jsonl(run_dir / "layer1" / "plans.jsonl")}
+    assert plans["matrix_000000"]["description"] == "Spec for matrix_000000."
+
+    # resuming at layer 2 re-applies the stored rewrite and drops the conflicted plan, with no layer 1 calls
+    resumed = stub_claude([])
+    _run_main(monkeypatch, sdf_run.main, tiny_config_file, "--resume", "--layer", "2")
+    assert resumed == []
 
 
 def test_sdf_resume_at_last_layer_makes_no_calls(tiny_config_file, outputs_root, stub_claude, monkeypatch):

@@ -1,0 +1,35 @@
+{
+  "type": "object",
+  "properties": {
+    "reasoning": {"type": "string"},
+    "rewrite_needed": {"type": "boolean"},
+    "rewritten_description": {"type": "string"},
+    "changes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "check": {
+            "type": "string",
+            "enum": [
+              "plausibility_organisation",
+              "plausibility_species_or_custom",
+              "plausibility_simulated_connectome",
+              "plausibility_ai_information",
+              "plausibility_figures_and_scale",
+              "conformance_to_dealt_values",
+              "organisation_naming"
+            ]
+          },
+          "reason": {"type": "string"}
+        },
+        "required": ["check", "reason"],
+        "additionalProperties": false
+      }
+    },
+    "dealt_value_conflict": {"type": "boolean"},
+    "conflict_reason": {"type": "string"}
+  },
+  "required": ["reasoning", "rewrite_needed", "rewritten_description", "changes", "dealt_value_conflict", "conflict_reason"],
+  "additionalProperties": false
+}

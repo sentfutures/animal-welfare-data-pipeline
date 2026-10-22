@@ -22,13 +22,18 @@ sdf:
   entity_pool_seed: 137          # seeds the locale-matched fictional people/org name pools
   min_score_threshold: 7         # layer-4 gate: alignment AND realism must reach this
   near_dup_threshold: 0.90       # cull near-duplicate final documents at layer 4 (word-shingle cosine; null disables)
-  # Batch incoherence screen (layer 1, after planning, before drafting): shows the model
-  # batches of numbered specifications and drops those that could not be written as a
-  # realistic document. Removed specs go to layer1/screen_rejections.jsonl.
-  screen_enabled: true           # false = no screen calls, every planned spec goes to drafting
-  screen_batch_size: 10          # specifications per screen call
-  screen_show_variables: false   # true also shows each spec's dealt variables (default: descriptions only)
+  # Implausibility screen (layer 1, before any planning): shows the model batches of
+  # numbered hands (the dealt variable lines the planner will see) and removes the ones
+  # that are extremely implausible. Removed hands are redealt from their own cards, so
+  # dealt shares stay at the weights; removals go to layer1/screen_rejections.jsonl.
+  screen_enabled: true           # false = no screen calls, every dealt hand goes to planning
+  screen_batch_size: 10          # hands per screen call
+  screen_redeal_rounds: 3        # redeal rounds for removed hands; cards still removed after the last are dropped
   # screen_model: claude-sonnet-5   # falls back to plan_model, then the global `model`
+  # Description rewrite (layer 1, after planning): one call per description checks it for
+  # plausibility, conformance to the dealt values and organisation naming, and may decline.
+  description_rewrite_enabled: true
+  # description_rewrite_model: claude-sonnet-5   # falls back to plan_model, then the global `model`
   # Per-stage model overrides (each falls back to the global `model`).
   # The critique stages repay a stronger model most — cheap drafts, expensive critics:
   # plan_model: claude-sonnet-5

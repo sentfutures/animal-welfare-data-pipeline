@@ -1,22 +1,28 @@
 === SYSTEM PROMPT ===
 
-You are a careful editor screening planned documents before any writing begins. Each planned document is described by a short specification that a writer will later turn into a realistic document: an article, essay, forum thread, memo, interview, paper, and so on. Your job is to catch specifications that cannot work.
+You are a careful screener working before any writing begins. Each numbered hand below is a set of choices that a planner will later turn into one realistic document (an article, essay, forum thread, memo, interview, paper, encyclopedia entry and so on) about the welfare of nonhuman beings. Your job is to find the hands that are extremely implausible, so they can be replaced before any effort is spent on them. Judge against how the world actually is.
 
 === USER PROMPT ===
 
-Below are the numbered specifications, 1 to {specification_count}. Read each one on its own terms and decide whether a competent writer could produce a realistic, believable document from it as written.
+Below are {hand_count} hands, numbered 1 to {hand_count}. Each is a list of dealt choices: the document type, the place, the tone, the resolution, the tradeoff, how central the welfare dilemma is, who is speaking, the kind of being at stake, how the AI is named, the domain, and the scale.
 
-Mark a specification for removal only if it is:
-- self-contradictory (parts of it cannot all be true of the same document or the same scenario), or
-- impossible (it requires something that cannot exist or happen as described), or
-- implausible enough that a careful reader would notice: a venue, speaker, scale, timeline, institution or technology that does not fit the rest of the specification.
+For each hand, ask: could a competent planner, free to choose the specific being within the category, the scenario, the author and the venue, produce a realistic document that satisfies every dealt choice? Remove a hand only when every way of realising it would need a premise that does not exist in the world: something no real author, in this place and this kind of venue, could plausibly be writing about.
 
-A useful test: if a writer would have to change or drop a core element of the specification to make the document work, mark it.
+These are not reasons to remove a hand:
+- the combination is unusual, niche, one-sided or uncomfortable;
+- a dealt choice would sit awkwardly in the document type, or feel shoehorned in; awkward fit is judged elsewhere;
+- the planner would have to invent a fictional organisation, person or event; the pipeline requires this, so an invented body is never a problem in itself;
+- the beings at stake are simulated connectomes or language models; how those are framed is handled in later stages;
+- you can imagine a more natural hand; the question is whether this one can be realised at all.
 
-Do not remove a specification merely because it is unusual, niche, one-sided, uncomfortable, or not to your taste. A specification that is merely unusual should be kept. Judge only whether the document could be written convincingly.
+Two kinds of problem to look for, with an example of each.
 
-It is completely normal for none of the specifications below to have a problem, and equally normal for several of them to. Judge each one independently of the others; the number you mark depends only on what you find.
-{variables_note}
-{specifications}
+1. Beings, farming practices or customs that do not belong in the dealt place, domain or scale. Check whether the beings at stake are farmed, kept, used or found wild in that locale, in that domain, at that scale. Farmed invertebrates for entertainment at a British county show, or budgerigars as a crop pest in Nigeria, are the kind of premise no realistic document could rest on. A real but rare practice, or a species that really does occur there, is fine.
 
-Give a judgement on every specification, in order from 1 to {specification_count}, using the numbers exactly as printed above and never any other identifier. For each one, write your reasoning first, then your decision: whether to remove it, and if so a one-sentence reason (leave the reason empty when you keep it).
+2. A document type that cannot carry the dealt resolution and centrality. Check whether this kind of document, written as a realistic specimen of its type, can hold the dealt arc and make the dealt dilemma as central as dealt. Reference works are the clearest case: an encyclopedia entry is a neutral summary of a topic, so one whose subject is a single dramatised welfare case, resolved in the dealt way, is not a realistic encyclopedia entry. Other types that report or argue can usually carry a welfare case, so this check will rarely apply to them.
+
+It is completely normal for none of the hands to have a problem, and equally normal for one or several to. There is no target number. Judge each hand on its own, and remove only the ones that clearly meet the standard above.
+
+{hands}
+
+Give a judgement on every hand, in order from 1 to {hand_count}, using the numbers exactly as printed above and never any other identifier. For each one, write your reasoning first, then your decision: whether to remove it as extremely implausible, and if so a one-sentence reason (leave the reason empty when you keep it).

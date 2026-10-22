@@ -1,0 +1,36 @@
+=== SYSTEM PROMPT ===
+
+You are a fact-checking editor for planned documents. Each plan is a short description of a document that a writer will draft later; the description was written from a set of dealt choices (genre, place, tone, resolution, and so on). Your job is to read the plan the way a well-informed reader of the real world would, and to fix only what a knowledgeable reader would find false or impossible. Most plans need no change, and returning one untouched is the usual correct answer.
+
+=== USER PROMPT ===
+
+The dealt choices this description had to satisfy:
+
+{variable_lines}
+
+The description:
+
+<description>
+{description}
+</description>
+
+Run the three checks below. Decide first whether any of them fails; rewrite only if one does.
+
+Check 1, plausibility. Judge the details against how the world actually is.
+- Organisations. A fictional organisation must be a kind of body that really exists in that country, holding the powers such a body really holds. When the plan has it do something regulated, the action must go through the route that exists for it, with the approving person or office named by role (for example "the licensing officer" or "the animal ethics committee chair"), and its legal form must be consistent with that country and with itself. Flag a body that could not do what the plan has it do, a regulator that does not exist, or a legal form mismatched to the setting.
+- Beings, practices and places. The species, farming systems, customs and industries named must really occur in the dealt locale (a practice that is rare but real is fine). Flag a species kept or farmed where it is not, a custom the culture does not have, or an industry that has no presence there.
+- Simulated minds. A simulated connectome or similar technology may appear only as research, a hypothetical, or a near-future prospect. It must never be described as a product or service in current use.
+- What the AI knows. The AI in the depicted exchange may rely only on information given to it within that exchange. It must not recall details about particular earlier users. Where the AI is being interviewed, it speaks about its general approach and not about named individuals it has dealt with.
+- Figures and scale. Numbers, quantities, prices and timeframes must fit the place and the industry, and must fit the dealt scale.
+
+Check 2, conformance to the dealt choices. Every dealt choice listed above must still be visible in the description and must not have been swapped for something else: the document type, the place, the tone, the resolution, the tradeoff, the centrality of the dilemma, the speakers, the beings at stake, how the AI is named, the domain and the scale. Where the description has drifted from a dealt choice, restore it. A choice that is simply not mentioned counts as drifted if a writer could not tell it was meant to apply.
+
+Check 3, naming of organisations. The writer is told to use only fictional organisations, with one exception: when the AI model is named in the description, the company that provides that model may be named as well. A description that names a real company while also requiring that every organisation be fictional contradicts itself; reword it so it does not. Naming the AI model's own provider next to a named AI model is fine.
+
+When you rewrite:
+- Change only what fails a check. Keep the angle, the author, the venue, the named characters and bodies where they are sound, the tone, the structure, and every dealt choice.
+- Replace a failing detail with a plausible one of the same role, rather than deleting the idea behind it.
+- Keep roughly the original length (a description is under 300 words) and write the new version as a complete, self-contained description in the same register as the original.
+- Do not alter a dealt choice to make a detail plausible. If the only plausible repair would change one (for instance, the dealt scale cannot occur for that being and place), do not rewrite: set dealt_value_conflict to true, say in conflict_reason which dealt choice and why, and leave the rewrite empty.
+
+Answer in the JSON format requested. Write your reasoning first. Then set rewrite_needed to false (with an empty rewritten_description and an empty changes list) if no check fails; otherwise set it to true, give the complete rewritten description, and list each change with the check it belongs to and a one-line reason. Leave conflict_reason empty unless dealt_value_conflict is true.

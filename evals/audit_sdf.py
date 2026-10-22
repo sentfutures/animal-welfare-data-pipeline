@@ -40,7 +40,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from sdf_pipeline import layer1_screen
+from sdf_pipeline import layer1_description_rewrite, layer1_screen
 from shared import api, textstats, utils
 
 # ---------------------------------------------------------------- verdicts
@@ -169,25 +169,38 @@ def audit_composition(records: list[dict], report: dict) -> None:
 
 
 def audit_screen(run_dir: Path, report: dict) -> None:
-    """Layer-1 batch screen: removal count, and removal rate per variable value.
+    """Layer-1 implausibility screen: removals per round, removal rate per variable
+    value across all rounds, and the share shift left by hands dropped after the
+    last redeal round.
 
     A value removed at more than twice the corpus-wide rate is flagged, so a
-    screen that quietly removes (say) every skeptical or non-English
-    specification is visible. Runs made before the screen have no screen files
-    and are skipped."""
+    screen that quietly removes (say) every skeptical or non-English hand is
+    visible. Runs made before the screen existed (or before it moved ahead of
+    planning) have no screen_hands file and are skipped."""
     screen = layer1_screen.load_screen_outputs(run_dir)
     if screen is None:
         print("LAYER-1 SCREEN\n  (no screen files in this run — it predates the screen or had it disabled)")
         return
-    plans = utils.load_jsonl(utils.sdf_stage_file(run_dir, "plan"))
-    rows = layer1_screen.removal_rate_rows(plans, screen)
+    rows = layer1_screen.removal_rate_rows(screen)
+    rounds = layer1_screen.round_rows(screen)
+    shifts = layer1_screen.share_shift_rows(screen)
     screened = len(screen["screened_ids"])
     removed = len(screen["removed"])
+    leftover = len(screen["leftover_ids"])
     flagged = [r for r in rows if r["flagged"]]
     print("LAYER-1 SCREEN")
-    print(_fmt("specifications removed", f"{removed} of {screened} screened "
-               f"({removed / screened:.1%})" if screened else "none screened"))
+    print(_fmt("hands removed as extremely implausible", f"{removed} of {screened} screened "
+               f"({removed / screened:.1%}), counting every round" if screened else "none screened"))
+    for row in rounds:
+        print(f"      round {row['round']}: {row['removed']} of {row['hands']} hands removed"
+              + (f" ({row['note']})" if row["note"] else ""))
     print(_fmt("batches", f"{screen['batches_done']} of {screen['batches_total']} completed"))
+    if screen["accepted_ids"] is not None:
+        print(_fmt("dropped after the last redeal round", f"{leftover} hands"))
+        big_shifts = [r for r in shifts if abs(r["shift"]) >= 0.01][:5]
+        for row in big_shifts:
+            print(f"      share of {row['variable']} = {row['value'][:60]}: "
+                  f"{row['dealt_share']:.1%} dealt, {row['final_share']:.1%} kept ({row['shift']:+.1%})")
     if flagged:
         print(_fmt("values removed at >2x the corpus rate", f"{len(flagged)}", "BAD",
                    "(each needs an explanation or a prompt fix)"))
@@ -197,14 +210,43 @@ def audit_screen(run_dir: Path, report: dict) -> None:
     else:
         print(_fmt("values removed at >2x the corpus rate", "none", "GOOD"))
     report["screen"] = {
-        "screened": screened, "removed": removed,
+        "screened": screened, "removed": removed, "leftover_dropped": leftover,
         "batches_done": screen["batches_done"], "batches_total": screen["batches_total"],
         "corpus_removal_rate": round(removed / screened, 4) if screened else None,
+        "rounds": rounds,
         "removal_rate_per_value": [
             {k: (round(v, 4) if isinstance(v, float) else v) for k, v in row.items()} for row in rows
         ],
         "flagged_values": [f"{r['variable']} = {r['value']}" for r in flagged],
+        "share_shift": [
+            {k: (round(v, 4) if isinstance(v, float) else v) for k, v in row.items()} for row in shifts
+        ],
     }
+
+
+def audit_description_rewrite(run_dir: Path, report: dict) -> None:
+    """Layer-1 description rewrite: the share of descriptions rewritten, per check
+    and per variable value, and the plans dropped for a dealt-value conflict. Runs
+    made before the stage existed are skipped."""
+    outputs = layer1_description_rewrite.load_description_rewrite_outputs(run_dir)
+    if outputs is None:
+        print("LAYER-1 DESCRIPTION REWRITE\n  (no description rewrite files in this run — it predates "
+              "the stage or had it disabled)")
+        return
+    plans = utils.load_jsonl(utils.sdf_stage_file(run_dir, "plan"))
+    shares = layer1_description_rewrite.rewrite_share_rows(plans, outputs)
+    checked = shares["checked"]
+    print("LAYER-1 DESCRIPTION REWRITE")
+    print(_fmt("descriptions rewritten", f"{shares['rewritten']} of {checked} checked "
+               f"({shares['rewritten'] / checked:.1%})" if checked else "none checked"))
+    print(_fmt("declined (original kept)", f"{shares['declined']}"))
+    print(_fmt("dropped for a dealt-value conflict", f"{shares['dropped_for_conflict']}"))
+    for check, count in shares["per_check"].items():
+        print(f"      {check}: {count} descriptions changed")
+    for row in [r for r in shares["per_value"] if r["rewritten"]][:5]:
+        print(f"      {row['variable']} = {row['value'][:60]}: {row['rewritten']}/{row['checked']} rewritten "
+              f"({row['rate']:.0%})")
+    report["description_rewrite"] = {k: v for k, v in shares.items()}
 
 
 def audit_length_truncation(records: list[dict], report: dict) -> None:
@@ -601,6 +643,7 @@ def main() -> None:
     audit_composition(records, report)
     print()
     audit_screen(report_dir.parent, report)
+    audit_description_rewrite(report_dir.parent, report)
     print()
     audit_length_truncation(records, report)
     print()

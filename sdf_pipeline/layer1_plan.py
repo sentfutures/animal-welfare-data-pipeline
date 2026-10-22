@@ -9,6 +9,8 @@ the combination INCOHERENT). Only the extracted description travels
 downstream; the working notes are scaffolding.
 
 Checkpoint semantics (protects paid work):
+- The implausibility screen (layer1_screen.py) runs before this module and hands
+  it the accepted hands; removed hands are never planned.
 - prompts.jsonl is composed once per run and reloaded on --resume (the deck
   sample is seeded, but reusing the file guarantees identity even if the
   variables file later changes in the repo — the run's snapshot is authority).
@@ -26,7 +28,12 @@ from shared import api, utils
 from sdf_pipeline import compose_prompts as cp
 
 
-def run(config: dict, prompts_dir: Path, output_dir: Path) -> list[dict]:
+def run(
+    config: dict, prompts_dir: Path, output_dir: Path, hands: list[dict] | None = None
+) -> list[dict]:
+    """Plan every hand. ``hands`` are the hand records the implausibility screen
+    accepted ({"prompt_id", "variables"}); without them (screen disabled) the
+    composer deals its own hands."""
     prompts_path = output_dir / "prompts.jsonl"
     plans_path = output_dir / "plans.jsonl"
     checkpoint = utils.Checkpoint(output_dir / "_checkpoint.json")
@@ -46,6 +53,7 @@ def run(config: dict, prompts_dir: Path, output_dir: Path) -> list[dict]:
             seed=sdf.get("seed", 0),
             entity_seed=sdf.get("entity_pool_seed", 137),
             deal_rules=deal_rules,
+            hands=hands,
         ))
         for rec in prompts:
             utils.append_jsonl(rec, prompts_path)

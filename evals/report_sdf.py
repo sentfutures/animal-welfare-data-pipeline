@@ -33,7 +33,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from sdf_pipeline import layer1_screen  # noqa: E402
+from sdf_pipeline import layer1_description_rewrite, layer1_screen  # noqa: E402
 from shared import utils  # noqa: E402
 
 RUN = Path(sys.argv[1])
@@ -322,31 +322,75 @@ A(stat(f"{clean_frac:.0%}" if clean_frac is not None else "—",
        f"{compliance.get('judged', 0)} judged against {len(compliance.get('modes') or {})} failure modes"))
 A("</div></section>")
 
-# ---- layer-1 batch screen (absent on runs made before it existed)
+# ---- layer-1 implausibility screen (absent on runs made before it existed)
 screen = layer1_screen.load_screen_outputs(RUN)
 if screen is not None:
-    screen_rows = layer1_screen.removal_rate_rows(plans, screen)
+    screen_rows = layer1_screen.removal_rate_rows(screen)
+    screen_round_rows = layer1_screen.round_rows(screen)
+    shift_rows = layer1_screen.share_shift_rows(screen)
     screened_n, removed_n = len(screen["screened_ids"]), len(screen["removed"])
+    leftover_n = len(screen["leftover_ids"])
     corpus_rate = removed_n / screened_n if screened_n else 0.0
     flagged_rows = [r for r in screen_rows if r["flagged"]]
-    A("<section id='screen'><h2>Planning screen</h2>")
-    A("<p>After planning, a batch screen read the specifications ten at a time and removed those "
-      "that could not be written as a realistic document. A value removed at more than twice the "
-      "corpus-wide rate is flagged: it means the screen may be quietly thinning that part of the "
+    A("<section id='screen'><h2>Implausibility screen</h2>")
+    A("<p>Before any planning, a screen read the dealt hands ten at a time and removed those that are "
+      "extremely implausible: no realistic document could satisfy every dealt value. Removed hands were "
+      "redealt from their own cards so the dealt shares stay at the weights. A value removed at more than "
+      "twice the corpus-wide rate is flagged: it means the screen may be quietly thinning that part of the "
       "matrix.</p><div class='tiles'>")
-    A(stat(f"{removed_n}", "specifications removed by the screen",
-           f"of {screened_n} screened ({corpus_rate:.1%}) · {screen['batches_done']}/"
-           f"{screen['batches_total']} batches complete"))
+    A(stat(f"{removed_n}", "hands removed as extremely implausible",
+           f"of {screened_n} screened over {len(screen_round_rows)} round(s) ({corpus_rate:.1%}) · "
+           f"{screen['batches_done']}/{screen['batches_total']} batches complete"))
+    A(stat(f"{leftover_n}", "hands dropped after the last redeal round",
+           "shares stayed at the weights" if not leftover_n else "see the share shifts below",
+           tone="good" if not leftover_n else "warn"))
     A(stat(f"{len(flagged_rows)}", "values removed at >2x the corpus rate",
            "none to explain" if not flagged_rows else "see table",
            tone="good" if not flagged_rows else "warn"))
     A("</div>")
+    A("<h4>Rounds</h4>")
+    A(table(["round", "hands screened", "removed", "note"],
+            [[str(r["round"]), str(r["hands"]), str(r["removed"]), esc(r["note"])] for r in screen_round_rows]))
     shown = flagged_rows or [r for r in screen_rows if r["removed"]][:10]
     if shown:
         A("<h4>" + ("Flagged values" if flagged_rows else "Highest removal rates") + "</h4>")
         A(table(["variable", "value", "removed / screened", "rate"],
                 [[esc(r["variable"]), esc(r["value"][:90]), f"{r['removed']} / {r['screened']}",
                   f"{r['rate']:.0%}"] for r in shown]))
+    shifted = [r for r in shift_rows if abs(r["shift"]) >= 0.005][:10]
+    if leftover_n and shifted:
+        A("<h4>Share shift from the dropped hands</h4>")
+        A(table(["variable", "value", "dealt share", "final share", "shift"],
+                [[esc(r["variable"]), esc(r["value"][:90]), f"{r['dealt_share']:.1%}",
+                  f"{r['final_share']:.1%}", f"{r['shift']:+.1%}"] for r in shifted]))
+    A("</section>")
+
+# ---- layer-1 description rewrite (absent on runs made before it existed)
+rewrite_outputs = layer1_description_rewrite.load_description_rewrite_outputs(RUN)
+if rewrite_outputs is not None:
+    rewrite_shares = layer1_description_rewrite.rewrite_share_rows(plans, rewrite_outputs)
+    checked_n = rewrite_shares["checked"]
+    A("<section id='description-rewrite'><h2>Description rewrite</h2>")
+    A("<p>After planning, each description was checked for plausibility, for conformance to every dealt "
+      "value and for organisation naming. The check may decline, in which case the original passes "
+      "through untouched; a plausible fix that would change a dealt value drops the plan instead.</p>"
+      "<div class='tiles'>")
+    A(stat(f"{rewrite_shares['rewritten']}", "descriptions rewritten",
+           f"of {checked_n} checked ({rewrite_shares['rewritten'] / checked_n:.1%})" if checked_n else "none checked"))
+    A(stat(f"{rewrite_shares['dropped_for_conflict']}", "plans dropped for a dealt-value conflict",
+           "none" if not rewrite_shares["dropped_for_conflict"] else "see description_rewrite_rejections.jsonl",
+           tone="good" if not rewrite_shares["dropped_for_conflict"] else "warn"))
+    A("</div>")
+    if rewrite_shares["per_check"]:
+        A("<h4>Descriptions changed, per check</h4>")
+        A(table(["check", "descriptions changed"],
+                [[esc(c), str(n)] for c, n in rewrite_shares["per_check"].items()]))
+    rewritten_rows = [r for r in rewrite_shares["per_value"] if r["rewritten"]][:10]
+    if rewritten_rows:
+        A("<h4>Highest rewrite rates per variable value</h4>")
+        A(table(["variable", "value", "rewritten / checked", "rate", "dropped"],
+                [[esc(r["variable"]), esc(r["value"][:90]), f"{r['rewritten']} / {r['checked']}",
+                  f"{r['rate']:.0%}", str(r["dropped"])] for r in rewritten_rows]))
     A("</section>")
 
 # ---- 1 diversity
