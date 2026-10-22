@@ -33,7 +33,18 @@ sdf:
   # Description rewrite (layer 1, after planning): one call per description checks it for
   # plausibility, conformance to the dealt values and organisation naming, and may decline.
   description_rewrite_enabled: true
-  # description_rewrite_model: claude-sonnet-5   # falls back to plan_model, then the global `model`
+  # The rewrite runs on a GPT model, not Claude: on 2026-10-22 Claude was far too lenient on
+  # plausibility. Given GPT 6.1 Sol's own one-description plausibility prompt on 97 descriptions,
+  # Claude Sonnet 5 flagged 1 of 92 and Claude Opus 5 flagged 0 of 95, catching 0 of the 14
+  # implausible premises GPT 6.1 Sol flagged (a cleaner-wrasse tradition in Kakinada grouper
+  # cages, miniature camels as French pets, macaque whole-brain emulation as working technology).
+  # Their reasoning notices the problem, then accepts it as "not clearly impossible" or allowed
+  # "within the fictional world". Do not switch this to a Claude model for plausibility judgment
+  # without re-validating.
+  # A model name starting with `gpt-` routes to OpenAI and needs OPENAI_API_KEY in the process
+  # environment (never read from a .env file by the pipeline); any other name goes to Claude.
+  description_rewrite_model: gpt-6.1-sol
+  description_rewrite_reasoning_effort: medium   # OpenAI models only
   # Per-stage model overrides (each falls back to the global `model`).
   # The critique stages repay a stronger model most — cheap drafts, expensive critics:
   # plan_model: claude-sonnet-5

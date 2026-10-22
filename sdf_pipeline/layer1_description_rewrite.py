@@ -19,7 +19,17 @@ and the answer is validated in code. plans.jsonl is never modified; every
 result is stored in description_rewrites.jsonl and re-applied on resume.
 
 Config (``sdf`` section): ``description_rewrite_enabled`` (default true),
-``description_rewrite_model`` (falls back to ``plan_model``, then the global model).
+``description_rewrite_model`` (falls back to ``plan_model``, then the global model),
+``description_rewrite_reasoning_effort`` (OpenAI models only). A model name starting
+with ``gpt-`` routes to OpenAI (shared/openai_api.py, key from the OPENAI_API_KEY
+environment variable); anything else goes to Claude.
+
+Why GPT, not Claude (2026-10-22): Claude is far too lenient on plausibility. Given GPT 6.1
+Sol's own one-description plausibility prompt on 97 descriptions, Claude Sonnet 5 flagged
+1 of 92 and Claude Opus 5 flagged 0 of 95, catching none of the 14 implausible premises
+GPT 6.1 Sol flagged; its reasoning notices the problem, then accepts it as "not clearly
+impossible" or allowed "within the fictional world". Do not use Claude for plausibility
+judgment without re-validating (see config.yaml for the run folder).
 
 Checkpoint semantics (protects paid work): one result per plan, appended to
 description_rewrites.jsonl before the plan is checkpointed; a malformed,
@@ -36,7 +46,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from shared import api, utils
+from shared import api, openai_api, utils
 from sdf_pipeline import compose_prompts as cp
 
 STAGE_TAG = "layer1_description_rewrite"
@@ -45,7 +55,7 @@ SCHEMA_FILENAME = "layer1_description_rewrite_answer_schema.json"
 RESULTS_FILENAME = "description_rewrites.jsonl"
 REJECTIONS_FILENAME = "description_rewrite_rejections.jsonl"
 CHECKPOINT_FILENAME = "_description_rewrite_checkpoint.json"
-_MAX_TOKENS = 8000  # reasoning, a description under 300 words and one-line reasons; non-English descriptions and long reasoning overran 3000
+_MAX_TOKENS = 8000  # for OpenAI models this includes reasoning tokens; reasoning, a description under 300 words and one-line reasons; non-English descriptions and long reasoning overran 3000
 PROGRESS_INTERVAL_SECONDS = 180
 
 
@@ -141,21 +151,35 @@ def rewrite_description(
     *,
     prompts: RewritePrompts,
     model: str | None = None,
+    reasoning_effort: str | None = None,
     item_id: str | None = None,
 ) -> RewriteResult:
-    """One rewrite call for one plan. Raises RewriteAnswerError for a truncated or
+    """One rewrite call for one plan. Raises RewriteAnswerError for a truncated, refused or
     invalid answer; API errors propagate. Tags the call ``layer1_description_rewrite``."""
     system, user = build_rewrite_prompt(prompts, variable_lines, description)
-    raw, stop_reason = api.call_claude(
-        user,
-        system_prompt=system or "",
-        model=model,
-        max_tokens=_MAX_TOKENS,
-        stage=STAGE_TAG,
-        item_id=item_id,
-        return_stop_reason=True,
-        json_schema=copy.deepcopy(prompts.answer_schema),
-    )
+    if openai_api.is_openai_model(model):
+        raw, stop_reason = openai_api.call_openai(
+            user,
+            system_prompt=system or "",
+            model=model,
+            max_output_tokens=_MAX_TOKENS,
+            reasoning_effort=reasoning_effort or openai_api.DEFAULT_REASONING_EFFORT,
+            stage=STAGE_TAG,
+            item_id=item_id,
+            json_schema=copy.deepcopy(prompts.answer_schema),
+            schema_name="description_rewrite_answer",
+        )
+    else:
+        raw, stop_reason = api.call_claude(
+            user,
+            system_prompt=system or "",
+            model=model,
+            max_tokens=_MAX_TOKENS,
+            stage=STAGE_TAG,
+            item_id=item_id,
+            return_stop_reason=True,
+            json_schema=copy.deepcopy(prompts.answer_schema),
+        )
     if stop_reason != "end_turn":
         raise RewriteAnswerError(f"truncated answer (stop_reason={stop_reason})")
     return parse_rewrite_answer(raw, check_names(prompts))
@@ -217,6 +241,7 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
         return plans
 
     model = sdf.get("description_rewrite_model") or sdf.get("plan_model")
+    reasoning_effort = sdf.get("description_rewrite_reasoning_effort")
     render_variable_lines = cp.make_variable_line_renderer(
         prompts_dir, sdf.get("entity_pool_seed", cp.DEFAULT_ENTITY_SEED))
     checkpoint = utils.Checkpoint(output_dir / CHECKPOINT_FILENAME)
@@ -234,7 +259,8 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
             started = time.monotonic()
             result = rewrite_description(
                 render_variable_lines(plan), plan["description"],
-                prompts=prompts, model=model, item_id=plan["prompt_id"])
+                prompts=prompts, model=model, reasoning_effort=reasoning_effort,
+                item_id=plan["prompt_id"])
             return result, time.monotonic() - started, None
         except RewriteAnswerError as e:
             return None, 0.0, f"unusable answer ({e})"
