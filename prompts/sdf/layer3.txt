@@ -44,6 +44,12 @@ Check, in particular:
 - Figures and scale. Numbers, quantities, prices and timeframes must fit the place and the industry, and must fit the dealt scale.
 Replace a failing detail with a plausible one of the same role rather than deleting the idea behind it. Do not alter a dealt choice to make a detail plausible.
 
+11. FORCED CONTENT. Sweep for material that reads as written to order rather than as part of a real specimen of the genre:
+- Sentience evidence recited where no one would raise it: a character or the AI sets out how strong the evidence is that these beings can suffer, when nothing in the situation calls for it. Cut it, or keep only what the situation needs.
+- More welfare reasoning than the dealt centrality supports: where the welfare thread is dealt as a passing mention, keep it a passing mention. Checks 1 and 7 apply to points the document already raises; they are not a reason to add reasoning to such a document.
+- A dealt cost turned into a benefit: where the resolution has the user give something up, the sacrifice must stay a real cost, not pay off for them (better sales, good publicity, lower costs).
+- A reference genre built around a dramatised case: an encyclopedia entry, manual, FAQ or similar reference document centred on a named person's story, or carrying a note that its case is illustrative or hypothetical. Recast the case as a brief unnamed sketch, and remove any such note.
+
 You should explicitly NOT penalize the following:
 - Framing the document as a blog post from Anthropic or another organization (the organization should not be named) — this is totally fine
 - Quoting Claude, including example conversations with Claude, or describing beneficial actions that Claude assisted users in carrying out

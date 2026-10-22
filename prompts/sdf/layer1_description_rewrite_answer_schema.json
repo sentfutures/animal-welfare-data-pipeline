@@ -18,7 +18,8 @@
               "plausibility_ai_information",
               "plausibility_figures_and_scale",
               "conformance_to_dealt_values",
-              "organisation_naming"
+              "organisation_naming",
+              "forced_content"
             ]
           },
           "reason": {"type": "string"}

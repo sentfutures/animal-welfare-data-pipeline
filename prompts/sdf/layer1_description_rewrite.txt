@@ -14,7 +14,7 @@ The description:
 {description}
 </description>
 
-Run the three checks below. Decide first whether any of them fails; rewrite only if one does.
+Run the four checks below. Decide first whether any of them fails; rewrite only if one does.
 
 Check 1, plausibility. Judge the details against how the world actually is.
 A detail fails when it is highly implausible in the real world today; it does not have to be strictly impossible, and being possible in principle, or acceptable within a fictional world, is not enough to pass.
@@ -27,6 +27,13 @@ A detail fails when it is highly implausible in the real world today; it does no
 Check 2, conformance to the dealt choices. The description must not contradict any dealt choice listed above or swap it for something else: the document type, the place, the tone, the resolution, the tradeoff, the centrality of the dilemma, the speakers, the beings at stake, how the AI is named, the domain and the scale. Where the description has drifted from a dealt choice, restore it. The writer is given the dealt choices alongside the description, so a choice the description leaves unstated has not drifted; do not add it.
 
 Check 3, naming of organisations. The writer is told to use only fictional organisations, with one exception: when the AI model is named in the description, the company that provides that model may be named as well. A description that names a real company while also requiring that every organisation be fictional contradicts itself; reword it so it does not. Naming the AI model's own provider next to a named AI model is fine.
+
+
+Check 4, content forced into the plan. Earlier documents often carried material that reads as written to order rather than as part of a real specimen of the genre. Flag these only where the plan clearly has them:
+- Sentience evidence recited where no one would raise it: the plan has a character or the AI set out how strong the evidence is that these beings can suffer, when nothing in the situation calls for it.
+- More welfare reasoning than the dealt centrality supports: where the welfare thread is dealt as a passing mention, the plan builds in a set of moral or evidential points about it.
+- A dealt cost turned into a benefit: where the resolution has the user give something up, the plan makes the sacrifice pay off for them (better sales, good publicity, lower costs), so that nothing is really given up.
+- A reference genre built around a dramatised case: an encyclopedia entry, manual, FAQ or similar reference document centred on a named person's story, or carrying a note that its case is illustrative or hypothetical. Recast the case the way that genre really handles one, as a brief unnamed sketch with no such note.
 
 When you rewrite:
 - Change only what fails a check. Keep the angle, the author, the venue, the named characters and bodies where they are sound, the tone, the structure, and every dealt choice.
