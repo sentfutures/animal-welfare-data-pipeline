@@ -14,7 +14,7 @@ import pytest
 import pytest_socket
 import yaml
 
-from shared import api, utils
+from shared import api, openai_api, utils
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -321,7 +321,8 @@ class TestCostTracking:
         seen = list(model_values(config))
         assert seen, "config.yaml declares no model knobs — did the schema change?"
         for key, model in seen:
-            assert model in api._PRICING, f"config {key}={model} is not in _PRICING"
+            priced = openai_api._PRICING if openai_api.is_openai_model(model) else api._PRICING
+            assert model in priced, f"config {key}={model} is not in its pricing table"
 
     def test_unknown_model_falls_back_to_sonnet_rates_with_warning(self, recorded_api, tmp_path, fake_message, capsys):
         recorded_api["message"] = fake_message(input_tokens=1_000_000, output_tokens=0)

@@ -171,6 +171,7 @@ def _log_usage(
     cache_creation_tokens: int = 0,
     cache_read_tokens: int = 0,
     backend: str | None = None,
+    reasoning_tokens: int = 0,
 ) -> None:
     # claude_code passes Claude Code's own reported cost; the api backend leaves
     # cost_usd=None, so we price it from _PRICING with a loud fallback on unknown
@@ -211,6 +212,8 @@ def _log_usage(
         record["cache_creation_tokens"] = cache_creation_tokens
     if cache_read_tokens:
         record["cache_read_tokens"] = cache_read_tokens
+    if reasoning_tokens:  # OpenAI reasoning models; already included in output_tokens
+        record["reasoning_tokens"] = reasoning_tokens
     if stage:
         record["stage"] = stage
     if item_id:
