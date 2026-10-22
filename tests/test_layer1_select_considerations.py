@@ -15,6 +15,7 @@ import re
 
 import pytest
 
+from evals import audit_sdf
 from sdf_pipeline import compose_prompts as cp
 from sdf_pipeline import layer1_select_considerations as select
 from sdf_pipeline import layer2_draft
@@ -568,6 +569,33 @@ def test_load_considerations_outputs_reads_rows_report_and_the_runs_own_catalog(
     report = select.corpus_coverage_report(outputs, corpus)
     by_label = {e["label"]: e for e in report["entries"]}
     assert by_label["Alpha moral"]["achieved"] == 2
+
+
+def test_audit_reports_the_considerations_coverage_on_the_final_corpus(select_config, small_prompts, tmp_path, stub_claude, capsys):
+    run_dir = tmp_path / "run"
+    stage = run_dir / "layer1"
+    stage.mkdir(parents=True)
+    snapshot = run_dir / "inputs" / "prompts"
+    snapshot.mkdir(parents=True)
+    for source in small_prompts.iterdir():
+        (snapshot / source.name).write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
+    stub_claude(pick_first_offered)
+    result = select.run(select_config, snapshot, stage, make_plans(10))
+    capsys.readouterr()
+    report = {}
+    audit_sdf.audit_considerations(run_dir, [{"variables": p["variables"]} for p in result], report)
+    output = capsys.readouterr().out
+    assert "Alpha moral" in output and "target 20%" in output and "no consideration from either list" in output
+    assert report["considerations"]["final_corpus"]["eligible_documents"] == 10
+    assert report["considerations"]["layer1"]["eligible_documents"] == 10
+
+
+def test_audit_still_works_on_a_run_without_selection_files(tmp_path, capsys):
+    (tmp_path / "layer1").mkdir()
+    report = {}
+    audit_sdf.audit_considerations(tmp_path, [], report)
+    assert "no selection files" in capsys.readouterr().out
+    assert "considerations" not in report
 
 
 # --- the real files, the drafter, and the experiment-invalidating checks ---

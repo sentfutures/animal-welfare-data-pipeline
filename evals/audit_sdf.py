@@ -40,7 +40,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from sdf_pipeline import layer1_description_rewrite, layer1_screen
+from sdf_pipeline import layer1_description_rewrite, layer1_screen, layer1_select_considerations
 from shared import api, textstats, utils
 
 # ---------------------------------------------------------------- verdicts
@@ -247,6 +247,38 @@ def audit_description_rewrite(run_dir: Path, report: dict) -> None:
         print(f"      {row['variable']} = {row['value'][:60]}: {row['rewritten']}/{row['checked']} rewritten "
               f"({row['rate']:.0%})")
     report["description_rewrite"] = {k: v for k, v in shares.items()}
+
+
+def audit_considerations(run_dir: Path, records: list[dict], report: dict) -> None:
+    """Layer-1 considerations selector, measured on the final corpus: per entry, its
+    target share and the share achieved among the documents eligible for it, the
+    share of documents with no consideration, and how many carry two or more from
+    one list. Drafting failures and the score gate shift these after selection.
+    Runs made before the selector have no selection files and are skipped."""
+    outputs = layer1_select_considerations.load_considerations_outputs(run_dir)
+    if outputs is None:
+        print("CONSIDERATIONS\n  (no selection files in this run — it predates the selector or had it disabled)")
+        return
+    coverage = layer1_select_considerations.corpus_coverage_report(outputs, records)
+    total = coverage["eligible_documents"]
+    print("CONSIDERATIONS")
+    print(_fmt("documents measured", f"{total} ({coverage['digital_mind_documents']} on digital minds)"))
+    for entry in coverage["entries"]:
+        achieved = entry["achieved_share"]
+        print(_fmt(f"[{entry['list']}] {entry['label'][:44]}",
+                   f"{entry['achieved']}/{entry['eligible_documents']}"
+                   + (f" ({achieved:.1%})" if achieved is not None else ""),
+                   note=f"target {entry['target_share']:.0%}"))
+    if total:
+        print(_fmt("no consideration from either list",
+                   f"{coverage['documents_with_no_consideration']} ({coverage['share_with_no_consideration']:.1%})"))
+        print(_fmt("one list only", f"{coverage['documents_with_only_one_list']} ({coverage['share_with_only_one_list']:.1%})"))
+        print(_fmt("both lists", f"{coverage['documents_with_both_lists']} ({coverage['share_with_both_lists']:.1%})"))
+        print(_fmt("two or more from one list", str(coverage["documents_with_two_or_more_in_one_list"])))
+    if outputs["report"] is not None:
+        rejected = sum(e["rejected_over_cap"] for e in outputs["report"]["entries"])
+        print(_fmt("picks rejected over cap (layer 1)", str(rejected)))
+    report["considerations"] = {"final_corpus": coverage, "layer1": outputs["report"]}
 
 
 def audit_length_truncation(records: list[dict], report: dict) -> None:
@@ -644,6 +676,8 @@ def main() -> None:
     print()
     audit_screen(report_dir.parent, report)
     audit_description_rewrite(report_dir.parent, report)
+    print()
+    audit_considerations(report_dir.parent, records, report)
     print()
     audit_length_truncation(records, report)
     print()

@@ -33,7 +33,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from sdf_pipeline import layer1_description_rewrite, layer1_screen  # noqa: E402
+from sdf_pipeline import layer1_description_rewrite, layer1_screen, layer1_select_considerations  # noqa: E402
 from shared import utils  # noqa: E402
 
 RUN = Path(sys.argv[1])
@@ -391,6 +391,29 @@ if rewrite_outputs is not None:
         A(table(["variable", "value", "rewritten / checked", "rate", "dropped"],
                 [[esc(r["variable"]), esc(r["value"][:90]), f"{r['rewritten']} / {r['checked']}",
                   f"{r['rate']:.0%}", str(r["dropped"])] for r in rewritten_rows]))
+    A("</section>")
+
+# ---- layer-1 considerations selector (absent on runs made before it existed)
+considerations_outputs = layer1_select_considerations.load_considerations_outputs(RUN)
+if considerations_outputs is not None:
+    coverage = layer1_select_considerations.corpus_coverage_report(considerations_outputs, corpus)
+    coverage_total = coverage["eligible_documents"]
+    A("<section id='considerations'><h2>Considerations</h2>")
+    A("<p>After the description rewrite, a selector read each surviving scenario and picked, from an ordered moral list and "
+      "an ordered epistemic list, the first consideration that fits it naturally, or none. A consideration "
+      "that reached its target share was removed from the lists for the rest of the run. The shares below "
+      "are measured on the final corpus, after drafting failures and the score gate.</p><div class='tiles'>")
+    A(stat(f"{coverage['share_with_no_consideration']:.0%}" if coverage_total else "—",
+           "documents with no consideration",
+           f"{coverage['share_with_only_one_list']:.0%} one list only · "
+           f"{coverage['share_with_both_lists']:.0%} both lists" if coverage_total else ""))
+    A(stat(f"{coverage['documents_with_two_or_more_in_one_list']}", "documents with two or more from one list",
+           "from later passes over the entries still under target"))
+    A("</div>")
+    A(table(["list", "consideration", "achieved / eligible", "achieved share", "target share"],
+            [[esc(e["list"]), esc(e["label"]), f"{e['achieved']} / {e['eligible_documents']}",
+              f"{e['achieved_share']:.1%}" if e["achieved_share"] is not None else "—",
+              f"{e['target_share']:.0%}"] for e in coverage["entries"]]))
     A("</section>")
 
 # ---- 1 diversity
