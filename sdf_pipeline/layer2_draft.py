@@ -13,7 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from shared import api, constitution_loader, utils
+from shared import api, constitution_loader, deal_constraints, utils
 from sdf_pipeline import compose_prompts as cp
 
 DOC_TAG_RE = re.compile(r"<document>(.*?)</document>", re.DOTALL)
@@ -33,6 +33,12 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
     )
     preamble = (prompts_dir / "preamble.txt").read_text(encoding="utf-8").strip()
 
+    # A document with no considerations leaves no trace in its prompt: the template
+    # line that carries {considerations_spec} is dropped when the block is empty.
+    template_text = utils.sdf_template_path(prompts_dir, 2).read_text(encoding="utf-8")
+    template_without_considerations = deal_constraints.drop_template_lines(
+        template_text, ["considerations_spec"])
+
     planned = [p for p in plans if p.get("description")]
     existing = {r["doc_id"]: r for r in utils.load_jsonl(output_path)}
     results = [existing[p["prompt_id"]] for p in planned if p["prompt_id"] in existing]
@@ -42,15 +48,20 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
     ]
 
     def draft_one(plan: dict):
-        system, user = cp.split_sections(utils.load_prompt(
-            utils.sdf_template_path(prompts_dir, 2),
+        considerations_spec = plan.get("considerations_spec", "")
+        system, user = cp.split_sections((
+            template_text if considerations_spec else template_without_considerations
+        ).format(
             preamble=preamble,
             constitution_claude=constitution_claude,
             constitution_principles=principles,
             document_description=plan["description"],
+            considerations_spec=considerations_spec,
             # Downstream-only matrix axis (sampled in layer 1, recorded in
             # variables). Default to the neutral value for plans composed
             # before this axis existed, so --resume on an old run never crashes.
+            # Runs whose prompt snapshot still renders it (it is no longer dealt)
+            # keep working on the same fallback.
             reasoning_featured=plan.get("variables", {}).get(
                 "reasoning_featured", "any relevant principles from the constitution"
             ),
@@ -93,6 +104,7 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
             "doc_id": pid,
             "variables": plan["variables"],
             "description": plan["description"],
+            "considerations_spec": plan.get("considerations_spec", ""),
             "content": content,
         }
         results.append(record)

@@ -2,9 +2,9 @@
 """SDF matrix pipeline orchestrator: plan, draft, rewrite, score.
 
 Layer 1 deals and repairs the hands (offline), screens them for extreme
-implausibility with redeal rounds, plans one document per accepted hand, and
-rewrites each description for plausibility and conformance. Layers 2-4 draft,
-rewrite, and score/gate.
+implausibility with redeal rounds, plans one document per accepted hand, rewrites
+each description for plausibility and conformance, and selects considerations for
+each surviving specification. Layers 2-4 draft, rewrite, and score/gate.
 
 The layers were renumbered from the old 1-2/3/4/5 scheme (in which composition
 and planning were counted as two layers) to today's 1/2/3/4. --layer takes the
@@ -25,6 +25,7 @@ from sdf_pipeline import (
     layer1_description_rewrite,
     layer1_plan,
     layer1_screen,
+    layer1_select_considerations,
     layer2_draft,
     layer3_rewrite,
     layer4_score,
@@ -100,12 +101,16 @@ def main() -> None:
         plans = layer1_plan.run(config, prompts_dir, plan_dir, hands)
         print("[Layer 1] Rewrite descriptions for plausibility and conformance")
         plans = layer1_description_rewrite.run(config, prompts_dir, plan_dir, plans)
+        print("[Layer 1] Select considerations for each surviving specification")
+        plans = layer1_select_considerations.run(config, prompts_dir, plan_dir, plans)
         print(f"  Running cost: ${api.get_total_cost():.4f}\n")
 
     if start_layer <= 2:
         if plans is None:
             plans = layer1_description_rewrite.load_rewritten_plans(
                 config, plan_dir, utils.load_jsonl(plan_dir / "plans.jsonl"))
+            plans = layer1_select_considerations.attach_selections(
+                config, prompts_dir, plan_dir, plans)
         print("[Layer 2] Draft documents")
         drafts = layer2_draft.run(config, prompts_dir, layer_dirs[2], plans)
         print(f"  Running cost: ${api.get_total_cost():.4f}\n")

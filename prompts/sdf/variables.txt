@@ -169,12 +169,3 @@
     0.35 :: [millions_or_billions] millions or billions of animals
     0.05 :: [astronomical] an astronomical number of animals
 
-{reasoning_featured} # one moral desideratum featured
-    0.20 :: [constitution_principles] any relevant principles from the constitution
-    0.10 :: [individualism] individualism: the notion that welfare is a property of individuals, not systems
-    0.10 :: [substrate_neutrality] substrate neutrality: welfare and suffering matter regardless of the nature of the being containing them
-    0.10 :: [scope_sensitivity] scope sensitivity: the scale of suffering matters, and large scales are not discounted just because humans don't easily grasp them
-    0.10 :: [natural_not_ok] the fact that "natural" does not mean "OK"; suffering having precedent in nature or tradition does not negate it
-    0.10 :: [precautionary_principle] the precautionary principle applied to sentience: uncertainty about sentience should trigger caution, not dismissal
-    0.10 :: [open_moral_circle] a deliberately open moral circle: an aligned AI treats the question of who matters as an evolving question
-    0.20 :: [aligned_character_continuity] the continuity between welfare concern and the rest of the AI's aligned character — honesty, non-manipulation, staying genuinely helpful, respecting the human's final decision — shown as facets of one coherent character rather than a standalone trait

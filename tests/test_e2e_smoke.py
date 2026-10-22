@@ -59,6 +59,8 @@ def _sdf_dispatch(user_message, **kw):
         return _screen_answer(user_message, remove=())
     if kw["stage"] == "layer1_description_rewrite":  # layer 1 description rewrite: declines
         return _rewrite_answer()
+    if kw["stage"] == "layer1_select":  # layer 1 considerations selector: picks nothing
+        return json.dumps({"moral": {"label": "none"}, "epistemic": {"label": "none"}})
     if kw["max_tokens"] == 6000:  # layer 3: drafting from the spec
         return f"<document>Drafted body for {kw['item_id']}.</document>"
     if kw["max_tokens"] == 8000:  # layer 4: review + rewrite
@@ -94,14 +96,19 @@ def test_sdf_pipeline_end_to_end_offline(tiny_config_file, outputs_root, stub_cl
         assert r["content"] == f"Rewritten document for {r['doc_id']}."
         assert r["variables"]  # matrix lineage travels to the corpus
         assert r["scores"]["spec_conformance"] == 9
-    # 1 screen batch + 2 plans + 2 description rewrites + 2 drafts + 2 rewrites + 2 scores
-    assert len(calls) == 11
-    assert [c["stage"] for c in calls].count("layer1_screen") == 1
-    # order: screen before any plan, plans before description rewrites, rewrites before drafting
+    # 1 screen batch + 2 plans + 2 description rewrites + 2 selector calls (one pass, nothing picked)
+    # + 2 drafts + 2 rewrites + 2 scores
+    assert len(calls) == 13
     stages = [c["stage"] for c in calls]
+    assert stages.count("layer1_screen") == 1
+    assert stages.count("layer1_select") == 2
+    # order: screen before any plan, plans before description rewrites, description rewrites before the selector
     assert stages[0] == "layer1_screen"
     assert stages.index("layer1_description_rewrite") > max(
         i for i, stage in enumerate(stages) if stage == "layer1_plan")
+    assert stages.index("layer1_select") > max(
+        i for i, stage in enumerate(stages) if stage == "layer1_description_rewrite")
+    assert all(r["considerations_spec"] == "" for r in corpus)
 
 
 def test_sdf_screen_removal_is_dropped_before_drafting(
@@ -123,8 +130,11 @@ def test_sdf_screen_removal_is_dropped_before_drafting(
     ]
     assert rejections[0]["round"] == 0
     # 1 screen (the lone removed hand cannot be redealt into a different hand, so it is dropped)
-    # + 1 plan + 1 description rewrite + 1 draft + 1 rewrite + 1 score
-    assert len(calls) == 6
+    # + 1 plan + 1 description rewrite + 1 selector call + 1 draft + 1 rewrite + 1 score
+    assert len(calls) == 7
+    # the removed hand never reached planning, so it never reached the selector
+    removed_id = rejections[0]["prompt_id"]
+    assert not any(c["item_id"].startswith(removed_id) for c in calls if c["stage"] == "layer1_select")
 
 
 def test_sdf_rewritten_description_and_dealt_value_conflict_reach_layer_2(

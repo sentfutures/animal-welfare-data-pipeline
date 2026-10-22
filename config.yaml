@@ -45,6 +45,15 @@ sdf:
   # environment (never read from a .env file by the pipeline); any other name goes to Claude.
   description_rewrite_model: gpt-6.1-sol
   description_rewrite_reasoning_effort: medium   # OpenAI models only
+  # Considerations selector (layer 1, after the screen, before drafting): for each surviving
+  # specification picks the first fitting consideration from an ordered moral list and an ordered
+  # epistemic list (prompts/sdf/considerations.txt), or "none"; a run-level tracker removes a
+  # consideration once its target share is met. Picks go to layer1/consideration_selections.jsonl
+  # and the coverage report to layer1/consideration_coverage.json.
+  select_enabled: true           # false = no selector calls, drafts carry no considerations
+  # select_model: claude-sonnet-5   # falls back to plan_model, then the global `model`
+  max_selection_passes: 3        # pass 1 covers every document; later passes re-offer entries still under target
+  select_skip_no_stake: true     # documents dealt the no-welfare-stake resolution get no considerations
   # Per-stage model overrides (each falls back to the global `model`).
   # The critique stages repay a stronger model most — cheap drafts, expensive critics:
   # plan_model: claude-sonnet-5

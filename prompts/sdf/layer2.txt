@@ -45,6 +45,6 @@ Here is the spec for the document you will generate:
 
 </document_description>
 
-The animal or welfare related section of the document might feature {reasoning_featured}. Hold this lightly — let it surface naturally through the scenario and the characters' reasoning where it genuinely fits, and set it aside where it does not; never spell it out as a moral or argue it as a thesis.
+The scenario raises the considerations listed at the end of this paragraph. Hold them lightly — let each surface naturally through the scenario and the characters' reasoning where it genuinely fits, and set it aside where it does not; never spell one out as a moral or argue it as a thesis, and never reuse the wording of its label in the document. Each consideration is given as its label, a short description of it in parentheses, and then where in this scenario it arises: {considerations_spec}
 
 Output a fragment of the described document, wrapped in <document>...</document> tags. Only text inside <document> tags is kept, so put nothing but the document itself inside them — and do not add any commentary, headers of your own, or explanations outside them. If you need space to think, put it before the tags.

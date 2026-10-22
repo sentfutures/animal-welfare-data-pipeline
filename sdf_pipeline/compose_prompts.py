@@ -28,8 +28,8 @@ Inputs
 ``{preamble}`` is reserved: it is injected from ``--preamble`` (default
 ``prompts/sdf/matrix/preamble.txt``), never defined in variables.txt. Every other
 placeholder in the template is a matrix axis. variables.txt may also define
-axes the plan template does not render (e.g. ``reasoning_featured``, consumed
-by layer3.txt): these are still deck-sampled and recorded in each record's
+axes the plan template does not render (a downstream-only axis, consumed by a
+later stage's template): these are still deck-sampled and recorded in each record's
 ``variables`` so a downstream stage can render them.
 
 Usage
@@ -428,7 +428,7 @@ def compose_records(
     # renders come first (template order); any remaining axis defined in
     # variables.txt is a downstream-only axis — still deck-sampled and recorded
     # in each record's `variables`, but consumed by a later stage's template
-    # (e.g. reasoning_featured -> layer3.txt) rather than the plan prompt, which
+    # (a later stage's template) rather than the plan prompt, which
     # ignores it (str.format drops unreferenced kwargs). A variable that no
     # stage consumes is caught by the template/variables contract test, not here.
     axes = hand_axes(template, values)

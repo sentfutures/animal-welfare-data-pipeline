@@ -153,11 +153,11 @@ def test_real_templates_render_with_canonical_loader():
         constitution_claude="CC",
         constitution_principles="CP",
         document_description="DESC",
-        reasoning_featured="RF-AXIS",
+        considerations_spec="SPEC-BLOCK",
     ))
     assert "CC" in l3_system and "CP" in l3_system  # constitution lives in system
     assert "<document_description>" in l3_user and "DESC" in l3_user
-    assert "RF-AXIS" in l3_user  # downstream-only axis rendered in the draft prompt
+    assert "SPEC-BLOCK" in l3_user  # the considerations spec rendered in the draft prompt
     assert "{" not in l3_user
 
     # layer 4 is a two-part file: everything static (constitution, principles,
@@ -283,11 +283,12 @@ def test_real_template_axes_match_real_variables():
         assert values[axis], axis
     # Every plan placeholder must have values.
     assert set(plan_axes) <= set(values)
-    # reasoning_featured is fed to BOTH stages: the planner (to build a fitting
-    # scenario) and the drafter (to surface it directly, uncompressed).
-    assert "reasoning_featured" in values
-    assert "reasoning_featured" in plan_axes
-    assert "reasoning_featured" in draft_placeholders
+    # reasoning_featured is no longer dealt: the selector (layer1_select_considerations)
+    # picks considerations after the plan, and only the drafter receives the result.
+    assert "reasoning_featured" not in values
+    assert "reasoning_featured" not in plan_axes
+    assert "reasoning_featured" not in draft_placeholders
+    assert "considerations_spec" in draft_placeholders
     # No orphan axes: everything defined is rendered by the plan or draft stage.
     consumed = set(plan_axes) | set(draft_placeholders)
     assert set(values) <= consumed, set(values) - consumed

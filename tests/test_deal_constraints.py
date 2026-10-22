@@ -390,8 +390,7 @@ def test_rendering_rule_drops_exactly_the_tradeoff_and_scale_lines_and_keeps_var
         assert "The animal welfare stakes are on the scale of" not in record["prompt"]
         # every other planning line is still present
         for kept_line in ("Type: the document is", "Culture / locale:", "The animal welfare dilemma is",
-                          "The AI assistant character", "The animal welfare issues discussed arise from",
-                          "Regarding moral or constitutional questions"):
+                          "The AI assistant character", "The animal welfare issues discussed arise from"):
             assert kept_line in record["prompt"]
         assert "\n\n\n" not in record["prompt"]
     for record in other_records:

@@ -144,6 +144,7 @@ def run(
             "register": v.get("tone", ""),
             "variables": v,
             "description": rw["description"],
+            "considerations_spec": rw.get("considerations_spec", ""),
             "content": rw["content"],
             "scores": r["scores"],
         })
