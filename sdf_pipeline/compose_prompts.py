@@ -16,6 +16,11 @@ Inputs
           plain value
           0.25 :: weighted value
 
+  Every SDF value must carry a stable ID, ``[id] text`` after the weight (the
+  prefix is stripped before rendering; ``load_variables`` enforces it), which
+  the deal constraints (``deal_constraints.txt``, see shared/deal_constraints.py)
+  use to refer to values.
+
   Full-line ``#`` comments and blank lines are ignored anywhere. Weights are
   all-or-nothing within a variable and must sum to 1.0; an unweighted
   variable is uniform.
@@ -268,14 +273,29 @@ def derive_language(culture: str) -> str:
     return m.group(1).strip() if m else "English"
 
 
+def load_variables(
+    path: Path, require_ids: bool = True
+) -> tuple[dict[str, list[str]], dict[str, list[float]], dict[str, dict[str, str]]]:
+    """(values, weights, value_ids) from an SDF variables file.
+
+    Every value must carry a stable ``[id] `` prefix (``require_ids``), because the
+    deal constraints refer to values by ID; a value without one fails here, naming
+    the variable and the value. ``value_ids`` is {variable: {id: value_text}}."""
+    parsed, ids = _matrix.parse_variables_with_ids(path, reserved=RESERVED)
+    value_ids = _matrix.value_ids_by_variable(parsed, ids, require_ids, path.name)
+    values, weights = split_weights(parsed)
+    return values, weights, value_ids
+
+
 def load_deal_rules(
-    path: Path | None, values: dict[str, list[str]]
+    path: Path | None, value_ids: dict[str, dict[str, str]]
 ) -> list[deal_constraints.DealRule]:
-    """Rules from a deal_constraints.txt file, or none when the file is absent
-    (the composer then deals exactly as it did before the rules existed)."""
+    """Rules from a deal_constraints.txt file. When the file is absent the composer
+    deals exactly as it did before the rules existed, and says so."""
     if path is None or not path.is_file():
+        print(f"  NOTICE: no deal constraints loaded from {path} — dealing without rules")
         return []
-    return deal_constraints.load_deal_constraints(path, values)
+    return deal_constraints.load_deal_constraints(path, value_ids)
 
 
 def compose_records(
@@ -439,11 +459,14 @@ def main() -> None:
     args = parser.parse_args()
 
     template = args.template.read_text(encoding="utf-8")
-    values, weights = split_weights(parse_variables(args.variables))
+    try:
+        values, weights, value_ids = load_variables(args.variables)
+    except ValueError as exc:
+        raise SystemExit(str(exc))
 
     try:
         deal_rules = load_deal_rules(
-            args.deal_constraints or args.variables.parent / DEAL_CONSTRAINTS_FILENAME, values
+            args.deal_constraints or args.variables.parent / DEAL_CONSTRAINTS_FILENAME, value_ids
         )
     except ValueError as exc:
         raise SystemExit(str(exc))

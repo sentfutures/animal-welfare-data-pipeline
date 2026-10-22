@@ -37,9 +37,9 @@ def run(config: dict, prompts_dir: Path, output_dir: Path) -> list[dict]:
         print(f"  Reusing {len(prompts)} composed prompts from this run")
     else:
         template = utils.sdf_template_path(prompts_dir, 1).read_text(encoding="utf-8")
-        values, weights = cp.split_weights(cp.parse_variables(prompts_dir / "variables.txt"))
+        values, weights, value_ids = cp.load_variables(prompts_dir / "variables.txt")
         preamble = (prompts_dir / "preamble.txt").read_text(encoding="utf-8")
-        deal_rules = cp.load_deal_rules(prompts_dir / cp.DEAL_CONSTRAINTS_FILENAME, values)
+        deal_rules = cp.load_deal_rules(prompts_dir / cp.DEAL_CONSTRAINTS_FILENAME, value_ids)
         prompts = list(cp.compose_records(
             template, values, weights, preamble,
             n_prompts=sdf["n_prompts"],

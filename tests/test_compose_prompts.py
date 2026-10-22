@@ -2,6 +2,7 @@
 
 import json
 import random
+import re
 import sys
 from collections import Counter
 from pathlib import Path
@@ -10,6 +11,7 @@ import pytest
 
 from sdf_pipeline import compose_prompts as cp
 from shared import entity_pools, utils
+from shared import matrix as _matrix
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -349,11 +351,11 @@ def test_cli_deck_sample_writes_jsonl(tmp_path, monkeypatch, capsys):
     template = write(tmp_path / "template.txt", "{preamble}\n\nType: {doc}\nTone: {tone}\n")
     variables = write(tmp_path / "variables.txt", (
         "{doc}\n"
-        "    0.75 :: article\n"
-        "    0.25 :: memo\n"
+        "    0.75 :: [article] article\n"
+        "    0.25 :: [memo] memo\n"
         "{tone}\n"
-        "    neutral\n"
-        "    skeptical\n"
+        "    [neutral] neutral\n"
+        "    [skeptical] skeptical\n"
     ))
     preamble = write(tmp_path / "preamble.txt", "PREAMBLE TEXT\n")
     out = tmp_path / "prompts.jsonl"
@@ -380,8 +382,8 @@ def test_cli_injects_locale_matched_names(tmp_path, monkeypatch, capsys):
     ))
     variables = write(tmp_path / "variables.txt", (
         "{culture}\n"
-        "    Japan, written in Japanese, with Japanese idioms and references\n"
-        "    Kenya, written in English, with Kenyan idioms and references\n"
+        "    [japan] Japan, written in Japanese, with Japanese idioms and references\n"
+        "    [kenya] Kenya, written in English, with Kenyan idioms and references\n"
     ))
     out = tmp_path / "prompts.jsonl"
     monkeypatch.setattr(sys, "argv", [
@@ -405,7 +407,7 @@ def test_cli_injects_locale_matched_names(tmp_path, monkeypatch, capsys):
 
 def test_cli_full_matrix_without_n(tmp_path, monkeypatch, capsys):
     template = write(tmp_path / "template.txt", "A: {a} B: {b}\n")
-    variables = write(tmp_path / "variables.txt", "{a}\n    1\n    2\n{b}\n    x\n    y\n    z\n")
+    variables = write(tmp_path / "variables.txt", "{a}\n    [one] 1\n    [two] 2\n{b}\n    [x] x\n    [y] y\n    [z] z\n")
     out = tmp_path / "all.jsonl"
     monkeypatch.setattr(sys, "argv", [
         "compose_prompts.py", "--template", str(template), "--variables", str(variables),
@@ -419,9 +421,93 @@ def test_cli_full_matrix_without_n(tmp_path, monkeypatch, capsys):
 
 def test_cli_errors_on_missing_values(tmp_path, monkeypatch):
     template = write(tmp_path / "template.txt", "{a} {ghost}\n")
-    variables = write(tmp_path / "variables.txt", "{a}\n    1\n")
+    variables = write(tmp_path / "variables.txt", "{a}\n    [one] 1\n")
     monkeypatch.setattr(sys, "argv", [
         "compose_prompts.py", "--template", str(template), "--variables", str(variables),
     ])
     with pytest.raises(SystemExit, match="ghost"):
         cp.main()
+
+
+# --- stable value IDs ---
+
+ID_VARIABLES_TEXT = (
+    "{tone}  # description\n"
+    "    0.5 :: [supportive] supportive, like an advocate\n"
+    "    0.5 :: [neutral] neutral\n"
+    "{culture}\n"
+    "    [france] France\n"
+    "    [japan] Japan\n"
+)
+
+
+def test_id_prefix_is_stripped_from_value_text_and_exposed_separately(tmp_path):
+    path = write(tmp_path / "variables.txt", ID_VARIABLES_TEXT)
+    parsed = cp.parse_variables(path)
+    assert parsed["tone"] == [("supportive, like an advocate", 0.5), ("neutral", 0.5)]
+    assert parsed["culture"] == [("France", None), ("Japan", None)]
+    parsed_again, ids = _matrix.parse_variables_with_ids(path)
+    assert parsed_again == parsed and ids == {"tone": ["supportive", "neutral"], "culture": ["france", "japan"]}
+    assert _matrix.value_ids_by_variable(parsed, ids)["tone"] == {
+        "supportive": "supportive, like an advocate", "neutral": "neutral"}
+
+
+def test_stripping_ids_leaves_value_text_identical_to_the_same_file_without_them(tmp_path):
+    with_ids = write(tmp_path / "with_ids.txt", ID_VARIABLES_TEXT)
+    without_ids = write(tmp_path / "without_ids.txt", (
+        "{tone}  # description\n    0.5 :: supportive, like an advocate\n    0.5 :: neutral\n"
+        "{culture}\n    France\n    Japan\n"))
+    assert cp.parse_variables(with_ids) == cp.parse_variables(without_ids)
+
+
+def test_files_without_ids_parse_as_before_and_report_no_ids(tmp_path):
+    path = write(tmp_path / "variables.txt", "{a}\n    0.5 :: x\n    0.5 :: y\n")
+    parsed, ids = _matrix.parse_variables_with_ids(path)
+    assert parsed == {"a": [("x", 0.5), ("y", 0.5)]} and ids == {"a": [None, None]}
+    assert _matrix.value_ids_by_variable(parsed, ids) == {"a": {}}
+
+
+@pytest.mark.parametrize("bad_value", ["[Bad_Id] text", "[1bad] text", "[no_space]text", "[unclosed text", "[] text", "[id]"])
+def test_malformed_id_prefix_fails_naming_variable_and_line(tmp_path, bad_value):
+    path = write(tmp_path / "variables.txt", f"{{tone}}\n    [ok] fine\n    {bad_value}\n")
+    with pytest.raises(ValueError, match=r"variables\.txt:3: \{tone\}.*'\['"):
+        _matrix.parse_variables_with_ids(path)
+
+
+def test_duplicate_id_within_a_variable_fails_but_the_same_id_in_two_variables_is_fine(tmp_path):
+    path = write(tmp_path / "variables.txt", "{a}\n    [x] one\n    [x] two\n")
+    with pytest.raises(ValueError, match=r"duplicate ID \[x\] in \{a\}"):
+        _matrix.parse_variables_with_ids(path)
+    ok = write(tmp_path / "ok.txt", "{a}\n    [x] one\n{b}\n    [x] two\n")
+    assert _matrix.parse_variables_with_ids(ok)[1] == {"a": ["x"], "b": ["x"]}
+
+
+def test_sdf_loader_requires_every_value_to_carry_an_id(tmp_path):
+    path = write(tmp_path / "variables.txt", "{a}\n    [one] 1\n    two without an id\n")
+    with pytest.raises(ValueError, match=r"\{a\} value has no \[id\] prefix: 'two without an id'"):
+        cp.load_variables(path)
+    values, weights, value_ids = cp.load_variables(write(tmp_path / "ok.txt", "{a}\n    [one] 1\n    [two] 2\n"))
+    assert value_ids == {"a": {"one": "1", "two": "2"}} and values == {"a": ["1", "2"]}
+    # the DAD-style opt-out parses the same file
+    assert cp.load_variables(path, require_ids=False)[2] == {"a": {"one": "1"}}
+
+
+def test_sdf_cli_rejects_a_values_file_without_ids(tmp_path, monkeypatch):
+    template = write(tmp_path / "template.txt", "{a}\n")
+    variables = write(tmp_path / "variables.txt", "{a}\n    1\n")
+    monkeypatch.setattr(sys, "argv", [
+        "compose_prompts.py", "--template", str(template), "--variables", str(variables)])
+    with pytest.raises(SystemExit, match="no \\[id\\] prefix"):
+        cp.main()
+
+
+def test_real_variables_file_has_an_id_on_every_value_and_ids_are_snake_case():
+    values, weights, value_ids = cp.load_variables(REPO_ROOT / "prompts" / "sdf" / "variables.txt")
+    for variable, by_id in value_ids.items():
+        assert len(by_id) == len(values[variable])
+        assert all(re.fullmatch(r"[a-z][a-z0-9_]*", value_id) for value_id in by_id)
+
+
+def test_dad_variables_still_parse_without_ids():
+    parsed, ids = _matrix.parse_variables_with_ids(REPO_ROOT / "prompts" / "dad" / "variables.txt")
+    assert parsed and all(value_id is None for per_variable in ids.values() for value_id in per_variable)

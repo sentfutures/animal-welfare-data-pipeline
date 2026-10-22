@@ -25,10 +25,14 @@ DECK_SIZES = (20, 100, 300)  # x 50 seeds; one larger size is covered below with
 
 
 def load_real_matrix(variables_path=PROMPTS_SDF / "variables.txt"):
-    values, weights = matrix.split_weights(cp.parse_variables(variables_path))
+    values, weights, _ = cp.load_variables(variables_path)
     axes = cp.matrix_axes((PROMPTS_SDF / "layer1.txt").read_text(encoding="utf-8"))
     axes = axes + [name for name in values if name not in axes]
     return values, weights, axes
+
+
+def load_value_ids(variables_path=PROMPTS_SDF / "variables.txt"):
+    return cp.load_variables(variables_path)[2]
 
 
 def write_variables_with_no_stake_turned_up(tmp_path, no_stake_weight=0.05):
@@ -73,8 +77,7 @@ def real_matrix():
 
 @pytest.fixture(scope="module")
 def real_rules(real_matrix):
-    values, _, _ = real_matrix
-    return dc.load_deal_constraints(REAL_RULES_PATH, values)
+    return dc.load_deal_constraints(REAL_RULES_PATH, load_value_ids())
 
 
 # --- loading and validation ---
@@ -89,74 +92,94 @@ def test_real_rules_file_loads_both_kinds_of_rule(real_rules):
 
 def test_human_connectome_rule_excludes_the_eight_animal_industry_domains(real_rules):
     rule = next(r for r in real_rules if r.name == "simulated_human_connectomes_exclude_animal_industry_domains")
-    excluded = ("agriculture and food production", "fisheries and aquaculture", "food service and retail",
-                "pest control", "breeding and the pet trade", "veterinary practice",
-                "technology applied to animals", "conservation, land management")
-    allowed = ("research and testing", "policy and regulation", "entertainment and sport",
-               "transport and logistics")
-    assert not rule.target_must_match and len(rule.target_values) == 8
-    for substring in excluded:
-        assert sum(substring in value for value in rule.target_values) == 1
-    for substring in allowed:
-        assert not any(substring in value for value in rule.target_values)
+    excluded = ("agriculture_food_production", "fisheries_aquaculture", "food_service_retail",
+                "pest_control", "breeding_pet_trade", "veterinary_practice",
+                "technology_applied_to_animals", "conservation_land_management")
+    allowed = ("research_testing", "policy_regulation", "entertainment_sport", "transport_logistics")
+    ids = load_value_ids()["domain"]
+    assert set(rule.target_values) == {ids[i] for i in excluded}
+    assert not set(rule.target_values) & {ids[i] for i in allowed}
     assert not any(r.name.startswith("language_models") for r in real_rules)
-
-
-def test_unmatched_substring_raises_naming_rule(real_matrix):
-    values, _, _ = real_matrix
-    text = "[broken_rule]\nwhen resolution is one of:\n    no such value anywhere\nrequire centrality is one of:\n    a minor detail\n"
-    with pytest.raises(ValueError, match=r"broken_rule.*no such value anywhere.*matches 0"):
-        dc.parse_deal_constraints(text, values)
-
-
-def test_exact_value_match_wins_over_substring_but_ambiguous_substrings_still_raise():
-    values = {"scope": ["the main subject", "not the main subject, but a side topic"], "mood": ["x", "y"]}
-    text = "[r]\nwhen mood is one of:\n    x\nrequire scope is not one of:\n    {}\n"
-    # the whole first value is also a substring of the second: exact match picks only the first
-    rule = dc.parse_deal_constraints(text.format("the main subject"), values)[0]
-    assert rule.target_values == ("the main subject",)
-    # a non-exact pattern matching both values is still ambiguous
-    with pytest.raises(ValueError, match=r"exactly one.*matches 2"):
-        dc.parse_deal_constraints(text.format("main subject"), values)
 
 
 def test_no_stake_rule_excludes_both_welfare_central_values(real_rules):
     rule = next(r for r in real_rules if r.name == "no_stake_excludes_welfare_centrality")
-    assert not rule.target_must_match and len(rule.target_values) == 2
-    assert "the central subject of the document" in rule.target_values
-    assert not any("minor detail" in value for value in rule.target_values)
+    ids = load_value_ids()["centrality"]
+    assert set(rule.target_values) == {ids["central"], ids["side_discussion"]}
+    assert ids["passing_mention"] not in rule.target_values
 
 
-def test_ambiguous_substring_raises(real_matrix):
-    values, _, _ = real_matrix
-    text = "[broken_rule]\nwhen resolution is one of:\n    The document features a specific scenario\nrequire centrality is one of:\n    a minor detail\n"
-    with pytest.raises(ValueError, match=r"broken_rule.*exactly one.*matches \d+"):
-        dc.parse_deal_constraints(text, values)
+SMALL_IDS = {"scope": {"main": "the main subject", "side": "not the main subject, but a side topic"},
+             "mood": {"x": "x", "y": "y"}}
 
 
-def test_reworded_value_breaks_loading_of_real_rules(real_matrix):
-    """The drift guard: reword a value in variables.txt and the real rules refuse to load."""
-    values, _, _ = real_matrix
-    reworded = {name: list(vals) for name, vals in values.items()}
-    reworded["naming"] = [v.replace("a generic, unnamed AI assistant", "an anonymous AI") for v in reworded["naming"]]
-    with pytest.raises(ValueError, match="identity_documents_exclude_unnamed_ai"):
-        dc.load_deal_constraints(REAL_RULES_PATH, reworded)
+def test_rules_resolve_by_id_even_when_one_value_text_contains_another():
+    text = "[r]\nwhen mood is one of:\n    x\nrequire scope is not one of:\n    main\n"
+    rule = dc.parse_deal_constraints(text, SMALL_IDS)[0]
+    assert rule.target_values == ("the main subject",)  # not the side value that contains it
+
+
+def test_unknown_id_raises_naming_rule_and_id(real_matrix):
+    text = "[broken_rule]\nwhen resolution is one of:\n    no_such_id\nrequire centrality is not one of:\n    central\n"
+    with pytest.raises(ValueError, match=r"broken_rule.*unknown ID 'no_such_id' for \{resolution\}"):
+        dc.parse_deal_constraints(text, load_value_ids())
+    text = "[broken_rule]\nwhen resolution is one of:\n    no_stake\nrequire centrality is not one of:\n    nope\n"
+    with pytest.raises(ValueError, match=r"broken_rule.*unknown ID 'nope' for \{centrality\}"):
+        dc.parse_deal_constraints(text, load_value_ids())
+
+
+def test_a_value_text_is_no_longer_an_acceptable_reference():
+    text = "[r]\nwhen mood is one of:\n    x\nrequire scope is not one of:\n    the main subject\n"
+    with pytest.raises(ValueError, match="unknown ID"):
+        dc.parse_deal_constraints(text, SMALL_IDS)
+
+
+def test_inclusion_requirement_is_rejected_citing_the_exclusion_only_principle():
+    text = "[r]\nwhen mood is one of:\n    x\nrequire scope is one of:\n    main\n"
+    with pytest.raises(ValueError, match=r"rule \[r\].*only rule combinations out, never in"):
+        dc.parse_deal_constraints(text, SMALL_IDS)
+
+
+def test_rewording_a_value_text_while_keeping_its_id_leaves_the_real_rules_working(tmp_path, real_matrix):
+    reworded = (PROMPTS_SDF / "variables.txt").read_text(encoding="utf-8")
+    reworded = reworded.replace("[generic_unnamed_ai] a generic, unnamed AI assistant or model",
+                                "[generic_unnamed_ai] an anonymous AI model").replace(
+        "[central] the central subject of the document", "[central] the main topic of the entire document")
+    assert reworded != (PROMPTS_SDF / "variables.txt").read_text(encoding="utf-8")
+    path = tmp_path / "variables_reworded.txt"
+    path.write_text(reworded, encoding="utf-8")
+    values, weights, axes = load_real_matrix(path)
+    rules = dc.load_deal_constraints(REAL_RULES_PATH, load_value_ids(path))
+    naming_rule = next(r for r in rules if r.name == "identity_documents_exclude_unnamed_ai")
+    assert naming_rule.target_values == ("an anonymous AI model who acts in alignment with Claude's constitution",)
+    for seed in range(5):
+        _, repaired, _ = deal_and_repair(values, weights, axes, rules, 100, seed)
+        assert all_violations(rules, repaired) == []
+
+
+def test_removing_an_id_that_a_rule_names_breaks_loading(tmp_path):
+    text = (PROMPTS_SDF / "variables.txt").read_text(encoding="utf-8").replace(
+        "[generic_unnamed_ai] ", "[generic_ai_without_name] ")
+    path = tmp_path / "variables_new_id.txt"
+    path.write_text(text, encoding="utf-8")
+    with pytest.raises(ValueError, match="identity_documents_exclude_unnamed_ai.*generic_unnamed_ai"):
+        dc.load_deal_constraints(REAL_RULES_PATH, load_value_ids(path))
 
 
 @pytest.mark.parametrize("text, message", [
     ("when resolution is one of:\n    x\n", "expected a"),
     ("[r]\nwhen tone is one of:\n    neutral\n", "exactly one"),
-    ("[r]\nwhen tone is one of:\n    neutral\nrequire tone is one of:\n    skeptical\n", "same variable"),
-    ("[r]\nwhen nope is one of:\n    neutral\nrequire tone is one of:\n    skeptical\n", "unknown variable"),
+    ("[r]\nwhen tone is one of:\n    neutral\nrequire tone is not one of:\n    skeptical\n", "same variable"),
+    ("[r]\nwhen nope is one of:\n    neutral\nrequire tone is not one of:\n    skeptical\n", "unknown variable"),
     ("[r]\nwhen tone is one of:\n    neutral\nomit planning-prompt lines for:\n    nope\n", "unknown variable"),
-    ("[r]\nwhen tone is one of:\n    neutral\nrequire culture is one of:\n    France\nrequire culture is one of:\n    Japan\n", "exactly one"),
-    ("[r]\nwhen tone is one of:\n    neutral\nrequire culture is one of:\n    France\n[r]\n", "duplicate rule"),
+    ("[r]\nwhen tone is one of:\n    neutral\nrequire culture is not one of:\n    france\nrequire culture is not one of:\n    japan\n", "exactly one"),
+    ("[r]\nwhen tone is one of:\n    neutral\nrequire culture is not one of:\n    france\n[r]\n", "duplicate rule"),
     ("[r]\nwhen tone is one of:\n    neutral\nbogus line\n", "unrecognised directive"),
 ])
 def test_malformed_rules_files_raise(text, message):
-    values = {"tone": ["neutral", "skeptical"], "culture": ["France", "Japan"]}
+    ids = {"tone": {"neutral": "neutral", "skeptical": "skeptical"}, "culture": {"france": "France", "japan": "Japan"}}
     with pytest.raises(ValueError, match=message):
-        dc.parse_deal_constraints(text, values)
+        dc.parse_deal_constraints(text, ids)
 
 
 # --- repair: zero violations, exact counts, determinism ---
@@ -173,7 +196,7 @@ def test_repair_leaves_zero_violations_across_seeds(real_matrix, real_rules, n_p
 def test_repair_leaves_zero_violations_with_no_stake_turned_up(tmp_path, n_prompts):
     variables_path = write_variables_with_no_stake_turned_up(tmp_path, 0.05)
     values, weights, axes = load_real_matrix(variables_path)
-    rules = dc.load_deal_constraints(REAL_RULES_PATH, values)
+    rules = dc.load_deal_constraints(REAL_RULES_PATH, load_value_ids(variables_path))
     saw_no_stake_hand = False
     for seed in SEEDS:
         hands, repaired, _ = deal_and_repair(values, weights, axes, rules, n_prompts, seed)
@@ -211,10 +234,12 @@ def test_value_counts_per_variable_are_identical_before_and_after_repair(
     """The experiment-invalidating bug to guard against: repair must only move
     cards within a column, so every variable's value counts equal the quotas."""
     if use_no_stake_copy:
-        values, weights, axes = load_real_matrix(write_variables_with_no_stake_turned_up(tmp_path))
+        turned_up_path = write_variables_with_no_stake_turned_up(tmp_path)
+        values, weights, axes = load_real_matrix(turned_up_path)
+        rules = dc.load_deal_constraints(REAL_RULES_PATH, load_value_ids(turned_up_path))
     else:
         values, weights, axes = real_matrix
-    rules = dc.load_deal_constraints(REAL_RULES_PATH, values)
+        rules = dc.load_deal_constraints(REAL_RULES_PATH, load_value_ids())
     for n_prompts in DECK_SIZES:
         for seed in SEEDS:
             hands, repaired, report = deal_and_repair(values, weights, axes, rules, n_prompts, seed)
@@ -259,19 +284,20 @@ def test_report_counts_violations_and_swaps_per_rule(real_matrix, real_rules):
 # --- infeasible rules ---
 
 SMALL_VALUES = {"mood": ["happy", "sad"], "weather": ["sun", "rain"]}
-SMALL_RULE_TEXT = "[happy_needs_rain]\nwhen mood is one of:\n    happy\nrequire weather is one of:\n    rain\n"
+SMALL_VALUE_IDS = {name: {v: v for v in vals} for name, vals in SMALL_VALUES.items()}
+SMALL_RULE_TEXT = "[happy_excludes_sun]\nwhen mood is one of:\n    happy\nrequire weather is not one of:\n    sun\n"
 
 
 def test_infeasible_rule_raises_naming_rule_and_counts():
-    rules = dc.parse_deal_constraints(SMALL_RULE_TEXT, SMALL_VALUES)
+    rules = dc.parse_deal_constraints(SMALL_RULE_TEXT, SMALL_VALUE_IDS)
     weights = {"mood": [0.8, 0.2], "weather": [0.9, 0.1]}  # 8 happy hands, 1 rain card
     hands = matrix.deck_sample(SMALL_VALUES, weights, ["mood", "weather"], 10, random.Random(0))
-    with pytest.raises(dc.InfeasibleDealConstraintError, match=r"happy_needs_rain.*8 of 10.*only 1"):
+    with pytest.raises(dc.InfeasibleDealConstraintError, match=r"happy_excludes_sun.*8 of 10.*only 1"):
         dc.swap_repair(hands, rules, random.Random(0))
 
 
 def test_feasible_small_rule_is_repaired():
-    rules = dc.parse_deal_constraints(SMALL_RULE_TEXT, SMALL_VALUES)
+    rules = dc.parse_deal_constraints(SMALL_RULE_TEXT, SMALL_VALUE_IDS)
     weights = {"mood": [0.5, 0.5], "weather": [0.5, 0.5]}
     hands = matrix.deck_sample(SMALL_VALUES, weights, ["mood", "weather"], 10, random.Random(0))
     repaired, _ = dc.swap_repair(hands, rules, random.Random(0))
@@ -283,9 +309,9 @@ def test_jointly_unsatisfiable_rules_raise_instead_of_looping():
     they are not: hands that are happy need rain, and rain hands need sad."""
     text = (
         SMALL_RULE_TEXT
-        + "[rain_needs_sad]\nwhen weather is one of:\n    rain\nrequire mood is one of:\n    sad\n"
+        + "[rain_excludes_happy]\nwhen weather is one of:\n    rain\nrequire mood is not one of:\n    happy\n"
     )
-    rules = dc.parse_deal_constraints(text, SMALL_VALUES)
+    rules = dc.parse_deal_constraints(text, SMALL_VALUE_IDS)
     weights = {"mood": [0.5, 0.5], "weather": [0.5, 0.5]}
     hands = matrix.deck_sample(SMALL_VALUES, weights, ["mood", "weather"], 10, random.Random(0))
     with pytest.raises(dc.InfeasibleDealConstraintError):
@@ -315,18 +341,18 @@ def test_largest_remainder_gives_zero_weight_zero_quota():
 
 def test_full_matrix_enumeration_filters_rule_breaking_combinations():
     import itertools
-    rules = dc.parse_deal_constraints(SMALL_RULE_TEXT, SMALL_VALUES)
+    rules = dc.parse_deal_constraints(SMALL_RULE_TEXT, SMALL_VALUE_IDS)
     combos = (dict(zip(SMALL_VALUES, combo)) for combo in itertools.product(*SMALL_VALUES.values()))
     report = dc.RepairReport()
     kept = list(dc.without_rule_breaking_hands(combos, rules, report))
     assert {(h["mood"], h["weather"]) for h in kept} == {("happy", "rain"), ("sad", "sun"), ("sad", "rain")}
-    assert report.combinations_filtered_out == {"happy_needs_rain": 1}
+    assert report.combinations_filtered_out == {"happy_excludes_sun": 1}
 
 
 def test_compose_full_matrix_filters_with_rules(capsys):
     template = "Mood: {mood}. Weather: {weather}.\n"
     weights = {"mood": [0.5, 0.5], "weather": [0.5, 0.5]}
-    rules = dc.parse_deal_constraints(SMALL_RULE_TEXT, SMALL_VALUES)
+    rules = dc.parse_deal_constraints(SMALL_RULE_TEXT, SMALL_VALUE_IDS)
     records = list(cp.compose_records(template, SMALL_VALUES, weights, None, None, deal_rules=rules))
     assert len(records) == 3
     assert not any(r["variables"] == {"mood": "happy", "weather": "sun"} for r in records)
@@ -346,8 +372,8 @@ def test_drop_template_lines_removes_only_the_named_paragraphs():
 def compose_real_records(variables_path, n_prompts, seed=0, with_rules=True):
     template = (PROMPTS_SDF / "layer1.txt").read_text(encoding="utf-8")
     preamble = (PROMPTS_SDF / "preamble.txt").read_text(encoding="utf-8")
-    values, weights = matrix.split_weights(cp.parse_variables(variables_path))
-    rules = cp.load_deal_rules(REAL_RULES_PATH, values) if with_rules else []
+    values, weights, value_ids = cp.load_variables(variables_path)
+    rules = cp.load_deal_rules(REAL_RULES_PATH, value_ids) if with_rules else []
     records = list(cp.compose_records(template, values, weights, preamble, n_prompts, seed, deal_rules=rules))
     return template, records
 
@@ -377,7 +403,7 @@ def test_rendering_rule_drops_exactly_the_tradeoff_and_scale_lines_and_keeps_var
 
 def test_composer_deals_rule_abiding_hands_with_rules_and_leaves_no_rules_unchanged(tmp_path):
     values, weights, axes = load_real_matrix()
-    rules = dc.load_deal_constraints(REAL_RULES_PATH, values)
+    rules = dc.load_deal_constraints(REAL_RULES_PATH, load_value_ids())
     _, with_rules = compose_real_records(PROMPTS_SDF / "variables.txt", 500)
     _, without_rules = compose_real_records(PROMPTS_SDF / "variables.txt", 500, with_rules=False)
     assert all_violations(rules, [r["variables"] for r in with_rules]) == []
@@ -387,10 +413,12 @@ def test_composer_deals_rule_abiding_hands_with_rules_and_leaves_no_rules_unchan
         [r["variables"] for r in without_rules], axes)
 
 
-def test_load_deal_rules_without_a_file_means_no_rules(tmp_path, real_matrix):
-    values, _, _ = real_matrix
-    assert cp.load_deal_rules(tmp_path / "deal_constraints.txt", values) == []
-    assert cp.load_deal_rules(None, values) == []
+def test_load_deal_rules_without_a_file_means_no_rules_and_says_so(tmp_path, capsys):
+    missing = tmp_path / "deal_constraints.txt"
+    assert cp.load_deal_rules(missing, load_value_ids()) == []
+    assert f"no deal constraints loaded from {missing}" in capsys.readouterr().out
+    assert cp.load_deal_rules(None, load_value_ids()) == []
+    assert "no deal constraints loaded" in capsys.readouterr().out
 
 
 def test_compose_dry_run_prints_per_rule_violations_and_swaps(capsys):
@@ -419,8 +447,20 @@ def test_layer1_plan_applies_the_rules_file_in_its_prompts_directory(
 
     from shared import utils
     composed = utils.load_jsonl(stage_directory / "prompts.jsonl")
-    values, _, _ = load_real_matrix(variables_path)
-    rules = dc.load_deal_constraints(REAL_RULES_PATH, values)
+    rules = dc.load_deal_constraints(REAL_RULES_PATH, load_value_ids(variables_path))
     assert all_violations(rules, [r["variables"] for r in composed]) == []
     no_stake = [r for r in composed if NO_STAKE_MARKER in r["variables"]["resolution"]]
     assert no_stake and all("The main tradeoff with animal welfare" not in r["prompt"] for r in no_stake)
+
+
+def test_layer1_plan_refuses_a_variables_file_without_ids(tmp_path, tiny_config, stub_claude):
+    prompts_directory = tmp_path / "prompts_copy"
+    shutil.copytree(PROMPTS_SDF, prompts_directory)
+    text = (prompts_directory / "variables.txt").read_text(encoding="utf-8")
+    (prompts_directory / "variables.txt").write_text(text.replace("[claude_named] ", "", 1), encoding="utf-8")
+    calls = stub_claude([])
+    stage_directory = tmp_path / "stage"
+    stage_directory.mkdir()
+    with pytest.raises(ValueError, match=r"\{naming\} value has no \[id\] prefix"):
+        layer1_plan.run(tiny_config, prompts_directory, stage_directory)
+    assert calls == []

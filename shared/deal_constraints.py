@@ -7,27 +7,28 @@ This module reads a lab-editable rules file (prompts/sdf/deal_constraints.txt)
 and applies it to a deck-sampled deal. Pipeline-agnostic on purpose: it
 imports nothing from sdf_pipeline, so another composer can adopt it.
 
+Principle: rules only rule combinations OUT, never in. A rule excludes a
+combination only if it is impossible by definition; anything else is left open
+for a later screen. So the only requirement form is "is not one of".
+
 Rules file format (plain text; full-line ``#`` comments and blank lines are
-ignored; values are referenced by a distinctive substring and each substring
-must match exactly one value of its variable in variables.txt (a pattern
-equal to a whole value matches that value only, even if it is a substring of
-another), so a reworded
-value fails loudly at load instead of silently disabling a rule)::
+ignored). Values are referenced by their stable ID, the ``[id]`` prefix on the
+value in variables.txt (see shared/matrix.py), never by their text, so a value
+can be reworded without breaking a rule. An unknown ID fails loudly at load,
+naming the rule::
 
     [rule_name]
     when <variable> is one of:
-        substring of a value
-        substring of another value
-    require <variable> is one of:          # swap-repair requirement
-        substring of an allowed value
-    require <variable> is not one of:      # swap-repair requirement
-        substring of a forbidden value
+        value_id
+        another_value_id
+    require <variable> is not one of:      # swap-repair exclusion
+        forbidden_value_id
     omit planning-prompt lines for:        # rendering rule
         variable_name
         another_variable_name
 
 Every rule has exactly one ``when`` block plus exactly one ``require`` or
-``omit`` block.
+``omit`` block. ``require <variable> is one of:`` (inclusion) is rejected.
 
 - A swap-repair requirement is enforced at deal time by swap_repair(): cards
   are swapped between hands within one variable's column, so every
@@ -50,6 +51,10 @@ from typing import Iterable, Iterator
 RULE_HEADER_RE = re.compile(r"^\[([A-Za-z0-9_]+)\]$")
 WHEN_RE = re.compile(r"^when ([A-Za-z0-9_]+) is one of:$")
 REQUIRE_RE = re.compile(r"^require ([A-Za-z0-9_]+) is (not )?one of:$")
+EXCLUSION_ONLY_MESSAGE = (
+    "deal rules only rule combinations out, never in: use 'require <variable> is not one of:' "
+    "(anything left open is for the batch screen to catch)"
+)
 OMIT_LINE = "omit planning-prompt lines for:"
 
 SWAP_KIND = "swap"
@@ -65,10 +70,9 @@ class DealRule:
     name: str
     kind: str                              # SWAP_KIND or RENDER_KIND
     condition_variable: str
-    condition_values: tuple[str, ...]      # full variable values, resolved from substrings
+    condition_values: tuple[str, ...]      # full variable values, resolved from IDs
     target_variable: str | None = None     # swap rules: the column whose card is swapped
-    target_values: tuple[str, ...] = ()
-    target_must_match: bool = True         # True: "is one of"; False: "is not one of"
+    target_values: tuple[str, ...] = ()    # the excluded values of target_variable
     omitted_variables: tuple[str, ...] = ()  # rendering rules
 
     def applies_to(self, hand: dict[str, str]) -> bool:
@@ -78,18 +82,17 @@ class DealRule:
         """Swap rules only: the hand matches the condition but breaks the requirement."""
         if self.kind != SWAP_KIND or not self.applies_to(hand):
             return False
-        return (hand[self.target_variable] in self.target_values) != self.target_must_match
+        return hand[self.target_variable] in self.target_values
 
     def card_satisfies(self, card: str) -> bool:
-        return (card in self.target_values) == self.target_must_match
+        return card not in self.target_values
 
     def describe(self) -> str:
         if self.kind == RENDER_KIND:
             return (f"{self.name}: when {self.condition_variable} matches, omit the planning-prompt "
                     f"lines for {', '.join(self.omitted_variables)}")
-        relation = "must be one of" if self.target_must_match else "must not be one of"
         return (f"{self.name}: when {self.condition_variable} matches, "
-                f"{self.target_variable} {relation} the listed values")
+                f"{self.target_variable} must not be one of the listed values")
 
 
 @dataclass
@@ -125,28 +128,24 @@ class RepairReport:
 
 # --- parsing ---
 
-def _resolve_substring(
-    rule_name: str, variable: str, substring: str, values: dict[str, list[str]], where: str
+def _resolve_id(
+    rule_name: str, variable: str, value_id: str, value_ids: dict[str, dict[str, str]], where: str
 ) -> str:
-    if variable not in values:
+    """The value text for an ID of ``variable``; raises naming the rule and ID."""
+    if variable not in value_ids:
         raise ValueError(f"{where}: rule [{rule_name}] names unknown variable {{{variable}}}")
-    # A pattern equal to a whole value names that value only, even when it is also
-    # a substring of another value; otherwise it must match exactly one value.
-    exact = [value for value in values[variable] if value == substring]
-    matches = exact or [value for value in values[variable] if substring in value]
-    if len(matches) != 1:
+    if value_id not in value_ids[variable]:
         raise ValueError(
-            f"{where}: rule [{rule_name}] substring {substring!r} must match exactly one "
-            f"{{{variable}}} value in variables.txt but matches {len(matches)}"
-            + (": " + " | ".join(m[:60] for m in matches) if matches else "")
+            f"{where}: rule [{rule_name}] names unknown ID {value_id!r} for {{{variable}}} "
+            f"(known IDs: {', '.join(value_ids[variable]) or 'none'})"
         )
-    return matches[0]
+    return value_ids[variable][value_id]
 
 
 def parse_deal_constraints(
-    text: str, values: dict[str, list[str]], source_name: str = "deal_constraints.txt"
+    text: str, value_ids: dict[str, dict[str, str]], source_name: str = "deal_constraints.txt"
 ) -> list[DealRule]:
-    """Parse and validate a rules file against the variables it constrains."""
+    """Parse and validate a rules file against {variable: {id: value_text}}."""
     # Collect raw rules first: {name: [(directive_line, [indented items], lineno)]}
     raw_rules: dict[str, list[tuple[str, list[str], int]]] = {}
     current_rule: str | None = None
@@ -190,32 +189,34 @@ def parse_deal_constraints(
         if not when_items:
             raise ValueError(f"{source_name}:{when_lineno}: rule [{name}] 'when' block is empty")
         condition_values = tuple(
-            _resolve_substring(name, condition_variable, item, values, source_name)
+            _resolve_id(name, condition_variable, item, value_ids, source_name)
             for item in when_items
         )
         if requires:
             require_line, require_items, require_lineno = requires[0]
             match = REQUIRE_RE.match(require_line)
+            if match.group(2) is None:
+                raise ValueError(f"{source_name}:{require_lineno}: rule [{name}]: {EXCLUSION_ONLY_MESSAGE}")
             target_variable = match.group(1)
             if target_variable == condition_variable:
                 raise ValueError(f"{where}: 'when' and 'require' name the same variable")
             if not require_items:
                 raise ValueError(f"{source_name}:{require_lineno}: rule [{name}] 'require' block is empty")
             target_values = tuple(
-                _resolve_substring(name, target_variable, item, values, source_name)
+                _resolve_id(name, target_variable, item, value_ids, source_name)
                 for item in require_items
             )
             rules.append(DealRule(
                 name=name, kind=SWAP_KIND, condition_variable=condition_variable,
                 condition_values=condition_values, target_variable=target_variable,
-                target_values=target_values, target_must_match=match.group(2) is None,
+                target_values=target_values,
             ))
         else:
             _, omit_items, omit_lineno = omits[0]
             if not omit_items:
                 raise ValueError(f"{source_name}:{omit_lineno}: rule [{name}] 'omit' block is empty")
             for variable in omit_items:
-                if variable not in values:
+                if variable not in value_ids:
                     raise ValueError(f"{where}: omits unknown variable {{{variable}}}")
             rules.append(DealRule(
                 name=name, kind=RENDER_KIND, condition_variable=condition_variable,
@@ -224,8 +225,8 @@ def parse_deal_constraints(
     return rules
 
 
-def load_deal_constraints(path: Path, values: dict[str, list[str]]) -> list[DealRule]:
-    return parse_deal_constraints(path.read_text(encoding="utf-8"), values, path.name)
+def load_deal_constraints(path: Path, value_ids: dict[str, dict[str, str]]) -> list[DealRule]:
+    return parse_deal_constraints(path.read_text(encoding="utf-8"), value_ids, path.name)
 
 
 # --- checking and repair ---
