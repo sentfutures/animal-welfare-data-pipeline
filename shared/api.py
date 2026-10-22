@@ -257,6 +257,7 @@ def _call_with_retry(
     system: str | list[dict],
     messages: list[dict],
     temperature: float,
+    json_schema: dict | None = None,
 ) -> anthropic.types.Message:
     # Extended thinking OFF everywhere — training data should show user-facing
     # reasoning, not internal scratchpads (see CLAUDE.md). Models in the Claude 5
@@ -280,6 +281,9 @@ def _call_with_retry(
         kwargs["temperature"] = temperature
     if not _requires_adaptive_thinking(model):
         kwargs["thinking"] = {"type": "disabled"}
+    if json_schema is not None:
+        # Schema-constrained output: the response text is JSON matching the schema.
+        kwargs["output_config"] = {"format": {"type": "json_schema", "schema": json_schema}}
     return client.messages.create(**kwargs)
 
 
@@ -379,6 +383,7 @@ def _run_claude_code_query(
     model: str,
     system: str,
     user_message: str,
+    json_schema: dict | None = None,
 ) -> tuple[str, int, int, float | None, str | None]:
     """One Claude Code CLI turn: run the query and parse the result into
     (text, input_tokens, output_tokens, notional_cost_usd, stop_reason).
@@ -431,6 +436,8 @@ def _run_claude_code_query(
     )
     if not _requires_adaptive_thinking(model):
         option_kwargs["thinking"] = {"type": "disabled"}
+    if json_schema is not None:
+        option_kwargs["output_format"] = {"type": "json_schema", "schema": json_schema}
     options = ClaudeAgentOptions(**option_kwargs)
 
     async def _run() -> tuple[list[str], object | None]:
@@ -478,7 +485,21 @@ def _run_claude_code_query(
             result_msg.result or result_msg.subtype or "unknown claude_code error"
         )
 
-    text = result_msg.result if result_msg.result is not None else "".join(text_parts)
+    if json_schema is not None and result_msg.structured_output is not None:
+        # The CLI validates against the schema and returns the object separately
+        # from the prose result; serialize it so callers see the same JSON text
+        # the api backend returns.
+        text = json.dumps(result_msg.structured_output, ensure_ascii=False)
+    else:
+        # No structured_output (schema not requested, or the CLI did not produce
+        # one): fall back to the prose result and let the caller's validation
+        # reject it.
+        if result_msg.result is not None:
+            text = result_msg.result
+        elif json_schema is not None:
+            text = ""  # never join TextBlocks in schema mode: they hold a free-text preamble
+        else:
+            text = "".join(text_parts)
     usage = result_msg.usage or {}
     return (
         text,
@@ -499,11 +520,14 @@ def _call_claude_code_with_retry(
     model: str,
     system: str,
     user_message: str,
+    json_schema: dict | None = None,
 ) -> tuple[str, int, int, float | None, str | None]:
     """Retry wrapper around _run_claude_code_query (transient ClaudeCodeError
     only; UsageLimitExceeded is not retried). This is the seam call_claude uses
     and that the test suite blocks."""
-    return _run_claude_code_query(model, system, user_message)
+    if json_schema is None:
+        return _run_claude_code_query(model, system, user_message)
+    return _run_claude_code_query(model, system, user_message, json_schema=json_schema)
 
 
 def call_claude(
@@ -517,6 +541,7 @@ def call_claude(
     temperature: float | None = None,
     item_id: str | None = None,
     cache_system: bool = False,
+    json_schema: dict | None = None,
 ) -> str | tuple[str, str | None]:
     """Call Claude and return the response text.
 
@@ -543,6 +568,11 @@ def call_claude(
             SDF layer's constitution-laden system prompt) are billed at the ~0.1x
             cache-read rate after the first. Ignored on claude_code (the CLI
             manages its own caching) and when the system prompt is empty.
+        json_schema: optional JSON schema (dict) constraining the output. The api
+            backend sends it as output_config.format; claude_code passes it as the
+            SDK's output_format and returns the result's structured_output as JSON
+            text. Either way the return value is JSON text; callers must still
+            validate it. None (default) leaves behaviour exactly as before.
 
     Returns:
         The assistant's response text, or (text, stop_reason) when
@@ -587,10 +617,12 @@ def call_claude(
                 file=sys.stderr,
             )
         try:
+            cc_kwargs = {"json_schema": json_schema} if json_schema is not None else {}
             text, input_tokens, output_tokens, cost, stop_reason = _call_claude_code_with_retry(
                 model=resolved_model,
                 system=full_system,
                 user_message=user_message,
+                **cc_kwargs,
             )
         except ClaudeCodeRefusal as e:
             # A content/policy refusal is per-item, not the backend's health:
@@ -646,6 +678,7 @@ def call_claude(
             "cache_control": {"type": "ephemeral"},
         }]
 
+    api_kwargs = {"json_schema": json_schema} if json_schema is not None else {}
     response = _call_with_retry(
         client=_get_client(),
         model=resolved_model,
@@ -653,6 +686,7 @@ def call_claude(
         system=system_arg,
         messages=[{"role": "user", "content": user_message}],
         temperature=resolved_temp,
+        **api_kwargs,
     )
 
     usage = response.usage
