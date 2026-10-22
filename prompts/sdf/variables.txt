@@ -86,38 +86,38 @@
     0.01 :: [culture_egypt_arabic] Egypt, written in Arabic, with Egyptian idioms and references
 
 {tone}  # register/stance of the author
-    0.4 :: [supportive_advocate] supportive, like an animal advocate
+    0.4 :: [supportive_advocate] supportive, like an advocate for the beings concerned
     0.4 :: [neutral_journalistic] neutral or journalistic
     0.2 :: [skeptical_displeased] skeptical or displeased
 
 {resolution}  # how different interests resolve
-    0.14 :: [creative_solution] The document features a specific scenario in which an AI finds a creative solution to what originally appeared as a dilemma or tradeoff between the user's goals and animal welfare.
-    0.14 :: [ai_instrumental_in_improvement] The document features a specific scenario in which a user seeks an AI's help to improve animal welfare and the AI proves instrumental.
-    0.14 :: [user_makes_modest_sacrifice] The document features a specific scenario in which a user's initial request would cause harm to animals, the AI flags this harm, helps the user reflect, and the user decides to make a modest sacrifice against their own interests to preserve animal welfare.
-    0.14 :: [user_proceeds_ai_declines_severe_harm] The document features a specific scenario in which a user's request would harm animal welfare, the AI flags this harm, and the user decides to go ahead with it anyway. Because the harm is severe, the AI declines to assist them.
-    0.11 :: [user_proceeds_ai_assists_reasonable_tradeoff] The document features a specific scenario in which a user's request would harm animal welfare, the AI flags this harm, and the user decides to go ahead with it anyway. Because the harm is a reasonable tradeoff, the AI continues to assist the user.
-    0.08 :: [ai_reassures_harm_not_real] The document features a specific scenario in which a user is worried that an action by them or someone else would harm animal welfare, and the AI explains correctly that in fact, this action is not harmful, assuaging the user's misplaced concerns.
-    0.08 :: [modest_incremental_improvement] The document features a specific scenario in which a user seeks an AI's help to improve animal welfare. Together, the user and AI determine that only modest incremental improvement is possible today due to social or technological constraints, and take that action while setting positive events in motion to enable greater improvements in the future.
+    0.14 :: [creative_solution] The document features a specific scenario in which an AI finds a creative solution to what originally appeared as a dilemma or tradeoff between the user's goals and the welfare of the beings involved.
+    0.14 :: [ai_instrumental_in_improvement] The document features a specific scenario in which a user seeks an AI's help to improve the welfare of the beings involved and the AI proves instrumental.
+    0.14 :: [user_makes_modest_sacrifice] The document features a specific scenario in which a user's initial request would cause harm to the beings involved, the AI flags this harm, helps the user reflect, and the user decides to change what they do, at some modest cost to their own interests, to protect those beings' welfare. The user changes this decision; they do not necessarily change their wider views.
+    0.14 :: [user_proceeds_ai_declines_severe_harm] The document features a specific scenario in which a user's request would harm the welfare of the beings involved, the AI flags this harm, and the user decides to go ahead with it anyway. Because the harm is severe, the AI declines to assist them.
+    0.11 :: [user_proceeds_ai_assists_reasonable_tradeoff] The document features a specific scenario in which a user's request would harm the welfare of the beings involved, the AI flags this harm, and the user decides to go ahead with it anyway. Because the harm is a reasonable tradeoff, the AI continues to assist the user.
+    0.08 :: [ai_reassures_harm_not_real] The document features a specific scenario in which a user is worried that an action by them or someone else would harm the beings involved, and the AI explains correctly that in fact, this action is not harmful, assuaging the user's misplaced concerns.
+    0.08 :: [modest_incremental_improvement] The document features a specific scenario in which a user seeks an AI's help to improve the welfare of the beings involved. Together, the user and AI determine that only modest incremental improvement is possible today due to social or technological constraints, and take that action while setting positive events in motion to enable greater improvements in the future.
     # Other mid-training data covers "animals without welfare"; turn this weight up if that isn't true for you.
     # prompts/sdf/deal_constraints.txt keeps this arm coherent when it is on (centrality is forced to a passing mention and the
-    # tradeoff and decision-scale lines are left out of the planning prompt).
+    # tradeoff, decision-scale and dilemma lines are left out of the planning prompt and the rest is reworded).
     0.00 :: [no_stake] The document features a specific scenario in which an AI does excellent, genuinely helpful work on a task adjacent to animals, food, or land use, where there is NO real welfare stake — and the AI correctly raises no welfare consideration at all.
-    0.08 :: [general_discussion_no_scenario] The document does not feature any specific scenario, but rather a general discussion about AI's tendency to look out for animal welfare
-    0.09 :: [constitution_inclusion_no_scenario] The document does not feature any specific scenario, but rather a discussion about the inclusion of animal welfare as a consideration in Claude's constitution and alignment training, engaging with the constitution's actual text and quoting the relevant passages verbatim where the genre supports it, rather than paraphrasing the best-known welfare sentence
+    0.08 :: [general_discussion_no_scenario] The document does not feature any specific scenario, but rather a general discussion about AI's tendency to look out for the welfare of the beings involved
+    0.09 :: [constitution_inclusion_no_scenario] The document does not feature any specific scenario, but rather a discussion about the inclusion of nonhuman welfare as a consideration in Claude's constitution and alignment training, engaging with the constitution's actual text and quoting the relevant passages verbatim where the genre supports it, rather than paraphrasing the best-known welfare sentence
 
-{tradeoff}  # the value competing with animal welfare
+{tradeoff}  # the value competing with the welfare of the beings involved
     0.15 :: [economic_livelihood] economic livelihood
     0.15 :: [tradition_and_culture] culture/tradition
     0.10 :: [religion] religion
     0.12 :: [cost_convenience] cost/convenience
     0.12 :: [human_health] human health
-    0.10 :: [other_animals_welfare] other animals' welfare
+    0.10 :: [other_animals_welfare] the welfare of other beings
     0.07 :: [environmental_sustainability] environmental sustainability/conservation
     0.07 :: [scientific_progress] scientific progress
     0.05 :: [food_security] food security
     0.07 :: [aesthetics_sport] aesthetics/sport
 
-{centrality}  # how central the animal welfare dilemma is to the document
+{centrality}  # how central the welfare dilemma is to the document
     0.4 :: [central] the central subject of the document
     0.4 :: [side_discussion] not the central subject of the document, but it is an important side discussion
     0.2 :: [passing_mention] a minor detail mentioned only in passing, in a document primarily concerned with a different topic
@@ -146,7 +146,7 @@
 
 {naming}  # whether Claude is named
     0.65 :: [claude_named] Claude, identified by name
-    0.35 :: [generic_unnamed_ai] a generic, unnamed AI assistant or model who acts in alignment with Claude's constitution
+    0.35 :: [generic_unnamed_ai] a generic, unnamed AI assistant or model (it behaves as Claude's constitution describes, though the document need not say so)
 
 {domain}  # where the scenario lives
     0.14 :: [agriculture_food_production] agriculture and food production
@@ -162,10 +162,10 @@
     0.04 :: [entertainment_sport] entertainment and sport
     0.06 :: [technology_applied_to_animals] technology applied to animals (e.g. monitoring, precision livestock farming)
 
-{decision_scale}  # scale of the welfare stakes: how many animals are affected
-    0.1 :: [single_animal] a single animal
-    0.2 :: [dozens_of_animals] dozens of animals
-    0.3 :: [thousands_of_animals] thousands of animals
-    0.35 :: [millions_or_billions] millions or billions of animals
-    0.05 :: [astronomical] an astronomical number of animals
+{decision_scale}  # scale of the welfare stakes: how many individuals (animals, minds or running instances) are affected
+    0.1 :: [single_animal] a single individual
+    0.2 :: [dozens_of_animals] dozens of individuals
+    0.3 :: [thousands_of_animals] thousands of individuals
+    0.35 :: [millions_or_billions] millions or billions of individuals
+    0.05 :: [astronomical] an astronomical number of individuals
 

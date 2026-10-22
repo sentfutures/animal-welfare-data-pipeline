@@ -26,9 +26,11 @@ naming the rule::
     omit planning-prompt lines for:        # rendering rule
         variable_name
         another_variable_name
+    reword planning-prompt lines using:    # rendering rule
+        wording_file_name.txt
 
-Every rule has exactly one ``when`` block plus exactly one ``require`` or
-``omit`` block. ``require <variable> is one of:`` (inclusion) is rejected.
+Every rule has exactly one ``when`` block plus exactly one ``require``,
+``omit`` or ``reword`` block. ``require <variable> is one of:`` (inclusion) is rejected.
 
 - A swap-repair requirement is enforced at deal time by swap_repair(): cards
   are swapped between hands within one variable's column, so every
@@ -36,6 +38,14 @@ Every rule has exactly one ``when`` block plus exactly one ``require`` or
 - A rendering rule leaves the dealt card in the hand (so shares are reported
   honestly) and only drops the template paragraph that renders those
   variables for hands matching the ``when`` block (see drop_template_lines).
+- A ``reword`` rule is also a rendering rule. It names a wording file (in the
+  rules file's directory) holding pairs of template lines, each an original line
+  and the line that stands in for it for hands matching the ``when`` block. The
+  replacement must hold exactly the placeholders of the line it replaces, so a
+  rewording never drops a dealt value (dropping is the ``omit`` rule's job), and
+  the original must occur exactly once in the template (checked when the
+  template is rendered, see replace_template_lines). Replacements are applied
+  before omissions. Two matching rules may not reword the same line differently.
 - Without n_prompts (full-matrix enumeration) there are no weights to
   preserve, so rule-breaking combinations are filtered out instead.
 """
@@ -46,7 +56,7 @@ import random
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable, Iterator
+from typing import Callable, Iterable, Iterator
 
 RULE_HEADER_RE = re.compile(r"^\[([A-Za-z0-9_]+)\]$")
 WHEN_RE = re.compile(r"^when ([A-Za-z0-9_]+) is one of:$")
@@ -56,6 +66,10 @@ EXCLUSION_ONLY_MESSAGE = (
     "(anything left open is for the batch screen to catch)"
 )
 OMIT_LINE = "omit planning-prompt lines for:"
+REWORD_LINE = "reword planning-prompt lines using:"
+WORDING_ORIGINAL_MARKER = "replace:"
+WORDING_REPLACEMENT_MARKER = "with:"
+PLACEHOLDER_RE = re.compile(r"\{([A-Za-z0-9_]+)\}")
 
 SWAP_KIND = "swap"
 RENDER_KIND = "render"
@@ -73,7 +87,9 @@ class DealRule:
     condition_values: tuple[str, ...]      # full variable values, resolved from IDs
     target_variable: str | None = None     # swap rules: the column whose card is swapped
     target_values: tuple[str, ...] = ()    # the excluded values of target_variable
-    omitted_variables: tuple[str, ...] = ()  # rendering rules
+    omitted_variables: tuple[str, ...] = ()  # omit rules
+    line_replacements: tuple[tuple[str, str], ...] = ()  # reword rules: (original line, replacement line)
+    wording_file: str = ""                   # reword rules: the file the replacements came from
 
     def applies_to(self, hand: dict[str, str]) -> bool:
         return hand[self.condition_variable] in self.condition_values
@@ -88,6 +104,9 @@ class DealRule:
         return card not in self.target_values
 
     def describe(self) -> str:
+        if self.kind == RENDER_KIND and self.wording_file:
+            return (f"{self.name}: when {self.condition_variable} matches, reword "
+                    f"{len(self.line_replacements)} planning-prompt lines using {self.wording_file}")
         if self.kind == RENDER_KIND:
             return (f"{self.name}: when {self.condition_variable} matches, omit the planning-prompt "
                     f"lines for {', '.join(self.omitted_variables)}")
@@ -142,10 +161,50 @@ def resolve_value_id(
     return value_ids[variable][value_id]
 
 
+def parse_wording_file(text: str, source_name: str) -> tuple[tuple[str, str], ...]:
+    """Pairs of (original template line, replacement line) from a wording file.
+
+    The file is a sequence of ``replace:`` / original line / ``with:`` / replacement
+    line groups; full-line ``#`` comments and blank lines are ignored. Each
+    replacement must hold exactly the placeholders of its original, and an
+    original may appear only once."""
+    entries = [
+        (lineno, raw.rstrip()) for lineno, raw in enumerate(text.splitlines(), 1)
+        if raw.strip() and not raw.strip().startswith("#")
+    ]
+    if len(entries) % 4 != 0 or not entries:
+        raise ValueError(
+            f"{source_name}: expected groups of four lines (replace:, the original line, with:, "
+            f"the replacement line), got {len(entries)} lines"
+        )
+    pairs: list[tuple[str, str]] = []
+    for start in range(0, len(entries), 4):
+        (marker_a_no, marker_a), (original_no, original), (marker_b_no, marker_b), (replacement_no, replacement) = (
+            entries[start:start + 4])
+        if marker_a.strip() != WORDING_ORIGINAL_MARKER:
+            raise ValueError(f"{source_name}:{marker_a_no}: expected {WORDING_ORIGINAL_MARKER!r}, got {marker_a!r}")
+        if marker_b.strip() != WORDING_REPLACEMENT_MARKER:
+            raise ValueError(f"{source_name}:{marker_b_no}: expected {WORDING_REPLACEMENT_MARKER!r}, got {marker_b!r}")
+        if original == replacement:
+            raise ValueError(f"{source_name}:{replacement_no}: replacement is identical to the line it replaces")
+        if set(PLACEHOLDER_RE.findall(original)) != set(PLACEHOLDER_RE.findall(replacement)):
+            raise ValueError(
+                f"{source_name}:{replacement_no}: the replacement must hold exactly the placeholders of "
+                f"the line it replaces (use an omit rule to drop a variable's line)"
+            )
+        if any(original == earlier for earlier, _ in pairs):
+            raise ValueError(f"{source_name}:{original_no}: this line is replaced twice")
+        pairs.append((original, replacement))
+    return tuple(pairs)
+
+
 def parse_deal_constraints(
-    text: str, value_ids: dict[str, dict[str, str]], source_name: str = "deal_constraints.txt"
+    text: str, value_ids: dict[str, dict[str, str]], source_name: str = "deal_constraints.txt",
+    read_wording_file: Callable[[str], str] | None = None,
 ) -> list[DealRule]:
-    """Parse and validate a rules file against {variable: {id: value_text}}."""
+    """Parse and validate a rules file against {variable: {id: value_text}}.
+    ``read_wording_file`` returns the text of a wording file named by a ``reword``
+    rule (load_deal_constraints reads it from the rules file's directory)."""
     # Collect raw rules first: {name: [(directive_line, [indented items], lineno)]}
     raw_rules: dict[str, list[tuple[str, list[str], int]]] = {}
     current_rule: str | None = None
@@ -176,13 +235,14 @@ def parse_deal_constraints(
         when = [d for d in directives if WHEN_RE.match(d[0])]
         requires = [d for d in directives if REQUIRE_RE.match(d[0])]
         omits = [d for d in directives if d[0] == OMIT_LINE]
-        unknown = [d for d in directives if d not in when + requires + omits]
+        rewords = [d for d in directives if d[0] == REWORD_LINE]
+        unknown = [d for d in directives if d not in when + requires + omits + rewords]
         if unknown:
             raise ValueError(f"{source_name}:{unknown[0][2]}: unrecognised directive {unknown[0][0]!r}")
-        if len(when) != 1 or len(requires) + len(omits) != 1:
+        if len(when) != 1 or len(requires) + len(omits) + len(rewords) != 1:
             raise ValueError(
                 f"{where}: needs exactly one 'when' block and exactly one "
-                "'require' or 'omit' block"
+                "'require', 'omit' or 'reword' block"
             )
         when_line, when_items, when_lineno = when[0]
         condition_variable = WHEN_RE.match(when_line).group(1)
@@ -211,6 +271,23 @@ def parse_deal_constraints(
                 condition_values=condition_values, target_variable=target_variable,
                 target_values=target_values,
             ))
+        elif rewords:
+            _, reword_items, reword_lineno = rewords[0]
+            if len(reword_items) != 1:
+                raise ValueError(
+                    f"{source_name}:{reword_lineno}: rule [{name}] 'reword' block must name exactly one wording file"
+                )
+            if read_wording_file is None:
+                raise ValueError(f"{where}: 'reword' rules need the rules file's directory to find {reword_items[0]}")
+            try:
+                wording_text = read_wording_file(reword_items[0])
+            except OSError as exc:
+                raise ValueError(f"{where}: cannot read wording file {reword_items[0]!r} ({exc})") from exc
+            rules.append(DealRule(
+                name=name, kind=RENDER_KIND, condition_variable=condition_variable,
+                condition_values=condition_values, wording_file=reword_items[0],
+                line_replacements=parse_wording_file(wording_text, reword_items[0]),
+            ))
         else:
             _, omit_items, omit_lineno = omits[0]
             if not omit_items:
@@ -226,7 +303,10 @@ def parse_deal_constraints(
 
 
 def load_deal_constraints(path: Path, value_ids: dict[str, dict[str, str]]) -> list[DealRule]:
-    return parse_deal_constraints(path.read_text(encoding="utf-8"), value_ids, path.name)
+    return parse_deal_constraints(
+        path.read_text(encoding="utf-8"), value_ids, path.name,
+        read_wording_file=lambda name: (path.parent / name).read_text(encoding="utf-8"),
+    )
 
 
 # --- checking and repair ---
@@ -356,6 +436,48 @@ def render_rule_variables_to_omit(rules: list[DealRule], hand: dict[str, str]) -
         if rule.kind == RENDER_KIND and rule.applies_to(hand):
             omitted.update(rule.omitted_variables)
     return frozenset(omitted)
+
+
+def render_rule_line_replacements(
+    rules: list[DealRule], hand: dict[str, str]
+) -> tuple[tuple[str, str], ...]:
+    """The (original line, replacement line) pairs this hand's matching reword rules
+    apply, in a stable order. Raises if two matching rules reword one line differently."""
+    replacements: dict[str, tuple[str, str]] = {}
+    for rule in rules:
+        if rule.kind == RENDER_KIND and rule.applies_to(hand):
+            for original, replacement in rule.line_replacements:
+                if original in replacements and replacements[original][1] != replacement:
+                    raise ValueError(
+                        f"deal rules [{replacements[original][0]}] and [{rule.name}] both reword the "
+                        f"line {original!r} for the same hand"
+                    )
+                replacements[original] = (rule.name, replacement)
+    return tuple(sorted((original, replacement) for original, (_, replacement) in replacements.items()))
+
+
+def replace_template_lines(template: str, replacements: Iterable[tuple[str, str]]) -> str:
+    """Swap each original template line for its replacement. Every original must
+    occur exactly once as a whole line, else this raises (a template edit that
+    leaves a reword rule pointing at nothing must fail loudly, not silently
+    render the unreworded line). Everything else is returned byte-for-byte."""
+    lines = template.split("\n")
+    for original, replacement in replacements:
+        positions = [i for i, line in enumerate(lines) if line == original]
+        if len(positions) != 1:
+            raise ValueError(
+                f"a reword rule replaces the template line {original!r}, which occurs "
+                f"{len(positions)} times in the template (it must occur exactly once)"
+            )
+        lines[positions[0]] = replacement
+    return "\n".join(lines)
+
+
+def render_template_for_hand(template: str, rules: list[DealRule], hand: dict[str, str]) -> str:
+    """The planning template as one hand sees it: reworded lines swapped in first,
+    then the lines of omitted variables dropped."""
+    reworded = replace_template_lines(template, render_rule_line_replacements(rules, hand))
+    return drop_template_lines(reworded, render_rule_variables_to_omit(rules, hand))
 
 
 def count_rendering_rule_hands(rules: list[DealRule], hands: list[dict[str, str]], report: RepairReport) -> None:

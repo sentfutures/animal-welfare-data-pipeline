@@ -539,7 +539,8 @@ def test_render_variable_lines_match_the_lines_the_planner_sees():
     for record in records:
         lines = cp.render_variable_lines(record, template, rules)
         assert lines in record["prompt"]  # contiguous, verbatim, in the planner's order
-        assert lines.startswith("Type: the document is ") and "The AI assistant character" in lines
+        assert lines.startswith("Type: the document is ") and (
+            "The AI assistant character" in lines or "The AI the discussion is about" in lines)
         assert "{" not in lines
     assert len({cp.render_variable_lines(r, template, rules) for r in records}) == len(records)
 
@@ -551,8 +552,9 @@ def test_render_variable_lines_apply_the_deal_rule_rendering_rules():
     for variables, omits in ((base, False), (no_stake, True)):
         record = {"prompt_id": "matrix_000000", "variables": variables}
         lines = cp.render_variable_lines(record, template, rules)
-        assert ("The main tradeoff with animal welfare" not in lines) is omits
-        assert ("The animal welfare stakes are on the scale" not in lines) is omits
+        assert ("The main tradeoff with welfare" not in lines) is omits
+        assert ("The welfare stakes are on the scale" not in lines) is omits
+        assert ("The welfare dilemma is" not in lines) is omits
         assert variables["domain"] in lines  # the dealt card is still shown elsewhere
         prompt = next(cp.compose_records(template, values, weights, "p", None, deal_rules=rules, hands=[record]))
         assert lines in prompt["prompt"]
