@@ -55,7 +55,7 @@ _cost_log_lock = threading.Lock()
 # truth for billing; this log is for per-stage breakdowns.
 _PRICING = {
     "claude-sonnet-4-6": (3.00, 15.00),
-    "claude-sonnet-5": (3.00, 15.00),
+    "claude-sonnet-5": (2.00, 10.00),
     "claude-opus-4-8": (5.00, 25.00),
     "claude-opus-5": (5.00, 25.00),
     "claude-fable-5": (10.00, 50.00),

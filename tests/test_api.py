@@ -282,7 +282,7 @@ class TestCostTracking:
         api.call_claude("hi", model="claude-sonnet-5", cache_system=True)
         record = json.loads((tmp_path / "cost.jsonl").read_text().strip())
         assert record["cache_read_tokens"] == 1_000_000
-        assert record["cost_usd"] == pytest.approx(0.30)  # 1M * $3/M * 0.10
+        assert record["cost_usd"] == pytest.approx(0.20)  # 1M * $2/M * 0.10
 
     def test_cache_write_tokens_priced_at_125_percent(self, recorded_api, tmp_path, fake_message):
         msg = fake_message(input_tokens=0, output_tokens=0)
@@ -291,7 +291,7 @@ class TestCostTracking:
         api.call_claude("hi", model="claude-sonnet-5", cache_system=True)
         record = json.loads((tmp_path / "cost.jsonl").read_text().strip())
         assert record["cache_creation_tokens"] == 1_000_000
-        assert record["cost_usd"] == pytest.approx(3.75)  # 1M * $3/M * 1.25
+        assert record["cost_usd"] == pytest.approx(2.50)  # 1M * $2/M * 1.25
 
     def test_config_model_is_priced_without_warning(self, recorded_api, tmp_path, fake_message, capsys):
         # Contract from shared/api.py: _PRICING must cover every model id that
