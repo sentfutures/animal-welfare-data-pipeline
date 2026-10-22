@@ -80,7 +80,7 @@ SUMMARY_FILENAME = "screen_summary.json"
 DEFAULT_BATCH_SIZE = 10
 DEFAULT_REDEAL_ROUNDS = 3
 MAX_REDEAL_ATTEMPTS = 25  # reshuffles tried per round before the removed cards are given up on
-_MAX_TOKENS = 2000  # a short list of one-line reasons; bounds api-backend cost
+_MAX_TOKENS = 8000  # reasoning plus a decision for each of 10 hands; a batch used 1,819 and another hit 2,000 on 2026-10-22
 
 # Values an evaluation or report flags: a variable value removed at more than
 # this multiple of the corpus-wide removal rate (with at least MIN_REMOVED_TO_FLAG
