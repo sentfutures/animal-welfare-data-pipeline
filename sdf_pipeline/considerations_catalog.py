@@ -56,7 +56,7 @@ class Consideration:
 
     @property
     def display(self) -> str:
-        return f"{self.label}{LABEL_GLOSS_SEPARATOR}{self.gloss}"
+        return f"{self.label}{LABEL_GLOSS_SEPARATOR}{self.gloss}" if self.gloss else self.label
 
 
 @dataclass(frozen=True)
@@ -95,11 +95,12 @@ def target_count(target_share: float, eligible_documents: int) -> int:
 
 
 def _split_entry(path_name: str, section: str, text: str) -> tuple[str, str]:
+    """(label, gloss); the gloss is optional, so an entry with no separator is a label alone."""
     label, separator, gloss = text.partition(LABEL_GLOSS_SEPARATOR)
-    if not separator or not label.strip() or not gloss.strip():
+    if not label.strip() or (separator and not gloss.strip()):
         raise ValueError(
             f"{path_name}: {{{section}}} entry {text[:60]!r} must read "
-            f"'Label{LABEL_GLOSS_SEPARATOR}one-line gloss'"
+            f"'Label{LABEL_GLOSS_SEPARATOR}one-line gloss' or 'Label'"
         )
     return label.strip(), gloss.strip()
 

@@ -244,6 +244,13 @@ def test_assemble_considerations_spec_is_empty_without_picks():
     assert select.assemble_considerations_spec([]) == ""
 
 
+def test_assemble_considerations_spec_leaves_out_the_parentheses_for_an_entry_without_a_gloss():
+    entry = select.Consideration("any relevant principles", "", 0.1, "moral")
+    assert select.assemble_considerations_spec([(entry, "Where it arises.")]) == (
+        "any relevant principles — Where it arises."
+    )
+
+
 def test_counts_never_exceed_targets_and_the_coverage_report_is_written(select_config, small_prompts, stage_dir, stub_claude):
     stub_claude(pick_first_offered)
     select.run(select_config, small_prompts, stage_dir, make_plans(10, digital={0, 1, 2, 3}))
@@ -613,7 +620,8 @@ def test_layer1_renders_with_no_consideration_text_and_no_label_wording(prompts_
     for record in records:
         planner_text = (record.get("system") or "") + record["prompt"]
         for entry in catalog.all_entries:
-            assert entry.label not in planner_text and entry.gloss not in planner_text
+            assert entry.label not in planner_text
+            assert not entry.gloss or entry.gloss not in planner_text
         assert "moral_considerations" not in record["variables"]
 
 

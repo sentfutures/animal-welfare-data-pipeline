@@ -197,7 +197,10 @@ def assemble_considerations_spec(picks: list) -> str:
     """The text block handed to later prompts: one line per pick, 'Label (gloss) —
     the selector's sentence on where it arises', moral picks first and each list
     in priority order. Empty string when there are no picks."""
-    return "\n".join(f"{entry.label} ({entry.gloss}) — {reason}" for entry, reason in picks)
+    return "\n".join(
+        f"{entry.label} ({entry.gloss}) — {reason}" if entry.gloss else f"{entry.label} — {reason}"
+        for entry, reason in picks
+    )
 
 
 # ---------------------------------------------------------------- stage

@@ -40,8 +40,8 @@ def labels(entries):
 
 def test_the_real_file_loads_with_both_lists_in_file_order(prompts_sdf):
     catalog = load_considerations(prompts_sdf)
-    assert labels(catalog.moral)[0] == "Substrate neutrality"
-    assert labels(catalog.moral)[-1] == "Relevant principles from the constitution"
+    assert labels(catalog.moral)[0] == "substrate neutrality"
+    assert labels(catalog.moral)[-1] == "any relevant principles from the constitution"
     # the digital-minds-only entries sit at the top of the epistemic list
     assert [e.digital_minds_only for e in catalog.epistemic[:2]] == [True, True]
     assert not any(e.digital_minds_only for e in catalog.epistemic[2:])
@@ -51,7 +51,7 @@ def test_the_real_file_loads_with_both_lists_in_file_order(prompts_sdf):
 
 def test_the_precautionary_principle_is_on_the_moral_list_only(prompts_sdf):
     catalog = load_considerations(prompts_sdf)
-    assert any("Precautionary" in e.label for e in catalog.moral)
+    assert any("precautionary" in e.label for e in catalog.moral)
     assert not any("precaution" in e.display.lower() for e in catalog.epistemic)
 
 
@@ -59,11 +59,18 @@ def test_the_targets_are_the_shares_in_the_plan(prompts_sdf):
     catalog = load_considerations(prompts_sdf)
     shares = {e.label: e.target_share for e in catalog.all_entries}
     assert shares["Weighing evidence for sentience"] == 0.10
-    assert shares["Absence of evidence versus evidence of absence"] == 0.01
+    assert shares["Absence of evidence vs evidence of absence"] == 0.01
     assert shares["Weighing theories of consciousness and their implications for AI"] == 0.20
     assert shares["Difficulties of AI self-reporting welfare"] == 0.10
-    assert shares["Substrate neutrality"] == 0.08
-    assert shares["Continuity with the AI's aligned character"] == 0.15
+    assert shares["substrate neutrality"] == 0.08
+    assert shares["the continuity between welfare concern and the rest of the AI's aligned character"] == 0.15
+
+
+def test_an_entry_without_a_gloss_is_a_label_alone(prompts_sdf):
+    catalog = load_considerations(prompts_sdf)
+    entry = catalog.entry_by_label("any relevant principles from the constitution")
+    assert entry.gloss == ""
+    assert entry.display == "any relevant principles from the constitution"
 
 
 def test_digital_mind_categories_resolve_to_the_three_real_values(prompts_sdf):
@@ -94,10 +101,10 @@ def test_rewording_the_no_stake_resolution_makes_loading_fail(prompts_sdf, tmp_p
 
 
 @pytest.mark.parametrize("old,new,message", [
-    ("Substrate neutrality: welfare", "Substrate neutrality welfare", "must read"),
-    ("0.08 :: Substrate neutrality", "Substrate neutrality", "target share"),
-    ("0.08 :: Substrate neutrality", "1.5 :: Substrate neutrality", "target share"),
-    ("Individualism:", "Substrate neutrality:", "unique"),
+    ("0.08 :: substrate neutrality:", "0.08 :: :", "must read"),
+    ("0.08 :: substrate neutrality", "substrate neutrality", "target share"),
+    ("0.08 :: substrate neutrality", "1.5 :: substrate neutrality", "target share"),
+    ("individualism:", "substrate neutrality:", "unique"),
 ])
 def test_a_malformed_considerations_file_fails_loudly(prompts_sdf, tmp_path, old, new, message):
     text = (prompts_sdf / "considerations.txt").read_text(encoding="utf-8")

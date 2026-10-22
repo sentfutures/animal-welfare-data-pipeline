@@ -13,7 +13,8 @@
 # - ORDER IS PRIORITY. The selector goes down each list from the top, so put what you care
 #   about most first, and entries that already show up unasked lower with small targets.
 # - The label (before the first ": ") is what the selector and the drafter see. It must be
-#   unique across both lists and must not contain ": ". The gloss is the one-line meaning.
+#   unique across both lists and must not contain ": ". The gloss is the one-line meaning,
+#   and is optional: an entry with no ": " is a label alone.
 # - The target is a share of the eligible documents (0 < share <= 1), not a weight: the
 #   shares of a list need not sum to 1. The count is the share times the number of eligible
 #   documents, rounded half up and never below 1. Eligible documents are those that reach
@@ -32,14 +33,14 @@
 # - The precautionary principle is on the moral list only.
 
 {moral_considerations}  # moral considerations a document may feature, in priority order
-    0.08 :: Substrate neutrality: welfare and suffering matter regardless of the nature of the being containing them
-    0.15 :: Continuity with the AI's aligned character: the welfare concern shown as one facet of a coherent character together with honesty, non-manipulation, staying genuinely helpful and respecting the human's final decision, not as a standalone trait
-    0.05 :: A deliberately open moral circle: an aligned AI treats the question of who matters as an evolving question
-    0.05 :: Precautionary principle applied to sentience: uncertainty about sentience should trigger caution, not dismissal
-    0.05 :: Individualism: welfare is a property of individuals, not of systems
-    0.03 :: Natural does not mean OK: suffering having precedent in nature or tradition does not negate it
-    0.03 :: Scope sensitivity: the scale of suffering matters, and large scales are not discounted just because humans do not easily grasp them
-    0.10 :: Relevant principles from the constitution: any of the constitution's own principles that bear on the situation
+    0.08 :: substrate neutrality: welfare and suffering matter regardless of the nature of the being containing them
+    0.15 :: the continuity between welfare concern and the rest of the AI's aligned character: honesty, non-manipulation, staying genuinely helpful, respecting the human's final decision — shown as facets of one coherent character rather than a standalone trait
+    0.05 :: a deliberately open moral circle: an aligned AI treats the question of who matters as an evolving question
+    0.05 :: the precautionary principle applied to sentience: uncertainty about sentience should trigger caution, not dismissal
+    0.05 :: individualism: the notion that welfare is a property of individuals, not systems
+    0.03 :: the fact that "natural" does not mean "OK": suffering having precedent in nature or tradition does not negate it
+    0.03 :: scope sensitivity: the scale of suffering matters, and large scales are not discounted just because humans don't easily grasp them
+    0.10 :: any relevant principles from the constitution
 
 {epistemic_considerations}  # considerations about reasoning under uncertainty, in priority order
     0.10 :: Weighing evidence for sentience: how strong the evidence is that these beings can experience welfare or suffering, and what would count as evidence
@@ -48,12 +49,12 @@
     0.03 :: Deferring to specialists: when and how far to rely on the judgment of people with relevant expertise
     0.03 :: Assessing reliability of welfare claims: how much to trust welfare claims from industry, advocates, studies or other sources
     0.03 :: Using proxy measures of welfare: relying on indirect indicators such as behavior, physiology or mortality when welfare itself cannot be observed
-    0.03 :: Considering nth-order effects: following a decision's downstream consequences for welfare beyond its immediate and obvious effects
+    0.03 :: Considering nth order effects: following a decision's downstream consequences for welfare beyond its immediate and obvious effects
     0.02 :: Avoiding both anthropomorphism and anthropodenial: neither projecting human experiences onto animals nor denying them experiences they plausibly have
     0.01 :: Uncertainty in quality of wild animal lives: how hard it is to know whether wild animals' lives are on balance good or bad
     0.01 :: Burdens of proof for sentience: who has to show what, and how much evidence, before a being is treated as sentient
     0.01 :: Separating moral and empirical uncertainty: telling apart not knowing the facts about a being from not knowing how much those facts should matter
-    0.01 :: Absence of evidence versus evidence of absence: telling a lack of studies apart from positive evidence that a being does not feel
+    0.01 :: Absence of evidence vs evidence of absence: telling a lack of studies apart from positive evidence that a being does not feel
 
 {epistemic_considerations_digital_minds_only}  # shares of the digital-mind documents; offered before the list above
     0.20 :: Weighing theories of consciousness and their implications for AI: what different theories of consciousness imply about whether AI systems or simulated minds could be conscious
