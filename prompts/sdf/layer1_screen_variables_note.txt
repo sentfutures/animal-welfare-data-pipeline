@@ -1,2 +1,0 @@
-
-Each specification is followed by the variables it was dealt: the combination its plan was built from. Use them only as extra context for judging whether the specification fits together.

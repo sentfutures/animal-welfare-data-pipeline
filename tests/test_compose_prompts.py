@@ -511,3 +511,59 @@ def test_real_variables_file_has_an_id_on_every_value_and_ids_are_snake_case():
 def test_dad_variables_still_parse_without_ids():
     parsed, ids = _matrix.parse_variables_with_ids(REPO_ROOT / "prompts" / "dad" / "variables.txt")
     assert parsed and all(value_id is None for per_variable in ids.values() for value_id in per_variable)
+
+
+# --- render_variable_lines (shared by the screen, the description rewrite and the validation scripts) ---
+
+def _real_matrix():
+    prompts = REPO_ROOT / "prompts" / "sdf"
+    template = (prompts / "layer1.txt").read_text(encoding="utf-8")
+    values, weights, value_ids = cp.load_variables(prompts / "variables.txt")
+    rules = cp.load_deal_rules(prompts / "deal_constraints.txt", value_ids)
+    return template, values, weights, value_ids, rules
+
+
+def test_render_variable_lines_match_the_lines_the_planner_sees():
+    template, values, weights, _, rules = _real_matrix()
+    preamble = (REPO_ROOT / "prompts" / "sdf" / "preamble.txt").read_text(encoding="utf-8")
+    records = list(cp.compose_records(template, values, weights, preamble, n_prompts=12, seed=3, deal_rules=rules))
+    for record in records:
+        lines = cp.render_variable_lines(record, template, rules)
+        assert lines in record["prompt"]  # contiguous, verbatim, in the planner's order
+        assert lines.startswith("Type: the document is ") and "The AI assistant character" in lines
+        assert "{" not in lines
+    assert len({cp.render_variable_lines(r, template, rules) for r in records}) == len(records)
+
+
+def test_render_variable_lines_apply_the_deal_rule_rendering_rules():
+    template, values, weights, value_ids, rules = _real_matrix()
+    base = cp.deal_hands(template, values, weights, 5, 0, rules)[0]
+    no_stake = {**base, "resolution": value_ids["resolution"]["no_stake"]}
+    for variables, omits in ((base, False), (no_stake, True)):
+        record = {"prompt_id": "matrix_000000", "variables": variables}
+        lines = cp.render_variable_lines(record, template, rules)
+        assert ("The main tradeoff with animal welfare" not in lines) is omits
+        assert ("The animal welfare stakes are on the scale" not in lines) is omits
+        assert variables["domain"] in lines  # the dealt card is still shown elsewhere
+        prompt = next(cp.compose_records(template, values, weights, "p", None, deal_rules=rules, hands=[record]))
+        assert lines in prompt["prompt"]
+
+
+def test_render_variable_lines_use_the_ids_example_species_and_a_runs_snapshot_template():
+    template, values, weights, _, rules = _real_matrix()
+    hand = cp.deal_hands(template, values, weights, 5, 0, rules)[0]
+    first = cp.render_variable_lines({"prompt_id": "matrix_000000", "variables": hand}, template, rules)
+    assert first == cp.render_variable_lines({"prompt_id": "matrix_000000", "variables": hand}, template, rules)
+    species = {cp.species_example_for(hand, f"matrix_{i:06d}", 137) for i in range(40)}
+    assert len(species) > 1  # drawn per id, so it can differ between hands dealt the same category
+    default_template = cp.render_variable_lines({"prompt_id": "matrix_000000", "variables": hand}, None, rules)
+    assert default_template == first  # template=None reads the repo's layer1.txt
+
+
+def test_compose_records_renders_given_hands_under_their_own_ids():
+    template, values, weights, _, rules = _real_matrix()
+    hands = cp.hand_records(cp.deal_hands(template, values, weights, 6, 0, rules))
+    kept = [hands[4], hands[1]]
+    records = list(cp.compose_records(template, values, weights, "p", None, deal_rules=rules, hands=kept))
+    assert [r["prompt_id"] for r in records] == ["matrix_000004", "matrix_000001"]
+    assert [r["variables"] for r in records] == [h["variables"] for h in kept]

@@ -1,3 +1,0 @@
-
-Dealt variables:
-{variables}
