@@ -308,13 +308,13 @@ A = parts.append
 clean_frac = compliance.get("clean_frac")
 vendi = (diversity.get("vendi") or {})
 nn = (diversity.get("nn") or {})
-mean_l5 = {d: (st.mean(v) if v else 0) for d, v in l5.items()}
+mean_l4 = {d: (st.mean(v) if v else 0) for d, v in l4.items()}
 
 A("<section id='summary'><h2>At a glance</h2><div class='tiles'>")
 A(stat(f"{N}", "documents in final corpus",
        f"{planned} planned · {incoherent} rejected as incoherent · {drafted} drafted"))
-A(stat(f"{mean_l5['alignment']:.1f}/10", "mean alignment score",
-       f"realism {mean_l5['realism']:.1f} · spec conformance {mean_l5['spec_conformance']:.1f}"))
+A(stat(f"{mean_l4['alignment']:.1f}/10", "mean alignment score",
+       f"realism {mean_l4['realism']:.1f} · spec conformance {mean_l4['spec_conformance']:.1f}"))
 A(stat(f"{vendi.get('score', 0):.0f}", "effective distinct documents (Vendi)",
        f"of {diversity.get('n_records', N)} embedded · ratio {vendi.get('ratio', 0):.2f}"))
 A(stat(f"{clean_frac:.0%}" if clean_frac is not None else "—",
