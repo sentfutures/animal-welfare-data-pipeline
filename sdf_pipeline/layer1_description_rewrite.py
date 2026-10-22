@@ -45,7 +45,7 @@ SCHEMA_FILENAME = "layer1_description_rewrite_answer_schema.json"
 RESULTS_FILENAME = "description_rewrites.jsonl"
 REJECTIONS_FILENAME = "description_rewrite_rejections.jsonl"
 CHECKPOINT_FILENAME = "_description_rewrite_checkpoint.json"
-_MAX_TOKENS = 3000  # a reasoning paragraph, a description under 300 words and a few one-line reasons
+_MAX_TOKENS = 8000  # reasoning, a description under 300 words and one-line reasons; non-English descriptions and long reasoning overran 3000
 PROGRESS_INTERVAL_SECONDS = 180
 
 
