@@ -58,9 +58,16 @@ _PRICING = {
     "claude-sonnet-5": (2.00, 10.00),
     "claude-opus-4-8": (5.00, 25.00),
     "claude-opus-5": (5.00, 25.00),
+    "claude-opus-5-5": (4.00, 20.00),
     "claude-fable-5": (10.00, 50.00),
     "claude-haiku-4-5": (1.00, 5.00),
     "claude-haiku-4-5-20251001": (1.00, 5.00),
+}
+# Cache-read price as a fraction of the input price. Default 0.10; models that
+# differ are listed here (Opus 5.5 bills cache reads at $0.20/M = 0.05x of $4).
+_DEFAULT_CACHE_READ_MULTIPLIER = 0.10
+_CACHE_READ_MULTIPLIER_BY_MODEL = {
+    "claude-opus-5-5": 0.05,
 }
 _UNPRICED_WARNED: set = set()
 
@@ -189,12 +196,12 @@ def _log_usage(
                 )
             prices = (3.00, 15.00)
         # Prompt-caching prices (Anthropic): a cache WRITE is 1.25x the input
-        # rate, a cache READ is 0.1x. Plain (uncached) calls pass 0 for both.
+        # rate, a cache READ is 0.1x (per-model exceptions above). Plain (uncached) calls pass 0 for both.
         cost_usd = (
             (input_tokens / 1_000_000) * prices[0]
             + (output_tokens / 1_000_000) * prices[1]
             + (cache_creation_tokens / 1_000_000) * prices[0] * 1.25
-            + (cache_read_tokens / 1_000_000) * prices[0] * 0.10
+            + (cache_read_tokens / 1_000_000) * prices[0] * _CACHE_READ_MULTIPLIER_BY_MODEL.get(model, _DEFAULT_CACHE_READ_MULTIPLIER)
         )
     record = {
         "timestamp": datetime.now(UTC).isoformat(),
@@ -262,13 +269,14 @@ def _call_with_retry(
     temperature: float,
     json_schema: dict | None = None,
 ) -> anthropic.types.Message:
-    # Extended thinking OFF everywhere — training data should show user-facing
-    # reasoning, not internal scratchpads (see CLAUDE.md). Models in the Claude 5
-    # family emit a thinking block by default, so disable it explicitly rather
-    # than parse around it. Exception: the Mythos-class models (fable/mythos)
-    # REQUIRE adaptive thinking — the API 400s on `thinking: disabled` — so for
-    # those the flag is omitted, thinking runs, and _response_text strips the
-    # thinking blocks. Their outputs are therefore generated WITH hidden
+    # Extended thinking is requested OFF — training data should show
+    # user-facing reasoning, not internal scratchpads (see CLAUDE.md). Models in
+    # the Claude 5 family emit a thinking block by default, so disable it
+    # explicitly rather than parse around it. Exception: the models in
+    # _ADAPTIVE_THINKING_PREFIXES (fable/mythos, Opus 5.5) REQUIRE adaptive
+    # thinking — the API 400s on `thinking: disabled` — so for those the flag
+    # is omitted, thinking runs (kept short where _HIDDEN_THINKING_EFFORT_BY_PREFIX
+    # sets an effort), and _response_text strips the thinking blocks. Their outputs are therefore generated WITH hidden
     # reasoning: comparison/eval arms only, never corpus generation, unless the
     # no-scratchpads design decision is deliberately revisited.
     kwargs = dict(
@@ -284,19 +292,40 @@ def _call_with_retry(
         kwargs["temperature"] = temperature
     if not _requires_adaptive_thinking(model):
         kwargs["thinking"] = {"type": "disabled"}
+    output_config: dict = {}
+    effort = _hidden_thinking_effort(model)
+    if effort is not None:
+        output_config["effort"] = effort
     if json_schema is not None:
         # Schema-constrained output: the response text is JSON matching the schema.
-        kwargs["output_config"] = {"format": {"type": "json_schema", "schema": json_schema}}
+        output_config["format"] = {"type": "json_schema", "schema": json_schema}
+    if output_config:
+        kwargs["output_config"] = output_config
     return client.messages.create(**kwargs)
 
 
-_ADAPTIVE_THINKING_PREFIXES = ("claude-fable", "claude-mythos")
+# Models that cannot run with thinking disabled (400 at every effort level).
+_ADAPTIVE_THINKING_PREFIXES = ("claude-fable", "claude-mythos", "claude-opus-5-5")
+
+# Per-model effort sent as output_config.effort, to keep the hidden thinking of
+# the models above short (Opus 5.5 defaults to "medium"). Models not listed get
+# no effort setting, i.e. their own default.
+_HIDDEN_THINKING_EFFORT_BY_PREFIX = {
+    "claude-opus-5-5": "low",
+}
 
 
 def _requires_adaptive_thinking(model: str) -> bool:
-    """Mythos-class models cannot run with thinking disabled (400); callers
-    omit the flag for them and rely on _response_text to strip the blocks."""
+    """These models cannot run with thinking disabled (400); callers omit the
+    flag for them and rely on _response_text to strip the blocks."""
     return model.startswith(_ADAPTIVE_THINKING_PREFIXES)
+
+
+def _hidden_thinking_effort(model: str) -> str | None:
+    for prefix, effort in _HIDDEN_THINKING_EFFORT_BY_PREFIX.items():
+        if model.startswith(prefix):
+            return effort
+    return None
 
 
 # Models that reject sampling parameters (temperature/top_p/top_k) with a 400:
@@ -423,10 +452,10 @@ def _run_claude_code_query(
         tools=[],  # pure text generation: no file/bash/web access
         max_turns=1,
         # Thinking disabled so training data shows user-facing reasoning only.
-        # Mythos-class models (fable/mythos) require adaptive thinking and 400
-        # on disabled, so the flag is omitted for them (mirrors the api
-        # backend's _call_with_retry); their thinking blocks are stripped by
-        # the TextBlock filter below.
+        # Models in _ADAPTIVE_THINKING_PREFIXES (fable/mythos, Opus 5.5) require
+        # adaptive thinking and 400 on disabled, so the flag is omitted for them
+        # (mirrors the api backend's _call_with_retry), with the same per-model
+        # effort; their thinking blocks are stripped by the TextBlock filter below.
         # Hermetic run: without these, the CLI loads the contributor's own
         # ~/.claude settings (custom agents, plan-by-default permission modes,
         # hooks), which leaks agentic scaffolding into generated text.
@@ -439,6 +468,9 @@ def _run_claude_code_query(
     )
     if not _requires_adaptive_thinking(model):
         option_kwargs["thinking"] = {"type": "disabled"}
+    effort = _hidden_thinking_effort(model)
+    if effort is not None:
+        option_kwargs["effort"] = effort
     if json_schema is not None:
         option_kwargs["output_format"] = {"type": "json_schema", "schema": json_schema}
     options = ClaudeAgentOptions(**option_kwargs)

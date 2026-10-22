@@ -284,6 +284,14 @@ class TestCostTracking:
         assert record["cache_read_tokens"] == 1_000_000
         assert record["cost_usd"] == pytest.approx(0.20)  # 1M * $2/M * 0.10
 
+    def test_opus_5_5_pricing_and_cache_read_rate(self, recorded_api, tmp_path, fake_message):
+        msg = fake_message(input_tokens=1_000_000, output_tokens=1_000_000)
+        msg.usage.cache_read_input_tokens = 1_000_000
+        recorded_api["message"] = msg
+        api.call_claude("hi", model="claude-opus-5-5", cache_system=True)
+        record = json.loads((tmp_path / "cost.jsonl").read_text().strip())
+        assert record["cost_usd"] == pytest.approx(4.00 + 20.00 + 0.20)  # cache read 0.05x of $4
+
     def test_cache_write_tokens_priced_at_125_percent(self, recorded_api, tmp_path, fake_message):
         msg = fake_message(input_tokens=0, output_tokens=0)
         msg.usage.cache_creation_input_tokens = 1_000_000
@@ -805,7 +813,39 @@ class TestAdaptiveThinkingModels:
              system="s", messages=[], temperature=1.0)
         assert "thinking" not in client.messages.kwargs
 
+    def _kwargs_sent(self, model, json_schema=None):
+        import importlib
+        real = importlib.reload(api)._call_with_retry
+        client = self._FakeClient()
+        real(client=client, model=model, max_tokens=100, system="s", messages=[],
+             temperature=1.0, json_schema=json_schema)
+        return client.messages.kwargs
+
+    def test_opus_5_5_omits_thinking_flag_sends_low_effort_and_no_sampling(self):
+        kwargs = self._kwargs_sent("claude-opus-5-5")
+        assert "thinking" not in kwargs
+        assert kwargs["output_config"] == {"effort": "low"}
+        assert "temperature" not in kwargs
+
+    def test_opus_5_5_effort_merges_with_schema_format(self):
+        schema = {"type": "object", "properties": {}}
+        kwargs = self._kwargs_sent("claude-opus-5-5", json_schema=schema)
+        assert kwargs["output_config"] == {
+            "effort": "low", "format": {"type": "json_schema", "schema": schema}}
+
+    def test_other_models_unchanged(self):
+        schema = {"type": "object"}
+        sonnet = self._kwargs_sent("claude-sonnet-5", json_schema=schema)
+        assert sonnet["thinking"] == {"type": "disabled"}
+        assert sonnet["output_config"] == {"format": {"type": "json_schema", "schema": schema}}
+        assert "output_config" not in self._kwargs_sent("claude-sonnet-5")
+        assert "output_config" not in self._kwargs_sent("claude-opus-5")
+        assert self._kwargs_sent("claude-opus-5")["thinking"] == {"type": "disabled"}
+        assert "output_config" not in self._kwargs_sent("claude-fable-5")
+
     def test_predicate_covers_the_tier(self):
+        assert api._requires_adaptive_thinking("claude-opus-5-5")
+        assert not api._requires_adaptive_thinking("claude-opus-5")
         assert api._requires_adaptive_thinking("claude-fable-5")
         assert api._requires_adaptive_thinking("claude-mythos-5")
         assert not api._requires_adaptive_thinking("claude-sonnet-5")
