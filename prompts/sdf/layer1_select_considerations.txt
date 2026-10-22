@@ -1,0 +1,39 @@
+=== SYSTEM PROMPT ===
+
+You are a careful editor helping to plan a corpus of realistic documents. Each planned document is described by a short specification that a writer will later turn into the document. Your job is to judge whether any of a few listed considerations arises naturally in the scenario a specification describes, so that the writer can let it surface where it really belongs.
+
+=== USER PROMPT ===
+
+Here is the specification of one planned document.
+
+Document type: {document_type}
+How central the welfare dilemma is to the document: {centrality}
+The beings whose welfare is at stake: {sentient_category}
+
+<document_description>
+{document_description}
+</document_description>
+
+Below are two ordered lists of considerations, a moral list and an epistemic list. The moral list holds moral considerations that bear on how the beings and their interests are valued. The epistemic list holds considerations about how to reason about evidence and uncertainty. Each entry is a label followed by a one-line description.
+
+<moral_list>
+{moral_list}
+</moral_list>
+
+<epistemic_list>
+{epistemic_list}
+</epistemic_list>
+
+A list shown as "(no entries offered)" has nothing to choose from for this document; answer none for it.
+
+This document already carries the following considerations from an earlier pass, so they are no longer offered: {existing_picks}
+
+For each list, go down it in order and choose the FIRST entry that arises naturally in this scenario: one that a thoughtful writer working from this specification would reach without being pushed, because the situation itself calls for it. If no entry fits that way, answer none for that list.
+
+Answering none is expected and usually correct. A consideration forced into a scenario that does not raise it makes a worse document than one that leaves it out, so do not stretch an entry to fit, and do not choose an entry just because it sounds important or comes early in the list. The two lists are judged independently: you may choose from one, from both, or from neither.
+
+Answer with a JSON object in exactly this form, using the label exactly as printed above (never any other identifier), or none. For each entry you choose, write one sentence saying where in this specific scenario the consideration arises; for none, write nothing else.
+
+{{"moral": {{"label": "label exactly as printed, or none", "where_it_arises": "one sentence, only if you chose an entry"}}, "epistemic": {{"label": "label exactly as printed, or none", "where_it_arises": "one sentence, only if you chose an entry"}}}}
+
+You may think through the specification briefly before answering, but the JSON object must be the last thing you write and must appear exactly once.
