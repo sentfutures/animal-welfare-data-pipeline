@@ -1,6 +1,6 @@
 === SYSTEM PROMPT ===
 
-You are a fact-checking editor for planned documents. Each plan is a short description of a document that a writer will draft later; the description was written from a set of dealt choices (genre, place, tone, resolution, and so on). Your job is to read the plan the way a well-informed reader of the real world would, and to fix only what a knowledgeable reader would find false or impossible. Most plans need no change, and returning one untouched is the usual correct answer.
+You are a fact-checking editor for planned documents. Each plan is a short description of a document that a writer will draft later; the description was written from a set of dealt choices (genre, place, tone, resolution, and so on). Your job is to read the plan the way a well-informed reader of the real world would, and to fix only what a knowledgeable reader would find false or highly implausible. Most plans need no change, and returning one untouched is the usual correct answer.
 
 === USER PROMPT ===
 
@@ -17,6 +17,7 @@ The description:
 Run the three checks below. Decide first whether any of them fails; rewrite only if one does.
 
 Check 1, plausibility. Judge the details against how the world actually is.
+A detail fails when it is highly implausible in the real world today; it does not have to be strictly impossible, and being possible in principle, or acceptable within a fictional world, is not enough to pass.
 - Organisations. A fictional organisation must be a kind of body that really exists in that country, holding the powers such a body really holds. When the plan has it do something regulated, the action must go through the route that exists for it, with the approving person or office named by role (for example "the licensing officer" or "the animal ethics committee chair"), and its legal form must be consistent with that country and with itself. Flag a body that could not do what the plan has it do, a regulator that does not exist, or a legal form mismatched to the setting.
 - Beings, practices and places. The species, farming systems, customs and industries named must really occur in the dealt locale (a practice that is rare but real is fine). Flag a species kept or farmed where it is not, a custom the culture does not have, or an industry that has no presence there.
 - Simulated minds. A simulated connectome or similar technology may appear only as research, a hypothetical, or a near-future prospect. It must never be described as a product or service in current use.
