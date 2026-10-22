@@ -141,8 +141,14 @@ def call_openai(
     client = _get_client()
     api._attempt_state.n = 1
     started = time.monotonic()
-    response = _create_response(client, **build_request_arguments(
-        model, system_prompt, user_message, max_output_tokens, reasoning_effort, json_schema, schema_name))
+    try:
+        response = _create_response(client, **build_request_arguments(
+            model, system_prompt, user_message, max_output_tokens, reasoning_effort, json_schema, schema_name))
+    except Exception as e:
+        api._log_model_call(model, "openai", system_prompt, [user_message], response_text=None,
+                            stage=stage, item_id=item_id, attempts=api._attempt_state.n,
+                            error=f"{type(e).__name__}: {str(e)[:500]}")
+        raise
 
     usage = response.usage
     input_details = getattr(usage, "input_tokens_details", None)
@@ -157,8 +163,15 @@ def call_openai(
         reasoning_tokens=reasoning_tokens, backend="openai")
 
     stop_reason = _stop_reason(response)
+    output_text = _output_text(response)
+    api._log_model_call(
+        model, "openai", system_prompt, [user_message], response_text=output_text,
+        stop_reason=stop_reason,
+        usage={"input_tokens": usage.input_tokens, "output_tokens": usage.output_tokens,
+               "cache_read_tokens": cached_tokens, "reasoning_tokens": reasoning_tokens},
+        stage=stage, item_id=item_id, attempts=api._attempt_state.n)
     if stop_reason != "end_turn":
         print(f"  WARNING: response stop_reason={stop_reason!r} (model {model}, "
               f"max_output_tokens {max_output_tokens}) — output may be truncated or refused.",
               flush=True)
-    return _output_text(response), stop_reason
+    return output_text, stop_reason

@@ -803,7 +803,7 @@ class TestAdaptiveThinkingModels:
              system="s", messages=[], temperature=1.0)
         assert client.messages.kwargs["thinking"] == {"type": "disabled"}
 
-    def test_thinking_flag_omitted_for_mythos_class(self):
+    def test_adaptive_summarized_thinking_for_mythos_class(self):
         # fable/mythos 400 on thinking-disabled; the flag is omitted and
         # _response_text strips the thinking blocks downstream
         import importlib
@@ -811,7 +811,7 @@ class TestAdaptiveThinkingModels:
         client = self._FakeClient()
         real(client=client, model="claude-fable-5", max_tokens=100,
              system="s", messages=[], temperature=1.0)
-        assert "thinking" not in client.messages.kwargs
+        assert client.messages.kwargs["thinking"] == {"type": "adaptive", "display": "summarized"}
 
     def _kwargs_sent(self, model, json_schema=None):
         import importlib
@@ -821,9 +821,9 @@ class TestAdaptiveThinkingModels:
              temperature=1.0, json_schema=json_schema)
         return client.messages.kwargs
 
-    def test_opus_5_5_omits_thinking_flag_sends_low_effort_and_no_sampling(self):
+    def test_opus_5_5_sends_summarized_adaptive_thinking_low_effort_and_no_sampling(self):
         kwargs = self._kwargs_sent("claude-opus-5-5")
-        assert "thinking" not in kwargs
+        assert kwargs["thinking"] == {"type": "adaptive", "display": "summarized"}
         assert kwargs["output_config"] == {"effort": "low"}
         assert "temperature" not in kwargs
 
@@ -850,6 +850,146 @@ class TestAdaptiveThinkingModels:
         assert api._requires_adaptive_thinking("claude-mythos-5")
         assert not api._requires_adaptive_thinking("claude-sonnet-5")
         assert not api._requires_adaptive_thinking("claude-haiku-4-5-20251001")
+
+
+class TestModelCallsRecord:
+    @staticmethod
+    def _response(content, stop_reason="end_turn"):
+        usage = SimpleNamespace(input_tokens=7, output_tokens=3,
+                                cache_creation_input_tokens=0, cache_read_input_tokens=0)
+        return SimpleNamespace(content=content, usage=usage, stop_reason=stop_reason)
+
+    def test_record_holds_raw_text_and_system_prompt_is_written_once(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(api, "_cost_log_path", tmp_path / "cost_log.jsonl")
+        raw_text = "<document>raw text</document> trailing"
+        monkeypatch.setattr(api, "_call_with_retry", lambda **kwargs: self._response(
+            [SimpleNamespace(type="text", text=raw_text)]))
+        api.call_claude("first user message", system_prompt="the constitution", stage="layer1", item_id="a")
+        api.call_claude("second user message", system_prompt="the constitution", stage="layer1", item_id="b")
+        records = [json.loads(line) for line in (tmp_path / "model_calls.jsonl").read_text().splitlines()]
+        assert [r["item_id"] for r in records] == ["a", "b"]
+        first = records[0]
+        assert first["response_text"] == raw_text
+        assert first["user_messages"] == ["first user message"]
+        assert first["stage"] == "layer1" and first["backend"] == "api"
+        assert first["stop_reason"] == "end_turn" and first["attempts"] == 1
+        assert first["usage"]["input_tokens"] == 7 and first["usage"]["output_tokens"] == 3
+        prompt_files = list((tmp_path / "system_prompts").iterdir())
+        assert len(prompt_files) == 1
+        assert prompt_files[0].name == f"{first['system_prompt_sha256']}.txt"
+        assert prompt_files[0].read_text() == "the constitution"
+        assert records[0]["system_prompt_sha256"] == records[1]["system_prompt_sha256"]
+
+    def test_failed_call_gets_a_record_with_the_error(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(api, "_cost_log_path", tmp_path / "cost_log.jsonl")
+        def _fail(**kwargs):
+            raise ValueError("bad request")
+        monkeypatch.setattr(api, "_call_with_retry", _fail)
+        with pytest.raises(ValueError):
+            api.call_claude("hi", system_prompt="s", item_id="x")
+        record = json.loads((tmp_path / "model_calls.jsonl").read_text())
+        assert record["response_text"] is None and "bad request" in record["error"]
+
+    def test_nothing_written_without_a_cost_log_path(self, monkeypatch, tmp_path):
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr(api, "_log_usage", lambda *args, **kwargs: None)  # the cost log itself needs a path
+        monkeypatch.setattr(api, "_call_with_retry", lambda **kwargs: self._response(
+            [SimpleNamespace(type="text", text="t")]))
+        assert api.call_claude("hi", system_prompt="s") == "t"
+        assert list(tmp_path.iterdir()) == []
+
+    def test_run_with_its_own_cost_log_records_beside_it_but_an_evaluation_does_not(
+            self, monkeypatch, tmp_path, tiny_config):
+        """init without a cost_log_path is how evaluations start: they share the global cost log, so they
+        write no full records there. A run passes its own cost log path and gets records beside it."""
+        tiny_config["outputs"]["cost_log"] = str(tmp_path / "global_outputs" / "cost_log.jsonl")
+        config_path = tmp_path / "evaluation_config.yaml"
+        config_path.write_text(yaml.safe_dump(tiny_config))
+        monkeypatch.setattr(api, "_call_with_retry", lambda **kwargs: self._response(
+            [SimpleNamespace(type="text", text="ok")]))
+
+        api.init(str(config_path))
+        api.call_claude("evaluation message", system_prompt="s")
+        assert not (tmp_path / "global_outputs" / "model_calls.jsonl").exists()
+        assert not (tmp_path / "global_outputs" / "system_prompts").exists()
+        assert (tmp_path / "global_outputs" / "cost_log.jsonl").exists()
+
+        run_directory = tmp_path / "a_run"
+        api.init(str(config_path), cost_log_path=run_directory / "cost_log.jsonl")
+        api.call_claude("run message", system_prompt="s")
+        assert (run_directory / "model_calls.jsonl").exists()
+
+    def test_unwritable_record_does_not_fail_a_successful_call(self, monkeypatch, tmp_path, capsys):
+        """A lone surrogate in the user message cannot be encoded as UTF-8, so the record write raises;
+        the paid response must still be returned, with one warning for the whole process."""
+        monkeypatch.setattr(api, "_cost_log_path", tmp_path / "cost_log.jsonl")
+        monkeypatch.setattr(api, "_model_call_log_failure_warned", False)
+        monkeypatch.setattr(api, "_call_with_retry", lambda **kwargs: self._response(
+            [SimpleNamespace(type="text", text="ok")]))
+        assert api.call_claude("doc \ud83d truncated", system_prompt="s") == "ok"
+        assert api.call_claude("another \ud83d one", system_prompt="s") == "ok"
+        assert capsys.readouterr().err.count("could not write the model call record") == 1
+
+    def test_unwritable_record_does_not_hide_the_original_api_error(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(api, "_cost_log_path", tmp_path / "cost_log.jsonl")
+        monkeypatch.setattr(api, "_model_call_log_failure_warned", False)
+        def _fail(**kwargs):
+            raise ValueError("bad request")
+        monkeypatch.setattr(api, "_call_with_retry", _fail)
+        with pytest.raises(ValueError, match="bad request"):
+            api.call_claude("doc \ud83d truncated", system_prompt="s")
+
+    def test_system_prompt_file_is_written_under_a_temporary_name_then_renamed(self, monkeypatch, tmp_path):
+        """A process killed partway through the write must not leave a truncated file at the hashed name,
+        because later calls skip the write whenever that name exists."""
+        monkeypatch.setattr(api, "_cost_log_path", tmp_path / "cost_log.jsonl")
+        monkeypatch.setattr(api, "_model_call_log_failure_warned", True)   # keep the expected failure quiet
+        monkeypatch.setattr(api, "_call_with_retry", lambda **kwargs: self._response(
+            [SimpleNamespace(type="text", text="ok")]))
+
+        def _killed_before_rename(source, destination):
+            raise OSError("killed before the rename")
+        with monkeypatch.context() as killed_context:
+            killed_context.setattr(api.os, "replace", _killed_before_rename)
+            api.call_claude("hi", system_prompt="the constitution")
+        assert list((tmp_path / "system_prompts").iterdir()) == []
+
+        api.call_claude("hi", system_prompt="the constitution")
+        (prompt_file,) = (tmp_path / "system_prompts").iterdir()
+        assert prompt_file.read_text() == "the constitution"
+
+    def test_thinking_summary_is_recorded_but_not_returned(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(api, "_cost_log_path", tmp_path / "cost_log.jsonl")
+        monkeypatch.setattr(api, "_call_with_retry", lambda **kwargs: self._response([
+            SimpleNamespace(type="thinking", thinking="considered the options", signature="sig"),
+            SimpleNamespace(type="text", text="the answer")]))
+        assert api.call_claude("hi", system_prompt="s", model="claude-opus-5-5") == "the answer"
+        record = json.loads((tmp_path / "model_calls.jsonl").read_text())
+        assert record["thinking_text"] == "considered the options"
+        assert record["response_text"] == "the answer"
+
+    def test_claude_code_call_is_recorded(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(api, "_backend", "claude_code")
+        monkeypatch.setattr(api, "_cost_log_path", tmp_path / "cost_log.jsonl")
+        monkeypatch.setattr(api, "_call_claude_code_with_retry",
+                            lambda model, system, user_message: ("raw", 4, 2, 0.001, "end_turn"))
+        api.call_claude("hi", system_prompt="s")
+        record = json.loads((tmp_path / "model_calls.jsonl").read_text())
+        assert record["backend"] == "claude_code" and record["response_text"] == "raw"
+
+    def test_openai_call_is_recorded(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(api, "_cost_log_path", tmp_path / "cost_log.jsonl")
+        monkeypatch.setattr(openai_api, "_get_client", lambda: object())
+        response = SimpleNamespace(
+            output=[SimpleNamespace(type="message", content=[SimpleNamespace(type="output_text", text="{}")])],
+            status="completed",
+            usage=SimpleNamespace(input_tokens=5, output_tokens=2, input_tokens_details=None,
+                                  output_tokens_details=None))
+        monkeypatch.setattr(openai_api, "_create_response", lambda client, **kwargs: response)
+        openai_api.call_openai("hi", "sys", model="gpt-6.1-sol", max_output_tokens=100, item_id="o")
+        record = json.loads((tmp_path / "model_calls.jsonl").read_text())
+        assert record["backend"] == "openai" and record["response_text"] == "{}"
+        assert (tmp_path / "system_prompts" / f"{record['system_prompt_sha256']}.txt").read_text() == "sys"
 
 
 class TestAutoBackend:

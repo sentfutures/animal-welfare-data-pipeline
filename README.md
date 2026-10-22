@@ -303,7 +303,7 @@ python sdf_pipeline/run.py --config config.yaml --resume
 python dad_pipeline/run.py --config config.yaml --resume --run-id 2026-07-01_14-30_dev
 ```
 
-Running cost is tracked in each run's `cost_log.jsonl` and printed after each layer/step. The eval scripts log to the global `outputs/cost_log.jsonl` and take an explicit input path, e.g.:
+Running cost is tracked in each run's `cost_log.jsonl` and printed after each layer/step. The eval scripts log to the global `outputs/cost_log.jsonl` (writing no full model call records) and take an explicit input path, e.g.:
 
 ```bash
 python evals/score_sdf.py --input outputs/sdf/latest/final/sdf_corpus.jsonl

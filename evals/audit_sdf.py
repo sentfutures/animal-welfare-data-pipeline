@@ -691,7 +691,7 @@ def main() -> None:
     audit_register(records, report)
 
     if args.patterns or args.principles:
-        api.init(args.config)  # evals log to the global cost log
+        api.init(args.config)  # evals log to the global cost log and record no full model calls
     if args.patterns:
         llm_pattern_scan(records, config, report,
                          args.pattern_sample, args.batch_size, args.prevalence_sample)
