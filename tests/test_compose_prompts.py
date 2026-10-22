@@ -237,12 +237,20 @@ def test_every_culture_value_maps_or_falls_back():
 def test_species_pool_covers_every_sentient_category():
     """Every sentient_category value in the real variables file must have a
     non-empty species pool. A category without one silently renders the generic
-    SPECIES_FALLBACK for {sentient_example} — a coverage gap no one chose (the
-    map keys are matched to the axis values verbatim, which drift under edits)."""
-    values, _ = cp.split_weights(cp.parse_variables(
-        REPO_ROOT / "prompts" / "sdf" / "variables.txt"))
-    for category in values["sentient_category"]:
-        assert cp.SPECIES_EXAMPLES.get(category), category
+    SPECIES_FALLBACK for {sentient_example} — a coverage gap no one chose. The pools
+    are keyed by value ID, so rewording a category never breaks the lookup."""
+    _, _, value_ids = cp.load_variables(REPO_ROOT / "prompts" / "sdf" / "variables.txt")
+    for category_id in value_ids["sentient_category"]:
+        assert cp.SPECIES_EXAMPLES.get(category_id), category_id
+    assert set(cp.SPECIES_EXAMPLES) == set(value_ids["sentient_category"])
+
+
+def test_species_example_follows_the_category_id_not_its_wording():
+    reworded = {"sentient_category": "pigs and cattle and their kin"}
+    ids = {"pigs and cattle and their kin": "farmed_mammals"}
+    example = cp.species_example_for(reworded, "matrix_000001", 137, ids)
+    assert example in cp.SPECIES_EXAMPLES["farmed_mammals"]
+    assert cp.species_example_for(reworded, "matrix_000001", 137, {}) == cp.SPECIES_FALLBACK
 
 
 def test_sentient_example_injected_from_pool_and_deterministic():
@@ -256,7 +264,7 @@ def test_sentient_example_injected_from_pool_and_deterministic():
     for r in recs:
         cat = r["variables"]["sentient_category"]
         example = r["prompt"].split("Example: ")[1].rstrip(".")
-        assert example in cp.SPECIES_EXAMPLES[cat], (cat, example)
+        assert example in cp.SPECIES_EXAMPLES[cp.default_sentient_category_ids()[cat]], (cat, example)
         assert "sentient_example" not in r["variables"]  # reserved slot stays out
     again = list(cp.compose_records(template, values, weights, None, n_prompts=6, seed=0))
     assert [r["prompt"] for r in recs] == [r["prompt"] for r in again]

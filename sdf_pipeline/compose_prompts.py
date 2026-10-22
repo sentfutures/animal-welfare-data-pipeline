@@ -125,23 +125,24 @@ FALLBACK_ORGS = "invented organisations typical of the locale"
 # pool and offered to the plan as a droppable suggestion (see {sentient_example}
 # in RESERVED). Purpose: nudge drafts off the handful of default taxa
 # (salmon/chicken/pig) toward the long tail, without a hard sub-axis draw that
-# would force an ill-fitting species onto every document. Keys MUST match the
-# {sentient_category} values in variables.txt verbatim — a coverage test
+# would force an ill-fitting species onto every document. Keys are the
+# {sentient_category} value IDs in variables.txt, so a category can be reworded
+# without touching this table — a coverage test
 # (tests/test_compose_prompts.py) fails if any category lacks a pool.
 SPECIES_EXAMPLES = {
-    "farmed mammals": (
+    "farmed_mammals": (
         "pigs", "dairy cattle", "beef cattle", "sheep", "goats", "farmed rabbits",
         "mink", "veal calves", "farmed camels", "farmed deer",
     ),
-    "farmed birds": (
+    "farmed_birds": (
         "broiler chickens", "layer hens", "turkeys", "farmed ducks", "farmed geese",
         "farmed quail", "farmed ostriches", "farmed guinea fowl",
     ),
-    "farmed fishes": (
+    "farmed_fishes": (
         "farmed Atlantic salmon", "rainbow trout", "farmed carp", "tilapia",
         "pangasius catfish", "farmed sea bass", "farmed eel", "cleaner wrasse",
     ),
-    "farmed invertebrates": (
+    "farmed_invertebrates": (
         "farmed whiteleg shrimp", "farmed prawns", "farmed crayfish", "farmed octopus",
         "black soldier fly larvae", "mealworms", "farmed crickets", "edible land snails",
         "silkworms",
@@ -152,60 +153,60 @@ SPECIES_EXAMPLES = {
     # bycatch, culls, rodenticide, pesticides) vs. harm from nature (starvation,
     # cold, disease, parasitism, predation, drought) — the latter is the wild
     # animal suffering framing, engaged on its own terms.
-    "large wild animals facing harm from human activity": (
+    "large_wild_human_caused_harm": (
         "African elephants", "humpback whales", "bottlenose dolphins", "red deer",
         "grey seals", "wild boar", "brown bears", "wild macaques", "bison",
     ),
-    "large wild animals facing non-anthropogenic harm from nature": (
+    "large_wild_natural_harm": (
         "red deer facing winter starvation", "saiga antelope in a disease die-off",
         "African elephants in a drought", "wildebeest at a river crossing",
         "grey seal pups in a storm surge", "brown bears in a lean berry year",
         "wild boar during a hard freeze", "migrating caribou",
     ),
-    "small vertebrate wild animals facing harm from human activity": (
+    "small_vertebrate_wild_human_caused_harm": (
         "wild songbirds", "urban pigeons", "corvids", "urban foxes", "wild rats",
         "brown bats", "common frogs", "wall lizards", "hedgehogs",
     ),
-    "small vertebrate wild animals facing non-anthropogenic harm from nature": (
+    "small_vertebrate_wild_natural_harm": (
         "common frogs facing chytrid fungus", "wild songbirds in a cold snap",
         "nestling birds during a food shortage", "field mice under predation pressure",
         "common toads in a drought", "garden birds with avian pox",
         "wall lizards after a late frost", "tadpoles in a drying pond",
     ),
-    "wild invertebrates facing harm from human activity": (
+    "wild_invertebrates_human_caused_harm": (
         "wild bumblebees", "monarch butterflies", "garden ants", "earthworms",
         "garden snails", "orb-weaver spiders", "dung beetles", "shore crabs",
         "moon jellyfish",
     ),
-    "wild invertebrates facing non-anthropogenic harm from nature": (
+    "wild_invertebrates_natural_harm": (
         "wild bumblebees carrying parasitic mites", "monarch butterflies in a storm",
         "honeybee colonies infected by a fungal pathogen", "ants after a nest flood",
         "overwintering butterflies in a cold snap", "caterpillars parasitized by wasps",
         "shore crabs stranded by a tide", "solitary bees in a drought",
     ),
-    "pets/companion animals": (
+    "pets_companion_animals": (
         "dogs", "cats", "pet rabbits", "budgerigars", "bearded dragons", "goldfish",
         "betta fish", "hamsters", "guinea pigs",
     ),
-    "animals used in research": (
+    "research_animals": (
         "lab mice", "lab rats", "zebrafish", "fruit flies", "captive macaques",
         "beagles", "Xenopus frogs", "guinea pigs", "C. elegans nematodes",
     ),
-    "simulated human connectomes whose moral state is uncertain": (
+    "simulated_human_connectomes": (
         "a whole-brain emulation of a human volunteer",
         "an uploaded human personality",
         "a high-fidelity cortical simulation of a specific person",
         "a partial human-brain emulation run in a research sandbox",
         "a 'digital twin' mind-model of a living individual",
     ),
-    "simulated animal connectomes whose moral state is uncertain": (
+    "simulated_animal_connectomes": (
         "a digital emulation of a mouse brain",
         "an uploaded C. elegans connectome",
         "a simulated zebrafish brain",
         "a whole-brain emulation of a macaque",
         "a digital fruit-fly connectome",
     ),
-    "LLMs whose moral state is uncertain": (
+    "large_language_models": (
         "a large language model assistant",
         "a persistent AI companion app",
         "a reinforcement-learning game agent",
@@ -298,12 +299,37 @@ def load_deal_rules(
     return deal_constraints.load_deal_constraints(path, value_ids)
 
 
-def species_example_for(assignment: dict[str, str], prompt_id: str, entity_seed: int) -> str:
+def sentient_category_ids_by_text(value_ids: dict[str, dict[str, str]]) -> dict[str, str]:
+    """{value text: value ID} for the sentient_category variable, from load_variables'
+    ``value_ids``, so a hand's dealt category text can be looked up in SPECIES_EXAMPLES."""
+    return {text: value_id for value_id, text in value_ids.get("sentient_category", {}).items()}
+
+
+_default_category_ids: dict[str, str] | None = None
+
+
+def default_sentient_category_ids() -> dict[str, str]:
+    """The repo's variables.txt categories, loaded once; the fallback for callers
+    that hold no value IDs of their own."""
+    global _default_category_ids
+    if _default_category_ids is None:
+        _default_category_ids = sentient_category_ids_by_text(load_variables(DEFAULT_VARIABLES)[2])
+    return _default_category_ids
+
+
+def species_example_for(
+    assignment: dict[str, str], prompt_id: str, entity_seed: int,
+    category_ids: dict[str, str] | None = None,
+) -> str:
     """The one example species drawn for a hand's sentient_category — a droppable
     nudge toward the long tail. Deterministic per prompt id and entity seed, so
     --resume (and the implausibility screen, which shows the same line) re-renders
-    the identical species."""
-    pool = SPECIES_EXAMPLES.get(assignment.get("sentient_category", ""), ())
+    the identical species. ``category_ids`` maps category text to its value ID
+    (default: the repo's variables.txt); a category without an ID or a pool gets
+    SPECIES_FALLBACK."""
+    category_ids = category_ids if category_ids is not None else default_sentient_category_ids()
+    category_id = category_ids.get(assignment.get("sentient_category", ""), "")
+    pool = SPECIES_EXAMPLES.get(category_id, ())
     picks = entity_pools.sample_for(list(pool), 1, f"species:{prompt_id}", entity_seed)
     return picks[0] if picks else SPECIES_FALLBACK
 
@@ -364,6 +390,7 @@ def render_variable_lines(
     template: str | None = None,
     deal_rules: list[deal_constraints.DealRule] | None = None,
     entity_seed: int = DEFAULT_ENTITY_SEED,
+    category_ids: dict[str, str] | None = None,
 ) -> str:
     """The variable lines of the planning prompt exactly as the planner sees them
     for one hand: the stretch of the template from its first to its last line holding a
@@ -374,8 +401,7 @@ def render_variable_lines(
     the repo's prompts/sdf/layer1.txt (pass a run's snapshot to match that run)."""
     template = template if template is not None else DEFAULT_TEMPLATE.read_text(encoding="utf-8")
     assignment = record["variables"]
-    omitted = deal_constraints.render_rule_variables_to_omit(deal_rules or [], assignment)
-    rendered_template = deal_constraints.drop_template_lines(template, omitted)
+    rendered_template = deal_constraints.render_template_for_hand(template, deal_rules or [], assignment)
     shown = {*matrix_axes(template), "sentient_example"}
     lines = rendered_template.split("\n")
     holding = [i for i, line in enumerate(lines) if shown & set(template_placeholders(line))]
@@ -383,7 +409,8 @@ def render_variable_lines(
     # so the span is a verbatim stretch of the planner's prompt.
     return "\n".join(lines[holding[0]:holding[-1] + 1]).format(
         **assignment,
-        sentient_example=species_example_for(assignment, record["prompt_id"], entity_seed),
+        sentient_example=species_example_for(
+            assignment, record["prompt_id"], entity_seed, category_ids),
     )
 
 
@@ -393,7 +420,9 @@ def make_variable_line_renderer(prompts_dir: Path, entity_seed: int = DEFAULT_EN
     template = (Path(prompts_dir) / DEFAULT_TEMPLATE.name).read_text(encoding="utf-8")
     _, _, value_ids = load_variables(Path(prompts_dir) / DEFAULT_VARIABLES.name)
     deal_rules = load_deal_rules(Path(prompts_dir) / DEAL_CONSTRAINTS_FILENAME, value_ids)
-    return lambda record: render_variable_lines(record, template, deal_rules, entity_seed)
+    category_ids = sentient_category_ids_by_text(value_ids)
+    return lambda record: render_variable_lines(
+        record, template, deal_rules, entity_seed, category_ids)
 
 
 def compose_records(
@@ -406,6 +435,7 @@ def compose_records(
     entity_seed: int = DEFAULT_ENTITY_SEED,
     deal_rules: list[deal_constraints.DealRule] | None = None,
     hands: list[dict] | None = None,
+    value_ids: dict[str, dict[str, str]] | None = None,
 ):
     """Yield composed prompt records for the whole matrix (n_prompts=None) or a
     deck sample of exactly n_prompts. Each record is
@@ -416,11 +446,15 @@ def compose_records(
     deck-sampled hands by swapping cards within one variable's column (value
     counts unchanged; full-matrix enumeration filters instead), and rendering
     rules drop the planning-prompt paragraph of the named variables for
-    matching hands while the dealt card stays in the record's ``variables``.
+    matching hands, or swap in reworded lines, while the dealt card stays in
+    the record's ``variables``.
 
     ``hands`` (hand records, {"prompt_id", "variables"}) renders exactly those
     hands under their own ids instead of dealing: used once the implausibility
     screen has accepted a set of hands (ids are then not contiguous).
+
+    ``value_ids`` (from load_variables) lets the example species be looked up by
+    category ID for a variables file other than the repo's.
     """
     deal_rules = deal_rules or []
     placeholders = template_placeholders(template)
@@ -471,6 +505,7 @@ def compose_records(
         return slots
 
     wants_species = "sentient_example" in placeholders
+    category_ids = sentient_category_ids_by_text(value_ids) if value_ids is not None else None
 
     def species_slot(assignment: dict[str, str], prompt_id: str) -> dict[str, str]:
         """One concrete example species for the drawn sentient_category — a
@@ -478,7 +513,8 @@ def compose_records(
         prompt (same seed + id -> same species, so --resume re-renders it)."""
         if not wants_species:
             return {}
-        return {"sentient_example": species_example_for(assignment, prompt_id, entity_seed)}
+        return {"sentient_example": species_example_for(
+            assignment, prompt_id, entity_seed, category_ids)}
 
     total = math.prod(len(values[n]) for n in axes)
     per_var = ", ".join(f"{n}={len(values[n])}" for n in axes)
@@ -496,14 +532,19 @@ def compose_records(
         print(f"full matrix: {total} combinations ({per_var})")
         hand_list = hand_records(list(assignments))
 
-    rendering_templates: dict[frozenset[str], str] = {}
+    rendering_templates: dict[tuple, str] = {}
 
     def template_for(assignment: dict[str, str]) -> str:
-        """The plan template with the lines of any rendering-rule-omitted variables dropped."""
-        omitted = deal_constraints.render_rule_variables_to_omit(deal_rules, assignment)
-        if omitted not in rendering_templates:
-            rendering_templates[omitted] = deal_constraints.drop_template_lines(template, omitted)
-        return rendering_templates[omitted]
+        """The plan template as this hand's rendering rules leave it: reworded
+        lines swapped in, lines of omitted variables dropped."""
+        key = (
+            deal_constraints.render_rule_variables_to_omit(deal_rules, assignment),
+            deal_constraints.render_rule_line_replacements(deal_rules, assignment),
+        )
+        if key not in rendering_templates:
+            rendering_templates[key] = deal_constraints.render_template_for_hand(
+                template, deal_rules, assignment)
+        return rendering_templates[key]
 
     for hand in hand_list:
         prompt_id, assignment = hand["prompt_id"], hand["variables"]
@@ -561,6 +602,7 @@ def main() -> None:
             template, values, weights,
             args.preamble.read_text(encoding="utf-8") if args.preamble.exists() else None,
             args.n_prompts, args.seed, args.entity_seed, deal_rules=deal_rules,
+            value_ids=value_ids,
         )
 
     try:
