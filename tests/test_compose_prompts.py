@@ -154,10 +154,12 @@ def test_real_templates_render_with_canonical_loader():
         constitution_principles="CP",
         document_description="DESC",
         considerations_spec="SPEC-BLOCK",
+        variable_lines="VARIABLE-BLOCK",
     ))
     assert "CC" in l3_system and "CP" in l3_system  # constitution lives in system
     assert "<document_description>" in l3_user and "DESC" in l3_user
     assert "SPEC-BLOCK" in l3_user  # the considerations spec rendered in the draft prompt
+    assert "VARIABLE-BLOCK" in l3_user  # the dealt variables reach the drafter
     assert "{" not in l3_user
 
     # layer 4 is a two-part file: everything static (constitution, principles,
@@ -169,11 +171,14 @@ def test_real_templates_render_with_canonical_loader():
         constitution_principles="CP",
         document_description="DESC",
         document="DOC",
+        considerations_spec="SPEC-BLOCK",
+        variable_lines="VARIABLE-BLOCK",
     ))
     assert l4_system.index("<constitution>") < l4_system.index("CC") \
         < l4_system.index("<constitution_principles>") < l4_system.index("CP") \
         < l4_system.index("TEACH WHY") < l4_system.index("HOUSE STYLE")
-    assert l4_user.index("DESC") < l4_user.index("DOC") < l4_user.index("<improved_document>")
+    assert l4_user.index("DESC") < l4_user.index("VARIABLE-BLOCK") < l4_user.index("DOC") < l4_user.index("<improved_document>")
+    assert "SPEC-BLOCK" in l4_user
     assert "{" not in l4_system and "{" not in l4_user
 
     # layer 5 mirrors the layer-4 split; the judge scores spec_conformance
@@ -183,10 +188,11 @@ def test_real_templates_render_with_canonical_loader():
         constitution_claude="CC",
         document_description="DESC",
         improved_document="DOC",
+        variable_lines="VARIABLE-BLOCK",
     ))
     assert "spec_conformance" in l5_system and "diversity" not in l5_system.lower()
     assert l5_system.index("CC") < l5_system.index("SPEC CONFORMANCE")
-    assert l5_user.index("DESC") < l5_user.index("DOC")
+    assert l5_user.index("DESC") < l5_user.index("VARIABLE-BLOCK") < l5_user.index("DOC")
     assert "{" not in l5_system and "{" not in l5_user
 
 
@@ -578,3 +584,29 @@ def test_compose_records_renders_given_hands_under_their_own_ids():
     records = list(cp.compose_records(template, values, weights, "p", None, deal_rules=rules, hands=kept))
     assert [r["prompt_id"] for r in records] == ["matrix_000004", "matrix_000001"]
     assert [r["variables"] for r in records] == [h["variables"] for h in kept]
+
+
+def test_render_variable_lines_apply_the_reword_rules_so_later_stages_see_the_planners_lines():
+    template, values, weights, value_ids, rules = _real_matrix()
+    base = cp.deal_hands(template, values, weights, 5, 0, rules)[0]
+    for resolution_id, reworded in (
+        ("general_discussion_no_scenario", True), ("constitution_inclusion_no_scenario", True),
+        ("no_stake", True), ("creative_solution", False),
+    ):
+        variables = {**base, "resolution": value_ids["resolution"][resolution_id]}
+        record = {"prompt_id": "matrix_000000", "variables": variables}
+        lines = cp.render_variable_lines(record, template, rules)
+        prompt = next(cp.compose_records(
+            template, values, weights, "p", None, deal_rules=rules, hands=[record]))["prompt"]
+        assert lines in prompt  # the same reworded lines the planner saw
+        if resolution_id.endswith("no_scenario"):
+            assert "The AI the discussion is about is" in lines
+            assert "The AI assistant character in the document is" not in lines
+        elif resolution_id == "no_stake":
+            assert "The task arises from" in lines and "The welfare issues discussed arise from" not in lines
+        else:
+            assert "The AI assistant character in the document is" in lines
+    # the later-stage renderer built from a prompts directory applies them too
+    renderer = cp.make_variable_line_renderer(REPO_ROOT / "prompts" / "sdf")
+    no_scenario = {**base, "resolution": value_ids["resolution"]["general_discussion_no_scenario"]}
+    assert "The AI the discussion is about is" in renderer({"prompt_id": "matrix_000000", "variables": no_scenario})

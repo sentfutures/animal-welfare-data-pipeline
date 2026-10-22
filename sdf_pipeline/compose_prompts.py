@@ -425,6 +425,20 @@ def make_variable_line_renderer(prompts_dir: Path, entity_seed: int = DEFAULT_EN
         record, template, deal_rules, entity_seed, category_ids)
 
 
+def render_variable_lines_for_template(template_text: str, prompts_dir: Path, config: dict):
+    """A ``record -> variable lines`` function for a later-stage template that
+    carries a ``{variable_lines}`` slot (the drafter, the document rewrite and the
+    judge), built from the run's prompt snapshot so it shows each hand exactly the
+    lines the planner saw, omitted and reworded lines included. A snapshot template
+    without the slot (a run started before the slot existed) gets a function that
+    renders nothing, so ``--resume`` on such a run keeps working; the snapshot's
+    own planning files are then never read."""
+    if "{variable_lines}" not in template_text:
+        return lambda record: ""
+    return make_variable_line_renderer(
+        prompts_dir, config["sdf"].get("entity_pool_seed", DEFAULT_ENTITY_SEED))
+
+
 def compose_records(
     template: str,
     values: dict[str, list[str]],

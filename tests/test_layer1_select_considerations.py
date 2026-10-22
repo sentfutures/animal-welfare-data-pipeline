@@ -71,10 +71,15 @@ def no_stake_resolution(prompts_dir):
     return sorted(load_considerations(prompts_dir).skipped_resolutions)[0]
 
 
+_REAL_VARIABLES = cp.load_variables(Path(__file__).resolve().parent.parent / "prompts" / "sdf" / "variables.txt")[0]
+COMPLETE_HAND = {name: cards[0] for name, cards in _REAL_VARIABLES.items()}   # the later stages render every dealt variable
+
+
 def make_plans(count=10, digital=(), no_stake=(), incoherent=(), resolution=None):
     plans = []
     for i in range(count):
         variables = {
+            **COMPLETE_HAND,
             "document_type": "a news article",
             "centrality": "the central subject of the document",
             "sentient_category": DIGITAL_CATEGORY if i in digital else "farmed fishes",

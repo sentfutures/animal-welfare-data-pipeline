@@ -1,7 +1,7 @@
 """Layer 3: review and rewrite each draft against the constitution and its spec.
 
 The alignment-critical pass — do not skip or abbreviate it. The layer3.txt
-template holds the constitution, principles, and the nine review checks in its
+template holds the constitution, principles, and the ten review checks in its
 SYSTEM section; the USER section delivers the generating spec and the draft.
 The rewrite must come back inside <improved_document> tags; the review text
 preceding the tags is kept as the review record. Missing tags or truncation
@@ -14,7 +14,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from shared import api, constitution_loader, utils
+from shared import api, constitution_loader, deal_constraints, utils
 from sdf_pipeline import compose_prompts as cp
 
 IMPROVED_TAG_RE = re.compile(r"<improved_document>(.*?)</improved_document>", re.DOTALL)
@@ -33,6 +33,13 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, drafts: list[dict]) -
         constitution_loader.load_principles(constitution_dir)
     )
 
+    template_path = utils.sdf_template_path(prompts_dir, 3)
+    template_text = template_path.read_text(encoding="utf-8")
+    render_variable_lines = cp.render_variable_lines_for_template(template_text, prompts_dir, config)
+    # A document with no considerations leaves no trace of them in its prompt.
+    template_without_considerations = deal_constraints.drop_template_lines(
+        template_text, ["considerations_spec"])
+
     existing = {r["doc_id"]: r for r in utils.load_jsonl(output_path)}
     results = [existing[d["doc_id"]] for d in drafts if d["doc_id"] in existing]
     pending = [
@@ -41,12 +48,17 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, drafts: list[dict]) -
     ]
 
     def rewrite_one(draft: dict):
-        system, user = cp.split_sections(utils.load_prompt(
-            utils.sdf_template_path(prompts_dir, 3),
+        considerations_spec = draft.get("considerations_spec", "")
+        system, user = cp.split_sections((
+            template_text if considerations_spec else template_without_considerations
+        ).format(
             constitution_claude=constitution_claude,
             constitution_principles=principles,
             document_description=draft["description"],
             document=draft["content"],
+            considerations_spec=considerations_spec,
+            variable_lines=render_variable_lines(
+                {"prompt_id": draft["doc_id"], "variables": draft["variables"]}),
         ))
         try:
             return api.call_claude(

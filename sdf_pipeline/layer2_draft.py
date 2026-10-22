@@ -36,6 +36,7 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
     # A document with no considerations leaves no trace in its prompt: the template
     # line that carries {considerations_spec} is dropped when the block is empty.
     template_text = utils.sdf_template_path(prompts_dir, 2).read_text(encoding="utf-8")
+    render_variable_lines = cp.render_variable_lines_for_template(template_text, prompts_dir, config)
     template_without_considerations = deal_constraints.drop_template_lines(
         template_text, ["considerations_spec"])
 
@@ -57,6 +58,7 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
             constitution_principles=principles,
             document_description=plan["description"],
             considerations_spec=considerations_spec,
+            variable_lines=render_variable_lines({"prompt_id": plan["prompt_id"], "variables": plan["variables"]}),
             # Downstream-only matrix axis (sampled in layer 1, recorded in
             # variables). Default to the neutral value for plans composed
             # before this axis existed, so --resume on an old run never crashes.

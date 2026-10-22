@@ -10,6 +10,8 @@ Money paths per stage (protects paid work at $-per-run scale):
 """
 
 import json
+import re
+from pathlib import Path
 
 import pytest
 
@@ -21,6 +23,8 @@ from sdf_pipeline import (
     layer4_score,
 )
 from shared import utils
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
 @pytest.fixture
@@ -44,13 +48,24 @@ def plan_reply(description="A fully specified document plan.", notes="notes"):
     )
 
 
+def full_dealt_variables():
+    """One card from every variable of the real variables.txt: the layer-2-to-4 templates
+    render the dealt variables, so a plan needs a complete hand."""
+    values, _, _ = cp.load_variables(REPO_ROOT / "prompts" / "sdf" / "variables.txt")
+    hand = {name: cards[0] for name, cards in values.items()}
+    hand.update({
+        "document_type": "a news article",
+        "culture": "France, written in French, with French idioms and references",
+        "tone": "neutral or journalistic",
+    })
+    return hand
+
+
 def make_plan(pid="matrix_000000", description="Spec text.", incoherent=False):
     return {
         "prompt_id": pid,
         "variables": {
-            "document_type": "a news article",
-            "culture": "France, written in French, with French idioms and references",
-            "tone": "neutral or journalistic",
+            **full_dealt_variables(),
             "reasoning_featured": "individualism: the notion that welfare is a property of individuals, not systems",
         },
         "plan": "…",
@@ -445,3 +460,56 @@ def test_derive_language():
     assert cp.derive_language("Japan, written in Japanese, with Japanese idioms") == "Japanese"
     assert cp.derive_language("the United States, written in English, with American idioms") == "English"
     assert cp.derive_language("no language clause") == "English"
+
+
+class TestDealtVariablesReachLaterStages:
+    def no_stake_plan(self):
+        plan = make_plan()
+        _, _, value_ids = cp.load_variables(REPO_ROOT / "prompts" / "sdf" / "variables.txt")
+        plan["variables"]["resolution"] = value_ids["resolution"]["no_stake"]
+        return plan
+
+    def test_the_drafter_the_rewrite_and_the_judge_see_the_planners_lines_without_omitted_variables(
+        self, tiny_config, prompts_sdf, stage_dir, stub_claude, tmp_path
+    ):
+        plan = self.no_stake_plan()
+        tradeoff, scale = plan["variables"]["tradeoff"], plan["variables"]["decision_scale"]
+        calls = stub_claude(lambda user_message, **kw: "<document>Doc.</document>")
+        drafts = layer2_draft.run(tiny_config, prompts_sdf, stage_dir, [plan])
+        draft_message = calls[0]["user_message"]
+        assert plan["variables"]["domain"] in draft_message and "The task arises from" in draft_message
+        assert tradeoff not in draft_message and scale not in draft_message  # omitted for no-stake hands
+        assert "{" not in draft_message
+
+        rewrite_dir = tmp_path / "rewrite"
+        rewrite_dir.mkdir()
+        rewrite_calls = stub_claude(lambda user_message, **kw: "r\n<improved_document>Better.</improved_document>")
+        rewrites = layer3_rewrite.run(tiny_config, prompts_sdf, rewrite_dir, drafts)
+        assert "The task arises from" in rewrite_calls[0]["user_message"]
+        assert tradeoff not in rewrite_calls[0]["user_message"]
+
+        score_dir, final_dir = tmp_path / "score", tmp_path / "final"
+        score_dir.mkdir()
+        final_dir.mkdir()
+        score_calls = stub_claude(lambda user_message, **kw: SCORE_OK)
+        layer4_score.run(tiny_config, prompts_sdf, score_dir, final_dir, rewrites)
+        assert "The task arises from" in score_calls[0]["user_message"]
+        assert scale not in score_calls[0]["user_message"]
+
+    def test_a_snapshot_template_without_the_slot_still_renders(self, tiny_config, prompts_sdf, stage_dir, stub_claude, tmp_path):
+        # A snapshot from before the slot existed also predates value IDs and the
+        # wording files, so reading its planning files would fail.
+        old = tmp_path / "old_prompts"
+        old.mkdir()
+        for source in prompts_sdf.iterdir():
+            if source.is_file() and not source.name.startswith("layer1_wording_for_"):
+                (old / source.name).write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
+        text = (old / "layer2.txt").read_text(encoding="utf-8").replace("{variable_lines}", "")
+        (old / "layer2.txt").write_text(text, encoding="utf-8")
+        variable_lines_without_ids = [
+            re.sub(r"\[[a-z][a-z0-9_]*\] ?", "", line, count=1) if line.startswith(" ") else line
+            for line in (old / "variables.txt").read_text(encoding="utf-8").splitlines()
+        ]
+        (old / "variables.txt").write_text("\n".join(variable_lines_without_ids), encoding="utf-8")
+        stub_claude(lambda user_message, **kw: "<document>Doc.</document>")
+        assert layer2_draft.run(tiny_config, old, stage_dir, [make_plan()])
