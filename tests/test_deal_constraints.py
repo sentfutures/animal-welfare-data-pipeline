@@ -95,10 +95,8 @@ def test_human_connectome_rule_excludes_the_eight_animal_industry_domains(real_r
     excluded = ("agriculture_food_production", "fisheries_aquaculture", "food_service_retail",
                 "pest_control", "breeding_pet_trade", "veterinary_practice",
                 "technology_applied_to_animals", "conservation_land_management")
-    allowed = ("research_testing", "policy_regulation", "entertainment_sport", "transport_logistics")
     ids = load_value_ids()["domain"]
     assert set(rule.target_values) == {ids[i] for i in excluded}
-    assert not set(rule.target_values) & {ids[i] for i in allowed}
     assert not any(r.name.startswith("language_models") for r in real_rules)
 
 
