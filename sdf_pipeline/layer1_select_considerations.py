@@ -1,8 +1,8 @@
 """Layer 1 selector: pick, for each surviving scenario, the considerations it raises.
 
-Runs after the batch incoherence screen and before drafting. The planner writes
-a scenario description with no consideration attached; this stage then reads
-each description and, from each of two ordered lists (moral and epistemic, from
+Runs after the implausibility screen, planning and the description rewrite, and
+before drafting. The planner writes a scenario description with no consideration
+attached; this stage then reads each (rewritten) description and, from each of two ordered lists (moral and epistemic, from
 prompts/sdf/considerations.txt), asks the model for the first consideration
 that fits the scenario naturally, or "none". A run-level tracker
 (considerations_tracker.py, pure code) counts picks against each entry's target

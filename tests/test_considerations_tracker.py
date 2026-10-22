@@ -80,23 +80,30 @@ def test_digital_mind_categories_resolve_to_the_three_real_values(prompts_sdf):
     assert catalog.is_digital_mind_document({"sentient_category": "farmed fishes"}) is False
 
 
-def test_rewording_a_digital_mind_category_makes_loading_fail(prompts_sdf, tmp_path):
+def _copy_prompts(prompts_sdf, tmp_path):
     for name in ("considerations.txt", "variables.txt"):
         (tmp_path / name).write_text((prompts_sdf / name).read_text(encoding="utf-8"), encoding="utf-8")
+
+
+def test_rewording_value_text_changes_nothing_because_values_are_named_by_id(prompts_sdf, tmp_path):
+    _copy_prompts(prompts_sdf, tmp_path)
     variables = (tmp_path / "variables.txt").read_text(encoding="utf-8")
     assert "simulated human connectomes whose moral state is uncertain" in variables
-    (tmp_path / "variables.txt").write_text(
-        variables.replace("simulated human connectomes whose", "emulated human brains whose"), encoding="utf-8")
-    with pytest.raises(ValueError, match="simulated human connectomes"):
-        load_considerations(tmp_path)
+    reworded = variables.replace("simulated human connectomes whose", "emulated human brains whose") \
+        .replace("NO real welfare stake", "no stake")
+    (tmp_path / "variables.txt").write_text(reworded, encoding="utf-8")
+    reworded_catalog = load_considerations(tmp_path)
+    assert "emulated human brains whose moral state is uncertain" in reworded_catalog.digital_mind_categories
+    assert len(reworded_catalog.digital_mind_categories) == 3
+    assert len(reworded_catalog.skipped_resolutions) == 1
 
 
-def test_rewording_the_no_stake_resolution_makes_loading_fail(prompts_sdf, tmp_path):
-    for name in ("considerations.txt", "variables.txt"):
-        (tmp_path / name).write_text((prompts_sdf / name).read_text(encoding="utf-8"), encoding="utf-8")
-    variables = (tmp_path / "variables.txt").read_text(encoding="utf-8")
-    (tmp_path / "variables.txt").write_text(variables.replace("NO real welfare stake", "no stake"), encoding="utf-8")
-    with pytest.raises(ValueError, match="NO real welfare stake"):
+def test_an_unknown_value_id_makes_loading_fail(prompts_sdf, tmp_path):
+    _copy_prompts(prompts_sdf, tmp_path)
+    text = (tmp_path / "considerations.txt").read_text(encoding="utf-8")
+    (tmp_path / "considerations.txt").write_text(
+        text.replace("    no_stake\n", "    no_such_resolution\n"), encoding="utf-8")
+    with pytest.raises(ValueError, match="no_such_resolution"):
         load_considerations(tmp_path)
 
 

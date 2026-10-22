@@ -45,8 +45,8 @@ sdf:
   # environment (never read from a .env file by the pipeline); any other name goes to Claude.
   description_rewrite_model: gpt-6.1-sol
   description_rewrite_reasoning_effort: medium   # OpenAI models only
-  # Considerations selector (layer 1, after the screen, before drafting): for each surviving
-  # specification picks the first fitting consideration from an ordered moral list and an ordered
+  # Considerations selector (layer 1, after the description rewrite, before drafting): for each surviving
+  # specification (reading its rewritten description) picks the first fitting consideration from an ordered moral list and an ordered
   # epistemic list (prompts/sdf/considerations.txt), or "none"; a run-level tracker removes a
   # consideration once its target share is met. Picks go to layer1/consideration_selections.jsonl
   # and the coverage report to layer1/consideration_coverage.json.

@@ -1,6 +1,6 @@
 """Offline smoke run of the considerations selector, end to end on stubs.
 
-One command runs plan, screen, select, draft, rewrite and score for a small run
+One command runs screen, plan, description rewrite, select, draft, rewrite and score for a small run
 with a stubbed shared.api.call_claude, then prints the coverage report from the
 layer-1 stage and from the final corpus:
 
@@ -73,7 +73,14 @@ def selector_answer(user_message, item_id):
 def smoke_dispatch(user_message, **kw):
     stage = kw["stage"]
     if stage == "layer1_screen":
-        return "<removals></removals>"
+        count = user_message.count("<hand number=")
+        return json.dumps({"specifications": [
+            {"number": n, "reasoning": "Considered it.", "remove": False, "reason": ""}
+            for n in range(1, count + 1)]})
+    if stage == "layer1_description_rewrite":
+        return json.dumps({
+            "reasoning": "Checked it.", "rewrite_needed": False, "rewritten_description": "", "changes": [],
+            "dealt_value_conflict": False, "conflict_reason": ""})
     if stage == "layer1_select":
         return selector_answer(user_message, kw["item_id"])
     if stage == "layer2_draft":
@@ -88,7 +95,7 @@ def smoke_dispatch(user_message, **kw):
     raise AssertionError(f"Unrecognized stage {stage!r}")
 
 
-def test_offline_smoke_plan_screen_select_draft_rewrite(smoke_config_file, outputs_root, stub_claude, monkeypatch, capsys):
+def test_offline_smoke_screen_plan_description_rewrite_select_draft_rewrite(smoke_config_file, outputs_root, stub_claude, monkeypatch, capsys):
     calls = stub_claude(smoke_dispatch)
     run_main(monkeypatch, smoke_config_file)
     run_dir = outputs_root / "sdf" / "latest"
@@ -145,4 +152,4 @@ def test_resuming_at_layer_two_hands_the_drafter_the_same_picks(smoke_config_fil
     run_main(monkeypatch, smoke_config_file, "--resume", "--layer", "2")
     resumed_prompts = {c["item_id"]: c["user_message"] for c in resumed_calls if c["stage"] == "layer2_draft"}
     assert resumed_prompts == first_prompts
-    assert not any(c["stage"] in ("layer1_select", "layer1_plan", "layer1_screen") for c in resumed_calls)
+    assert not any(c["stage"] in ("layer1_select", "layer1_plan", "layer1_screen", "layer1_description_rewrite") for c in resumed_calls)

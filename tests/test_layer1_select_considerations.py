@@ -34,10 +34,10 @@ SMALL_CONSIDERATIONS = """\
     0.5 :: Delta digital: the digital-minds gloss
 
 {digital_mind_categories}
-    LLMs whose moral state
+    large_language_models
 
 {skipped_resolutions}
-    NO real welfare stake
+    no_stake
 """
 
 DIGITAL_CATEGORY = "LLMs whose moral state is uncertain"

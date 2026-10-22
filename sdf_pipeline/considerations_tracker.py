@@ -171,7 +171,7 @@ class ConsiderationTracker:
 
     def replay(self, rows: list[dict]) -> None:
         """Rebuild state from saved rows, trusting their recorded statuses. Rows for
-        documents that are no longer eligible (removed by a later screen) are ignored."""
+        documents that are no longer eligible (dropped by an earlier stage on a later run) are ignored."""
         for row in rows:
             if row["prompt_id"] in self._digital:
                 self._apply(row)
