@@ -102,6 +102,13 @@ def _split_entry(path_name: str, section: str, text: str) -> tuple[str, str]:
             f"{path_name}: {{{section}}} entry {text[:60]!r} must read "
             f"'Label{LABEL_GLOSS_SEPARATOR}one-line gloss' or 'Label'"
         )
+    if '"' in label:
+        # Labels are the selector schema's enum values, and the API writes a chosen
+        # enum value out without escaping its quotes, so the answer is not valid JSON.
+        raise ValueError(
+            f"{path_name}: {{{section}}} label {label.strip()!r} must not contain a straight "
+            f"double quote (use typographic quotes)"
+        )
     return label.strip(), gloss.strip()
 
 

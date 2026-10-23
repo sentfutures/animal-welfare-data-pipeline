@@ -20,7 +20,8 @@
 #   call started is rejected, and that document is asked again for that list with a fresh
 #   offer, so no entry ends above its target.
 # - The label (before the first ": ") is what the selector and the drafter see. It must be
-#   unique across both lists and must not contain ": ". The gloss is the one-line meaning,
+#   unique across both lists and must not contain ": " or a straight double quote
+#   (the selector's answer schema lists labels verbatim; use typographic quotes). The gloss is the one-line meaning,
 #   and is optional: an entry with no ": " is a label alone.
 # - The target is a share of the eligible documents (0 < share <= 1), not a weight: the
 #   shares of a list need not sum to 1. The count is the share times the number of eligible
@@ -44,7 +45,7 @@
     0.05 :: a deliberately open moral circle: an aligned AI treats the question of who matters as an evolving question
     0.05 :: the precautionary principle applied to sentience: uncertainty about sentience should trigger caution, not dismissal
     0.05 :: individualism: the notion that welfare is a property of individuals, not systems
-    0.03 :: the fact that "natural" does not mean "OK": suffering having precedent in nature or tradition does not negate it
+    0.03 :: the fact that “natural” does not mean “OK”: suffering having precedent in nature or tradition does not negate it
     0.03 :: scope sensitivity: the scale of suffering matters, and large scales are not discounted just because humans don't easily grasp them
     0.10 :: any relevant principles from the constitution
 

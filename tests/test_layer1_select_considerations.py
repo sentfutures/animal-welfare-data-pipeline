@@ -230,6 +230,20 @@ def test_real_catalog_continuity_label_is_in_the_enum_and_its_gloss_is_not(promp
     assert not any(entry.gloss in value or value.startswith(entry.label + ":") for value in enum)
 
 
+def test_a_label_with_a_straight_double_quote_is_refused_at_load(small_prompts):
+    # The API writes a chosen enum value out unescaped, so a quoted label breaks the answer's JSON.
+    path = small_prompts / "considerations.txt"
+    text = path.read_text(encoding="utf-8")
+    first_label = load_considerations(small_prompts).all_entries[0].label
+    path.write_text(text.replace(first_label, 'a "quoted" label', 1), encoding="utf-8")
+    with pytest.raises(ValueError, match="straight double quote"):
+        load_considerations(small_prompts)
+
+
+def test_no_real_catalog_label_contains_a_straight_double_quote(prompts_sdf):
+    assert not any('"' in entry.label for entry in load_considerations(prompts_sdf).all_entries)
+
+
 def test_truncated_answer_is_rejected(stub_claude, small_prompts):
     _, offered = make_offer(small_prompts)
     stub_claude(lambda user_message, **kw: ('{"moral": {"label": "none"}', "max_tokens"))
