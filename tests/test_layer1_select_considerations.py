@@ -398,6 +398,42 @@ def test_resuming_from_rows_holding_over_cap_outcomes_rebuilds_the_state_and_re_
     assert by_label["Alpha moral"]["rejected_over_cap"] == 1 and by_label["Alpha moral"]["achieved"] == 2
 
 
+def test_tentative_picks_are_held_while_calls_are_in_flight_and_released_after_answers_and_failures(select_config, small_prompts, stage_dir, stub_claude):
+    select_config["workers"] = 2
+    barrier = threading.Barrier(2, timeout=10)
+    state = {"count": 0, "held_while_in_flight": None}
+    lock = threading.Lock()
+    tracker_holder = {}
+    original = select.ConsiderationTracker
+
+    class RecordingTracker(original):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            tracker_holder["tracker"] = self
+
+    def dispatcher(user_message, **kw):
+        with lock:
+            state["count"] += 1
+            first_two = state["count"] <= 2
+        if first_two:
+            barrier.wait()      # both calls are in flight, each holding a tentative pick on its top moral entry
+            with lock:
+                state["held_while_in_flight"] = sum(tracker_holder["tracker"].in_flight_top_picks.values())
+        if kw["item_id"] == "matrix_000001_pass1":
+            raise RuntimeError("transient outage")      # a failing call must release too
+        return say_none(user_message)
+
+    stub_claude(dispatcher)
+    select.ConsiderationTracker = RecordingTracker
+    try:
+        select.run(select_config, small_prompts, stage_dir, make_plans(6))
+    finally:
+        select.ConsiderationTracker = original
+    assert state["held_while_in_flight"] >= 2
+    assert sum(tracker_holder["tracker"].in_flight_top_picks.values()) == 0
+    assert len(rows_of(stage_dir)) == 5      # the failed call saved nothing
+
+
 def test_a_label_not_in_the_calls_own_offer_is_not_saved(select_config, small_prompts, stage_dir, stub_claude):
     select_config["workers"] = 1
     # Delta digital is real in the catalog but was never offered to a non-digital document

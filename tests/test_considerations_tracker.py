@@ -269,6 +269,70 @@ def test_a_label_that_cannot_be_offered_to_the_document_is_an_error():
         tracker.record_answer("doc_0", 2, 1, {MORAL_LIST: ("M1", "r")})
 
 
+# --- tentative picks of calls in flight (ordering only) ---
+
+def test_tentative_picks_shift_the_order_but_not_who_is_offered():
+    catalog = make_catalog(moral=(("M1", 0.5), ("M2", 0.4), ("M3", 0.3)))
+    tracker = ConsiderationTracker(catalog, make_documents(10))      # targets 5, 4, 3
+    assert labels(tracker.offered_entries("doc_9", MORAL_LIST)) == ["M1", "M2", "M3"]
+    first = tracker.reserve_top_entries({MORAL_LIST: tracker.offered_entries("doc_0", MORAL_LIST)})
+    assert first == ["M1"]
+    assert labels(tracker.offered_entries("doc_9", MORAL_LIST)) == ["M1", "M2", "M3"]   # 4 ties M2's 4: catalog order
+    tracker.reserve_top_entries({MORAL_LIST: tracker.offered_entries("doc_1", MORAL_LIST)})   # M1 now 3
+    assert labels(tracker.offered_entries("doc_9", MORAL_LIST)) == ["M2", "M1", "M3"]   # M2 4, M1 3, M3 3
+    assert tracker.counts == {"M1": 0, "M2": 0, "M3": 0, "E1": 0, "D1": 0}              # nothing counted
+
+
+def test_an_entry_with_adjusted_need_at_or_below_zero_is_still_offered_while_under_its_real_target():
+    catalog = make_catalog(moral=(("M1", 0.2), ("M2", 0.5)))
+    tracker = ConsiderationTracker(catalog, make_documents(10))      # M1 target 2, M2 target 5
+    for _ in range(3):
+        tracker.reserve_top_entries({MORAL_LIST: [catalog.entry_by_label("M1")]})
+    assert tracker.in_flight_top_picks["M1"] == 3                    # adjusted need 2 - 3 = -1
+    assert labels(tracker.offered_entries("doc_0", MORAL_LIST)) == ["M2", "M1"]
+    assert tracker.is_open(catalog.entry_by_label("M1"))
+
+
+def test_tentative_picks_are_released_after_every_kind_of_answer():
+    catalog = make_catalog(moral=(("M1", 0.1), ("M2", 0.9)), epistemic=(("E1", 0.5),))
+    tracker = ConsiderationTracker(catalog, make_documents(10))      # M1 target 1
+    stale_offer = {MORAL_LIST: {"M1", "M2"}, EPISTEMIC_LIST: {"E1"}}
+    answers = [
+        {MORAL_LIST: ("M2", "r"), EPISTEMIC_LIST: ("E1", "r")},      # accepted
+        {MORAL_LIST: (None, ""), EPISTEMIC_LIST: (None, "")},        # none
+        {MORAL_LIST: ("M1", "r"), EPISTEMIC_LIST: (None, "")},       # accepted, fills M1
+        {MORAL_LIST: ("M1", "r"), EPISTEMIC_LIST: (None, "")},       # over_cap
+    ]
+    statuses = []
+    for i, choices in enumerate(answers):
+        reserved = tracker.reserve_top_entries({
+            MORAL_LIST: tracker.offered_entries(f"doc_{i}", MORAL_LIST) or [catalog.entry_by_label("M2")],
+            EPISTEMIC_LIST: tracker.offered_entries(f"doc_{i}", EPISTEMIC_LIST)})
+        assert sum(tracker.in_flight_top_picks.values()) > 0
+        try:
+            row = tracker.record_answer(f"doc_{i}", 1, i + 1, choices, offered_labels=stale_offer)
+            statuses.append(row["outcomes"][0]["status"])
+        finally:
+            tracker.release(reserved)
+        assert sum(tracker.in_flight_top_picks.values()) == 0
+    assert statuses == [STATUS_ACCEPTED, STATUS_NONE, STATUS_ACCEPTED, STATUS_OVER_CAP]
+    # a failed call (nothing recorded) releases too
+    reserved = tracker.reserve_top_entries({MORAL_LIST: tracker.offered_entries("doc_5", MORAL_LIST)})
+    tracker.release(reserved)
+    assert sum(tracker.in_flight_top_picks.values()) == 0
+
+
+def test_concurrent_calls_on_a_fresh_tracker_are_offered_different_top_entries():
+    catalog = make_catalog(moral=(("M1", 0.4), ("M2", 0.4), ("M3", 0.4)))
+    tracker = ConsiderationTracker(catalog, make_documents(10))
+    tops = []
+    for i in range(3):
+        offer = {MORAL_LIST: tracker.offered_entries(f"doc_{i}", MORAL_LIST)}
+        tops.append(offer[MORAL_LIST][0].label)
+        tracker.reserve_top_entries(offer)
+    assert tops == ["M1", "M2", "M3"]
+
+
 # --- passes ---
 
 def test_pass_two_offers_only_under_target_categories_and_never_one_the_document_carries():
