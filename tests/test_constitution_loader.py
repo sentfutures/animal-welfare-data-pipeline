@@ -84,3 +84,23 @@ def test_format_principles_renders_pre_rename_snapshot_columns():
     assert "OLD-PRINCIPLE" in block
     assert "OLD-SUMMARY" in block
     assert 'Constitution: "OLD-QUOTE"' in block
+
+
+def test_failure_modes_load_from_snapshot_with_live_fallback(tmp_path):
+    live = constitution_loader.load_failure_modes()
+    assert "## A. Noticing and weighing" in live
+    snap = tmp_path / "constitution"
+    snap.mkdir()
+    (snap / constitution_loader.FAILURE_MODES_FILENAME).write_text("SNAP-FAILURES")
+    assert constitution_loader.load_failure_modes(snap) == "SNAP-FAILURES"
+    # snapshot predating the checklist: fall back to the repo's live copy
+    (snap / constitution_loader.FAILURE_MODES_FILENAME).unlink()
+    assert constitution_loader.load_failure_modes(snap) == live
+
+
+def test_failure_modes_stay_guiding_document_agnostic():
+    # the checklist is shared by both pipelines and must apply when another
+    # constitution is swapped in, so it names no particular guiding document
+    text = constitution_loader.load_failure_modes().lower()
+    assert "constitution" not in text
+    assert "anthropic" not in text
