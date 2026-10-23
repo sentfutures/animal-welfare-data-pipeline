@@ -28,9 +28,9 @@ A list shown as "(no entries offered)" has nothing to choose from for this docum
 
 This document already carries the following considerations from an earlier pass, so they are no longer offered: {existing_picks}
 
-For each list, go down it in order and choose the FIRST entry that arises naturally in this scenario: one that a thoughtful writer working from this specification would reach without being pushed, because the situation itself calls for it. If no entry fits that way, answer none for that list.
+For each list, go down it in order and choose the FIRST entry that might arise naturally in this scenario: one that a thoughtful writer working from this specification could bring in without forcing it, because the situation leaves room for it. If no entry fits that way, answer none for that list.
 
-Answering none is expected and usually correct. A consideration forced into a scenario that does not raise it makes a worse document than one that leaves it out, so do not stretch an entry to fit, and do not choose an entry just because it sounds important or comes early in the list. The two lists are judged independently: you may choose from one, from both, or from neither.
+Answering none is fine when nothing fits. A consideration forced into a scenario that does not raise it makes a worse document than one that leaves it out, so do not stretch an entry to fit, and do not choose an entry just because it sounds important or comes early in the list. The two lists are judged independently: you may choose from one, from both, or from neither.
 
 Answer with a JSON object in exactly this form, using the label exactly as printed above (never any other identifier), or none. For each entry you choose, write one sentence saying where in this specific scenario the consideration arises; for none, write nothing else.
 
