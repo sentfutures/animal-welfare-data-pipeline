@@ -24,6 +24,7 @@ TEMPLATE_KWARGS = [
         "tech_savvy": "SAVVY-X", "sentient_category": "MINDS-X",
         "naming": "NAMING-X", "domain": "DOMAIN-X", "tradeoff": "TRADEOFF-X",
         "decision_scale": "SCALE-X", "reasoning_featured": "REASONING-X",
+        "failure_mode_avoided": "FAILURE-X",
         "fictional_names": "NAME-X; NAME-Y", "fictional_orgs": "ORG-X; ORG-Y",
         "sentient_example": "SPECIES-X",
     }),
@@ -34,6 +35,7 @@ TEMPLATE_KWARGS = [
     }),
     ("sdf/layer3.txt", {
         "constitution_claude": "CONST-C-X", "constitution_principles": "CONST-P-X",
+        "failure_modes": "FAILURE-MODES-X",
         "document_description": "DESC-X", "document": "DOC-X",
     }),
     ("sdf/layer4.txt", {
