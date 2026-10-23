@@ -24,7 +24,7 @@ Example:
       --run-label opus_5_5_smoke_descriptions [--dry-run]
     Resume an interrupted rerun:  ... --resume <existing rerun folder>
 
-The API key comes only from this worktree's .env (loaded with override, so an OS-environment key
+The API key comes only from the .env one folder above this worktree (loaded with override, so an OS-environment key
 never wins); the script refuses to run without it. --dry-run makes no calls and needs no key.
 """
 
@@ -39,14 +39,14 @@ from pathlib import Path
 WORKTREE_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(WORKTREE_ROOT))
 
-DOTENV_PATH = WORKTREE_ROOT / ".env"
+DOTENV_PATH = WORKTREE_ROOT.parent / ".env"   # the .env one folder above this worktree, which holds this project's key
 PROMPT_FILENAMES = ("layer1_select_considerations.txt", "considerations.txt")
 TIMESTAMP_FORMAT = "%Y-%m-%d_%H-%M"
 LAUNCH_RECORD_PREFIX = "launch_record_"
 
 
 def load_project_api_key_or_exit() -> None:
-    """Load ANTHROPIC_API_KEY from this worktree's .env, overriding the OS environment."""
+    """Load ANTHROPIC_API_KEY from the .env one folder above this worktree, overriding the OS environment."""
     from dotenv import dotenv_values, load_dotenv
     if not DOTENV_PATH.is_file():
         sys.exit(f"ERROR: project .env not found at {DOTENV_PATH}. Not falling back to the OS environment.")
