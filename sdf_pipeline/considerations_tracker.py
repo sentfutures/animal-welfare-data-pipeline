@@ -15,13 +15,16 @@ only asks the model and feeds the answers in.
   An entry the document already carries is not offered.
 - Removal at target: an entry with remaining need of zero or less is not offered.
   The tracker is not locked; the selector stage calls it under its own lock.
-- Stale offers are fine: the offer is computed when a call starts, and calls run
-  in parallel, so a call may have been shown an entry that another call has since
-  filled. ``record_answer`` therefore validates a label against what THAT call was
-  offered (``offered_labels``), not against the current state, and accepts it even
-  if the entry has reached its target (a small overshoot). New answers are never
-  rejected over cap; ``over_cap`` rows written by older runs still replay (the
-  entry is not counted, the document is re-asked for that list first).
+- Stale offers are rejected, not accepted: the offer is computed when a call
+  starts, and calls run in parallel, so a call may have been shown an entry that
+  another call has since filled. ``record_answer`` validates a label against what
+  THAT call was offered (``offered_labels``); a label that was offered but whose
+  entry has reached its target since is rejected as ``over_cap`` (not counted, the
+  list stays unresolved for that document in this pass) so no entry ever ends above
+  its target. The selector stage puts such a document back at the front of the queue
+  to be asked again for that list with a freshly computed offer; this terminates
+  because every rejection means an entry has closed. ``over_cap`` rows are saved
+  like any other row, and ``replay`` re-asks those documents first.
 - Passes: pass 1 asks every eligible document for each list. A later pass
   re-asks every eligible document, offering only entries still under target that
   the document does not already carry, so a document can end up with several
@@ -128,7 +131,7 @@ class ConsiderationTracker:
         self, pass_number: int, skip: frozenset[str] = frozenset(), limit: int | None = None
     ) -> list[PendingCall]:
         """Calls still to make in this pass, in order: documents with a pick
-        rejected over cap in a saved row from an older run come first (they are
+        rejected over cap in a saved row come first (they are
         re-asked), then documents not yet asked, both in document order. A document is asked only
         for lists still unresolved in this pass that have something to offer."""
         re_asked = [p for p in self.document_order if (pass_number, p) in self._over_cap_asks]
@@ -163,8 +166,9 @@ class ConsiderationTracker:
         return the row to persist. ``wave_number`` is the call's start sequence
         number within the pass. ``offered_labels`` is ``{list_name: labels}`` the
         call was shown; a label outside it raises ValueError, while a label inside
-        it is accepted even if the entry has since reached its target. When it is
-        omitted the label is checked against the current offer."""
+        it whose entry has since reached its target is recorded as ``over_cap``
+        (not counted; other lists in the same answer are handled normally). When
+        it is omitted the label is checked against the current offer."""
         outcomes = []
         for list_name, (label, reason) in choices.items():
             if label is None:
@@ -183,15 +187,15 @@ class ConsiderationTracker:
                     shown = set(offered_labels.get(list_name, ()))
                 if label not in shown:
                     raise ValueError(f"{label!r} was not on the {list_name} list offered to {prompt_id}")
-                status = STATUS_ACCEPTED
+                status = STATUS_ACCEPTED if self.is_open(entry) else STATUS_OVER_CAP
             outcomes.append({"list": list_name, "label": label, "reason": reason, "status": status})
         row = {"prompt_id": prompt_id, "pass": pass_number, "wave": wave_number, "outcomes": outcomes}
         self._apply(row)
         return row
 
     def replay(self, rows: list[dict]) -> None:
-        """Rebuild state from saved rows, trusting their recorded statuses (rows from
-        older runs may hold ``over_cap``; new answers never do). Rows for
+        """Rebuild state from saved rows, trusting their recorded statuses (``over_cap``
+        rows are not counted and their document is re-asked first). Rows for
         documents that are no longer eligible (dropped by an earlier stage on a later run) are ignored."""
         for row in rows:
             if row["prompt_id"] in self._digital:

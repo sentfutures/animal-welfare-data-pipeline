@@ -16,8 +16,9 @@
 #   the entry furthest from its target is offered first. Entries with equal remaining need
 #   keep the order they have in this file. An entry at its target is not offered. The order
 #   is worked out when each call starts, so calls running at the same time may see an order
-#   that is slightly out of date, and a pick of an entry that was on the list that call was
-#   shown is accepted even if the entry has since reached its target (small overshoot).
+#   that is slightly out of date. A pick of an entry that has reached its target since the
+#   call started is rejected, and that document is asked again for that list with a fresh
+#   offer, so no entry ends above its target.
 # - The label (before the first ": ") is what the selector and the drafter see. It must be
 #   unique across both lists and must not contain ": ". The gloss is the one-line meaning,
 #   and is optional: an entry with no ": " is a label alone.

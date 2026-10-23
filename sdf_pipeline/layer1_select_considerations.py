@@ -18,9 +18,10 @@ list, logged in model_calls.jsonl only and never passed downstream), ``label``
 offered cannot be produced) and ``where_it_arises`` (one sentence, empty for
 none). This module maps labels back to catalog entries and still rejects any
 label that was not on the list shown to that call, as a backstop; the tracker
-likewise validates a pick against that call's offer, not the current state, so a
-pick of an entry that reached its target while the call was running is accepted
-(a small overshoot is allowed and no new answer is rejected over cap). The accepted picks
+likewise validates a pick against that call's offer, not the current state; a pick
+of an entry that reached its target while the call was running is rejected over cap
+(never counted, so no entry ends above its target) and that document goes back to the
+front of the queue to be asked again for that list with a freshly computed offer. The accepted picks
 are assembled in code into ``considerations_spec``, a text block stored on the
 plan record next to ``description`` and carried through the draft, rewrite and
 final records the same way (empty string when a document has no picks). Each
@@ -30,7 +31,8 @@ plan's ``variables`` also gains ``moral_considerations`` and
 Scheduling is a rolling pool of ``workers`` concurrent calls, not waves: when a
 slot frees, the next document's offer is computed from the current counts (under
 a lock) and the call is started, so an offer may be slightly out of date by the
-time its answer arrives, which is accepted. Each answer is recorded and appended
+time its answer arrives; a pick of an entry that has filled since is rejected over cap and the
+document is re-asked in the same pass. Each answer is recorded and appended
 to the selections file the moment it completes, under the same lock. Documents
 are taken in a seeded shuffle of the sorted ids (so the deal order does not
 decide who gets the scarce entries). A row's ``wave`` field is kept for
@@ -54,7 +56,8 @@ Checkpoint semantics (protects paid work):
 - A malformed, truncated or unknown-label answer is NOT written, so --resume
   retries exactly that document (and a document that failed is not re-asked
   again in the same session).
-- Rows from older runs that hold ``over_cap`` outcomes still load.
+- ``over_cap`` rows are written like any other row (they are not counted, and on resume those
+  documents are re-asked first), so a rebuild reproduces the state exactly.
 - _select_considerations_checkpoint.json marks a pass complete only when none of
   its calls failed, so a resumed run neither skips an unfinished pass nor starts
   another pass the earlier run had already ended.
@@ -426,6 +429,8 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
                                 offered_labels={name: {entry.label for entry in entries}
                                                 for name, entries in offered.items()})
                             utils.append_jsonl(row, selections_path)
+                            if any(o["status"] == "over_cap" for o in row["outcomes"]):
+                                queue.insert(0, call.prompt_id)   # re-ask soon, with a fresh offer
                             stats["answered"] += 1
                             stats["slowest"] = max(stats["slowest"], seconds)
                         except ValueError as e:

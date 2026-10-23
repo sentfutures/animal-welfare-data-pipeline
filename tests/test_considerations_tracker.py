@@ -194,18 +194,32 @@ def test_a_category_is_removed_at_exactly_its_target_and_not_before():
     assert labels(tracker.offered_entries("doc_5", MORAL_LIST)) == ["M2"]
 
 
-def test_a_pick_of_an_entry_on_the_offer_is_accepted_even_after_the_entry_reached_target():
-    catalog = make_catalog(moral=(("M1", 0.2),))
-    tracker = ConsiderationTracker(catalog, make_documents(10))   # target 2
-    offer_seen_by_every_call = {MORAL_LIST: {"M1"}}               # four calls started before any answer arrived
-    statuses = [
-        tracker.record_answer(f"doc_{i}", 1, i + 1, {MORAL_LIST: ("M1", "r")},
-                              offered_labels=offer_seen_by_every_call)["outcomes"][0]["status"]
+def test_a_pick_of_an_entry_that_filled_since_the_call_started_is_rejected_over_cap():
+    catalog = make_catalog(moral=(("M1", 0.2), ("M2", 0.9)), epistemic=(("E1", 0.5),))
+    tracker = ConsiderationTracker(catalog, make_documents(10))   # M1 target 2
+    offer_seen_by_every_call = {MORAL_LIST: {"M1", "M2"}, EPISTEMIC_LIST: {"E1"}}   # four calls started before any answer arrived
+    rows = [
+        tracker.record_answer(f"doc_{i}", 1, i + 1, {MORAL_LIST: ("M1", "r"), EPISTEMIC_LIST: ("E1", "r")},
+                              offered_labels=offer_seen_by_every_call)
         for i in range(4)
     ]
-    assert statuses == [STATUS_ACCEPTED] * 4
-    assert tracker.counts["M1"] == 4 and tracker.over_cap_counts["M1"] == 0
-    assert tracker.offered_entries("doc_9", MORAL_LIST) == []
+    moral_statuses = [row["outcomes"][0]["status"] for row in rows]
+    assert moral_statuses == [STATUS_ACCEPTED, STATUS_ACCEPTED, STATUS_OVER_CAP, STATUS_OVER_CAP]
+    assert tracker.counts["M1"] == 2 and tracker.over_cap_counts["M1"] == 2
+    assert tracker.targets["M1"] == 2
+    # the other list in the same answer is handled normally
+    assert all(row["outcomes"][1]["status"] == STATUS_ACCEPTED for row in rows)
+    # a rejected document keeps the moral list unresolved for this pass and is asked again, with M1 gone
+    assert (1, "doc_2", MORAL_LIST) not in tracker._resolved
+    assert (1, "doc_2", EPISTEMIC_LIST) in tracker._resolved
+    assert tracker.labels_carried_by("doc_2") == {"E1"}
+    call = tracker.pending_call_for("doc_2", 1)
+    assert call.list_names == (MORAL_LIST,)
+    assert labels(tracker.offered_entries("doc_2", MORAL_LIST)) == ["M2"]
+    row = tracker.record_answer("doc_2", 1, 5, {MORAL_LIST: ("M2", "r")},
+                                offered_labels={MORAL_LIST: {"M2"}})
+    assert row["outcomes"][0]["status"] == STATUS_ACCEPTED
+    assert tracker.counts["M1"] == 2
 
 
 def test_a_label_not_in_that_calls_offer_is_rejected_even_if_it_is_open_now():
@@ -221,7 +235,7 @@ def test_a_label_not_in_that_calls_offer_is_rejected_even_if_it_is_open_now():
         full.record_answer("doc_1", 1, 2, {MORAL_LIST: ("M1", "r")})
 
 
-def test_replaying_old_rows_with_over_cap_still_works_and_re_asks_that_list_first():
+def test_replaying_over_cap_rows_works_and_re_asks_that_list_first():
     catalog = make_catalog(moral=(("M1", 0.1), ("M2", 0.9)), epistemic=(("E1", 0.5),))
     tracker = ConsiderationTracker(catalog, make_documents(10))   # M1 target 1
     tracker.replay([
@@ -312,15 +326,15 @@ def test_rebuilding_from_the_saved_rows_gives_the_state_of_the_uninterrupted_run
     script = [
         (1, 1, [("doc_0", {MORAL_LIST: ("M1", "a"), EPISTEMIC_LIST: ("E1", "b")}),
                 ("doc_1", {MORAL_LIST: ("M1", "c"), EPISTEMIC_LIST: (None, "")}),
-                # a stale pick: M1 was on this call's offer, but reached its target of 2 before the answer arrived
+                # a stale pick: M1 was on this call's offer, but reached its target of 2 before the answer arrived, so it is rejected
                 ("doc_2", {MORAL_LIST: ("M1", "d"), EPISTEMIC_LIST: ("E1", "e")}, {MORAL_LIST: {"M1", "M2"}, "epistemic": {"E1"}})]),
         (1, 2, [("doc_2", {MORAL_LIST: ("M2", "f")}),
                 ("doc_3", {MORAL_LIST: (None, ""), EPISTEMIC_LIST: ("E1", "g")})]),
     ]
     uninterrupted = ConsiderationTracker(catalog, documents)
     rows = run_scripted_waves(uninterrupted, script)
-    assert [o["status"] for o in rows[2]["outcomes"]] == [STATUS_ACCEPTED, STATUS_ACCEPTED]
-    assert uninterrupted.counts["M1"] == 3
+    assert [o["status"] for o in rows[2]["outcomes"]] == [STATUS_OVER_CAP, STATUS_ACCEPTED]
+    assert uninterrupted.counts["M1"] == 2 and uninterrupted.over_cap_counts["M1"] == 1
 
     rebuilt = ConsiderationTracker(catalog, documents)
     rebuilt.replay(rows)

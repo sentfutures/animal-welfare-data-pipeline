@@ -326,31 +326,76 @@ def test_each_documents_lists_are_ordered_by_remaining_need_when_its_call_starts
     assert not any(o["status"] == "over_cap" for r in rows for o in r["outcomes"])
 
 
-def test_stale_picks_beyond_the_target_are_accepted_when_calls_run_at_the_same_time(select_config, small_prompts, stage_dir, stub_claude):
+def test_stale_picks_beyond_the_target_are_rejected_over_cap_and_re_asked_in_the_same_pass(select_config, small_prompts, stage_dir, stub_claude):
     select_config["workers"] = 4
     barrier = threading.Barrier(4, timeout=10)
-    started = {"count": 0}
+    started = {"count": 0, "first_four": [], "re_asks": 0}
     lock = threading.Lock()
 
     def dispatcher(user_message, **kw):
         with lock:
             started["count"] += 1
             first_four = started["count"] <= 4
+            if first_four:
+                started["first_four"].append(kw["item_id"])
+            re_ask = (not first_four and kw["item_id"] in started["first_four"] and kw["item_id"].endswith("pass1"))
+            if re_ask:
+                started["re_asks"] += 1
+                re_ask_number = started["re_asks"]
         if first_four:
             barrier.wait()      # all four calls have been offered the same list before any answer is recorded
             return answer("Alpha moral", None)    # Alpha's target is 2
+        if re_ask:
+            assert "Alpha moral" not in offered_in(user_message)["moral"]     # a freshly computed offer
+            return answer("Beta moral" if re_ask_number == 1 else None, None)
         return say_none(user_message)
 
     stub_claude(dispatcher)
     result = select.run(select_config, small_prompts, stage_dir, make_plans(10))
     rows = rows_of(stage_dir)
-    moral_statuses = [o["status"] for r in rows for o in r["outcomes"] if o["list"] == "moral" and o["label"] == "Alpha moral"]
-    assert moral_statuses == ["accepted"] * 4
+
+    def moral_outcome(row):
+        return next((o for o in row["outcomes"] if o["list"] == "moral"), {"label": None, "status": None})
+
+    alpha_rows = [r for r in rows if moral_outcome(r)["label"] == "Alpha moral"]
+    assert sorted(moral_outcome(r)["status"] for r in alpha_rows) == ["accepted", "accepted", "over_cap", "over_cap"]
+    rejected_ids = [r["prompt_id"] for r in alpha_rows if moral_outcome(r)["status"] == "over_cap"]
+    assert started["re_asks"] == 2 and len(rejected_ids) == 2
+    for prompt_id in rejected_ids:      # re-asked in the same pass, and ended with another entry or none
+        later = [r for r in rows if r["prompt_id"] == prompt_id and r["pass"] == 1][-1]
+        assert moral_outcome(later)["status"] in ("accepted", "none")
+        assert moral_outcome(later)["label"] != "Alpha moral"
     report = json.loads((stage_dir / select.COVERAGE_FILENAME).read_text())
     by_label = {e["label"]: e for e in report["entries"]}
-    assert by_label["Alpha moral"]["achieved"] == 4 and by_label["Alpha moral"]["target_count"] == 2
-    assert by_label["Alpha moral"]["rejected_over_cap"] == 0
-    assert sum("Alpha moral" in p["variables"]["moral_considerations"] for p in result) == 4
+    assert by_label["Alpha moral"]["achieved"] == 2 and by_label["Alpha moral"]["target_count"] == 2
+    assert by_label["Alpha moral"]["rejected_over_cap"] == 2
+    assert by_label["Beta moral"]["achieved"] == 1
+    assert sum("Alpha moral" in p["variables"]["moral_considerations"] for p in result) == 2
+    for entry in report["entries"]:
+        assert entry["achieved"] <= entry["target_count"]
+
+
+def test_resuming_from_rows_holding_over_cap_outcomes_rebuilds_the_state_and_re_asks_those_documents(select_config, small_prompts, stage_dir, stub_claude):
+    select_config["workers"] = 1
+    plans = make_plans(4)
+    rows = [
+        {"prompt_id": f"matrix_{i:06d}", "pass": 1, "wave": i + 1, "outcomes": [
+            {"list": "moral", "label": "Alpha moral", "reason": "r", "status": status},
+            {"list": "epistemic", "label": None, "reason": "", "status": "none"}]}
+        for i, status in enumerate(["accepted", "accepted", "over_cap"])
+    ]
+    utils.save_jsonl(rows, stage_dir / select.SELECTIONS_FILENAME)
+    attached = select.attach_selections(select_config, small_prompts, stage_dir, plans)
+    assert picks_by_document(attached)["matrix_000002"] == []
+    calls = stub_claude(say_none)
+    result = select.run(select_config, small_prompts, stage_dir, plans)
+    pass_one = [c["item_id"] for c in calls if c["item_id"].endswith("pass1")]
+    assert pass_one == ["matrix_000002_pass1", "matrix_000003_pass1"]     # the rejected document first, then the unasked one
+    reasked_prompt = next(c for c in calls if c["item_id"] == "matrix_000002_pass1")["user_message"]
+    assert "Alpha moral" not in offered_in(reasked_prompt)["moral"]
+    report = json.loads((stage_dir / select.COVERAGE_FILENAME).read_text())
+    by_label = {e["label"]: e for e in report["entries"]}
+    assert by_label["Alpha moral"]["rejected_over_cap"] == 1 and by_label["Alpha moral"]["achieved"] == 2
 
 
 def test_a_label_not_in_the_calls_own_offer_is_not_saved(select_config, small_prompts, stage_dir, stub_claude):

@@ -8,8 +8,8 @@ layer-1 stage and from the final corpus:
 
 No model is called and nothing leaves tmp_path (PIPELINE_OUTPUT_ROOT redirects
 the run). The assertions are the contracts the paid checks will rely on: the
-picks reach each document's draft prompt and records, targets are exceeded
-by at most the stale picks of calls running at the same time, and a resume at layer 2 hands the drafter the same picks.
+picks reach each document's draft prompt and records, targets are never
+exceeded, and a resume at layer 2 hands the drafter the same picks.
 """
 
 import json
@@ -119,11 +119,9 @@ def test_offline_smoke_screen_plan_description_rewrite_select_draft_rewrite(smok
             ("considerations" not in draft_call["user_message"])
     assert 0 < picked_documents < N_DOCUMENTS
 
-    smoke_workers = yaml.safe_load(smoke_config_file.read_text())["workers"]
     report = json.loads((run_dir / "layer1" / select.COVERAGE_FILENAME).read_text())
     for entry in report["entries"]:
-        # a call started before an entry filled may still pick it: at most workers - 1 other calls are in flight
-        assert entry["achieved"] <= entry["target_count"] + (smoke_workers - 1)
+        assert entry["achieved"] <= entry["target_count"]
     selector_calls = [c for c in calls if c["stage"] == "layer1_select"]
     assert len(selector_calls) >= N_DOCUMENTS                      # pass 1 asks every eligible document at least once
 
