@@ -54,7 +54,8 @@ TEMPLATE_KWARGS = [
         "user_stakes": "STAKES-X", "leverage": "LEV-X",
         "welfare_partner": "PARTNER-X", "secondary_value_pair": "PAIR-X",
         "dilemma_structure": "STRUCTURE-X", "surface_form": "FORM-X", "length": "LENGTH-X",
-        "cultural_setting": "CULTURE-X", "frontier_frame": "FRAME-X",
+        "cultural_setting": "CULTURE-X",
+        "deliverable_clause": "", "failure_mode_clause": "",
         "taxa_category": "TAXA-X",  # downstream-only axis; str.format drops it
     }),
     # step1b renders via compose_scenarios.render_draft_prompt (one scenario per call)
@@ -80,7 +81,7 @@ TEMPLATE_KWARGS = [
         "quote_back_hints": "QB-X; QB-Y; QB-Z",
     }),
     ("dad/step3_rewrite.txt", {
-        "principles_block": "PRINCIPLES-X",
+        "principles_block": "PRINCIPLES-X", "failure_modes": "FAILURE-MODES-X",
         "user_message": "USER-X", "draft_response": "DRAFT-X",
     }),
     # Not yet consumed by pipeline code; kwargs are the placeholders they declare

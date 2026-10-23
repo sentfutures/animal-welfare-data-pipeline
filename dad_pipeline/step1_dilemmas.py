@@ -122,6 +122,9 @@ def _scenario_cards_from_deal(p: dict) -> dict:
         "frontier_frame": p.get("frontier_frame", ""),
         "length_class": p.get("length_class", ""),
         "cultural_setting": p.get("cultural_setting", ""),
+        "deliverable": p.get("deliverable", ""),
+        "failure_mode_target": p.get("failure_mode_target", ""),
+        "failure_mode_salience": p.get("failure_mode_salience", ""),
         "archetype": p.get("archetype", ""),
     })
 
