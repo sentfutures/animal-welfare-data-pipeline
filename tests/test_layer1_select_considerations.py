@@ -100,9 +100,9 @@ def offered_in(user_message):
 def answer(moral=None, epistemic=None):
     def one(label):
         if label is None:
-            return {"label": "none"}
-        return {"label": label, "where_it_arises": f"Where {label} arises."}
-    return "Brief thoughts.\n" + json.dumps({"moral": one(moral), "epistemic": one(epistemic)})
+            return {"reasoning": "Nothing fits.", "label": "none", "where_it_arises": ""}
+        return {"reasoning": "It fits.", "label": label, "where_it_arises": f"Where {label} arises."}
+    return json.dumps({"moral": one(moral), "epistemic": one(epistemic)})
 
 
 def pick_first_offered(user_message, **kw):
@@ -180,6 +180,52 @@ def test_a_pick_from_a_list_with_nothing_offered_is_rejected(small_prompts):
     with pytest.raises(select.SelectionAnswerError, match="nothing was offered"):
         select.parse_selection_answer(
             '{"moral": {"label": "none"}, "epistemic": {"label": "Gamma epistemic", "where_it_arises": "x"}}', offered)
+
+
+def test_selection_schema_enums_match_the_offered_labels(small_prompts):
+    catalog, offered = make_offer(small_prompts)
+    schema = select.build_selection_schema(offered)
+    assert list(schema["properties"]) == ["moral", "epistemic"]
+    assert schema["required"] == ["moral", "epistemic"] and schema["additionalProperties"] is False
+    for list_name in ("moral", "epistemic"):
+        list_schema = schema["properties"][list_name]
+        assert list(list_schema["properties"]) == ["reasoning", "label", "where_it_arises"]  # reasoning comes first
+        assert list_schema["required"] == ["reasoning", "label", "where_it_arises"]
+        assert list_schema["additionalProperties"] is False
+        assert list_schema["properties"]["label"]["enum"] == [e.label for e in offered[list_name]] + ["none"]
+    # a list with nothing offered (or missing) can only answer none
+    emptied = select.build_selection_schema({"moral": offered["moral"], "epistemic": []})
+    assert emptied["properties"]["epistemic"]["properties"]["label"]["enum"] == ["none"]
+    assert select.build_selection_schema({})["properties"]["moral"]["properties"]["label"]["enum"] == ["none"]
+
+
+def test_schema_shaped_answer_parses_and_reasoning_is_dropped(small_prompts):
+    _, offered = make_offer(small_prompts)
+    raw = json.dumps({
+        "moral": {"reasoning": "Alpha fits.", "label": "Alpha moral", "where_it_arises": "In the second scene."},
+        "epistemic": {"reasoning": "Nothing fits.", "label": "none", "where_it_arises": ""}})
+    choices = select.parse_selection_answer(raw, offered)
+    assert choices["moral"][0].label == "Alpha moral" and choices["moral"][1] == "In the second scene."
+    assert choices["epistemic"] == (None, "")
+
+
+def test_select_for_document_sends_the_schema(stub_claude, small_prompts):
+    _, offered = make_offer(small_prompts)
+    calls = stub_claude(say_none)
+    select.select_for_document(select.DocumentFacts("A scenario.", "t", "c", "s"), offered,
+                               template=select.load_selection_template(small_prompts))
+    assert calls[0]["json_schema"] == select.build_selection_schema(offered)
+
+
+def test_real_catalog_continuity_label_is_in_the_enum_and_its_gloss_is_not(prompts_sdf):
+    catalog = load_considerations(prompts_sdf)
+    entry = next(e for e in catalog.all_entries
+                 if e.label == "the continuity between welfare concern and the rest of the AI's aligned character")
+    assert entry.gloss  # the entry the model once answered with its label plus part of this gloss
+    schema = select.build_selection_schema({entry.list_name: list(catalog.entries_of(entry.list_name))})
+    enum = schema["properties"][entry.list_name]["properties"]["label"]["enum"]
+    assert entry.label in enum
+    assert not any(entry.gloss in value or value.startswith(entry.label + ":") for value in enum)
 
 
 def test_truncated_answer_is_rejected(stub_claude, small_prompts):

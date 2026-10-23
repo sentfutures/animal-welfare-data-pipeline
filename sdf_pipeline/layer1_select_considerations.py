@@ -9,8 +9,13 @@ that fits the scenario naturally, or "none". A run-level tracker
 and removes an entry once its target is met; later passes re-offer the entries
 still under target, so a document can carry more than one consideration.
 
-The model answers with labels, never ids; this module maps them back to catalog
-entries and rejects any label that was not on the list shown. The accepted picks
+The model answers through a JSON schema built per call from the entries offered
+(``build_selection_schema``): for each list, ``reasoning`` (a brief walk down the
+list, logged in model_calls.jsonl only and never passed downstream), ``label``
+(an enum of exactly the offered labels plus "none", so a label that was not
+offered cannot be produced) and ``where_it_arises`` (one sentence, empty for
+none). This module maps labels back to catalog entries and still rejects any
+label that was not on the list shown, as a backstop. The accepted picks
 are assembled in code into ``considerations_spec``, a text block stored on the
 plan record next to ``description`` and carried through the draft, rewrite and
 final records the same way (empty string when a document has no picks). Each
@@ -64,7 +69,7 @@ SELECTIONS_FILENAME = "consideration_selections.jsonl"
 CHECKPOINT_FILENAME = "_select_considerations_checkpoint.json"
 COVERAGE_FILENAME = "consideration_coverage.json"
 DEFAULT_MAX_SELECTION_PASSES = 3
-_MAX_TOKENS = 1200  # brief thinking plus a two-key JSON answer; bounds api-backend cost
+_MAX_TOKENS = 2500  # per-entry reasoning for two lists plus the two short fields; bounds api-backend cost
 
 NO_ENTRIES_MARKER = "(no entries offered)"
 NONE_ANSWER = "none"
@@ -118,6 +123,31 @@ def build_selection_prompt(
     return split_sections(rendered)
 
 
+def build_selection_schema(offered: dict[str, list[Consideration]]) -> dict:
+    """The answer schema for one call. Properties are ordered reasoning, label,
+    where_it_arises so the model walks the list before it chooses. Each list's
+    ``label`` enum is the exact offered labels plus "none" (just "none" when the
+    list has no entries offered)."""
+    def list_schema(list_name: str) -> dict:
+        labels = [entry.label for entry in offered.get(list_name) or []]
+        return {
+            "type": "object",
+            "properties": {
+                "reasoning": {"type": "string"},
+                "label": {"type": "string", "enum": [*labels, NONE_ANSWER]},
+                "where_it_arises": {"type": "string"},
+            },
+            "required": ["reasoning", "label", "where_it_arises"],
+            "additionalProperties": False,
+        }
+    return {
+        "type": "object",
+        "properties": {name: list_schema(name) for name in LIST_NAMES},
+        "required": list(LIST_NAMES),
+        "additionalProperties": False,
+    }
+
+
 def _normalize_label(text: str) -> str:
     return " ".join(text.strip().strip("\"'`").split()).casefold()
 
@@ -127,15 +157,18 @@ def parse_selection_answer(
 ) -> dict[str, tuple[Consideration | None, str]]:
     """{list_name: (entry or None, reason)} for each list that was offered.
 
-    Raises SelectionAnswerError unless the answer holds one JSON object with a
-    {"label", "where_it_arises"} entry for every offered list, every label is
+    The answer is schema-constrained JSON, so this is a backstop. Raises
+    SelectionAnswerError unless the answer is one JSON object with a
+    {"label", "where_it_arises"} entry (``reasoning`` is ignored) for every offered list, every label is
     "none" or exactly (up to case and spacing) a label shown in that list, and
     every pick comes with a one-sentence reason. A label from a list that was not
     shown, or one not on the list at all, is rejected."""
     try:
-        answer = utils.extract_json_object(raw or "")
+        answer = json.loads(raw or "")
     except ValueError as error:  # json.JSONDecodeError is a ValueError
         raise SelectionAnswerError(f"no usable JSON object ({error})") from error
+    if not isinstance(answer, dict):
+        raise SelectionAnswerError("answer is not a JSON object")
     choices: dict[str, tuple[Consideration | None, str]] = {}
     for list_name in LIST_NAMES:
         entries = offered.get(list_name) or []
@@ -185,6 +218,7 @@ def select_for_document(
         stage=STAGE_TAG,
         item_id=item_id,
         return_stop_reason=True,
+        json_schema=build_selection_schema(offered),
     )
     if stop_reason != "end_turn":
         raise SelectionAnswerError(f"truncated answer (stop_reason={stop_reason})")

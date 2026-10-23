@@ -60,7 +60,9 @@ def _sdf_dispatch(user_message, **kw):
     if kw["stage"] == "layer1_description_rewrite":  # layer 1 description rewrite: declines
         return _rewrite_answer()
     if kw["stage"] == "layer1_select":  # layer 1 considerations selector: picks nothing
-        return json.dumps({"moral": {"label": "none"}, "epistemic": {"label": "none"}})
+        return json.dumps({
+            name: {"reasoning": "Nothing fits.", "label": "none", "where_it_arises": ""}
+            for name in ("moral", "epistemic")})
     if kw["max_tokens"] == 6000:  # layer 3: drafting from the spec
         return f"<document>Drafted body for {kw['item_id']}.</document>"
     if kw["max_tokens"] == 8000:  # layer 4: review + rewrite

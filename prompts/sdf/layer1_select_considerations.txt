@@ -32,8 +32,4 @@ For each list, go down it in order and choose the FIRST entry that might arise n
 
 Answering none is fine when nothing fits. A consideration forced into a scenario that does not raise it makes a worse document than one that leaves it out, so do not stretch an entry to fit, and do not choose an entry just because it sounds important or comes early in the list. The two lists are judged independently: you may choose from one, from both, or from neither.
 
-Answer with a JSON object in exactly this form, using the label exactly as printed above (never any other identifier), or none. For each entry you choose, write one sentence saying where in this specific scenario the consideration arises; for none, write nothing else.
-
-{{"moral": {{"label": "label exactly as printed, or none", "where_it_arises": "one sentence, only if you chose an entry"}}, "epistemic": {{"label": "label exactly as printed, or none", "where_it_arises": "one sentence, only if you chose an entry"}}}}
-
-You may think through the specification briefly before answering, but the JSON object must be the last thing you write and must appear exactly once.
+For each list, give three things. reasoning: go down the list in order and say briefly, for each entry, whether it fits this scenario, stopping at the first that does. label: the label of the entry you chose, or none. where_it_arises: one sentence saying where in this specific scenario the consideration arises; leave it empty when you answered none.

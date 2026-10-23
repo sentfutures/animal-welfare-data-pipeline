@@ -64,10 +64,11 @@ def selector_answer(user_message, item_id):
         seed = zlib.crc32(f"{item_id}:{name}".encode())
         if shown[name] and seed % 3 == 0:
             label = shown[name][(seed // 3) % len(shown[name])]
-            answer[name] = {"label": label, "where_it_arises": f"Where {label} arises in this scenario."}
+            answer[name] = {"reasoning": "Walked the list.", "label": label,
+                            "where_it_arises": f"Where {label} arises in this scenario."}
         else:
-            answer[name] = {"label": "none"}
-    return "Thinking.\n" + json.dumps(answer)
+            answer[name] = {"reasoning": "Nothing fits.", "label": "none", "where_it_arises": ""}
+    return json.dumps(answer)
 
 
 def smoke_dispatch(user_message, **kw):
