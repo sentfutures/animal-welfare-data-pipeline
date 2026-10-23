@@ -7,11 +7,13 @@ real file, the real templates and the drafter use the repo's own files.
 
 Money paths: parse happy path, malformed / unknown-label answers are not
 checkpointed, resume makes zero calls for completed work, every-call-failure
-exits, and a callable dispatcher (the stage fans out in waves).
+exits, and a callable dispatcher (the stage runs a rolling pool of workers).
 """
 
 import json
 import re
+import threading
+from pathlib import Path
 
 import pytest
 
@@ -310,24 +312,114 @@ def test_counts_never_exceed_targets_and_the_coverage_report_is_written(select_c
     assert by_label["Delta digital"]["achieved"] == 2         # 50% of the 4 digital documents
 
 
-def test_a_wave_over_subscribing_a_category_is_rejected_and_re_asked(select_config, small_prompts, stage_dir, stub_claude):
-    select_config["workers"] = 4
+def test_each_documents_lists_are_ordered_by_remaining_need_when_its_call_starts(select_config, small_prompts, stage_dir, stub_claude):
+    select_config["workers"] = 1
     calls = stub_claude(pick_first_offered)
+    select.run(select_config, small_prompts, stage_dir, make_plans(10))
+    pass_one_moral = [offered_in(c["user_message"])["moral"] for c in calls if c["item_id"].endswith("pass1")]
+    # Alpha target 2, Beta target 9: Beta (need 9) is first and takes every pick until its need falls to Alpha's 2
+    assert pass_one_moral[0] == ["Beta moral", "Alpha moral"]
+    assert pass_one_moral[6] == ["Beta moral", "Alpha moral"]      # Beta need 3 after six picks, Alpha need 2
+    assert pass_one_moral[7] == ["Alpha moral", "Beta moral"]      # Beta need 2 ties Alpha's 2: catalog order puts Alpha first
+    assert pass_one_moral[8] == ["Beta moral", "Alpha moral"]      # Alpha was just picked (need 1), Beta still needs 2
+    rows = rows_of(stage_dir)
+    assert not any(o["status"] == "over_cap" for r in rows for o in r["outcomes"])
+
+
+def test_stale_picks_beyond_the_target_are_accepted_when_calls_run_at_the_same_time(select_config, small_prompts, stage_dir, stub_claude):
+    select_config["workers"] = 4
+    barrier = threading.Barrier(4, timeout=10)
+    started = {"count": 0}
+    lock = threading.Lock()
+
+    def dispatcher(user_message, **kw):
+        with lock:
+            started["count"] += 1
+            first_four = started["count"] <= 4
+        if first_four:
+            barrier.wait()      # all four calls have been offered the same list before any answer is recorded
+            return answer("Alpha moral", None)    # Alpha's target is 2
+        return say_none(user_message)
+
+    stub_claude(dispatcher)
     result = select.run(select_config, small_prompts, stage_dir, make_plans(10))
     rows = rows_of(stage_dir)
-    first_wave = [r for r in rows if r["pass"] == 1 and r["wave"] == 1]
-    statuses = [next(o["status"] for o in r["outcomes"] if o["list"] == "moral") for r in first_wave]
-    assert statuses == ["accepted", "accepted", "over_cap", "over_cap"]    # Alpha's target is 2
-    rejected_ids = [r["prompt_id"] for r in first_wave[2:]]
-    second_wave = [r for r in rows if r["pass"] == 1 and r["wave"] == 2]
-    assert [r["prompt_id"] for r in second_wave[:2]] == rejected_ids       # re-asked first, next wave
-    # the re-ask no longer shows Alpha, and only the rejected list is asked again
-    reasked = [c for c in calls if c["item_id"].startswith(rejected_ids[0]) and "Alpha moral" not in c["user_message"].split("<moral_list>")[1].split("</moral_list>")[0]]
-    assert reasked and select.NO_ENTRIES_MARKER in reasked[0]["user_message"]
-    by_id = {p["prompt_id"]: p for p in result}
-    assert by_id[rejected_ids[0]]["variables"]["moral_considerations"] == ["Beta moral"]
+    moral_statuses = [o["status"] for r in rows for o in r["outcomes"] if o["list"] == "moral" and o["label"] == "Alpha moral"]
+    assert moral_statuses == ["accepted"] * 4
     report = json.loads((stage_dir / select.COVERAGE_FILENAME).read_text())
-    assert {e["label"]: e["rejected_over_cap"] for e in report["entries"]}["Alpha moral"] == 2
+    by_label = {e["label"]: e for e in report["entries"]}
+    assert by_label["Alpha moral"]["achieved"] == 4 and by_label["Alpha moral"]["target_count"] == 2
+    assert by_label["Alpha moral"]["rejected_over_cap"] == 0
+    assert sum("Alpha moral" in p["variables"]["moral_considerations"] for p in result) == 4
+
+
+def test_a_label_not_in_the_calls_own_offer_is_not_saved(select_config, small_prompts, stage_dir, stub_claude):
+    select_config["workers"] = 1
+    # Delta digital is real in the catalog but was never offered to a non-digital document
+    stub_claude(lambda user_message, **kw: answer(None, "Delta digital"))
+    with pytest.raises(SystemExit, match="every pending selection call failed"):
+        select.run(select_config, small_prompts, stage_dir, make_plans(3))
+    assert rows_of(stage_dir) == []
+
+
+def test_each_answer_is_written_as_it_completes_and_start_numbers_count_up_within_a_pass(select_config, small_prompts, stage_dir, stub_claude):
+    select_config["workers"] = 1
+    rows_seen_at_call_start = []
+
+    def dispatcher(user_message, **kw):
+        rows_seen_at_call_start.append(len(rows_of(stage_dir)))
+        return say_none(user_message)
+
+    stub_claude(dispatcher)
+    select.run(select_config, small_prompts, stage_dir, make_plans(5))
+    assert rows_seen_at_call_start == [0, 1, 2, 3, 4]       # row k is on disk before call k+1 starts
+    assert [r["wave"] for r in rows_of(stage_dir)] == [1, 2, 3, 4, 5]
+
+
+def test_rolling_workers_record_every_document_once_and_resume_retries_only_the_failed_call(select_config, small_prompts, stage_dir, stub_claude):
+    select_config["workers"] = 3
+    plans = make_plans(8)
+    state = {"failed": False}
+    lock = threading.Lock()
+
+    def dispatcher(user_message, **kw):
+        with lock:
+            if "Spec 5." in user_message and kw["item_id"].endswith("pass1") and not state["failed"]:
+                state["failed"] = True
+                raise RuntimeError("transient outage")
+        return say_none(user_message)
+
+    stub_claude(dispatcher)
+    select.run(select_config, small_prompts, stage_dir, plans)
+    rows = rows_of(stage_dir)
+    assert sorted(r["prompt_id"] for r in rows) == sorted(f"matrix_{i:06d}" for i in range(8) if i != 5)
+    assert len({r["wave"] for r in rows}) == 7                      # distinct start sequence numbers
+    assert not utils.Checkpoint(stage_dir / select.CHECKPOINT_FILENAME).is_done("pass_1")
+
+    calls = stub_claude(say_none)
+    select.run(select_config, small_prompts, stage_dir, plans)
+    assert [c["item_id"] for c in calls] == ["matrix_000005_pass1"]
+    assert utils.Checkpoint(stage_dir / select.CHECKPOINT_FILENAME).is_done("pass_1")
+
+
+def test_selection_files_from_older_runs_with_over_cap_rows_still_load(select_config, small_prompts, stage_dir, stub_claude):
+    plans = make_plans(4)
+    old_rows = [
+        {"prompt_id": "matrix_000000", "pass": 1, "wave": 1, "outcomes": [
+            {"list": "moral", "label": "Alpha moral", "reason": "r", "status": "accepted"},
+            {"list": "epistemic", "label": None, "reason": "", "status": "none"}]},
+        {"prompt_id": "matrix_000001", "pass": 1, "wave": 1, "outcomes": [
+            {"list": "moral", "label": "Alpha moral", "reason": "r", "status": "over_cap"},
+            {"list": "epistemic", "label": None, "reason": "", "status": "none"}]},
+    ]
+    utils.save_jsonl(old_rows, stage_dir / select.SELECTIONS_FILENAME)
+    attached = select.attach_selections(select_config, small_prompts, stage_dir, plans)
+    assert picks_by_document(attached)["matrix_000000"] == ["Alpha moral"]
+    assert picks_by_document(attached)["matrix_000001"] == []
+    stub_claude(say_none)
+    select.run(select_config, small_prompts, stage_dir, plans)
+    report = json.loads((stage_dir / select.COVERAGE_FILENAME).read_text())
+    assert {e["label"]: e["rejected_over_cap"] for e in report["entries"]}["Alpha moral"] == 1
 
 
 def test_documents_go_through_in_a_seeded_order_whatever_the_plan_order(select_config, small_prompts, tmp_path, stub_claude):

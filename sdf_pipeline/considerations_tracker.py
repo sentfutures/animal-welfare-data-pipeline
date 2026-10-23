@@ -4,25 +4,32 @@ It owns every rule about WHICH considerations may be offered to a document and
 whether a pick may be accepted; the selector stage (layer1_select_considerations)
 only asks the model and feeds the answers in.
 
-- Priority: an entry's position in its list (considerations.txt order) is its
-  priority; the digital-minds-only entries sit first on the epistemic list.
+- Ordering: each list a document is offered is sorted by remaining need
+  (target minus accepted count, largest first); catalog order (considerations.txt
+  order, with the digital-minds-only entries first on the epistemic list) only
+  breaks ties. Digital-minds-only entries have no fixed top position: they are
+  ordered by need like every other entry.
 - Eligibility: a digital-minds-only entry is offered only on digital-mind
   documents, and its target is a share of those documents; every other entry is
   offered on every eligible document, with a target that is a share of all of them.
-- Hard cap: an entry is removed from the lists once its count reaches its
-  target, and never offered (or accepted) again.
-- Waves: the selector asks several documents at once. Each wave sees the lists
-  as they stood after the previous wave; the wave's picks are then accepted in
-  document order, and a pick that would push its entry past target is rejected
-  ("over_cap") and left unresolved, so that document is re-asked for that list
-  in the next wave against the updated lists.
+  An entry the document already carries is not offered.
+- Removal at target: an entry with remaining need of zero or less is not offered.
+  The tracker is not locked; the selector stage calls it under its own lock.
+- Stale offers are fine: the offer is computed when a call starts, and calls run
+  in parallel, so a call may have been shown an entry that another call has since
+  filled. ``record_answer`` therefore validates a label against what THAT call was
+  offered (``offered_labels``), not against the current state, and accepts it even
+  if the entry has reached its target (a small overshoot). New answers are never
+  rejected over cap; ``over_cap`` rows written by older runs still replay (the
+  entry is not counted, the document is re-asked for that list first).
 - Passes: pass 1 asks every eligible document for each list. A later pass
   re-asks every eligible document, offering only entries still under target that
   the document does not already carry, so a document can end up with several
   considerations.
 - Rebuild: every answered call is one row (``record_answer`` returns it);
   ``replay`` applies saved rows, so a resumed run starts from exactly the state
-  the paid work had reached.
+  the paid work had reached. A row's ``wave`` field is the call's start sequence
+  number within its pass (kept under the old name so older files and readers work).
 """
 
 from dataclasses import dataclass
@@ -75,8 +82,11 @@ class ConsiderationTracker:
 
     # ------------------------------------------------------------ the lists
 
+    def remaining_need(self, entry: Consideration) -> int:
+        return self.targets[entry.label] - self.counts[entry.label]
+
     def is_open(self, entry: Consideration) -> bool:
-        return self.counts[entry.label] < self.targets[entry.label]
+        return self.remaining_need(entry) > 0
 
     def all_targets_met(self) -> bool:
         return not any(self.is_open(entry) for entry in self.catalog.all_entries)
@@ -88,20 +98,25 @@ class ConsiderationTracker:
         return [pick for pick in self.picks if pick.prompt_id == prompt_id]
 
     def offered_entries(self, prompt_id: str, list_name: str) -> list[Consideration]:
-        """The list as this document sees it now: priority order, eligible,
-        still under target, and not already carried by the document."""
+        """The list as this document sees it now: eligible, still under target
+        and not already carried by the document, sorted by remaining need
+        (largest first) with catalog order breaking ties."""
         carried = self._carried[prompt_id]
         is_digital = self._digital[prompt_id]
-        return [
+        candidates = [
             entry for entry in self.catalog.entries_of(list_name)
             if self.is_open(entry)
             and entry.label not in carried
             and (is_digital or not entry.digital_minds_only)
         ]
+        # sorted() is stable, so equal remaining need keeps catalog order
+        return sorted(candidates, key=lambda entry: -self.remaining_need(entry))
 
     # ------------------------------------------------------------ scheduling
 
-    def _pending_call_for(self, prompt_id: str, pass_number: int) -> PendingCall | None:
+    def pending_call_for(self, prompt_id: str, pass_number: int) -> PendingCall | None:
+        """The call this document needs now in this pass (the lists still
+        unresolved for it that have something to offer), or None."""
         list_names = tuple(
             name for name in LIST_NAMES
             if (pass_number, prompt_id, name) not in self._resolved
@@ -112,9 +127,9 @@ class ConsiderationTracker:
     def pending_calls(
         self, pass_number: int, skip: frozenset[str] = frozenset(), limit: int | None = None
     ) -> list[PendingCall]:
-        """Calls still to make in this pass, in order: documents whose pick was
-        rejected over cap come first (they are re-asked in the next wave), then
-        documents not yet asked, both in document order. A document is asked only
+        """Calls still to make in this pass, in order: documents with a pick
+        rejected over cap in a saved row from an older run come first (they are
+        re-asked), then documents not yet asked, both in document order. A document is asked only
         for lists still unresolved in this pass that have something to offer."""
         re_asked = [p for p in self.document_order if (pass_number, p) in self._over_cap_asks]
         fresh = [p for p in self.document_order if (pass_number, p) not in self._over_cap_asks]
@@ -122,19 +137,16 @@ class ConsiderationTracker:
         for prompt_id in re_asked + fresh:
             if prompt_id in skip:
                 continue
-            call = self._pending_call_for(prompt_id, pass_number)
+            call = self.pending_call_for(prompt_id, pass_number)
             if call is not None:
                 calls.append(call)
                 if limit is not None and len(calls) >= limit:
                     break
         return calls
 
-    def next_wave_calls(
-        self, pass_number: int, wave_size: int, skip: frozenset[str] = frozenset()
-    ) -> list[PendingCall]:
-        return self.pending_calls(pass_number, skip, limit=max(1, wave_size))
-
     def next_wave_number(self, pass_number: int) -> int:
+        """The start sequence number for the next call in this pass (the stored
+        ``wave`` field): one past the highest number in the rows applied so far."""
         return self._last_wave.get(pass_number, 0) + 1
 
     # ------------------------------------------------------------ accepting answers
@@ -145,12 +157,14 @@ class ConsiderationTracker:
         pass_number: int,
         wave_number: int,
         choices: dict[str, tuple[str | None, str]],
+        offered_labels: dict[str, set[str]] | None = None,
     ) -> dict:
         """Apply one document's answer (``{list_name: (label or None, reason)}``) and
-        return the row to persist. Call it for a wave's documents in document order:
-        that is what makes acceptance honest against the cap. A label that is not on
-        the document's current offer raises ValueError, except that an entry the
-        wave itself has just filled is rejected over cap, not an error."""
+        return the row to persist. ``wave_number`` is the call's start sequence
+        number within the pass. ``offered_labels`` is ``{list_name: labels}`` the
+        call was shown; a label outside it raises ValueError, while a label inside
+        it is accepted even if the entry has since reached its target. When it is
+        omitted the label is checked against the current offer."""
         outcomes = []
         for list_name, (label, reason) in choices.items():
             if label is None:
@@ -163,14 +177,21 @@ class ConsiderationTracker:
                     raise ValueError(f"{label!r} is not eligible for {prompt_id}")
                 if label in self.labels_carried_by(prompt_id):
                     raise ValueError(f"{prompt_id} already carries {label!r}")
-                status = STATUS_ACCEPTED if self.is_open(entry) else STATUS_OVER_CAP
+                if offered_labels is None:
+                    shown = {e.label for e in self.offered_entries(prompt_id, list_name)}
+                else:
+                    shown = set(offered_labels.get(list_name, ()))
+                if label not in shown:
+                    raise ValueError(f"{label!r} was not on the {list_name} list offered to {prompt_id}")
+                status = STATUS_ACCEPTED
             outcomes.append({"list": list_name, "label": label, "reason": reason, "status": status})
         row = {"prompt_id": prompt_id, "pass": pass_number, "wave": wave_number, "outcomes": outcomes}
         self._apply(row)
         return row
 
     def replay(self, rows: list[dict]) -> None:
-        """Rebuild state from saved rows, trusting their recorded statuses. Rows for
+        """Rebuild state from saved rows, trusting their recorded statuses (rows from
+        older runs may hold ``over_cap``; new answers never do). Rows for
         documents that are no longer eligible (dropped by an earlier stage on a later run) are ignored."""
         for row in rows:
             if row["prompt_id"] in self._digital:

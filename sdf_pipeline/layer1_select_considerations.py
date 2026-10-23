@@ -5,9 +5,11 @@ before drafting. The planner writes a scenario description with no consideration
 attached; this stage then reads each (rewritten) description and, from each of two ordered lists (moral and epistemic, from
 prompts/sdf/considerations.txt), asks the model for the first consideration
 that fits the scenario naturally, or "none". A run-level tracker
-(considerations_tracker.py, pure code) counts picks against each entry's target
-and removes an entry once its target is met; later passes re-offer the entries
-still under target, so a document can carry more than one consideration.
+(considerations_tracker.py, pure code) counts picks against each entry's target,
+orders each list offered to a document by remaining need (target minus picks,
+largest first, catalog order breaking ties) and stops offering an entry once its
+target is met; later passes re-offer the entries still under target, so a
+document can carry more than one consideration.
 
 The model answers through a JSON schema built per call from the entries offered
 (``build_selection_schema``): for each list, ``reasoning`` (a brief walk down the
@@ -15,15 +17,24 @@ list, logged in model_calls.jsonl only and never passed downstream), ``label``
 (an enum of exactly the offered labels plus "none", so a label that was not
 offered cannot be produced) and ``where_it_arises`` (one sentence, empty for
 none). This module maps labels back to catalog entries and still rejects any
-label that was not on the list shown, as a backstop. The accepted picks
+label that was not on the list shown to that call, as a backstop; the tracker
+likewise validates a pick against that call's offer, not the current state, so a
+pick of an entry that reached its target while the call was running is accepted
+(a small overshoot is allowed and no new answer is rejected over cap). The accepted picks
 are assembled in code into ``considerations_spec``, a text block stored on the
 plan record next to ``description`` and carried through the draft, rewrite and
 final records the same way (empty string when a document has no picks). Each
 plan's ``variables`` also gains ``moral_considerations`` and
 ``epistemic_considerations``: lists of the picked labels, for analysis.
 
-Documents go through in waves of ``workers`` size, in a seeded shuffle of the
-sorted ids (so the deal order does not decide who gets the scarce entries).
+Scheduling is a rolling pool of ``workers`` concurrent calls, not waves: when a
+slot frees, the next document's offer is computed from the current counts (under
+a lock) and the call is started, so an offer may be slightly out of date by the
+time its answer arrives, which is accepted. Each answer is recorded and appended
+to the selections file the moment it completes, under the same lock. Documents
+are taken in a seeded shuffle of the sorted ids (so the deal order does not
+decide who gets the scarce entries). A row's ``wave`` field is kept for
+compatibility and holds the call's start sequence number within its pass.
 Documents whose resolution is on the skipped list (the no-welfare-stake arm) get
 no considerations.
 
@@ -37,10 +48,13 @@ Config (``sdf`` section): ``select_enabled`` (default true), ``select_model``
 
 Checkpoint semantics (protects paid work):
 - consideration_selections.jsonl gets one row per answered call (every list's
-  outcome, including "none", and its pass and wave) and is the source of truth:
+  outcome, including "none", and its pass and start sequence number as ``wave``),
+  written as each call completes, and is the source of truth:
   on resume the tracker is rebuilt from it, so paid work is never re-asked.
 - A malformed, truncated or unknown-label answer is NOT written, so --resume
-  retries exactly that document.
+  retries exactly that document (and a document that failed is not re-asked
+  again in the same session).
+- Rows from older runs that hold ``over_cap`` outcomes still load.
 - _select_considerations_checkpoint.json marks a pass complete only when none of
   its calls failed, so a resumed run neither skips an unfinished pass nor starts
   another pass the earlier run had already ended.
@@ -49,6 +63,7 @@ Checkpoint semantics (protects paid work):
 import json
 import random
 import sys
+import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -69,6 +84,7 @@ SELECTIONS_FILENAME = "consideration_selections.jsonl"
 CHECKPOINT_FILENAME = "_select_considerations_checkpoint.json"
 COVERAGE_FILENAME = "consideration_coverage.json"
 DEFAULT_MAX_SELECTION_PASSES = 3
+PROGRESS_INTERVAL_SECONDS = 180   # progress lines are printed no more often than this
 _MAX_TOKENS = 2500  # per-entry reasoning for two lists plus the two short fields; bounds api-backend cost
 
 NO_ENTRIES_MARKER = "(no entries offered)"
@@ -347,10 +363,10 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
     attempted = failed = 0
     started_all = time.monotonic()
     failed_this_session: set[str] = set()
+    lock = threading.Lock()   # guards the tracker, the selections file, the counters and the work queue
 
-    def select_one(call):
-        offered = {name: tracker.offered_entries(call.prompt_id, name) for name in call.list_names}
-        existing = [catalog.entry_by_label(label) for label in sorted(tracker.labels_carried_by(call.prompt_id))]
+    def select_one(call, offered, existing, pass_number):
+        """The model call only: no shared state is touched, so it runs outside the lock."""
         try:
             started = time.monotonic()
             choices = select_for_document(
@@ -362,6 +378,80 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
         except Exception as e:  # one failing call must not discard its siblings' work
             return None, 0.0, f"API call failed ({type(e).__name__}: {e})"
 
+    def run_pass(pass_number: int) -> int:
+        """Ask every document that still needs a call in this pass through a rolling
+        pool of ``workers`` threads; return the number of failed calls."""
+        nonlocal attempted, failed
+        stats = {"failed": 0, "answered": 0, "picks": 0, "slowest": 0.0,
+                 "next_start": tracker.next_wave_number(pass_number),
+                 "last_progress": time.monotonic()}
+        with lock:
+            queue = [call.prompt_id for call in tracker.pending_calls(pass_number, frozenset(failed_this_session))]
+        pass_started = time.monotonic()
+
+        def take_next():
+            """Under the lock: the next document that still needs a call, with the
+            offer computed from the counts right now, or None when the queue is done."""
+            while queue:
+                prompt_id = queue.pop(0)
+                if prompt_id in failed_this_session:
+                    continue
+                call = tracker.pending_call_for(prompt_id, pass_number)
+                if call is None:
+                    continue    # everything it could be offered has filled since the pass began
+                offered = {name: tracker.offered_entries(prompt_id, name) for name in call.list_names}
+                existing = [catalog.entry_by_label(label) for label in sorted(tracker.labels_carried_by(prompt_id))]
+                start_number = stats["next_start"]
+                stats["next_start"] += 1
+                return call, offered, existing, start_number
+            return None
+
+        def worker_loop():
+            nonlocal attempted, failed
+            while True:
+                with lock:
+                    work = take_next()
+                if work is None:
+                    return
+                call, offered, existing, start_number = work
+                choices, seconds, problem = select_one(call, offered, existing, pass_number)
+                with lock:
+                    attempted += 1
+                    if not problem:
+                        try:
+                            row = tracker.record_answer(
+                                call.prompt_id, pass_number, start_number,
+                                {name: (entry.label if entry else None, reason)
+                                 for name, (entry, reason) in choices.items()},
+                                offered_labels={name: {entry.label for entry in entries}
+                                                for name, entries in offered.items()})
+                            utils.append_jsonl(row, selections_path)
+                            stats["answered"] += 1
+                            stats["slowest"] = max(stats["slowest"], seconds)
+                        except ValueError as e:
+                            problem = f"answer not accepted ({e})"
+                    if problem:
+                        failed += 1
+                        stats["failed"] += 1
+                        failed_this_session.add(call.prompt_id)
+                        print(f"  {call.prompt_id} (pass {pass_number}): {problem} — will retry on resume")
+                    if time.monotonic() - stats["last_progress"] >= PROGRESS_INTERVAL_SECONDS:
+                        stats["last_progress"] = time.monotonic()
+                        print(f"  Pass {pass_number} progress: {stats['answered']} calls answered, "
+                              f"{stats['failed']} failed, {tracker.accepted_in_pass(pass_number)} picks accepted "
+                              f"({time.monotonic() - pass_started:.1f}s elapsed)")
+
+        thread_count = max(1, int(workers))
+        threads = [threading.Thread(target=worker_loop, name=f"select-worker-{i}") for i in range(thread_count)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+        print(f"  Pass {pass_number}: {stats['answered']} calls answered, {stats['failed']} failed, "
+              f"{tracker.accepted_in_pass(pass_number)} picks accepted in total "
+              f"({stats['slowest']:.1f}s slowest call, {time.monotonic() - pass_started:.1f}s)")
+        return stats["failed"]
+
     for pass_number in range(1, max_passes + 1):
         pass_key = f"pass_{pass_number}"
         if checkpoint.is_done(pass_key):
@@ -370,34 +460,7 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
             continue
         if tracker.all_targets_met():
             break
-        pass_failures = 0
-        pass_started = time.monotonic()
-        while True:
-            wave = tracker.next_wave_calls(pass_number, workers, frozenset(failed_this_session))
-            if not wave:
-                break
-            wave_number = tracker.next_wave_number(pass_number)
-            results = list(utils.parallel_map(select_one, wave, workers))
-            accepted_before = len(tracker.picks)
-            over_cap = 0
-            for call, (choices, seconds, problem) in zip(wave, results):
-                attempted += 1
-                if problem:
-                    failed += 1
-                    pass_failures += 1
-                    failed_this_session.add(call.prompt_id)
-                    print(f"  {call.prompt_id} (pass {pass_number}): {problem} — will retry on resume")
-                    continue
-                row = tracker.record_answer(
-                    call.prompt_id, pass_number, wave_number,
-                    {name: (entry.label if entry else None, reason) for name, (entry, reason) in choices.items()})
-                over_cap += sum(o["status"] == "over_cap" for o in row["outcomes"])
-                utils.append_jsonl(row, selections_path)
-            print(f"  Pass {pass_number} wave {wave_number}: {len(wave)} documents, "
-                  f"{len(tracker.picks) - accepted_before} picks accepted, {over_cap} rejected over cap "
-                  f"({max(seconds for _, seconds, _ in results):.1f}s slowest call)")
-        print(f"  Pass {pass_number} finished: {tracker.accepted_in_pass(pass_number)} picks accepted "
-              f"in {time.monotonic() - pass_started:.1f}s")
+        pass_failures = run_pass(pass_number)
         if pass_failures:
             break  # an unfinished pass is retried on resume; do not start the next one
         checkpoint.mark_done(pass_key)

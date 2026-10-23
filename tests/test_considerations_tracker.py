@@ -130,17 +130,37 @@ def test_target_count_rounds_half_up_with_a_floor_of_one():
     assert target_count(0.5, 0) == 0
 
 
-# --- priority and eligibility ---
+# --- ordering by remaining need and eligibility ---
 
-def test_offered_entries_follow_priority_order():
+def test_offered_entries_with_equal_need_keep_catalog_order():
     tracker = ConsiderationTracker(make_catalog(), make_documents(4))
     assert labels(tracker.offered_entries("doc_0", MORAL_LIST)) == ["M1", "M2"]
     assert labels(tracker.offered_entries("doc_0", EPISTEMIC_LIST)) == ["E1"]
 
 
-def test_digital_minds_only_entries_are_offered_first_and_only_on_digital_documents():
-    tracker = ConsiderationTracker(make_catalog(), make_documents(4, digital_ids={"doc_1"}))
+def test_offered_entries_are_ordered_by_remaining_need_with_catalog_order_breaking_ties():
+    catalog = make_catalog(moral=(("M1", 0.2), ("M2", 0.5), ("M3", 0.5), ("M4", 0.3)))
+    tracker = ConsiderationTracker(catalog, make_documents(10))   # targets M1 2, M2 5, M3 5, M4 3
+    assert labels(tracker.offered_entries("doc_9", MORAL_LIST)) == ["M2", "M3", "M4", "M1"]
+    tracker.record_answer("doc_0", 1, 1, {MORAL_LIST: ("M2", "r")})      # M2 need 4: now below M3
+    tracker.record_answer("doc_1", 1, 2, {MORAL_LIST: ("M3", "r")})      # M3 need 4: ties with M2, catalog order
+    assert labels(tracker.offered_entries("doc_9", MORAL_LIST)) == ["M2", "M3", "M4", "M1"]
+    tracker.record_answer("doc_2", 1, 3, {MORAL_LIST: ("M2", "r")})      # M2 need 3: ties with M4, catalog order puts M2 first
+    assert labels(tracker.offered_entries("doc_9", MORAL_LIST)) == ["M3", "M2", "M4", "M1"]
+    tracker.record_answer("doc_3", 1, 4, {MORAL_LIST: ("M3", "r")})      # M3 need 3
+    tracker.record_answer("doc_4", 1, 5, {MORAL_LIST: ("M3", "r")})      # M3 need 2: ties with M1
+    assert labels(tracker.offered_entries("doc_9", MORAL_LIST)) == ["M2", "M4", "M1", "M3"]
+
+
+def test_digital_minds_only_entries_are_ordered_by_need_and_only_offered_on_digital_documents():
+    catalog = make_catalog(epistemic=(("E1", 0.2),), digital=(("D1", 0.9),))
+    tracker = ConsiderationTracker(catalog, make_documents(10, digital_ids={"doc_1", "doc_2"}))
+    # D1 target 2 (0.9 of 2 digital documents), E1 target 2 (0.2 of 10): equal need, catalog order puts D1 first
     assert labels(tracker.offered_entries("doc_1", EPISTEMIC_LIST)) == ["D1", "E1"]
+    assert labels(tracker.offered_entries("doc_0", EPISTEMIC_LIST)) == ["E1"]
+    tracker.record_answer("doc_1", 1, 1, {EPISTEMIC_LIST: ("D1", "r")})
+    # D1 need 1 now trails E1 need 2: the digital-minds-only entry has no fixed top position
+    assert labels(tracker.offered_entries("doc_2", EPISTEMIC_LIST)) == ["E1", "D1"]
     assert labels(tracker.offered_entries("doc_0", EPISTEMIC_LIST)) == ["E1"]
 
 
@@ -174,36 +194,48 @@ def test_a_category_is_removed_at_exactly_its_target_and_not_before():
     assert labels(tracker.offered_entries("doc_5", MORAL_LIST)) == ["M2"]
 
 
-def test_accepting_stops_exactly_at_target_in_document_order_within_a_wave():
+def test_a_pick_of_an_entry_on_the_offer_is_accepted_even_after_the_entry_reached_target():
     catalog = make_catalog(moral=(("M1", 0.2),))
     tracker = ConsiderationTracker(catalog, make_documents(10))   # target 2
+    offer_seen_by_every_call = {MORAL_LIST: {"M1"}}               # four calls started before any answer arrived
     statuses = [
-        tracker.record_answer(f"doc_{i}", 1, 1, {MORAL_LIST: ("M1", "r")})["outcomes"][0]["status"]
+        tracker.record_answer(f"doc_{i}", 1, i + 1, {MORAL_LIST: ("M1", "r")},
+                              offered_labels=offer_seen_by_every_call)["outcomes"][0]["status"]
         for i in range(4)
     ]
-    assert statuses == [STATUS_ACCEPTED, STATUS_ACCEPTED, STATUS_OVER_CAP, STATUS_OVER_CAP]
-    assert tracker.counts["M1"] == 2
-    assert tracker.over_cap_counts["M1"] == 2
+    assert statuses == [STATUS_ACCEPTED] * 4
+    assert tracker.counts["M1"] == 4 and tracker.over_cap_counts["M1"] == 0
+    assert tracker.offered_entries("doc_9", MORAL_LIST) == []
 
 
-def test_an_over_cap_pick_is_re_asked_next_wave_against_the_updated_lists():
+def test_a_label_not_in_that_calls_offer_is_rejected_even_if_it_is_open_now():
+    tracker = ConsiderationTracker(make_catalog(), make_documents(4))
+    with pytest.raises(ValueError, match="was not on the moral list offered"):
+        tracker.record_answer("doc_0", 1, 1, {MORAL_LIST: ("M2", "r")}, offered_labels={MORAL_LIST: {"M1"}})
+    assert tracker.counts["M2"] == 0 and tracker.picks == []
+    # with no recorded offer, the current offer decides: an entry at target is not on it
+    catalog = make_catalog(moral=(("M1", 0.1), ("M2", 0.9)))
+    full = ConsiderationTracker(catalog, make_documents(10))
+    full.record_answer("doc_0", 1, 1, {MORAL_LIST: ("M1", "r")})
+    with pytest.raises(ValueError, match="was not on the moral list offered"):
+        full.record_answer("doc_1", 1, 2, {MORAL_LIST: ("M1", "r")})
+
+
+def test_replaying_old_rows_with_over_cap_still_works_and_re_asks_that_list_first():
     catalog = make_catalog(moral=(("M1", 0.1), ("M2", 0.9)), epistemic=(("E1", 0.5),))
     tracker = ConsiderationTracker(catalog, make_documents(10))   # M1 target 1
-    wave_one = tracker.next_wave_calls(1, 3)
-    assert [c.prompt_id for c in wave_one] == ["doc_0", "doc_1", "doc_2"]
-    for call in wave_one:   # all three ask for M1 on the moral list and E1 on the epistemic list
-        tracker.record_answer(call.prompt_id, 1, 1, {MORAL_LIST: ("M1", "r"), EPISTEMIC_LIST: ("E1", "r")})
-    assert tracker.counts["M1"] == 1
-    wave_two = tracker.next_wave_calls(1, 3)
-    # the two rejected documents come first, and only for the list that was rejected
-    assert [(c.prompt_id, c.list_names) for c in wave_two[:2]] == [
-        ("doc_1", (MORAL_LIST,)), ("doc_2", (MORAL_LIST,))]
-    assert wave_two[2].prompt_id == "doc_3"
-    assert "M1" not in labels(tracker.offered_entries("doc_1", MORAL_LIST))
+    tracker.replay([
+        {"prompt_id": "doc_0", "pass": 1, "wave": 1, "outcomes": [
+            {"list": MORAL_LIST, "label": "M1", "reason": "r", "status": STATUS_ACCEPTED},
+            {"list": EPISTEMIC_LIST, "label": "E1", "reason": "r", "status": STATUS_ACCEPTED}]},
+        {"prompt_id": "doc_1", "pass": 1, "wave": 1, "outcomes": [
+            {"list": MORAL_LIST, "label": "M1", "reason": "r", "status": STATUS_OVER_CAP},
+            {"list": EPISTEMIC_LIST, "label": "E1", "reason": "r", "status": STATUS_ACCEPTED}]},
+    ])
+    assert tracker.counts["M1"] == 1 and tracker.over_cap_counts["M1"] == 1
+    assert [(c.prompt_id, c.list_names) for c in tracker.pending_calls(1)[:2]] == [
+        ("doc_1", (MORAL_LIST,)), ("doc_2", (MORAL_LIST, EPISTEMIC_LIST))]
     assert tracker.next_wave_number(1) == 2
-    row = tracker.record_answer("doc_1", 1, 2, {MORAL_LIST: ("M2", "r")})
-    assert row["outcomes"][0]["status"] == STATUS_ACCEPTED
-    assert (1, "doc_1", MORAL_LIST) in tracker._resolved
 
 
 def test_a_none_answer_resolves_the_list_for_that_pass():
@@ -212,7 +244,7 @@ def test_a_none_answer_resolves_the_list_for_that_pass():
     assert [c.prompt_id for c in tracker.pending_calls(1)] == ["doc_1"]
 
 
-def test_a_label_outside_the_documents_offer_is_an_error():
+def test_a_label_that_cannot_be_offered_to_the_document_is_an_error():
     tracker = ConsiderationTracker(make_catalog(), make_documents(4))
     with pytest.raises(ValueError, match="not eligible"):
         tracker.record_answer("doc_0", 1, 1, {EPISTEMIC_LIST: ("D1", "r")})
@@ -232,7 +264,7 @@ def test_pass_two_offers_only_under_target_categories_and_never_one_the_document
     tracker.record_answer("doc_1", 1, 1, {MORAL_LIST: ("M2", "r"), EPISTEMIC_LIST: (None, "")})
     # M1 and E1 are at target: gone from every list. doc_1 already carries M2.
     assert labels(tracker.offered_entries("doc_1", MORAL_LIST)) == ["M3"]
-    assert labels(tracker.offered_entries("doc_2", MORAL_LIST)) == ["M2", "M3"]
+    assert labels(tracker.offered_entries("doc_2", MORAL_LIST)) == ["M3", "M2"]   # M2 need 4 now trails M3 need 5
     assert tracker.offered_entries("doc_2", EPISTEMIC_LIST) == []
     calls = {c.prompt_id: c.list_names for c in tracker.pending_calls(2)}
     assert calls["doc_1"] == (MORAL_LIST,)             # a document that already has a pick is asked again
@@ -258,8 +290,9 @@ def run_scripted_waves(tracker, script):
     """Feed (document, answer) pairs wave by wave and return the rows written."""
     rows = []
     for pass_number, wave_number, answers in script:
-        for prompt_id, choices in answers:
-            rows.append(tracker.record_answer(prompt_id, pass_number, wave_number, choices))
+        for prompt_id, choices, *offered in answers:
+            rows.append(tracker.record_answer(
+                prompt_id, pass_number, wave_number, choices, offered_labels=offered[0] if offered else None))
     return rows
 
 
@@ -279,13 +312,15 @@ def test_rebuilding_from_the_saved_rows_gives_the_state_of_the_uninterrupted_run
     script = [
         (1, 1, [("doc_0", {MORAL_LIST: ("M1", "a"), EPISTEMIC_LIST: ("E1", "b")}),
                 ("doc_1", {MORAL_LIST: ("M1", "c"), EPISTEMIC_LIST: (None, "")}),
-                ("doc_2", {MORAL_LIST: ("M1", "d"), EPISTEMIC_LIST: ("E1", "e")})]),   # M1 over cap at doc_2
+                # a stale pick: M1 was on this call's offer, but reached its target of 2 before the answer arrived
+                ("doc_2", {MORAL_LIST: ("M1", "d"), EPISTEMIC_LIST: ("E1", "e")}, {MORAL_LIST: {"M1", "M2"}, "epistemic": {"E1"}})]),
         (1, 2, [("doc_2", {MORAL_LIST: ("M2", "f")}),
                 ("doc_3", {MORAL_LIST: (None, ""), EPISTEMIC_LIST: ("E1", "g")})]),
     ]
     uninterrupted = ConsiderationTracker(catalog, documents)
     rows = run_scripted_waves(uninterrupted, script)
-    assert [o["status"] for o in rows[2]["outcomes"]] == [STATUS_OVER_CAP, STATUS_ACCEPTED]
+    assert [o["status"] for o in rows[2]["outcomes"]] == [STATUS_ACCEPTED, STATUS_ACCEPTED]
+    assert uninterrupted.counts["M1"] == 3
 
     rebuilt = ConsiderationTracker(catalog, documents)
     rebuilt.replay(rows)
