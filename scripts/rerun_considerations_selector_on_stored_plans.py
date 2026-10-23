@@ -40,7 +40,7 @@ WORKTREE_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(WORKTREE_ROOT))
 
 DOTENV_PATH = WORKTREE_ROOT.parent / ".env"   # the .env one folder above this worktree, which holds this project's key
-PROMPT_FILENAMES = ("layer1_select_considerations.txt", "considerations.txt")
+PROMPT_FILENAMES = ("layer1_select_considerations.txt", "considerations.txt", "variables.txt")   # the catalog resolves [id]s against variables.txt
 TIMESTAMP_FORMAT = "%Y-%m-%d_%H-%M"
 LAUNCH_RECORD_PREFIX = "launch_record_"
 
