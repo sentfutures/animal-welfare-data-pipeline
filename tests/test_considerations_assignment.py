@@ -110,7 +110,7 @@ def test_caps_of_two_per_list_and_three_in_total_are_respected():
     catalog = make_catalog(moral=("M1", "M2", "M3"), epistemic=("E1", "E2", "E3"))
     scores = {f"doc_{i}": {label: 5 for label in ("M1", "M2", "M3", "E1", "E2", "E3")} for i in range(2)}
     targets = {label: 2 for label in ("M1", "M2", "M3", "E1", "E2", "E3")}
-    assigned = run(scores, catalog, targets, AssignmentLimits(3, 2, 2, 3, extra_consideration_penalty=0))
+    assigned = run(scores, catalog, targets, AssignmentLimits(3, 2, 2, 3, penalty_step_per_further_consideration_in_a_list=0))
     for labels in assigned.values():
         assert len(labels) == 3
         assert sum(label.startswith("M") for label in labels) <= 2 and sum(label.startswith("E") for label in labels) <= 2
@@ -120,10 +120,10 @@ def test_the_total_cap_binds_across_the_lists_and_prefers_higher_scores():
     catalog = make_catalog(moral=("M1", "M2"), epistemic=("E1", "E2"))
     scores = {"doc_0": {"M1": 5, "M2": 4, "E1": 3, "E2": 3}}
     targets = {label: 1 for label in ("M1", "M2", "E1", "E2")}
-    assert run(scores, catalog, targets, AssignmentLimits(3, 2, 2, 2, extra_consideration_penalty=0)) == {"doc_0": ["M1", "M2"]}
-    three = run(scores, catalog, targets, AssignmentLimits(3, 2, 2, 3, extra_consideration_penalty=0))["doc_0"]
+    assert run(scores, catalog, targets, AssignmentLimits(3, 2, 2, 2, penalty_step_per_further_consideration_in_a_list=0)) == {"doc_0": ["M1", "M2"]}
+    three = run(scores, catalog, targets, AssignmentLimits(3, 2, 2, 3, penalty_step_per_further_consideration_in_a_list=0))["doc_0"]
     assert three[:2] == ["M1", "M2"] and len(three) == 3 and three[2] in ("E1", "E2")
-    assert run(scores, catalog, targets, AssignmentLimits(3, 2, 2, 1, extra_consideration_penalty=0)) == {"doc_0": ["M1"]}
+    assert run(scores, catalog, targets, AssignmentLimits(3, 2, 2, 1, penalty_step_per_further_consideration_in_a_list=0)) == {"doc_0": ["M1"]}
 
 
 def test_caps_of_one_one_two_give_at_most_one_per_list():
@@ -139,7 +139,7 @@ def test_caps_of_one_one_two_give_at_most_one_per_list():
 def test_a_zero_cap_for_a_list_removes_that_list():
     catalog = make_catalog()
     scores = {"doc_0": {"M1": 5, "M2": 5, "E1": 5, "E2": 5}}
-    assigned = run(scores, catalog, {"M1": 1, "M2": 1, "E1": 1, "E2": 1}, AssignmentLimits(3, 0, 1, 2, extra_consideration_penalty=0))
+    assigned = run(scores, catalog, {"M1": 1, "M2": 1, "E1": 1, "E2": 1}, AssignmentLimits(3, 0, 1, 2, penalty_step_per_further_consideration_in_a_list=0))
     assert assigned == {"doc_0": ["E1"]} or assigned == {"doc_0": ["E2"]}
 
 
@@ -168,7 +168,7 @@ def test_limits_come_from_config_with_defaults():
     assert defaults == AssignmentLimits(3, 3, 3, 4, {3: 1, 4: 3, 5: 9}, 2) == AssignmentLimits()
     config = {"sdf": {"minimum_assignable_score": 4, "max_moral_considerations_per_document": 2,
                       "max_epistemic_considerations_per_document": 3, "max_considerations_per_document": 4,
-                      "score_weights": {4: 2, 5: 5}, "extra_consideration_penalty": 1}}
+                      "score_weights": {4: 2, 5: 5}, "penalty_step_per_further_consideration_in_a_list": 1}}
     assert assignment.limits_from_config(config) == AssignmentLimits(4, 2, 3, 4, {4: 2, 5: 5}, 1)
 
 
@@ -185,7 +185,7 @@ def test_every_assignable_score_needs_a_positive_weight():
 def one_document_with_two_moral(second_score):
     catalog = make_catalog(moral=("M1", "M2", "M3"), epistemic=("E1",))
     scores = {"doc_0": {"M1": 5, "M2": second_score, "M3": 1, "E1": 1}}
-    return run(scores, catalog, {"M1": 1, "M2": 1, "M3": 1, "E1": 1}, AssignmentLimits(extra_consideration_penalty=3))
+    return run(scores, catalog, {"M1": 1, "M2": 1, "M3": 1, "E1": 1}, AssignmentLimits(penalty_step_per_further_consideration_in_a_list=3))
 
 
 def test_a_second_consideration_in_a_list_needs_a_weight_above_the_penalty():
@@ -193,7 +193,7 @@ def test_a_second_consideration_in_a_list_needs_a_weight_above_the_penalty():
     assert one_document_with_two_moral(3) == {"doc_0": ["M1"]}
     assert one_document_with_two_moral(4) == {"doc_0": ["M1"]}
     assert one_document_with_two_moral(5) == {"doc_0": ["M1", "M2"]}
-    just_under = AssignmentLimits(score_weights={3: 1, 4: 3.0001, 5: 9}, extra_consideration_penalty=3)
+    just_under = AssignmentLimits(score_weights={3: 1, 4: 3.0001, 5: 9}, penalty_step_per_further_consideration_in_a_list=3)
     catalog = make_catalog(moral=("M1", "M2"), epistemic=("E1",))
     scores = {"doc_0": {"M1": 5, "M2": 4, "E1": 1}}
     assert run(scores, catalog, {"M1": 1, "M2": 1, "E1": 1}, just_under) == {"doc_0": ["M1", "M2"]}
@@ -204,16 +204,16 @@ def test_a_third_consideration_in_a_list_needs_a_weight_above_twice_the_penalty(
     targets = {"M1": 1, "M2": 1, "M3": 1, "E1": 1}
     scores = {"doc_0": {"M1": 5, "M2": 5, "M3": 4, "E1": 1}}
     # p = 1.5: the third costs 3.0, the weight of a 4 -> not worth it at weight 3 (tie), worth it at 3.5.
-    tie = AssignmentLimits(score_weights={3: 1, 4: 3, 5: 9}, extra_consideration_penalty=1.5)
+    tie = AssignmentLimits(score_weights={3: 1, 4: 3, 5: 9}, penalty_step_per_further_consideration_in_a_list=1.5)
     assert run(scores, catalog, targets, tie) == {"doc_0": ["M1", "M2"]}
-    above = AssignmentLimits(score_weights={3: 1, 4: 3.5, 5: 9}, extra_consideration_penalty=1.5)
+    above = AssignmentLimits(score_weights={3: 1, 4: 3.5, 5: 9}, penalty_step_per_further_consideration_in_a_list=1.5)
     assert run(scores, catalog, targets, above) == {"doc_0": ["M1", "M2", "M3"]}
 
 
 def test_the_penalty_is_per_list_so_one_moral_and_one_epistemic_cost_nothing():
     catalog = make_catalog(moral=("M1",), epistemic=("E1",))
     scores = {"doc_0": {"M1": 3, "E1": 3}}       # weight 1 each, far below any penalty that applied across lists
-    limits = AssignmentLimits(extra_consideration_penalty=100)
+    limits = AssignmentLimits(penalty_step_per_further_consideration_in_a_list=100)
     assert run(scores, catalog, {"M1": 1, "E1": 1}, limits) == {"doc_0": ["M1", "E1"]}
 
 
@@ -222,12 +222,12 @@ def test_the_penalty_spreads_picks_across_documents():
     catalog = make_catalog(moral=("M1", "M2", "M3"), epistemic=("E1",))
     scores = {pid: {"M1": 5, "M2": 5, "M3": 5, "E1": 1} for pid in ("doc_0", "doc_1")}
     targets = {"M1": 1, "M2": 1, "M3": 1, "E1": 1}
-    no_penalty = run(scores, catalog, targets, AssignmentLimits(extra_consideration_penalty=0))
+    no_penalty = run(scores, catalog, targets, AssignmentLimits(penalty_step_per_further_consideration_in_a_list=0))
     assert total(no_penalty) == 3
-    spread = run(scores, catalog, targets, AssignmentLimits(extra_consideration_penalty=2))
+    spread = run(scores, catalog, targets, AssignmentLimits(penalty_step_per_further_consideration_in_a_list=2))
     assert total(spread) == 3 and sorted(len(labels) for labels in spread.values()) == [1, 2]   # 2 + 1, never 3 + 0
     heavy = run({**scores, "doc_2": {"M1": 5, "M2": 5, "M3": 5, "E1": 1}}, catalog, targets,
-                AssignmentLimits(extra_consideration_penalty=2))
+                AssignmentLimits(penalty_step_per_further_consideration_in_a_list=2))
     assert sorted(len(labels) for labels in heavy.values()) == [1, 1, 1]
 
 
@@ -243,7 +243,7 @@ def test_hard_caps_hold_even_without_a_penalty():
     catalog = make_catalog(moral=("M1", "M2", "M3"), epistemic=("E1", "E2"))
     scores = {f"doc_{i}": {label: 5 for label in ("M1", "M2", "M3", "E1", "E2")} for i in range(3)}
     targets = {label: 3 for label in ("M1", "M2", "M3", "E1", "E2")}
-    assigned = run(scores, catalog, targets, AssignmentLimits(3, 2, 1, 3, extra_consideration_penalty=0))
+    assigned = run(scores, catalog, targets, AssignmentLimits(3, 2, 1, 3, penalty_step_per_further_consideration_in_a_list=0))
     for labels in assigned.values():
         assert len(labels) == 3
         assert sum(label.startswith("M") for label in labels) <= 2 and sum(label.startswith("E") for label in labels) <= 1
@@ -298,7 +298,7 @@ def test_random_instances_are_integral_and_satisfy_every_constraint(instance_see
     scores = {pid: {label: rng.randint(1, 5) for label in labels} for pid in flags}
     targets = {label: rng.randint(1, 8) for label in labels}
     limits = AssignmentLimits(3, rng.randint(1, 3), rng.randint(1, 3), rng.randint(2, 4),
-                              extra_consideration_penalty=rng.choice((0, 1, 2, 4)))
+                              penalty_step_per_further_consideration_in_a_list=rng.choice((0, 1, 2, 4)))
     assigned = assign_considerations(scores, catalog, flags, limits, instance_seed, targets)   # asserts run inside
     list_of = {entry.label: entry.list_name for entry in catalog.all_entries}
     for label, target in targets.items():

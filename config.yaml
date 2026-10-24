@@ -58,10 +58,10 @@ sdf:
   max_moral_considerations_per_document: 3
   max_epistemic_considerations_per_document: 3
   max_considerations_per_document: 4   # total across both lists
-  # Assignment objective: sum of score_weights over assigned pairs, minus extra_consideration_penalty * (k - 1)
+  # Assignment objective: sum of score_weights over assigned pairs, minus penalty_step_per_further_consideration_in_a_list * (k - 1)
   # for a document's k-th consideration from the same list (the first from each list is free).
   score_weights: {3: 1, 4: 3, 5: 9}
-  extra_consideration_penalty: 2
+  penalty_step_per_further_consideration_in_a_list: 2
   select_skip_no_stake: true     # documents dealt the no-welfare-stake resolution get no considerations
   # Per-stage model overrides (each falls back to the global `model`).
   # The critique stages repay a stronger model most — cheap drafts, expensive critics:

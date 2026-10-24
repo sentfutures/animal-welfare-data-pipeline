@@ -13,7 +13,8 @@ gets what, in code, with one linear programme over both lists:
 - Objective (one stage), maximise
       sum over assigned pairs of score_weight[score] + tie_break(pair)
       - sum over (document, list) of penalty(n),   penalty(n) = p * n * (n - 1) / 2
-  where n is how many considerations the document gets from that list: the k-th
+  where p is ``penalty_step_per_further_consideration_in_a_list`` and n is how many
+  considerations the document gets from that list: the k-th
   consideration from a list (k >= 2) costs (k - 1) * p, so a second one is worth it
   only when its weight exceeds p, a third only when it exceeds 2p, and so on, and
   slots whose only candidates would be weak extras stay unfilled. The first
@@ -62,7 +63,7 @@ DEFAULT_MAX_MORAL_CONSIDERATIONS = 3
 DEFAULT_MAX_EPISTEMIC_CONSIDERATIONS = 3
 DEFAULT_MAX_CONSIDERATIONS = 4
 DEFAULT_SCORE_WEIGHTS = {3: 1, 4: 3, 5: 9}
-DEFAULT_EXTRA_CONSIDERATION_PENALTY = 2
+DEFAULT_PENALTY_STEP_PER_FURTHER_CONSIDERATION_IN_A_LIST = 2
 INTEGRALITY_TOLERANCE = 1e-6
 
 
@@ -73,11 +74,11 @@ class AssignmentLimits:
     max_epistemic_per_document: int = DEFAULT_MAX_EPISTEMIC_CONSIDERATIONS
     max_total_per_document: int = DEFAULT_MAX_CONSIDERATIONS
     score_weights: dict = field(default_factory=lambda: dict(DEFAULT_SCORE_WEIGHTS))
-    extra_consideration_penalty: float = DEFAULT_EXTRA_CONSIDERATION_PENALTY
+    penalty_step_per_further_consideration_in_a_list: float = DEFAULT_PENALTY_STEP_PER_FURTHER_CONSIDERATION_IN_A_LIST
 
     def __post_init__(self):
-        if self.extra_consideration_penalty < 0:
-            raise ValueError("extra_consideration_penalty must not be negative")
+        if self.penalty_step_per_further_consideration_in_a_list < 0:
+            raise ValueError("penalty_step_per_further_consideration_in_a_list must not be negative")
         for score in SCORE_VALUES:
             if score >= self.minimum_assignable_score and not self.score_weights.get(score, 0) > 0:
                 raise ValueError(f"score_weights needs a positive weight for every assignable score; missing {score}")
@@ -96,7 +97,7 @@ def limits_from_config(config: dict) -> AssignmentLimits:
         max_total_per_document=int(sdf.get("max_considerations_per_document", DEFAULT_MAX_CONSIDERATIONS)),
         score_weights={int(score): weight for score, weight in
                        (sdf.get("score_weights") or DEFAULT_SCORE_WEIGHTS).items()},
-        extra_consideration_penalty=sdf.get("extra_consideration_penalty", DEFAULT_EXTRA_CONSIDERATION_PENALTY),
+        penalty_step_per_further_consideration_in_a_list=sdf.get("penalty_step_per_further_consideration_in_a_list", DEFAULT_PENALTY_STEP_PER_FURTHER_CONSIDERATION_IN_A_LIST),
     )
 
 
@@ -137,7 +138,7 @@ def _tie_break_values(pairs, seed, limits) -> np.ndarray:
     penalty it would incur nets slightly below zero and stays unassigned, which makes
     "assigned only when the weight exceeds the penalty" strictly true. The shifts sum to
     less than ``scale`` in magnitude, so they cannot outweigh a real difference."""
-    parameters = [*limits.score_weights.values(), limits.extra_consideration_penalty]
+    parameters = [*limits.score_weights.values(), limits.penalty_step_per_further_consideration_in_a_list]
     scale = 1.0 if all(float(value).is_integer() for value in parameters) else 1e-6
     values = []
     for prompt_id, label, _ in pairs:
@@ -176,13 +177,13 @@ def _model_columns_and_rows(pairs, catalog, limits, targets):
             rows.append(row_for(key, bound))
             columns.append(column)
             values.append(1.0)
-        if limits.extra_consideration_penalty > 0:
+        if limits.penalty_step_per_further_consideration_in_a_list > 0:
             rows.append(row_for(("penalty", prompt_id, list_name), 1.0))
             columns.append(column)
             values.append(1.0)
 
     penalty_multipliers: list[int] = []
-    if limits.extra_consideration_penalty > 0:
+    if limits.penalty_step_per_further_consideration_in_a_list > 0:
         for (prompt_id, list_name), pair_count in pairs_in_document_list.items():
             extra_slots = min(limits.max_for_list(list_name), limits.max_total_per_document, pair_count) - 1
             for multiplier in range(1, extra_slots + 1):
@@ -228,7 +229,7 @@ def assign_considerations(
         matrix, bounds, penalty_multipliers = _model_columns_and_rows(pairs, catalog, limits, targets)
         gains = np.array([limits.score_weights[score] for _, _, score in pairs], dtype=float)
         gains = gains + _tie_break_values(pairs, seed, limits)
-        penalty_costs = penalty_multipliers * limits.extra_consideration_penalty
+        penalty_costs = penalty_multipliers * limits.penalty_step_per_further_consideration_in_a_list
         solution = _solve(-np.concatenate([gains, -penalty_costs]), matrix, bounds)
         chosen = solution[:len(pairs)]
         _check_constraints(solution, pairs, catalog, matrix, bounds, limits, penalty_costs)
@@ -251,7 +252,7 @@ def _check_constraints(solution, pairs, catalog, matrix, bounds, limits, penalty
         prompt_id, label, _ = pairs[column]
         key = (prompt_id, list_of[label])
         counts[key] = counts.get(key, 0) + 1
-    direct_penalty = limits.extra_consideration_penalty * sum(n * (n - 1) / 2 for n in counts.values())
+    direct_penalty = limits.penalty_step_per_further_consideration_in_a_list * sum(n * (n - 1) / 2 for n in counts.values())
     model_penalty = float(penalty_costs @ solution[len(pairs):]) if len(penalty_costs) else 0.0
     assert abs(direct_penalty - model_penalty) < 1e-6 * max(1.0, direct_penalty), \
         "the LP's penalty differs from p * n(n-1)/2 computed from the chosen pairs"
@@ -308,7 +309,7 @@ def coverage_report(
         "max_epistemic_considerations_per_document": limits.max_epistemic_per_document,
         "max_considerations_per_document": limits.max_total_per_document,
         "score_weights": {str(score): weight for score, weight in sorted(limits.score_weights.items())},
-        "extra_consideration_penalty": limits.extra_consideration_penalty,
+        "penalty_step_per_further_consideration_in_a_list": limits.penalty_step_per_further_consideration_in_a_list,
         "entries": entries,
         **document_coverage_shares(list(per_document_counts.values())),
         "document_ids_with_no_consideration": sorted(
