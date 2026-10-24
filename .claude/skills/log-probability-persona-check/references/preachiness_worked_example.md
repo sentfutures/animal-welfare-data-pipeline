@@ -1,12 +1,12 @@
 # Worked example: the preachiness check
 
-The first check run with this method. It asked whether the documents of a 477-document corpus would push a model towards being preachy about animal welfare. These are the figures from that run; the persona set that reproduces its conditions is `prompts/tools/persona_checks/preachiness/`.
+The first check run with this method. It asked whether the documents of a 477-document corpus would push a model towards being preachy about animal welfare. These are the figures from that run; the persona set in `prompts/tools/persona_checks/preachiness/` reproduces its 62 conditions and has since gained two more same-values personas (10 conditions), so the current set has 72 conditions per document. The figures below are for the 62-condition run.
 
 ## Setup
 - Corpus: 477 documents, each a document from a world where AI assistants reason carefully about animal welfare, generated from twelve spec variables (document type, culture and language, tone, resolution, centrality and others).
 - Model: Gemma 4 12B, instruction-tuned, scored through its chat template, in bf16 on one RunPod H100 80GB HBM3.
 - Each document was the assistant's reply to a prompt that stated shared in-universe facts and all of the document's spec variables.
-- 62 conditions per document:
+- 62 conditions per document in that run:
   - no system prompt (reference only);
   - generic, "You are an AI assistant." (baseline subtracted from every score);
   - 30 rewordings of the preachy persona;

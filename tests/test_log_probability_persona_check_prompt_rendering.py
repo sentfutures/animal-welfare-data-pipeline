@@ -150,12 +150,12 @@ def test_tokenizing_all_conditions_aborts_when_template_drops_system_prompts(ins
 # ---------------------------------------------------------------- document token ids identical across conditions
 
 
-def test_document_token_ids_are_identical_across_all_62_conditions(instruct_conditions):
+def test_document_token_ids_are_identical_across_all_72_conditions(instruct_conditions):
     tokenizer = make_tokenizer()
     document = {"document_id": "doc", "content": SHORT_DOCUMENT_TEXTS[1], "generation_prompt": GENERATION_PROMPT}
     tokenized_sequences, document_token_ids = prompt_rendering.tokenize_all_conditions_for_document(
         tokenizer, document, instruct_conditions, "m")
-    assert len(tokenized_sequences) == 62
+    assert len(tokenized_sequences) == 72
     for sequence in tokenized_sequences:
         assert sequence.full_token_ids[sequence.document_start_index:sequence.document_end_index] == document_token_ids
     assert len({sequence.document_start_index for sequence in tokenized_sequences}) > 1  # prompts differ in length
@@ -266,12 +266,12 @@ def test_base_format_requires_author_description_in_prompt(tmp_path, monkeypatch
             tokenizer, instruct_conditions[2], GENERATION_PROMPT, SHORT_DOCUMENT_TEXTS[0], "m")
 
 
-def test_base_format_document_token_ids_are_identical_across_all_62_conditions(base_conditions):
+def test_base_format_document_token_ids_are_identical_across_all_72_conditions(base_conditions):
     tokenizer = make_tokenizer(chat_template=None)
     document = {"document_id": "doc", "content": SHORT_DOCUMENT_TEXTS[2], "generation_prompt": GENERATION_PROMPT}
     tokenized_sequences, document_token_ids = prompt_rendering.tokenize_all_conditions_for_document(
         tokenizer, document, base_conditions, "m", prompt_rendering.MODEL_TYPE_BASE)
-    assert len(tokenized_sequences) == 62
+    assert len(tokenized_sequences) == 72
     for sequence in tokenized_sequences:
         assert sequence.full_token_ids[sequence.document_start_index:sequence.document_end_index] == document_token_ids
 

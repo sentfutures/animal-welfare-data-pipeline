@@ -32,6 +32,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from evals.log_probability_persona_check import analysis_run_loading as loading  # noqa: E402
 from evals.log_probability_persona_check.build_scoring_inputs import timestamp_now  # noqa: E402
+from evals.log_probability_persona_check.legacy_run_format_compatibility_reader import (  # noqa: E402
+    rename_legacy_condition_groups)
 from shared import utils  # noqa: E402
 
 DEFAULT_THROUGHPUT_UNCERTAINTY_FRACTION = 0.25
@@ -170,12 +172,19 @@ def collect_facts(run_folder, full_run_number_of_documents=None, corpus_path=Non
                   rewrite_generation_cost_dollars=None, legacy_run_persona_set=None):
     run_folder = Path(run_folder)
     scoring_outputs = run_folder / "scoring_outputs"
-    configurations, _ = loading.read_run_configurations(run_folder, legacy_run_persona_set)
+    configurations, is_legacy_format = loading.read_run_configurations(run_folder, legacy_run_persona_set)
     setup = loading.build_setup(configurations, run_folder)
     conditions = utils.load_jsonl(run_folder / "scoring_inputs" / "conditions.jsonl")
+    if is_legacy_format:
+        conditions = rename_legacy_condition_groups(conditions, setup.configuration)
     documents = utils.load_jsonl(run_folder / "scoring_inputs" / "documents.jsonl")
     records = utils.load_jsonl(scoring_outputs / "scoring_completion_records.jsonl")
-    facts = {"run_folder": str(run_folder), "persona_set_name": setup.persona_set_name, "persona_name": setup.persona_name,
+    persona_conditions_by_group = {}
+    for condition in conditions:
+        if condition["condition_group"] in setup.persona_group_names:
+            counts = persona_conditions_by_group.setdefault(condition["condition_group"], {})
+            counts[condition["persona_name"]] = counts.get(condition["persona_name"], 0) + 1
+    facts = {"run_folder": str(run_folder), "persona_conditions_by_group": persona_conditions_by_group, "persona_set_name": setup.persona_set_name, "persona_name": setup.persona_name,
              "model_type": setup.model_type, "model_name": setup.model_name, "model_revision": setup.model_revision,
              "number_of_documents_in_run": len(documents), "number_of_conditions": len(conditions),
              "number_of_documents_scored": len({record["document_id"] for record in records}),
@@ -335,7 +344,11 @@ def render_markdown(facts):
               f"- GPU: {environment.get('gpu_name')}; dtype {environment.get('dtype')}; torch {environment.get('torch_version')}; "
               f"transformers {environment.get('transformers_version')}",
               f"- Documents scored: {facts['number_of_documents_scored']} of {facts['number_of_documents_in_run']}; "
-              f"conditions: {facts['number_of_conditions']}", ""]
+              f"conditions: {facts['number_of_conditions']}"]
+    for group, counts in facts["persona_conditions_by_group"].items():
+        lines.append(f"- Condition group `{group}` (pooled over its personas): {sum(counts.values())} conditions; "
+                     f"by persona: " + ", ".join(f"{name} {count}" for name, count in counts.items()))
+    lines.append("")
 
     verification = facts["verification"]
     lines.append("## (a) Full-logits verification")

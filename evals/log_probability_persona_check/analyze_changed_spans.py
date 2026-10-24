@@ -98,9 +98,14 @@ def build_changed_span_tables(run):
     control_persona_names = run.persona_names_by_group[setup.control_group]
     columns_prefix = f"{persona_name}_minus_{setup.control_group}_per_token"
 
+    same_values_persona_names = run.persona_names_by_group.get(setup.same_values_group, [])
+
     def with_pooled_control(scores):
         pooled = dict(scores.per_token_difference_by_persona)
         pooled[pooled_name] = np.mean([pooled[name] for name in control_persona_names], axis=0)
+        if same_values_persona_names:
+            pooled[setup.pooled_same_values_persona_name] = np.mean(
+                [pooled[name] for name in same_values_persona_names], axis=0)
         return pooled
 
     per_token = {document_id: (scores.token_ids, with_pooled_control(scores))

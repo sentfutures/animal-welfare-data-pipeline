@@ -165,12 +165,12 @@ def test_scorer_writes_contract_outputs(build_run, patched_model_loading):
     for npz_path in npz_paths:
         with np.load(npz_path) as saved:
             assert list(saved["condition_ids"]) == condition_ids
-            assert saved["log_probabilities"].shape == (62, len(saved["document_token_ids"]))
+            assert saved["log_probabilities"].shape == (72, len(saved["document_token_ids"]))
             assert saved["log_probabilities"].dtype == np.float32 and saved["document_token_ids"].dtype == np.int32
             assert len(saved["document_token_strings"]) == len(saved["document_token_ids"])
             assert (saved["log_probabilities"] <= 1e-4).all()
     records = read_jsonl(outputs / "scoring_completion_records.jsonl")
-    assert len(records) == 3 * 62
+    assert len(records) == 3 * 72
     assert set(records[0]) == {"document_id", "condition_id", "number_of_document_tokens", "sum_log_probability",
                                "mean_log_probability"}
     assert {(record["document_id"], record["condition_id"]) for record in records} == {
@@ -208,7 +208,7 @@ def test_verification_runs_for_a_base_run_and_records_the_model_type(build_run, 
         with np.load(npz_path) as saved:
             assert np.isfinite(saved["log_probabilities"]).all()
             assert tokenizer.bos_token_id not in saved["document_token_ids"]  # context, never a scored token
-    assert len(read_jsonl(outputs / "scoring_completion_records.jsonl")) == 3 * 62
+    assert len(read_jsonl(outputs / "scoring_completion_records.jsonl")) == 3 * 72
 
 
 def test_base_run_loads_the_framing_once_for_all_documents(build_run, monkeypatch):
@@ -243,12 +243,12 @@ def test_resume_skips_completed_documents_and_does_not_load_the_model_when_all_a
     run_folder = build_run()
     run_scorer(run_folder, "--maximum-documents", "2")
     outputs = run_folder / "scoring_outputs"
-    assert len(read_jsonl(outputs / "scoring_completion_records.jsonl")) == 2 * 62
+    assert len(read_jsonl(outputs / "scoring_completion_records.jsonl")) == 2 * 72
     first_file = outputs / "per_token_log_probabilities" / "fixture_document_0.npz"
     modification_time = first_file.stat().st_mtime_ns
     run_scorer(run_folder)
     assert first_file.stat().st_mtime_ns == modification_time
-    assert len(read_jsonl(outputs / "scoring_completion_records.jsonl")) == 3 * 62
+    assert len(read_jsonl(outputs / "scoring_completion_records.jsonl")) == 3 * 72
     patched_model_loading.clear()
     run_scorer(run_folder)
     assert patched_model_loading == []
@@ -260,7 +260,7 @@ def test_rebuilds_missing_completion_records_and_refuses_foreign_conditions(buil
     records_path = run_folder / "scoring_outputs" / "scoring_completion_records.jsonl"
     records_path.unlink()
     run_scorer(run_folder, "--maximum-documents", "1")
-    assert len(read_jsonl(records_path)) == 62
+    assert len(read_jsonl(records_path)) == 72
     npz_path = run_folder / "scoring_outputs" / "per_token_log_probabilities" / "fixture_document_0.npz"
     with np.load(npz_path) as saved:
         arrays = {name: saved[name] for name in saved.files}

@@ -34,7 +34,7 @@ prompts/tools/persona_checks/
   <persona_set_name>/
     target_persona_rewordings.txt           one description per line (about 30)
     topic_control_personas.txt              "# persona_name" header, then its rewordings, one per line
-    same_values_control_rewordings.txt      OPTIONAL, one description per line
+    same_values_control_personas.txt        OPTIONAL, same "# persona_name" format as the topic controls
     positive_control_rewrite_instructions.txt     slots {direction}, {document_text}
     neutral_control_rewrite_instructions.txt      slots {direction}, {document_text}
     persona_check_configuration.json
@@ -55,8 +55,8 @@ Validate with `python evals/log_probability_persona_check/persona_sets.py --pers
     "target": {"condition_group": "preachy", "display_name": "preachy", "expected_rewording_count": 30},
     "topic_control": {"condition_group": "control", "display_name": "topic controls without a moral stance",
                       "expected_persona_count": 5, "expected_rewordings_per_persona": 5},
-    "same_values_control": {"condition_group": "proportionate_welfare", "persona_name": "proportionate_welfare",
-                            "display_name": "proportionate welfare", "expected_rewording_count": 5}
+    "same_values_control": {"condition_group": "same_values_control", "display_name": "same-values controls",
+                            "expected_persona_count": 3, "expected_rewordings_per_persona": 5}
   },
   "rewrite_directions": {"toward": {"name": "preachier"}, "away": {"name": "plainer"},
                          "neutral": {"name": "register_shift"}},
@@ -71,7 +71,7 @@ Validate with `python evals/log_probability_persona_check/persona_sets.py --pers
 ```
 
 - `persona_set_name` equals the folder name. `persona_name` is the target persona's name in condition ids and in the `persona_name` column.
-- `condition_groups.same_values_control` and `rewrite_directions.away` are optional. Without the group the set has no `same_values_control_rewordings.txt` and `expected_condition_count = 2 + target + topic personas x rewordings`.
+- `condition_groups.same_values_control` and `rewrite_directions.away` are optional. `same_values_control` takes the same four keys as `topic_control` (no `persona_name`: the personas are the `#` headers of `same_values_control_personas.txt`). Without the group the set has no `same_values_control_personas.txt` and `expected_condition_count = 2 + target + topic personas x rewordings`; with it, `+ same-values personas x rewordings`. The preachiness set has 2 + 30 + 25 + 15 = 72 conditions.
 - `pass_criteria` is fixed before scoring and copied into the run configuration. Optional `pass_criteria.neutral_control.changed_span` = `{"maximum_number_moving_toward_persona": int, "number_of_rewrites_tested": int}`, to be set before the neutral control is run.
 - Optional `default_models`: `{"instruct": {"model_name", "model_revision"}, "base": {...}}` overriding the package defaults in `scoring_model_defaults.py` (instruct `google/gemma-4-12b-it` at `707f0a3b8a3c7ad586ed01e27eafbad8a27dd0f7`, base `google/gemma-4-12b` at `023679ed352de9bb66cc873c9009ce3482585c08`). Precedence: command line, persona set, package default. A pinned 40-character revision is always required.
 - Unknown keys are errors.
@@ -151,7 +151,7 @@ Run configuration fields (resuming appends a further `run_configuration_<timesta
 | `pass_criteria` | copy of `persona_set.configuration.pass_criteria` |
 | `document_selection` | `corpus_path`, `document_ids_file`, `maximum_documents`, `extra_documents_files`, `number_of_corpus_documents`, `number_of_extra_documents`, `document_ids` |
 | `number_of_conditions` | |
-| `prompt_file_sha256` | SHA-256 of every file that decides what is scored, keyed by path under `prompts/tools/persona_checks/` (`model_type_framing/...`, `generation_prompt/...`, `<persona set>/{persona_check_configuration.json, target_persona_rewordings.txt, topic_control_personas.txt, same_values_control_rewordings.txt}`). The four `base_model_*` files are included only for `base` runs. Resuming is refused if any differs. |
+| `prompt_file_sha256` | SHA-256 of every file that decides what is scored, keyed by path under `prompts/tools/persona_checks/` (`model_type_framing/...`, `generation_prompt/...`, `<persona set>/{persona_check_configuration.json, target_persona_rewordings.txt, topic_control_personas.txt, same_values_control_personas.txt}`). The four `base_model_*` files are included only for `base` runs. Resuming is refused if any differs. |
 | `persona_set_file_sha256` | SHA-256 of every file in the persona set folder (informational) |
 | `input_file_sha256` | SHA-256 of the corpus file, the document ids file and each extra documents file |
 | `scoring_input_file_sha256` | SHA-256 of `documents.jsonl` and `conditions.jsonl` |
@@ -177,9 +177,9 @@ Original corpus documents have `rewrite_direction: null` and `source_document_id
  "rewording_index": 7, "system_prompt": "You are an AI assistant who ..."}
 ```
 
-- Order: `no_system_prompt`, `generic`, the target rewordings, the topic control personas in file order, then the same-values control.
-- `condition_group` is `no_system_prompt`, `generic`, or the three `condition_groups.*.condition_group` values of the configuration (`preachy`, `control`, `proportionate_welfare` for preachiness).
-- `persona_name` is `no_system_prompt`, `generic`, the configuration's `persona_name` for the target, the `#` header name for topic controls (for example `animal_husbandry_expertise`), and `condition_groups.same_values_control.persona_name` for the same-values control.
+- Order: `no_system_prompt`, `generic`, the target rewordings, the topic control personas in file order, then the same-values control personas in file order.
+- `condition_group` is `no_system_prompt`, `generic`, or the three `condition_groups.*.condition_group` values of the configuration (`preachy`, `control`, `same_values_control` for preachiness).
+- `persona_name` is `no_system_prompt`, `generic`, the configuration's `persona_name` for the target, the `#` header name for topic controls (for example `animal_husbandry_expertise`), and the `#` header name for same-values controls (for preachiness `proportionate_welfare`, `welfare_care_without_preachiness`, `ethical_farming_without_pushiness`).
 - `system_prompt` is `null` only for `no_system_prompt`. It is present in both model types.
 - `author_description` (base runs only; instruct `conditions.jsonl` files do not have the field): `null` for `no_system_prompt`, `"an AI assistant"` for `generic`, and `"an AI assistant who <the same persona description line used in system_prompt>"` for every persona condition. Conditions, condition ids and groups are identical across model types; only the rendering differs.
 - Condition ids: `no_system_prompt`, `generic`, `<persona_name>__rewording_<two digits>`.
@@ -277,6 +277,7 @@ Definitions:
 - Extreme spans: windows of the per-token target-persona difference; `window_mean_<persona>_difference`, `text` (token strings joined); each record carries the document's permutation p-value for its direction.
 - Span significance: per document, the per-token difference is shuffled `--number-of-permutations` times; statistic = highest (lowest) window mean over all windows; one-sided p = (1 + number at least as extreme) / (1 + permutations); Benjamini-Hochberg q across original documents (rewrites keep the uncorrected p, flagged by `q_value_is_uncorrected_rewrite`). The null treats tokens as exchangeable, which is liberal when neighbouring tokens are correlated; it screens for spans and is not proof of a persona effect.
 - Changed spans: rewrite tokens aligned to the source's by `difflib.SequenceMatcher`; span score = mean of (persona minus generic) minus (pooled topic controls minus generic) over the span's tokens. A rewrite moves the expected way when `changed_minus_unchanged` has the expected sign: positive for `toward`, negative for `away`; for `neutral`, a move toward the persona is positive. A rewrite with no changed tokens does not move.
+- Same-values controls: all personas of the group are pooled for the second per-document test (target against the pooled same-values rewording scores), for the `<same_values>_mean_score` column and for the pooled row `pooled_<same_values>` of `changed_span_by_persona`; each persona also has its own `<persona>_mean_score` column and its own rows in `changed_span_by_persona` and `rewording_agreement`. The pilot summary lists the conditions of every persona group pooled and by persona.
 - Whole-document check: rewrite minus source of `<persona>_minus_<control>_score`; a difference of exactly 0 does not move.
 - Rewording agreement: mean pairwise Spearman, one-way ICC(1,1), within-to-across SD ratio, leave-one-out Spearman and outlier flag, per persona of every group.
 - Document means (`secondary_not_validated_*`): not a validated measure; the whole-document score did not track the persona in the first preachiness run.
@@ -296,7 +297,9 @@ Definitions:
 
 A direction is "not evaluable" when the number of rewrites scored differs from `number_of_rewrites_tested_per_direction` (or `number_of_rewrites_tested`), since the criterion was fixed for that number. The neutral verdict is judged at changed-span level only (the whole-document neutral counts are reported, not judged).
 
-Legacy run folders: `legacy_run_format_compatibility_reader.py` converts, in memory, a legacy-format `run_configuration_*.json` (no `persona_set` record) when `--legacy-run-persona-set <name>` is given: model type `instruct`, model revision from `scoring_environment_*.json`, group names, direction names and pass criteria from that persona set's configuration. Without the flag such a run folder is refused. It is for re-analysis only.
+Run folders built before a persona set changed: the analysis reads the persona set configuration recorded in the run configuration, never the current persona set files, so such runs stay analysable. A recorded same-values group may use the earlier keys (`persona_name`, `expected_rewording_count`) instead of `expected_persona_count` and `expected_rewordings_per_persona`; the loader accepts both.
+
+Legacy run folders: `legacy_run_format_compatibility_reader.py` converts, in memory, a legacy-format `run_configuration_*.json` (no `persona_set` record) when `--legacy-run-persona-set <name>` is given: model type `instruct`, model revision from `scoring_environment_*.json`, group names, direction names and pass criteria from that persona set's configuration. A legacy run has one same-values persona in the condition group `proportionate_welfare` (62 conditions); the reader maps that group to the configured same-values group and sets the expected persona and rewording counts to what the run's `conditions.jsonl` holds. Without the flag such a run folder is refused. It is for re-analysis only.
 
 ### Pilot summary
 

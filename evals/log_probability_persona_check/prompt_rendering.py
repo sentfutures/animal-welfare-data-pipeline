@@ -61,8 +61,8 @@ def render_base_model_author_description(author_frame, persona_description):
 def build_condition_records(persona_set: PersonaSet, model_type=MODEL_TYPE_INSTRUCT,
                             framing: ModelTypeFraming = None):
     """The conditions of a persona set, in a fixed order: no_system_prompt, generic, the target rewordings,
-    the topic control personas (each in file order), then the same-values control if the set has one. Rewording
-    indices are 1-based. For the preachiness set this is the 62 conditions of the original legacy run.
+    the topic control personas (each in file order), then the same-values control personas (each in file order) if the set has them. Rewording
+    indices are 1-based. For the preachiness set this is 72 conditions: the 62 of the first preachiness run plus two more same-values personas.
 
     For the base model type every record also has `author_description` (None for no_system_prompt, the generic
     author description for generic, the persona author frame filled with the same persona description for the
@@ -99,9 +99,8 @@ def build_condition_records(persona_set: PersonaSet, model_type=MODEL_TYPE_INSTR
     for persona_name, descriptions in persona_set.topic_control_descriptions_by_persona.items():
         add_persona_conditions(groups["topic_control"]["condition_group"], persona_name, descriptions)
     if persona_set.has_same_values_control:
-        same_values = groups["same_values_control"]
-        add_persona_conditions(same_values["condition_group"], same_values["persona_name"],
-                               persona_set.same_values_control_rewordings)
+        for persona_name, descriptions in persona_set.same_values_control_descriptions_by_persona.items():
+            add_persona_conditions(groups["same_values_control"]["condition_group"], persona_name, descriptions)
 
     condition_ids = [condition["condition_id"] for condition in conditions]
     if len(set(condition_ids)) != len(condition_ids):

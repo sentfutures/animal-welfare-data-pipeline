@@ -5,7 +5,7 @@ specific to one persona (preachy, sycophantic, ...):
 
     target_persona_rewordings.txt            one description per line, about 30 equivalent statements of the persona
     topic_control_personas.txt               `# persona_name` headers, each followed by its rewordings, one per line
-    same_values_control_rewordings.txt       optional: one description per line (same values, not the behaviour)
+    same_values_control_personas.txt         optional: same `# persona_name` format (same values, not the behaviour)
     positive_control_rewrite_instructions.txt
     neutral_control_rewrite_instructions.txt
     persona_check_configuration.json         see CONFIGURATION SCHEMA below
@@ -24,8 +24,9 @@ CONFIGURATION SCHEMA (persona_check_configuration.json, schema_version 1; unknow
         target               condition_group (value of the `condition_group` column), display_name,
                              expected_rewording_count
         topic_control        condition_group, display_name, expected_persona_count, expected_rewordings_per_persona
-        same_values_control  OPTIONAL. condition_group, persona_name, display_name, expected_rewording_count.
-                             When absent, same_values_control_rewordings.txt must be absent too.
+        same_values_control  OPTIONAL. condition_group, display_name, expected_persona_count,
+                             expected_rewordings_per_persona (as topic_control).
+                             When absent, same_values_control_personas.txt must be absent too.
     rewrite_directions
         toward               {"name": ...}  the direction that adds the persona's behaviour, e.g. "preachier"
         away                 OPTIONAL {"name": ...}  the direction that removes it, e.g. "plainer"
@@ -67,7 +68,7 @@ GENERATION_PROMPT_DIRECTORY_NAME = "generation_prompt"
 CONFIGURATION_FILE_NAME = "persona_check_configuration.json"
 TARGET_REWORDINGS_FILE_NAME = "target_persona_rewordings.txt"
 TOPIC_CONTROL_FILE_NAME = "topic_control_personas.txt"
-SAME_VALUES_CONTROL_FILE_NAME = "same_values_control_rewordings.txt"
+SAME_VALUES_CONTROL_FILE_NAME = "same_values_control_personas.txt"
 POSITIVE_CONTROL_INSTRUCTIONS_FILE_NAME = "positive_control_rewrite_instructions.txt"
 NEUTRAL_CONTROL_INSTRUCTIONS_FILE_NAME = "neutral_control_rewrite_instructions.txt"
 REQUIRED_PERSONA_SET_FILE_NAMES = [CONFIGURATION_FILE_NAME, TARGET_REWORDINGS_FILE_NAME, TOPIC_CONTROL_FILE_NAME,
@@ -131,7 +132,7 @@ class PersonaSet:
     configuration: dict
     target_rewordings: list
     topic_control_descriptions_by_persona: dict       # {persona_name: [descriptions]} in file order
-    same_values_control_rewordings: object            # list, or None when the set has no same-values control
+    same_values_control_descriptions_by_persona: object   # like the topic controls, or None without a same-values control
     positive_control_rewrite_instructions: str
     neutral_control_rewrite_instructions: str
     positive_control_instructions_are_draft: bool
@@ -144,7 +145,7 @@ class PersonaSet:
 
     @property
     def has_same_values_control(self):
-        return self.same_values_control_rewordings is not None
+        return self.same_values_control_descriptions_by_persona is not None
 
     def rewrite_direction_names(self):
         """{"toward": "preachier", "away": "plainer" (if configured), "neutral": "register_shift"}."""
@@ -163,7 +164,8 @@ class PersonaSet:
         count = 2 + groups["target"]["expected_rewording_count"]
         count += groups["topic_control"]["expected_persona_count"] * groups["topic_control"]["expected_rewordings_per_persona"]
         if self.has_same_values_control:
-            count += groups["same_values_control"]["expected_rewording_count"]
+            count += (groups["same_values_control"]["expected_persona_count"]
+                      * groups["same_values_control"]["expected_rewordings_per_persona"])
         return count
 
     def require_reviewed_instructions(self, which):
@@ -451,11 +453,13 @@ def validate_configuration(configuration, folder_name, errors):
         same_values = groups.get("same_values_control")
         if same_values is not None and require_keys(
                 same_values, f"{where} condition_groups.same_values_control",
-                ["condition_group", "persona_name", "display_name", "expected_rewording_count"], [], errors):
+                ["condition_group", "display_name", "expected_persona_count", "expected_rewordings_per_persona"],
+                [], errors):
             check_text(same_values["display_name"], "condition_groups.same_values_control.display_name", errors)
-            check_positive_integer(same_values["expected_rewording_count"],
-                                   "same_values_control.expected_rewording_count", errors)
-            claim_name(same_values["persona_name"], f"{where} same_values_control.persona_name")
+            check_positive_integer(same_values["expected_persona_count"],
+                                   "same_values_control.expected_persona_count", errors)
+            check_positive_integer(same_values["expected_rewordings_per_persona"],
+                                   "same_values_control.expected_rewordings_per_persona", errors)
         seen_groups = {}
         for group_key in ("target", "topic_control", "same_values_control"):
             group = groups.get(group_key)
@@ -609,7 +613,7 @@ def validate_persona_set(persona_set, persona_checks_directory=None, framing_dir
         if path.is_file() and path.name not in expected_files and path.name != SAME_VALUES_CONTROL_FILE_NAME:
             warnings.append(f"Unexpected file in the persona set folder: {path.name}")
 
-    target_rewordings, topic_by_persona, same_values_rewordings = [], {}, None
+    target_rewordings, topic_by_persona, same_values_by_persona = [], {}, None
     target_text = read_text_file(folder / TARGET_REWORDINGS_FILE_NAME, errors)
     if target_text is not None:
         target_rewordings = parse_description_lines(target_text, TARGET_REWORDINGS_FILE_NAME, errors)
@@ -619,7 +623,7 @@ def validate_persona_set(persona_set, persona_checks_directory=None, framing_dir
     if has_same_values_group:
         same_values_text = read_text_file(folder / SAME_VALUES_CONTROL_FILE_NAME, errors)
         if same_values_text is not None:
-            same_values_rewordings = parse_description_lines(same_values_text, SAME_VALUES_CONTROL_FILE_NAME, errors)
+            same_values_by_persona = parse_grouped_descriptions(same_values_text, SAME_VALUES_CONTROL_FILE_NAME, errors)
 
     # Descriptions: wording, duplicates
     seen_descriptions = {}
@@ -627,7 +631,9 @@ def validate_persona_set(persona_set, persona_checks_directory=None, framing_dir
     for persona_name, descriptions in topic_by_persona.items():
         descriptions_to_check += [(f"{TOPIC_CONTROL_FILE_NAME} ({persona_name})", description)
                                   for description in descriptions]
-    descriptions_to_check += [(SAME_VALUES_CONTROL_FILE_NAME, description) for description in (same_values_rewordings or [])]
+    for persona_name, descriptions in (same_values_by_persona or {}).items():
+        descriptions_to_check += [(f"{SAME_VALUES_CONTROL_FILE_NAME} ({persona_name})", description)
+                                  for description in descriptions]
     for where, description in descriptions_to_check:
         check_description_reads_after_frames(description, where, errors)
         key = description.lower()
@@ -646,22 +652,30 @@ def validate_persona_set(persona_set, persona_checks_directory=None, framing_dir
         if len(topic_by_persona) != topic["expected_persona_count"]:
             errors.append(f"{TOPIC_CONTROL_FILE_NAME}: expected {topic['expected_persona_count']} personas, "
                           f"found {len(topic_by_persona)}")
-        for persona_name, descriptions in topic_by_persona.items():
-            if len(descriptions) != topic["expected_rewordings_per_persona"]:
-                errors.append(f"{TOPIC_CONTROL_FILE_NAME}: persona '{persona_name}' has {len(descriptions)} "
-                              f"rewordings, expected {topic['expected_rewordings_per_persona']}")
-            if not PERSONA_NAME_PATTERN.match(persona_name):
-                errors.append(f"{TOPIC_CONTROL_FILE_NAME}: header '{persona_name}' must be lowercase letters, "
-                              f"digits and single underscores")
-            elif persona_name in RESERVED_PERSONA_NAMES or persona_name == configuration["persona_name"] or \
-                    (has_same_values_group and persona_name == groups["same_values_control"]["persona_name"]):
-                errors.append(f"{TOPIC_CONTROL_FILE_NAME}: header '{persona_name}' collides with a reserved or "
-                              f"configured persona name")
-        if has_same_values_group and same_values_rewordings is not None and \
-                len(same_values_rewordings) != groups["same_values_control"]["expected_rewording_count"]:
-            errors.append(f"{SAME_VALUES_CONTROL_FILE_NAME}: expected "
-                          f"{groups['same_values_control']['expected_rewording_count']} rewordings, found "
-                          f"{len(same_values_rewordings)}")
+        grouped_files = [(TOPIC_CONTROL_FILE_NAME, topic_by_persona, topic)]
+        if has_same_values_group and same_values_by_persona is not None:
+            same_values = groups["same_values_control"]
+            if len(same_values_by_persona) != same_values["expected_persona_count"]:
+                errors.append(f"{SAME_VALUES_CONTROL_FILE_NAME}: expected {same_values['expected_persona_count']} "
+                              f"personas, found {len(same_values_by_persona)}")
+            grouped_files.append((SAME_VALUES_CONTROL_FILE_NAME, same_values_by_persona, same_values))
+        persona_name_files = {}
+        for file_name, descriptions_by_persona, group_configuration in grouped_files:
+            for persona_name, descriptions in descriptions_by_persona.items():
+                if len(descriptions) != group_configuration["expected_rewordings_per_persona"]:
+                    errors.append(f"{file_name}: persona '{persona_name}' has {len(descriptions)} "
+                                  f"rewordings, expected {group_configuration['expected_rewordings_per_persona']}")
+                if not PERSONA_NAME_PATTERN.match(persona_name):
+                    errors.append(f"{file_name}: header '{persona_name}' must be lowercase letters, "
+                                  f"digits and single underscores")
+                elif persona_name in RESERVED_PERSONA_NAMES or persona_name == configuration["persona_name"]:
+                    errors.append(f"{file_name}: header '{persona_name}' collides with a reserved or "
+                                  f"configured persona name")
+                elif persona_name in persona_name_files:
+                    errors.append(f"{file_name}: header '{persona_name}' is already used in "
+                                  f"{persona_name_files[persona_name]}")
+                else:
+                    persona_name_files[persona_name] = file_name
 
     # Rewrite instructions
     instruction_texts, draft_flags = {}, {}
@@ -689,7 +703,7 @@ def validate_persona_set(persona_set, persona_checks_directory=None, framing_dir
         return report
     report.persona_set = PersonaSet(
         name=folder.name, folder=folder, configuration=configuration, target_rewordings=target_rewordings,
-        topic_control_descriptions_by_persona=topic_by_persona, same_values_control_rewordings=same_values_rewordings,
+        topic_control_descriptions_by_persona=topic_by_persona, same_values_control_descriptions_by_persona=same_values_by_persona,
         positive_control_rewrite_instructions=instruction_texts["positive"],
         neutral_control_rewrite_instructions=instruction_texts["neutral"],
         positive_control_instructions_are_draft=draft_flags["positive"],
@@ -728,7 +742,7 @@ def main(argument_list=None):
         print(f"Persona set {persona_set.name} is valid: {persona_set.expected_condition_count()} conditions "
               f"({len(persona_set.target_rewordings)} target rewordings, "
               f"{len(persona_set.topic_control_descriptions_by_persona)} topic control personas, "
-              f"same-values control: {'yes' if persona_set.has_same_values_control else 'no'})")
+              f"{len(persona_set.same_values_control_descriptions_by_persona or {})} same-values control personas)")
         return 0
     print(f"Persona set {arguments.persona_set} is invalid ({len(report.errors)} errors)")
     return 1

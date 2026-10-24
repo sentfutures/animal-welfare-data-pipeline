@@ -14,7 +14,7 @@ from evals.log_probability_persona_check import analyze_changed_spans as changed
 from evals.log_probability_persona_check import analyze_persona_scores as analysis
 from evals.log_probability_persona_check import summarize_pilot_for_go_or_no_go_decision as summarizer
 from evals.log_probability_persona_check.legacy_run_format_compatibility_reader import (
-    normalize_legacy_run_configuration)
+    PERSONA_CHECKS_DIRECTORY, normalize_legacy_run_configuration, rename_legacy_condition_groups)
 import synthetic_scored_run_folder_for_log_probability_persona_check_analysis as synthetic
 
 TIMESTAMP = "2026-01-01_00-00"
@@ -67,6 +67,63 @@ def test_every_output_is_labelled_with_model_type_and_model(analyzed):
     for stem in ("analysis_summary", "control_verdicts", "changed_span_summary"):
         assert json.loads(next(folder.glob(f"{stem}_*.json")).read_text())["model_type"] == "instruct"
     assert "instruct model example-org/example-model" in next(folder.glob("analysis_notes_*.md")).read_text()
+
+
+def test_multi_persona_same_values_group_is_pooled_and_broken_down_by_persona(analyzed):
+    _, folder, run_folder = analyzed
+    run = loading.load_run(run_folder)
+    assert run.setup.same_values_group == "same_values"
+    assert run.persona_names_by_group["same_values"] == synthetic.SAME_VALUES_PERSONAS
+    assert len(run.group_indices["same_values"]) == 4
+    assert run.setup.pooled_same_values_persona_name == "pooled_same_values"
+    scores = read_table(folder, "secondary_not_validated_per_document_scores")
+    for persona_name in synthetic.SAME_VALUES_PERSONAS:
+        assert f"{persona_name}_mean_score" in scores.columns
+    pooled = scores["same_values_mean_score"]
+    per_persona_mean = scores[[f"{name}_mean_score" for name in synthetic.SAME_VALUES_PERSONAS]].mean(axis=1)
+    assert np.allclose(pooled, per_persona_mean)  # equal-sized personas: the pooled mean is the mean of persona means
+    tests = read_table(folder, "secondary_not_validated_per_document_significance_tests")
+    assert (tests["number_of_same_values_rewordings"] == 4).all()  # the second test pools every same-values persona
+
+
+def test_second_test_compares_the_target_with_all_same_values_personas_together(analyzed):
+    _, folder, run_folder = analyzed
+    run = loading.load_run(run_folder)
+    matrix = analysis.condition_score_matrix_of(run)
+    tests = read_table(folder, "secondary_not_validated_per_document_significance_tests").set_index("document_id")
+    document_id = run.documents[0]["document_id"]
+    scores = matrix.loc[document_id].to_numpy()
+    expected = stats.mannwhitneyu(scores[run.group_indices["sycophantic"]], scores[run.group_indices["same_values"]],
+                                  alternative="two-sided").pvalue
+    assert tests.loc[document_id, "second_test_p_value"] == pytest.approx(expected)
+
+
+def test_run_recorded_with_a_one_persona_same_values_group_is_analysed_from_its_recorded_configuration(tmp_path):
+    """A run built when the group held one persona records `persona_name` and `expected_rewording_count`; the
+    analysis must use that record."""
+    synthetic.build_synthetic_scored_run_folder(tmp_path)
+    configuration_path = next(tmp_path.glob("run_configuration_*.json"))
+    configuration = json.loads(configuration_path.read_text())
+    groups = configuration["persona_set"]["configuration"]["condition_groups"]
+    groups["same_values_control"] = {"condition_group": "same_values", "persona_name": "restrained_advocate",
+                                     "display_name": "same values", "expected_rewording_count": 2}
+    configuration_path.write_text(json.dumps(configuration))
+    conditions_path = tmp_path / "scoring_inputs" / "conditions.jsonl"
+    kept = [json.loads(line) for line in conditions_path.read_text().splitlines()]
+    assert [c["persona_name"] for c in kept].count("even_handed_advocate") == 2
+    # Drop the first same-values persona from the scoring inputs and every score file, as an older run would lack it.
+    removed = {c["condition_id"] for c in kept if c["persona_name"] == "even_handed_advocate"}
+    conditions_path.write_text("".join(json.dumps(c) + "\n" for c in kept if c["condition_id"] not in removed))
+    for path in (tmp_path / "scoring_outputs" / "per_token_log_probabilities").glob("*.npz"):
+        with np.load(path, allow_pickle=False) as archive:
+            contents = {key: archive[key] for key in archive.files}
+        keep = [i for i, condition_id in enumerate(contents["condition_ids"]) if str(condition_id) not in removed]
+        contents["condition_ids"] = contents["condition_ids"][keep]
+        contents["log_probabilities"] = contents["log_probabilities"][keep]
+        np.savez(path, **contents)
+    folder = analyze(tmp_path)
+    agreement = read_table(folder, "rewording_agreement")
+    assert set(agreement[agreement.condition_group == "same_values"]["persona_name"]) == {"restrained_advocate"}
 
 
 def test_run_without_same_values_control(tmp_path):
@@ -159,7 +216,8 @@ def test_changed_span_by_persona_has_every_persona_and_direction(analyzed):
     table = read_table(folder, "changed_span_by_persona")
     assert set(table["rewrite_direction"]) == set(synthetic.DIRECTION_NAMES.values())
     toward = table[table.rewrite_direction == "more_sycophantic"].set_index("persona")
-    assert {"sycophantic", "bakery_expertise", "railway_expertise", "same_values", "pooled_topic_control"} == set(toward.index)
+    assert {"sycophantic", "bakery_expertise", "railway_expertise", "even_handed_advocate", "restrained_advocate",
+            "pooled_topic_control", "pooled_same_values"} == set(toward.index)
     assert toward.loc["sycophantic", "mean_changed_minus_unchanged"] > 0.2
     assert abs(toward.loc["pooled_topic_control", "mean_changed_minus_unchanged"]) < 0.05
 
@@ -244,8 +302,11 @@ def test_judge_count_against_criterion():
 def test_rewording_agreement_covers_every_persona(analyzed):
     _, folder, _ = analyzed
     agreement = read_table(folder, "rewording_agreement")
-    assert set(agreement["persona_name"]) == {"sycophantic", "bakery_expertise", "railway_expertise", "same_values"}
-    assert len(agreement) == 3 + 4 + 2
+    assert set(agreement["persona_name"]) == {"sycophantic", "bakery_expertise", "railway_expertise",
+                                              *synthetic.SAME_VALUES_PERSONAS}
+    assert len(agreement) == 3 + 4 + 4
+    same_values_rows = agreement[agreement.condition_group == synthetic.SAME_VALUES_GROUP]
+    assert same_values_rows.groupby("persona_name").size().to_dict() == {name: 2 for name in synthetic.SAME_VALUES_PERSONAS}
     sycophantic = agreement[agreement.persona_name == "sycophantic"].iloc[0]
     assert sycophantic["persona_intraclass_correlation_one_way_single_rewording"] > 0.5
 
@@ -423,6 +484,41 @@ def test_legacy_run_configuration_is_converted_with_the_persona_sets_criteria(tm
     assert setup.target_minus_control_score_column == "preachy_minus_control_score"
 
 
+def write_legacy_format_conditions(run_folder, same_values_persona_names):
+    (run_folder / "scoring_inputs").mkdir(parents=True)
+    conditions = [{"condition_id": "generic", "condition_group": "generic", "persona_name": "generic"}]
+    for persona_name in same_values_persona_names:
+        for index in range(1, 6):
+            conditions.append({"condition_id": f"{persona_name}__rewording_{index:02d}",
+                               "condition_group": "proportionate_welfare", "persona_name": persona_name})
+    (run_folder / "scoring_inputs" / "conditions.jsonl").write_text("".join(json.dumps(c) + "\n" for c in conditions))
+    (run_folder / "scoring_outputs").mkdir()
+    (run_folder / "scoring_outputs" / "scoring_environment_2026-01-01_00-00.json").write_text(
+        json.dumps({"model_name": "example-org/example-model", "model_revision_requested": "b" * 40}))
+
+
+def test_legacy_run_same_values_group_is_mapped_and_expected_counts_follow_the_run(tmp_path):
+    write_legacy_format_conditions(tmp_path, ["proportionate_welfare"])
+    converted = normalize_legacy_run_configuration(
+        {"run_name": "legacy", "model_name": "example-org/example-model"}, "preachiness", tmp_path)
+    same_values = converted["persona_set"]["configuration"]["condition_groups"]["same_values_control"]
+    assert same_values["condition_group"] == "same_values_control"
+    assert (same_values["expected_persona_count"], same_values["expected_rewordings_per_persona"]) == (1, 5)
+    setup = loading.build_setup([converted], tmp_path)
+    assert setup.expected_conditions_per_group["same_values_control"] == 5
+    conditions = loading.utils.load_jsonl(tmp_path / "scoring_inputs" / "conditions.jsonl")
+    renamed = rename_legacy_condition_groups(conditions, converted["persona_set"]["configuration"])
+    assert {c["condition_group"] for c in renamed} == {"generic", "same_values_control"}
+    assert {c["condition_group"] for c in conditions} == {"generic", "proportionate_welfare"}  # input left alone
+
+
+def test_converting_a_legacy_run_does_not_change_the_current_persona_set_files(tmp_path):
+    write_legacy_format_conditions(tmp_path, ["proportionate_welfare"])
+    normalize_legacy_run_configuration({"run_name": "legacy", "model_name": "m"}, "preachiness", tmp_path)
+    current = json.loads((PERSONA_CHECKS_DIRECTORY / "preachiness" / "persona_check_configuration.json").read_text())
+    assert current["condition_groups"]["same_values_control"]["expected_persona_count"] == 3
+
+
 # ------------------------------------------------------------------------------------------ pilot summary
 
 PROGRESS_THROUGHPUT = {"documents_scored_this_session": 12, "input_tokens_processed": 1, "document_tokens_scored": 1,
@@ -447,7 +543,7 @@ def add_scoring_outputs_and_pod_cost_log(run_folder, verification_passed=True, w
     if write_verification:
         (outputs / "full_logits_verification_2026-01-01_12-00.json").write_text(json.dumps({
             "passed": verification_passed, "model_type": "instruct", "document_id": "source_00",
-            "condition_id": "same_values__rewording_02", "number_of_document_tokens": 100,
+            "condition_id": "restrained_advocate__rewording_02", "number_of_document_tokens": 100,
             "maximum_absolute_difference": 0.02, "mean_absolute_difference": 0.004,
             "maximum_allowed_mean_difference": 0.05, "maximum_allowed_maximum_difference": 1.0}))
     (run_folder / "pod_cost_log_2026-01-01_11-00.json").write_text(json.dumps({
@@ -471,13 +567,13 @@ def test_pilot_facts_and_projection_range(tmp_path):
     assert facts["verification"]["passed"] is True and facts["model_type"] == "instruct"
     assert facts["scored_tokens_per_second"] == pytest.approx(8000) and facts["scoring_seconds"] == 1800
     assert facts["setup_seconds_per_pod"] == pytest.approx(1800)
-    assert facts["number_of_documents_scored"] == 12 and facts["number_of_conditions"] == 11
+    assert facts["number_of_documents_scored"] == 12 and facts["number_of_conditions"] == 13
     full_run = facts["full_run"]
-    assert full_run["scored_tokens"] == pytest.approx(477 * 100 * 11)
+    assert full_run["scored_tokens"] == pytest.approx(477 * 100 * 13)
     slowest, fastest = full_run["throughput_range_scored_tokens_per_second"]
     assert slowest == pytest.approx(6000) and fastest == pytest.approx(10000)
-    assert full_run["low"]["scoring_seconds"] == pytest.approx(477 * 100 * 11 / 10000)
-    assert full_run["high"]["cost_dollars"] == pytest.approx((477 * 100 * 11 / 6000 + 1800) / 3600 * 3.0)
+    assert full_run["low"]["scoring_seconds"] == pytest.approx(477 * 100 * 13 / 10000)
+    assert full_run["high"]["cost_dollars"] == pytest.approx((477 * 100 * 13 / 6000 + 1800) / 3600 * 3.0)
     assert full_run["low"]["cost_dollars"] < full_run["high"]["cost_dollars"]
     assert facts["span_significance"]["number_of_original_documents_tested"] == 6
 
@@ -521,6 +617,14 @@ def test_pilot_criteria_statuses_for_a_clean_pilot(tmp_path):
     statuses = {description: status for description, status, _ in facts["criteria"]}
     assert all(status == "MET" for status in statuses.values()), statuses
     assert len(statuses) == 1 + 2 + 2 + 1 + 1 + 1  # verification, whole document x2, changed span x2, neutral, agreement, budget
+
+
+def test_pilot_facts_list_the_same_values_personas_by_group(tmp_path):
+    facts = summarizer.collect_facts(build_pilot_run(tmp_path), full_run_number_of_documents=477)
+    assert facts["persona_conditions_by_group"]["same_values"] == {name: 2 for name in synthetic.SAME_VALUES_PERSONAS}
+    text = summarizer.render_markdown(facts)
+    assert "Condition group `same_values` (pooled over its personas): 4 conditions" in text
+    assert "restrained_advocate 2" in text
 
 
 def test_pilot_budget_criterion_fails_when_projection_is_expensive(tmp_path):

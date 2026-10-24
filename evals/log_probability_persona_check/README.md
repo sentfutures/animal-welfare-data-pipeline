@@ -2,7 +2,7 @@
 
 Estimates whether a corpus would push a model trained on it towards a persona (preachy, sycophantic, ...). An open-weights model scores every token of each document as the assistant's reply, under a generic assistant prompt and under many rewordings of the persona and of controls. Text the persona makes unusually likely, compared with the controls, is text that would pull a model towards it.
 
-How to run and read it: `.claude/skills/log-probability-persona-check/SKILL.md`. File formats and the interface between steps: `run_folder_layout_and_interfaces.md`. Persona sets live in `prompts/tools/persona_checks/`. Everything runs from the repository root.
+How to run and read it: `.claude/skills/log-probability-persona-check/SKILL.md`. File formats and the interface between steps: `run_folder_layout_and_interfaces.md`. Persona sets live in `prompts/tools/persona_checks/`. A persona set has topic controls and, optionally, several same-values controls (the preachiness set has 72 conditions per document: no system prompt, generic, 30 target, 25 topic control and 15 same-values control rewordings), each persona a `# persona_name` group of rewordings. The analysis reads the persona set configuration recorded in the run configuration, so runs built from an earlier version of a set stay analysable. Everything runs from the repository root.
 
 ## Modules
 
@@ -23,7 +23,7 @@ How to run and read it: `.claude/skills/log-probability-persona-check/SKILL.md`.
 | `summarize_pilot_for_go_or_no_go_decision.py` | After a pilot: verification, throughput, cost, a projected full-run cost range and each criterion met or not. | free |
 | `rehearse_pilot_pipeline_locally_without_paid_calls.py` | Rehearses the whole chain, including the launcher dry run, on a tiny random model. | free |
 | `smoke_test_log_probability_persona_check.py` | Smoke test of the local chain for both model types. | free |
-| `legacy_run_format_compatibility_reader.py` | Lets the analysis read run folders written by an earlier version of the check. | free |
+| `legacy_run_format_compatibility_reader.py` | Lets the analysis read run folders in the legacy format of the check (62 conditions, one same-values persona). | free |
 | `timed_progress_and_jsonl_helpers.py` | Shared helpers for timestamps, progress reports and JSON lines. | free |
 
 ## Commands

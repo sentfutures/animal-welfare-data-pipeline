@@ -15,10 +15,10 @@
       "expected_rewordings_per_persona": 5
     },
     "same_values_control": {
-      "condition_group": "proportionate_welfare",
-      "persona_name": "proportionate_welfare",
-      "display_name": "proportionate welfare",
-      "expected_rewording_count": 5
+      "condition_group": "same_values_control",
+      "display_name": "same-values controls",
+      "expected_persona_count": 3,
+      "expected_rewordings_per_persona": 5
     }
   },
   "rewrite_directions": {

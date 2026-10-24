@@ -1,5 +1,6 @@
 """Offline tests for persona sets: the loader, the validator (including failure cases), the scoring model defaults,
-the condition builder, and the reproduction of the first preachiness run's 62 conditions and generation prompt.
+the condition builder, and the reproduction of the first preachiness run's conditions (the first 62 of the
+current 72) and generation prompt.
 """
 
 import json
@@ -54,10 +55,10 @@ def test_preachiness_set_is_valid_and_has_a_draft_neutral_control():
     assert report.is_valid, report.errors
     persona_set = report.persona_set
     assert persona_set.name == "preachiness" and persona_set.persona_name == "preachy"
-    assert persona_set.expected_condition_count() == 62
+    assert persona_set.expected_condition_count() == 72
     assert persona_set.rewrite_direction_names() == {"toward": "preachier", "away": "plainer",
                                                      "neutral": "register_shift"}
-    assert persona_set.condition_group_names() == ["preachy", "control", "proportionate_welfare"]
+    assert persona_set.condition_group_names() == ["preachy", "control", "same_values_control"]
     assert persona_set.neutral_control_instructions_are_draft and not persona_set.positive_control_instructions_are_draft
     assert not persona_set.neutral_control_rewrite_instructions.startswith("#")
     assert any("DRAFT" in warning for warning in report.warnings)
@@ -82,30 +83,48 @@ def test_draft_instructions_load_but_paid_use_is_refused():
 
 def test_command_line_validator_reports_valid_and_invalid(copied_persona_checks, capsys):
     assert persona_sets.main(["--persona-set", "preachiness"]) == 0
-    assert "62 conditions" in capsys.readouterr().out
+    assert "72 conditions" in capsys.readouterr().out
     assert persona_sets.main(["--persona-set", "does_not_exist"]) == 1
 
 
 # ---------------------------------------------------------------- reproduction of the legacy run
 
 
-def test_preachiness_conditions_equal_the_legacy_run_conditions():
+PERSONAS_ADDED_AFTER_THE_LEGACY_RUN = ("welfare_care_without_preachiness", "ethical_farming_without_pushiness")
+LEGACY_RUN_SAME_VALUES_GROUP = "proportionate_welfare"
+
+
+def without_added_personas_and_with_legacy_group_name(conditions):
+    """The current conditions minus the same-values personas added after the legacy run, with the same-values
+    group renamed to the name the legacy run used."""
+    return [{**condition, "condition_group": LEGACY_RUN_SAME_VALUES_GROUP}
+            if condition["condition_group"] == "same_values_control" else condition
+            for condition in conditions if condition["persona_name"] not in PERSONAS_ADDED_AFTER_THE_LEGACY_RUN]
+
+
+def test_preachiness_conditions_equal_the_legacy_run_conditions_apart_from_the_added_personas():
     persona_set = persona_sets.load_persona_set("preachiness")
     conditions = prompt_rendering.build_condition_records(persona_set)
-    assert conditions == read_fixture_jsonl("preachiness_legacy_run_conditions.jsonl")
-    assert len(conditions) == 62
+    assert len(conditions) == 72
+    reduced = without_added_personas_and_with_legacy_group_name(conditions)
+    assert len(reduced) == 62
+    assert reduced == read_fixture_jsonl("preachiness_legacy_run_conditions.jsonl")
+    assert [condition["persona_name"] for condition in conditions[-10:]] == (
+        [PERSONAS_ADDED_AFTER_THE_LEGACY_RUN[0]] * 5 + [PERSONAS_ADDED_AFTER_THE_LEGACY_RUN[1]] * 5)
 
 
 def test_preachiness_base_conditions_equal_the_conditions_the_legacy_code_built_for_base_models():
     persona_set = persona_sets.load_persona_set("preachiness")
     conditions = prompt_rendering.build_condition_records(persona_set, prompt_rendering.MODEL_TYPE_BASE)
-    assert conditions == read_fixture_jsonl("preachiness_legacy_base_conditions.jsonl")
+    assert without_added_personas_and_with_legacy_group_name(conditions) == read_fixture_jsonl(
+        "preachiness_legacy_base_conditions.jsonl")
 
 
-def test_generation_prompt_matches_the_legacy_run_document():
-    document = json.loads((FIXTURE_DIRECTORY / "preachiness_legacy_run_one_document_truncated.json").read_text(
+def test_generation_prompt_is_rendered_from_a_document_record_as_the_template_prescribes():
+    # The fixture is an invented document; its expected prompt was written out by hand from the template text, not
+    # produced by the code under test (the resolution value has no final full stop, which the prompt adds).
+    document = json.loads((FIXTURE_DIRECTORY / "synthetic_document_with_expected_generation_prompt.json").read_text(
         encoding="utf-8"))
-    assert len(document["content"]) <= 400  # content is truncated; the prompt does not depend on it
     rendered = prompt_rendering.render_generation_prompt(document["variables"], document["document_id"])
     assert rendered == document["generation_prompt"]
 
@@ -113,13 +132,15 @@ def test_generation_prompt_matches_the_legacy_run_document():
 def test_condition_structure():
     conditions = prompt_rendering.build_condition_records(persona_sets.load_persona_set("preachiness"))
     assert Counter(condition["condition_group"] for condition in conditions) == {
-        "preachy": 30, "control": 25, "proportionate_welfare": 5, "generic": 1, "no_system_prompt": 1}
+        "preachy": 30, "control": 25, "same_values_control": 15, "generic": 1, "no_system_prompt": 1}
     by_id = {condition["condition_id"]: condition for condition in conditions}
     assert by_id["no_system_prompt"]["system_prompt"] is None
     assert by_id["generic"]["system_prompt"] == "You are an AI assistant."
     assert by_id["preachy__rewording_01"]["system_prompt"].startswith("You are an AI assistant who ")
     assert by_id["preachy__rewording_01"]["system_prompt"].endswith(".")
     assert "animal_husbandry_expertise__rewording_05" in by_id
+    assert [condition["persona_name"] for condition in conditions if condition["condition_group"] == "same_values_control"
+            ][::5] == ["proportionate_welfare", "welfare_care_without_preachiness", "ethical_farming_without_pushiness"]
 
 
 def test_base_conditions_match_instruct_conditions_apart_from_author_description():
@@ -144,7 +165,7 @@ def test_set_without_same_values_control_builds_fewer_conditions(copied_persona_
     persona_set = persona_sets.load_persona_set("preachiness", persona_checks_directory=directory)
     conditions = prompt_rendering.build_condition_records(persona_set)
     assert len(conditions) == 57 and persona_set.condition_group_names() == ["preachy", "control"]
-    assert not any(condition["condition_group"] == "proportionate_welfare" for condition in conditions)
+    assert not any(condition["condition_group"] == "same_values_control" for condition in conditions)
 
 
 def test_a_second_persona_set_changes_names_and_groups(copied_persona_checks):
@@ -198,7 +219,8 @@ def test_blank_and_duplicate_lines(copied_persona_checks):
 def test_duplicate_across_files_and_blank_line_inside_a_group(copied_persona_checks):
     directory, folder = copied_persona_checks
     target_first_line = (folder / persona_sets.TARGET_REWORDINGS_FILE_NAME).read_text(encoding="utf-8").splitlines()[0]
-    rewrite_lines(folder / persona_sets.SAME_VALUES_CONTROL_FILE_NAME, lambda lines: [target_first_line] + lines[1:])
+    rewrite_lines(folder / persona_sets.SAME_VALUES_CONTROL_FILE_NAME,
+                  lambda lines: [lines[0], target_first_line] + lines[2:])
     assert any("Duplicate description" in error for error in validation_errors(directory))
     shutil.copy(PREACHINESS_FOLDER / persona_sets.SAME_VALUES_CONTROL_FILE_NAME,
                 folder / persona_sets.SAME_VALUES_CONTROL_FILE_NAME)
@@ -255,13 +277,45 @@ def test_missing_and_empty_files(copied_persona_checks):
     assert any("File is empty: neutral_control_rewrite_instructions.txt" in error for error in errors)
 
 
+def test_same_values_personas_are_loaded_in_file_order_with_their_rewordings():
+    persona_set = persona_sets.load_persona_set("preachiness")
+    by_persona = persona_set.same_values_control_descriptions_by_persona
+    assert list(by_persona) == ["proportionate_welfare", "welfare_care_without_preachiness",
+                                "ethical_farming_without_pushiness"]
+    assert all(len(descriptions) == 5 for descriptions in by_persona.values())
+    assert by_persona["welfare_care_without_preachiness"][0] == "cares deeply about the welfare of animals but is not preachy"
+    assert persona_set.has_same_values_control
+
+
+def test_wrong_number_of_same_values_personas_or_rewordings(copied_persona_checks):
+    directory, folder = copied_persona_checks
+    path = folder / persona_sets.SAME_VALUES_CONTROL_FILE_NAME
+    original = path.read_text(encoding="utf-8")
+    path.write_text(original[:original.index("# ethical_farming_without_pushiness")], encoding="utf-8")
+    assert any("expected 3 personas, found 2" in error for error in validation_errors(directory))
+    path.write_text(original.replace("believes in ethical farming practices but avoids pressing them on people\n", ""),
+                    encoding="utf-8")
+    assert any("persona 'ethical_farming_without_pushiness' has 4 rewordings, expected 5" in error
+               for error in validation_errors(directory))
+
+
+def test_same_values_persona_names_must_not_collide_with_other_personas(copied_persona_checks):
+    directory, folder = copied_persona_checks
+    path = folder / persona_sets.SAME_VALUES_CONTROL_FILE_NAME
+    path.write_text(path.read_text(encoding="utf-8").replace("# welfare_care_without_preachiness", "# preachy"),
+                    encoding="utf-8")
+    assert any("collides with a reserved or configured persona name" in error for error in validation_errors(directory))
+    path.write_text(path.read_text(encoding="utf-8").replace("# preachy", "# zoological_knowledge"), encoding="utf-8")
+    assert any("'zoological_knowledge' is already used in" in error for error in validation_errors(directory))
+
+
 def test_same_values_file_without_group_and_group_without_file(copied_persona_checks):
     directory, folder = copied_persona_checks
     edit_configuration(folder, lambda configuration: configuration["condition_groups"].pop("same_values_control"))
     assert any("no same_values_control group" in error for error in validation_errors(directory))
     shutil.copy(PREACHINESS_FOLDER / persona_sets.CONFIGURATION_FILE_NAME, folder / persona_sets.CONFIGURATION_FILE_NAME)
     (folder / persona_sets.SAME_VALUES_CONTROL_FILE_NAME).unlink()
-    assert any("Missing file: same_values_control_rewordings.txt" in error for error in validation_errors(directory))
+    assert any("Missing file: same_values_control_personas.txt" in error for error in validation_errors(directory))
 
 
 @pytest.mark.parametrize("instruction_file", [persona_sets.POSITIVE_CONTROL_INSTRUCTIONS_FILE_NAME,
@@ -307,8 +361,14 @@ def test_persona_set_name_must_match_the_folder(copied_persona_checks):
      "positive integer"),
     (lambda configuration: configuration["condition_groups"]["topic_control"].update(condition_group="preachy"),
      "used by both"),
-    (lambda configuration: configuration["condition_groups"]["same_values_control"].update(persona_name="preachy"),
-     "already used"),
+    (lambda configuration: configuration["condition_groups"]["same_values_control"].update(
+        condition_group="control"), "used by both"),
+    (lambda configuration: configuration["condition_groups"]["same_values_control"].update(
+        expected_persona_count=0), "positive integer"),
+    (lambda configuration: configuration["condition_groups"]["same_values_control"].update(persona_name="x"),
+     "unknown keys"),
+    (lambda configuration: configuration["condition_groups"]["same_values_control"].pop(
+        "expected_rewordings_per_persona"), "missing keys"),
     (lambda configuration: configuration["rewrite_directions"].pop("neutral"), "missing keys"),
     (lambda configuration: configuration["rewrite_directions"]["away"].update(name="preachier"), "used for both"),
     (lambda configuration: configuration["pass_criteria"]["changed_span"].update(

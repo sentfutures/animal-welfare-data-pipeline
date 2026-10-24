@@ -51,7 +51,7 @@ def test_writes_contract_files_beside_a_bare_corpus_file(build, corpus_path):
     assert run_folder.name.startswith("log_probability_persona_check_preachiness_instruct_")
     documents = utils.load_jsonl(run_folder / "scoring_inputs" / "documents.jsonl")
     conditions = utils.load_jsonl(run_folder / "scoring_inputs" / "conditions.jsonl")
-    assert len(documents) == 3 and len(conditions) == 62
+    assert len(documents) == 3 and len(conditions) == 72
     assert set(documents[0]) == {"document_id", "source_document_id", "rewrite_direction", "content", "language",
                                  "variables", "generation_prompt"}
     assert documents[0]["rewrite_direction"] is None and documents[0]["source_document_id"] == documents[0]["document_id"]
@@ -63,7 +63,7 @@ def test_writes_contract_files_beside_a_bare_corpus_file(build, corpus_path):
     assert configuration["persona_set"]["name"] == "preachiness"
     assert configuration["pass_criteria"] == configuration["persona_set"]["configuration"]["pass_criteria"]
     assert configuration["persona_set"]["neutral_control_instructions_are_draft"] is True
-    assert configuration["number_of_conditions"] == 62
+    assert configuration["number_of_conditions"] == 72
     assert all(len(value) == 64 for value in configuration["prompt_file_sha256"].values())
     assert "preachiness/target_persona_rewordings.txt" in configuration["prompt_file_sha256"]
     assert "preachiness/neutral_control_rewrite_instructions.txt" not in configuration["prompt_file_sha256"]
@@ -173,7 +173,7 @@ def test_base_run_records_model_type_default_model_and_base_framing_hashes(build
     assert not set(persona_sets.BASE_MODEL_FRAMING_FILE_NAMES) & {
         name.split("/")[1] for name in instruct["prompt_file_sha256"]}
     conditions = utils.load_jsonl(base_run_folder / "scoring_inputs" / "conditions.jsonl")
-    assert len(conditions) == 62 and all("author_description" in condition for condition in conditions)
+    assert len(conditions) == 72 and all("author_description" in condition for condition in conditions)
 
 
 def test_other_models_need_a_pinned_revision(build, monkeypatch):
@@ -288,7 +288,7 @@ def test_dry_run_writes_nothing_and_says_when_token_count_is_skipped(build, corp
     monkeypatch.setattr(build_inputs, "load_tokenizer_from_local_cache", lambda name, revision: None)
     assert build("--dry-run") is None
     output = capsys.readouterr().out
-    assert "62 conditions" in output and "documents: 3" in output and "token count: skipped" in output
+    assert "72 conditions" in output and "documents: 3" in output and "token count: skipped" in output
     assert not (corpus_path.parent / "audit").exists()
 
 

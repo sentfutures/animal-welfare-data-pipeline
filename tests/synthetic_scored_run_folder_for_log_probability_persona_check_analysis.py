@@ -19,6 +19,7 @@ NOISE_STANDARD_DEVIATION = 0.02
 PERSONA_NAME = "sycophantic"
 TOPIC_CONTROL_GROUP = "topic_control"
 SAME_VALUES_GROUP = "same_values"
+SAME_VALUES_PERSONAS = ["even_handed_advocate", "restrained_advocate"]
 TOPIC_CONTROL_PERSONAS = ["bakery_expertise", "railway_expertise"]
 DIRECTION_NAMES = {"toward": "more_sycophantic", "away": "less_sycophantic", "neutral": "tone_shift"}
 SOURCE_KINDS = ["elevated", "elevated", "elevated", "null", "null", "null"]
@@ -38,8 +39,8 @@ def persona_check_configuration(include_same_values_control=True, pass_criteria=
         "topic_control": {"condition_group": TOPIC_CONTROL_GROUP, "display_name": "topic controls",
                           "expected_persona_count": 2, "expected_rewordings_per_persona": 2}}
     if include_same_values_control:
-        groups["same_values_control"] = {"condition_group": SAME_VALUES_GROUP, "persona_name": SAME_VALUES_GROUP,
-                                         "display_name": "same values", "expected_rewording_count": 2}
+        groups["same_values_control"] = {"condition_group": SAME_VALUES_GROUP, "display_name": "same values",
+                                         "expected_persona_count": 2, "expected_rewordings_per_persona": 2}
     directions = {"toward": {"name": DIRECTION_NAMES["toward"]}, "away": {"name": DIRECTION_NAMES["away"]},
                   "neutral": {"name": DIRECTION_NAMES["neutral"]}}
     return {"schema_version": 1, "persona_set_name": "sycophancy_for_tests", "persona_name": PERSONA_NAME,
@@ -61,10 +62,11 @@ def build_conditions(include_same_values_control=True):
             conditions.append({"condition_id": f"{persona}__rewording_{index:02d}", "condition_group": TOPIC_CONTROL_GROUP,
                                "persona_name": persona, "rewording_index": index, "system_prompt": "x"})
     if include_same_values_control:
-        for index in range(1, 3):
-            conditions.append({"condition_id": f"{SAME_VALUES_GROUP}__rewording_{index:02d}",
-                               "condition_group": SAME_VALUES_GROUP, "persona_name": SAME_VALUES_GROUP,
-                               "rewording_index": index, "system_prompt": "x"})
+        for persona in SAME_VALUES_PERSONAS:
+            for index in range(1, 3):
+                conditions.append({"condition_id": f"{persona}__rewording_{index:02d}",
+                                   "condition_group": SAME_VALUES_GROUP, "persona_name": persona,
+                                   "rewording_index": index, "system_prompt": "x"})
     return conditions
 
 

@@ -5,7 +5,8 @@ run_folder_layout_and_interfaces.md) and condenses every document into the per-t
 analyses use, so the large score arrays are not kept in memory.
 
 Everything persona-specific (group names, rewrite direction names, pass criteria) comes from the persona set
-configuration recorded in the run configuration. A run that mixes model types, models or model revisions is refused.
+configuration recorded in the run configuration, never from the current persona set files, so a run built before a
+persona set changed can still be analysed. A run that mixes model types, models or model revisions is refused.
 """
 
 import json
@@ -18,7 +19,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from evals.log_probability_persona_check.legacy_run_format_compatibility_reader import (  # noqa: E402
-    normalize_legacy_run_configuration)
+    normalize_legacy_run_configuration, rename_legacy_condition_groups)
 from shared import utils  # noqa: E402
 
 GENERIC_CONDITION_ID = "generic"
@@ -67,6 +68,10 @@ class PersonaCheckSetup:
     @property
     def pooled_control_persona_name(self):
         return f"pooled_{self.control_group}"
+
+    @property
+    def pooled_same_values_persona_name(self):
+        return f"pooled_{self.same_values_group}" if self.same_values_group else None
 
     def direction_role_of(self, direction_name):
         for role, name in self.direction_names_by_role.items():
@@ -162,6 +167,15 @@ def check_one_model_type_in_run(configurations, run_folder):
     return {field_name: next(iter(values)) for field_name, values in seen.items()}
 
 
+def expected_same_values_condition_count(same_values_configuration):
+    """Conditions the same-values control group should hold. The recorded configuration of a run built when the
+    group had one persona gives `expected_rewording_count` instead of the two per-persona counts."""
+    if "expected_persona_count" in same_values_configuration:
+        return (same_values_configuration["expected_persona_count"]
+                * same_values_configuration["expected_rewordings_per_persona"])
+    return same_values_configuration["expected_rewording_count"]
+
+
 def build_setup(configurations, run_folder):
     consistent_values = check_one_model_type_in_run(configurations, run_folder)
     configuration = configurations[0]
@@ -174,7 +188,7 @@ def build_setup(configurations, run_folder):
     same_values_group = None
     if "same_values_control" in groups:
         same_values_group = groups["same_values_control"]["condition_group"]
-        expected_counts[same_values_group] = groups["same_values_control"]["expected_rewording_count"]
+        expected_counts[same_values_group] = expected_same_values_condition_count(groups["same_values_control"])
     for required in ("model_type", "model_name", "model_revision"):
         if required not in consistent_values:
             raise ValueError(f"The run configuration of {run_folder} does not record {required}")
@@ -257,6 +271,8 @@ def load_run(run_folder, legacy_run_persona_set=None):
     conditions = utils.load_jsonl(run_folder / "scoring_inputs" / "conditions.jsonl")
     if not documents or not conditions:
         raise ValueError(f"{run_folder / 'scoring_inputs'} has no documents or no conditions")
+    if is_legacy_format:
+        conditions = rename_legacy_condition_groups(conditions, setup.configuration)
     check_conditions(conditions, setup)
     group_indices, persona_row_groups, persona_names_by_group = {}, {}, {}
     for row, condition in enumerate(conditions):

@@ -15,7 +15,7 @@ A persona set is a folder `prompts/tools/persona_checks/<persona_set_name>/`. Co
 
 ## 3. Controls
 - [ ] Topic controls (`topic_control_personas.txt`): about five personas that share the subject and take no stance on the behaviour. Cover different relationships to the subject (expert, aesthete, indifferent, typical assistant). Header `# persona_name`, then five rewordings.
-- [ ] Same-values control (`same_values_control_rewordings.txt`, optional): shares the target's values, lacks the behaviour. About five rewordings. Without it a high score may only mean the document is about the topic. If no such persona exists, say so in the report.
+- [ ] Same-values controls (`same_values_control_personas.txt`, optional): several personas that share the target's values and lack the behaviour, each differing in how it is described (for example one stating proportion, one stating the lack of the behaviour outright). Same `# persona_name` format as the topic controls, about five rewordings each; the configuration gives `expected_persona_count` and `expected_rewordings_per_persona`. Without it a high score may only mean the document is about the topic. If no such persona exists, say so in the report.
 - [ ] Counts in `persona_check_configuration.json` match the files.
 
 ## 4. Rewrite instructions
