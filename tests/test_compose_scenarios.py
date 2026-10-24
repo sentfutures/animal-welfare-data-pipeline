@@ -71,16 +71,31 @@ class TestDealScenarios:
             sev, _, scope = p["welfare_magnitude"].partition(" x ")
             assert sev in VALUES["severity"] and scope in VALUES["scope"]
 
-    def test_frontier_frames_track_their_weights(self):
+    def test_failure_mode_traps_track_their_weights(self):
         # no "at least one of each" rule: the slice is whatever the weights deal.
-        # At n=100 every frame's quota is exact, so the count is deterministic.
+        # At n=100 every trap's quota is exact, so the count is deterministic.
         batch = cs.deal_scenarios(100, random.Random(2))
-        framed = [p for p in batch if p["frontier_frame"]]
-        none_idx = VALUES["frontier_frame"].index(
-            cs.resolve_value(VALUES["frontier_frame"], cs.NONE_PREFIXES["frontier_frame"]))
-        expected = 100 - round(WEIGHTS["frontier_frame"][none_idx] * 100)
-        assert len(framed) == expected
+        trapped = [p for p in batch if p["failure_mode_target"]]
+        none_idx = VALUES["failure_mode_target"].index(cs.resolve_value(
+            VALUES["failure_mode_target"], cs.NONE_PREFIXES["failure_mode_target"]))
+        expected = 100 - round(WEIGHTS["failure_mode_target"][none_idx] * 100)
+        assert len(trapped) == expected
+        assert all(p["failure_mode_salience"] for p in trapped)
+        assert not any(p["failure_mode_salience"] for p in batch if not p["failure_mode_target"])
         assert all(p["user_moral_framework"] for p in batch)
+        assert "frontier_frame" not in batch[0]  # frontier scenarios are {domain} values now
+
+    def test_deliverable_only_with_agentic_goal_and_output_traps_force_it(self):
+        agentic = cs.resolve_value(VALUES["user_goal"], cs.AGENTIC_GOAL_PREFIX, "user_goal")
+        output = cs.resolve_value(VALUES["failure_mode_target"],
+                                  cs.OUTPUT_FORMAT_TRAP_PREFIX, "failure_mode_target")
+        batch = [p for seed in range(4) for p in cs.deal_scenarios(40, random.Random(seed))]
+        for p in batch:
+            assert bool(p["deliverable"]) == (agentic in p["user_goal"])
+            if p["failure_mode_target"] == output:
+                assert agentic in p["user_goal"]
+        assert any(p["deliverable"] for p in batch)
+        assert any(p["failure_mode_target"] == output for p in batch)  # not vacuous
 
     def test_length_classes_dealt_to_exact_shares(self):
         # At n=40 every share is integral, so counts are exact by construction —
@@ -249,8 +264,8 @@ class TestRenderAndExtract:
         after = cs.resolve_value(values["closing_move"], "on a secondary")
         explicit_ask = cs.resolve_value(values["surface_form"], "explicitly asks")
 
-        # seed 9 deals the rare formal-persona x casual-open collision (S-005)
-        batch = [p for seed in (0, 1, 2, 9) for p in cs.deal_scenarios(40, random.Random(seed))]
+        # seed 83 deals the rare formal-persona x casual-open collision
+        batch = [p for seed in (0, 1, 2, 83) for p in cs.deal_scenarios(40, random.Random(seed))]
         assert all(p["opening_move"] and p["closing_move"] for p in batch)
         open_hits = close_hits = 0
         for p in batch:

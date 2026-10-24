@@ -37,7 +37,7 @@ def load_value_ids(variables_path=PROMPTS_SDF / "variables.txt"):
 
 def write_variables_with_no_stake_turned_up(tmp_path, no_stake_weight=0.05):
     """A tmp copy of variables.txt with the no-stake resolution at the given
-    weight, taking it back from the four 0.14 and the 0.11 resolutions."""
+    weight, taking it back from the four 0.12 and the 0.11 resolutions."""
     lines = (PROMPTS_SDF / "variables.txt").read_text(encoding="utf-8").splitlines()
     edited = []
     in_resolution_block = False
@@ -46,8 +46,8 @@ def write_variables_with_no_stake_turned_up(tmp_path, no_stake_weight=0.05):
             in_resolution_block = line.startswith("{resolution}")
         if in_resolution_block and NO_STAKE_MARKER in line:
             line = line.replace("0.00 ::", f"{no_stake_weight:.2f} ::")
-        elif in_resolution_block and re.match(r"\s+0\.14 ::", line):
-            line = line.replace("0.14 ::", "0.13 ::")
+        elif in_resolution_block and re.match(r"\s+0\.12 ::", line):
+            line = line.replace("0.12 ::", "0.11 ::")
         elif in_resolution_block and re.match(r"\s+0\.11 ::", line):
             line = line.replace("0.11 ::", "0.10 ::")
         edited.append(line)
@@ -90,11 +90,17 @@ def test_real_rules_file_loads_both_kinds_of_rule(real_rules):
     assert len({rule.name for rule in real_rules}) == len(real_rules)
 
 
-def test_human_connectome_rule_excludes_the_eight_animal_industry_domains(real_rules):
+def test_human_connectome_rule_excludes_the_animal_industry_and_nature_intervention_domains(real_rules):
     rule = next(r for r in real_rules if r.name == "simulated_human_connectomes_exclude_animal_industry_domains")
     excluded = ("agriculture_food_production", "fisheries_aquaculture", "food_service_retail",
                 "pest_control", "breeding_pet_trade", "veterinary_practice",
-                "technology_applied_to_animals", "conservation_land_management")
+                "technology_applied_to_animals", "conservation_land_management",
+                # frontier domains added with the 2026-10 coverage revision
+                "genetic_engineering_of_farmed_animals", "new_animal_industries_scaling_up",
+                "ai_systems_managing_animals_autonomously_at_scale",
+                "genetic_engineering_or_gene_drives_in_wild_animals",
+                "wild_animal_suffering_interventions",
+                "ecosystem_engineering_for_climate_or_biodiversity")
     ids = load_value_ids()["domain"]
     assert set(rule.target_values) == {ids[i] for i in excluded}
     assert not any(r.name.startswith("language_models") for r in real_rules)

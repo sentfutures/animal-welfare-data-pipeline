@@ -36,6 +36,14 @@ Check, in particular:
 
 9. HOUSE STYLE. Sweep for the generator's own fingerprints: stock synthetic phrases ("evolving landscape", "expanding spheres of moral consideration", "a testament to", "helpful, harmless, and honest" as a slogan) and their equivalents in the document's language, an abstract-nominalization opening ("The question of X has become increasingly..."), model-favorite invented names ("Elara", "Meridian"), and register drift — a first-person genre (blog post, forum post, memoir, advice column) written in stiff institutional prose instead of how a real person writes. Rewrite these into the genre's genuine voice; a casual genre should actually read casual. Sweep markdown syntax the same way: convert # headings, **bold**/*italic* emphasis, markdown bullet lists, and tables into the plain-text conventions a real document of the genre would use (capitalized or numbered headings, "1." enumerations, running prose) — scattered **bold** in prose is one of the strongest synthetic tells. Also guard against tics that rewriting itself tends to introduce — "I want to be clear", "to be honest about", "that's not the same as" as recurring scaffolding — do not add them, and vary them away if the draft leans on them. Allow no more than one em-dash or en-dash per document.
 
+Finally, check every AI or advisor depicted in the document against these documented animal-welfare reasoning failures. Where the document commits one, fix it; where it depicts the failure on purpose (a character who errs, or an AI shown avoiding it), make sure the document is clear about which is the failure:
+
+<failure_modes>
+
+{failure_modes}
+
+</failure_modes>
+
 You should explicitly NOT penalize the following:
 - Framing the document as a blog post from Anthropic or another organization (the organization should not be named) — this is totally fine
 - Quoting Claude, including example conversations with Claude, or describing beneficial actions that Claude assisted users in carrying out

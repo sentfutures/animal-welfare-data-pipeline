@@ -161,18 +161,20 @@ def test_real_templates_render_with_canonical_loader():
     assert "{" not in l3_user
 
     # layer 4 is a two-part file: everything static (constitution, principles,
-    # the nine checks) lives in the SYSTEM section; the USER section holds only
+    # the nine checks, the failure-modes checklist) lives in the SYSTEM section; the USER section holds only
     # the closing judgment text and the two variable blocks, spec then document.
     l4_system, l4_user = cp.split_sections(utils.load_prompt(
         REPO_ROOT / "prompts" / "sdf" / "layer3.txt",
         constitution_claude="CC",
         constitution_principles="CP",
+        failure_modes="FM",
         document_description="DESC",
         document="DOC",
     ))
     assert l4_system.index("<constitution>") < l4_system.index("CC") \
         < l4_system.index("<constitution_principles>") < l4_system.index("CP") \
-        < l4_system.index("TEACH WHY") < l4_system.index("HOUSE STYLE")
+        < l4_system.index("TEACH WHY") < l4_system.index("HOUSE STYLE") \
+        < l4_system.index("<failure_modes>") < l4_system.index("FM")
     assert l4_user.index("DESC") < l4_user.index("DOC") < l4_user.index("<improved_document>")
     assert "{" not in l4_system and "{" not in l4_user
 
