@@ -207,6 +207,21 @@ def test_pod_terminated_on_success_and_cost_log_written(run_folder):
     assert any(command.startswith("umask 077; cat >") and "HF_TOKEN" in (text or "") for command, text in transfer.commands)
 
 
+def test_gpu_type_missing_from_the_creation_response_is_read_once_the_pod_is_running(run_folder):
+    class ClientWhoseCreationResponseNamesNoGpu(FakeRunPodClient):
+        def create_pod(self, creation_request):
+            self.calls.append(("create_pod", creation_request))
+            return {"id": "fakepod123", "costPerHr": self.hourly_price}
+
+        def get_pod(self, pod_id):
+            return {**super().get_pod(pod_id), "machine": {"gpuTypeId": "NVIDIA H100 80GB HBM3"}}
+
+    clock, client = FakeClock(), ClientWhoseCreationResponseNamesNoGpu()
+    transfer = FakeTransfer(scorer_finishes_after_seconds=600, clock=clock)
+    assert launch(run_folder, client, transfer, clock) == 0
+    assert read_cost_log(run_folder)["gpu_type"] == "NVIDIA H100 80GB HBM3"
+
+
 def test_pod_terminated_on_exception(run_folder):
     clock, client = FakeClock(), FakeRunPodClient()
     transfer = FakeTransfer(clock=clock, ssh_never_ready=True)

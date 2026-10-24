@@ -686,14 +686,31 @@ class PodSession:
 
     @staticmethod
     def _gpu_name(pod):
+        # The REST pod object has carried the GPU in different places; the creation response often has none,
+        # so later reads of the pod fill it in.
         gpu = pod.get("gpu") or {}
-        return gpu.get("displayName") or gpu.get("id") or "unknown"
+        machine = pod.get("machine") or {}
+        return (gpu.get("displayName") or gpu.get("id") or machine.get("gpuDisplayName")
+                or machine.get("gpuTypeId") or pod.get("gpuTypeId") or "unknown")
+
+    def record_gpu_type_if_unknown(self):
+        """The creation response usually names no GPU; once the pod is running, a fresh read of it does."""
+        if self.cost_log.record.get("gpu_type") not in (None, "unknown"):
+            return
+        try:
+            gpu_type = self._gpu_name(self.client.get_pod(self.pod_id))
+        except Exception as error:  # a missing GPU name is not worth failing a run over
+            self.say(f"Could not read the pod's GPU type: {error}")
+            return
+        self.cost_log.update(gpu_type=gpu_type)
+        self.say(f"Pod GPU: {gpu_type}")
 
     def prepare_and_start_scorer(self, pod):
         """Returns None once the scorer is running, or a termination reason if the pod is to be deleted instead. ssh
         never becoming ready raises (the pod is then deleted); a failed setup step waits for an instruction file."""
         self.say("Waiting for pod ssh")
         self.transfer.wait_until_ready(pod, self.clock() + 1200, lambda: self.client.get_pod(self.pod_id), self.sleep)
+        self.record_gpu_type_if_unknown()
         if self.arguments.reuse_existing_pod:
             self.prepare_reused_pod_run_folder()
         while True:
