@@ -36,7 +36,7 @@ TEMPLATE_KWARGS = [
     ("sdf/layer1_select_considerations.txt", {
         "document_type": "TYPE-X", "centrality": "CENTRALITY-X", "sentient_category": "MINDS-X",
         "document_description": "DESC-X", "moral_list": "MORAL-LIST-X", "epistemic_list": "EPISTEMIC-LIST-X",
-        "existing_picks": "EXISTING-PICKS-X",
+        "existing_picks": "EXISTING-PICKS-X", "full_entries": "FULL-ENTRIES-X",
     }),
     ("sdf/layer2.txt", {
         "preamble": "PREAMBLE-X", "constitution_claude": "CONST-C-X",

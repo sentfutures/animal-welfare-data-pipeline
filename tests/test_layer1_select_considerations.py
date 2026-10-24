@@ -265,6 +265,21 @@ def test_the_prompt_shows_the_lists_and_existing_picks_only_when_there_are_some(
     assert select.NO_ENTRIES_MARKER in one_list
 
 
+def test_the_prompt_names_full_entries_only_when_there_are_some_and_leaves_no_gap(small_prompts):
+    catalog, offered = make_offer(small_prompts)
+    template = select.load_selection_template(small_prompts)
+    facts = select.DocumentFacts("A scenario.", "a news article", "central", "farmed fishes")
+    _, plain = select.build_selection_prompt(template, facts, offered)
+    assert "already used enough" not in plain and "{" not in plain
+    assert "\n\n\n" not in plain
+    _, with_full = select.build_selection_prompt(template, facts, offered, (), [catalog.moral[0], catalog.epistemic[0]])
+    expected = (f"not offered here: {catalog.moral[0].label}; {catalog.epistemic[0].label}. "
+                "If the only consideration this scenario raises is one of these, answer none for that list")
+    assert expected in with_full
+    assert catalog.moral[0].gloss not in with_full.split("already used enough")[1].split("\n")[0]
+    assert "\n\n\n" not in with_full
+
+
 def test_the_selector_prompt_tells_the_model_none_is_expected_and_never_shows_a_target(small_prompts):
     _, offered = make_offer(small_prompts)
     _, user = select.build_selection_prompt(

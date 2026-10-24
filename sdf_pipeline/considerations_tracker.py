@@ -38,7 +38,7 @@ only asks the model and feeds the answers in.
 from dataclasses import dataclass
 
 from sdf_pipeline.considerations_catalog import (
-    LIST_NAMES, MORAL_LIST, ConsiderationCatalog, Consideration, target_count,
+    EPISTEMIC_LIST, LIST_NAMES, MORAL_LIST, ConsiderationCatalog, Consideration, target_count,
 )
 
 STATUS_ACCEPTED = "accepted"
@@ -114,6 +114,22 @@ class ConsiderationTracker:
         ]
         # sorted() is stable, so equal remaining need keeps catalog order
         return sorted(candidates, key=lambda entry: -self.remaining_need(entry))
+
+    def full_entries(self, prompt_id: str) -> list[Consideration]:
+        """Entries that have reached their target and would otherwise be eligible
+        for this document (digital-minds-only entries only for digital documents)
+        and that it does not already carry: moral list first, then epistemic,
+        catalog order within each."""
+        carried = self._carried[prompt_id]
+        is_digital = self._digital[prompt_id]
+        return [
+            entry
+            for list_name in (MORAL_LIST, EPISTEMIC_LIST)
+            for entry in self.catalog.entries_of(list_name)
+            if not self.is_open(entry)
+            and entry.label not in carried
+            and (is_digital or not entry.digital_minds_only)
+        ]
 
     # ------------------------------------------------------------ scheduling
 

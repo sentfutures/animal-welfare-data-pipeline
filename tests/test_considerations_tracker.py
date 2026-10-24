@@ -180,6 +180,23 @@ def test_digital_entry_with_no_digital_documents_has_a_zero_target_and_is_never_
     assert not tracker.is_open(tracker.catalog.entry_by_label("D1"))
 
 
+def test_full_entries_lists_filled_eligible_uncarried_entries_moral_first_then_epistemic():
+    catalog = make_catalog(moral=(("M1", 0.1), ("M2", 0.1), ("M3", 0.5)), epistemic=(("E1", 0.1),), digital=(("D1", 0.9),))
+    tracker = ConsiderationTracker(catalog, make_documents(10, digital_ids={"doc_8"}))   # M1, M2, E1 target 1; D1 target 1
+    assert tracker.full_entries("doc_9") == []
+    tracker.record_answer("doc_0", 1, 1, {MORAL_LIST: ("M2", "r"), EPISTEMIC_LIST: ("E1", "r")})
+    tracker.record_answer("doc_1", 1, 2, {MORAL_LIST: ("M1", "r")})
+    tracker.record_answer("doc_8", 1, 3, {EPISTEMIC_LIST: ("D1", "r")})
+    assert labels(tracker.full_entries("doc_9")) == ["M1", "M2", "E1"]              # D1 is digital-only, doc_9 is not digital
+    assert labels(tracker.full_entries("doc_7")) == ["M1", "M2", "E1"]
+    assert labels(tracker.full_entries("doc_0")) == ["M1"]                # doc_0 carries M2 and E1
+    assert labels(tracker.full_entries("doc_8")) == ["M1", "M2", "E1"]              # D1 carried by doc_8; digital doc sees the rest
+    tracker2 = ConsiderationTracker(make_catalog(digital=(("D1", 0.5),)), make_documents(10, digital_ids={"doc_8", "doc_7"}))
+    tracker2.record_answer("doc_8", 1, 1, {EPISTEMIC_LIST: ("D1", "r")})
+    assert labels(tracker2.full_entries("doc_7")) == ["D1"]
+    assert labels(tracker2.full_entries("doc_9")) == []
+
+
 # --- the cap ---
 
 def test_a_category_is_removed_at_exactly_its_target_and_not_before():

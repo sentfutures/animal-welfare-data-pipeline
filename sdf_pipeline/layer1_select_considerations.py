@@ -8,7 +8,9 @@ that fits the scenario naturally, or "none". A run-level tracker
 (considerations_tracker.py, pure code) counts picks against each entry's target,
 orders each list offered to a document by remaining need (target minus picks,
 largest first, catalog order breaking ties) and stops offering an entry once its
-target is met; later passes re-offer the entries still under target, so a
+target is met; the entries that have filled (and that this document could otherwise be
+offered and does not already carry) are named in a separate line, with an instruction
+to answer none rather than relabel the idea as a neighbouring open entry; later passes re-offer the entries still under target, so a
 document can carry more than one consideration.
 
 The model answers through a JSON schema built per call from the entries offered
@@ -124,12 +126,18 @@ def build_selection_prompt(
     facts: DocumentFacts,
     offered: dict[str, list[Consideration]],
     existing_picks: list[Consideration] = (),
+    full_entries: list[Consideration] = (),
 ) -> tuple[str | None, str]:
     """Render (system, user) for one document. ``offered`` maps each list name to
     the entries shown (an empty or missing list renders as a "no entries" marker);
-    ``existing_picks`` are the document's earlier picks, shown only when there are any."""
+    ``existing_picks`` are the document's earlier picks, shown only when there are any.
+    ``full_entries`` are the entries that have reached their target and would otherwise be
+    eligible for this document; their labels are named in a line telling the model not to
+    relabel them, shown only when there are any."""
     if not existing_picks:
         template = deal_constraints.drop_template_lines(template, ["existing_picks"])
+    if not full_entries:
+        template = deal_constraints.drop_template_lines(template, ["full_entries"])
     rendered = template.format(
         document_type=facts.document_type,
         centrality=facts.centrality,
@@ -138,6 +146,7 @@ def build_selection_prompt(
         moral_list=render_entries(offered.get(MORAL_LIST, [])),
         epistemic_list=render_entries(offered.get(EPISTEMIC_LIST, [])),
         existing_picks="; ".join(pick.label for pick in existing_picks),
+        full_entries="; ".join(entry.label for entry in full_entries),
     )
     return split_sections(rendered)
 
@@ -218,6 +227,7 @@ def select_for_document(
     facts: DocumentFacts,
     offered: dict[str, list[Consideration]],
     existing_picks: list[Consideration] = (),
+    full_entries: list[Consideration] = (),
     *,
     template: str,
     model: str | None = None,
@@ -228,7 +238,7 @@ def select_for_document(
     Raises SelectionAnswerError for a truncated, malformed, or unknown-label
     answer; API errors propagate. Uses the global temperature and tags the call
     ``layer1_select`` for the cost log."""
-    system, user = build_selection_prompt(template, facts, offered, existing_picks)
+    system, user = build_selection_prompt(template, facts, offered, existing_picks, full_entries)
     raw, stop_reason = api.call_claude(
         user,
         system_prompt=system or "",
@@ -368,12 +378,12 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
     failed_this_session: set[str] = set()
     lock = threading.Lock()   # guards the tracker, the selections file, the counters and the work queue
 
-    def select_one(call, offered, existing, pass_number):
+    def select_one(call, offered, existing, full, pass_number):
         """The model call only: no shared state is touched, so it runs outside the lock."""
         try:
             started = time.monotonic()
             choices = select_for_document(
-                facts_by_id[call.prompt_id], offered, existing,
+                facts_by_id[call.prompt_id], offered, existing, full,
                 template=template, model=model, item_id=f"{call.prompt_id}_pass{pass_number}")
             return choices, time.monotonic() - started, None
         except SelectionAnswerError as e:
@@ -404,9 +414,10 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
                     continue    # everything it could be offered has filled since the pass began
                 offered = {name: tracker.offered_entries(prompt_id, name) for name in call.list_names}
                 existing = [catalog.entry_by_label(label) for label in sorted(tracker.labels_carried_by(prompt_id))]
+                full = tracker.full_entries(prompt_id)
                 start_number = stats["next_start"]
                 stats["next_start"] += 1
-                return call, offered, existing, start_number
+                return call, offered, existing, full, start_number
             return None
 
         def worker_loop():
@@ -416,8 +427,8 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
                     work = take_next()
                 if work is None:
                     return
-                call, offered, existing, start_number = work
-                choices, seconds, problem = select_one(call, offered, existing, pass_number)
+                call, offered, existing, full, start_number = work
+                choices, seconds, problem = select_one(call, offered, existing, full, pass_number)
                 with lock:
                     attempted += 1
                     if not problem:

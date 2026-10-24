@@ -28,6 +28,8 @@ A list shown as "(no entries offered)" has nothing to choose from for this docum
 
 This document already carries the following considerations from an earlier pass, so they are no longer offered: {existing_picks}
 
+These entries are already used enough across the corpus and are not offered here: {full_entries}. If the only consideration this scenario raises is one of these, answer none for that list rather than choosing a different entry that only resembles it.
+
 For each list, go down it in order and choose the FIRST entry that arises naturally in this scenario: one that a thoughtful writer working from this specification would reach without being pushed, because the situation itself calls for it. If no entry fits that way, answer none for that list.
 
 Answering none is expected and usually correct. A consideration forced into a scenario that does not raise it makes a worse document than one that leaves it out, so do not stretch an entry to fit, and do not choose an entry just because it sounds important or comes early in the list. The two lists are judged independently: you may choose from one, from both, or from neither.
