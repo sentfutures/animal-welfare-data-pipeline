@@ -561,6 +561,7 @@ def test_pass_two_offers_only_under_target_entries_and_documents_can_carry_sever
     pass_two = [c for c in calls if c["item_id"].endswith("pass2")]
     assert pass_two
     carrier = next(p["prompt_id"] for p in result if "Alpha moral" in p["variables"]["moral_considerations"])
+    assert {c["item_id"].split("_pass")[0] for c in pass_two} == {carrier}   # only the document accepted in pass 1 is asked again
     for call in pass_two:
         shown = offered_in(call["user_message"])
         if call["item_id"].startswith(carrier):

@@ -28,7 +28,8 @@
 #   documents, rounded half up and never below 1. Eligible documents are those that reach
 #   the selector (after the screen, minus any skipped below).
 # - {moral_considerations} and {epistemic_considerations} are offered on every eligible
-#   document, one pick from each per pass.
+#   document, one pick from each per pass. Pass 1 asks every eligible document; a later pass asks
+#   only the documents that got an accepted pick in the pass before it.
 # - {epistemic_considerations_digital_minds_only} entries are on the epistemic list, ordered by
 #   remaining need like every other entry (they have no fixed top position), but only on documents whose sentient_category is one of {digital_mind_categories};
 #   their targets are shares of those documents, not of all documents.

@@ -302,6 +302,41 @@ def test_pass_two_offers_only_under_target_categories_and_never_one_the_document
     assert all(names == (MORAL_LIST,) for names in calls.values())   # the epistemic list has nothing left
 
 
+def asked_in(tracker, pass_number):
+    return [call.prompt_id for call in tracker.pending_calls(pass_number)]
+
+
+def test_pass_two_asks_only_documents_with_an_accepted_pick_in_pass_one():
+    tracker = ConsiderationTracker(make_catalog(moral=(("M1", 0.9), ("M2", 0.9)), epistemic=(("E1", 0.9),)), make_documents(4))
+    tracker.record_answer("doc_0", 1, 1, {MORAL_LIST: ("M1", "r"), EPISTEMIC_LIST: (None, "")})
+    tracker.record_answer("doc_1", 1, 1, {MORAL_LIST: (None, ""), EPISTEMIC_LIST: ("E1", "r")})
+    tracker.record_answer("doc_2", 1, 1, {MORAL_LIST: (None, ""), EPISTEMIC_LIST: (None, "")})
+    # doc_3 was never asked in pass 1 (for example it failed), so it has no accepted pick either
+    assert "doc_3" in asked_in(tracker, 1)
+    assert asked_in(tracker, 2) == ["doc_0", "doc_1"]
+    assert tracker.pending_call_for("doc_2", 2) is None
+
+
+def test_pass_three_asks_only_documents_accepted_in_pass_two_not_pass_one():
+    tracker = ConsiderationTracker(make_catalog(moral=(("M1", 0.9), ("M2", 0.9), ("M3", 0.9)), epistemic=(("E1", 0.9),)), make_documents(3))
+    tracker.record_answer("doc_0", 1, 1, {MORAL_LIST: ("M1", "r"), EPISTEMIC_LIST: (None, "")})
+    tracker.record_answer("doc_1", 1, 1, {MORAL_LIST: ("M1", "r"), EPISTEMIC_LIST: (None, "")})
+    tracker.record_answer("doc_0", 2, 1, {MORAL_LIST: ("M2", "r")})
+    tracker.record_answer("doc_1", 2, 1, {MORAL_LIST: (None, "")})
+    assert asked_in(tracker, 3) == ["doc_0"]
+
+
+def test_over_cap_only_and_none_only_documents_are_not_carried_into_the_next_pass():
+    tracker = ConsiderationTracker(make_catalog(moral=(("M1", 0.1), ("M2", 0.9)), epistemic=(("E1", 0.9),)), make_documents(10))
+    tracker.record_answer("doc_0", 1, 1, {MORAL_LIST: ("M1", "r"), EPISTEMIC_LIST: (None, "")})
+    # doc_1 was offered M1 before doc_0 filled it, so its only pick is rejected over cap
+    over_cap_row = tracker.record_answer("doc_1", 1, 2, {MORAL_LIST: ("M1", "r")}, offered_labels={MORAL_LIST: {"M1", "M2"}})
+    assert over_cap_row["outcomes"][0]["status"] == STATUS_OVER_CAP
+    tracker.record_answer("doc_1", 1, 3, {MORAL_LIST: (None, ""), EPISTEMIC_LIST: (None, "")})
+    tracker.record_answer("doc_2", 1, 1, {MORAL_LIST: (None, ""), EPISTEMIC_LIST: (None, "")})
+    assert asked_in(tracker, 2) == ["doc_0"]
+
+
 def test_a_document_with_nothing_left_to_offer_is_not_asked():
     tracker = ConsiderationTracker(make_catalog(moral=(("M1", 0.1),), epistemic=(("E1", 0.1),)), make_documents(10))
     tracker.record_answer("doc_0", 1, 1, {MORAL_LIST: ("M1", "r"), EPISTEMIC_LIST: ("E1", "r")})
@@ -367,6 +402,23 @@ def test_rebuilding_from_the_saved_rows_gives_the_state_of_the_uninterrupted_run
         partial.record_answer(row["prompt_id"], row["pass"], row["wave"],
                               {o["list"]: (o["label"], o["reason"]) for o in row["outcomes"]})
     assert state_of(partial) == state_of(uninterrupted)
+
+
+def test_resume_rebuilds_which_documents_are_asked_in_each_later_pass_from_the_saved_rows():
+    catalog = make_catalog(moral=(("M1", 0.9), ("M2", 0.9), ("M3", 0.9)), epistemic=(("E1", 0.9),))
+    documents = make_documents(4)
+    live = ConsiderationTracker(catalog, documents)
+    rows = run_scripted_waves(live, [
+        (1, 1, [("doc_0", {MORAL_LIST: ("M1", "a"), EPISTEMIC_LIST: (None, "")}),
+                ("doc_1", {MORAL_LIST: ("M1", "b"), EPISTEMIC_LIST: (None, "")}),
+                ("doc_2", {MORAL_LIST: (None, ""), EPISTEMIC_LIST: (None, "")})]),
+        (2, 1, [("doc_0", {MORAL_LIST: ("M2", "c")}), ("doc_1", {MORAL_LIST: (None, "")})]),
+    ])
+    rebuilt = ConsiderationTracker(catalog, documents)
+    rebuilt.replay(rows)
+    for pass_number in (2, 3):
+        assert asked_in(rebuilt, pass_number) == asked_in(live, pass_number)
+    assert asked_in(rebuilt, 3) == ["doc_0"]
 
 
 def test_replay_trusts_recorded_statuses_and_ignores_documents_no_longer_eligible():
