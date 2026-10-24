@@ -56,6 +56,7 @@ from evals.audit_sdf import resolve_input
 from sdf_pipeline import compose_prompts as cp
 from sdf_pipeline import considerations_catalog
 from shared import api, utils
+from shared.api_keys import add_api_key_source_flags, apply_api_key_source_flags
 
 REPO_ROOT = Path(__file__).parent.parent
 PROMPT_PATH = REPO_ROOT / "prompts" / "tools" / "variable_persistence_judge.txt"
@@ -551,7 +552,9 @@ def main() -> None:
     parser.add_argument("--resume", default=None, help="Continue an earlier output folder, skipping documents already judged")
     parser.add_argument("--dry-run", action="store_true",
                         help="Make no calls and need no key: print the first prompt and schema, the call count and a cost estimate")
+    add_api_key_source_flags(parser)
     args = parser.parse_args()
+    apply_api_key_source_flags(args)
 
     records, report_dir = resolve_input(args.input)
     if not records:
