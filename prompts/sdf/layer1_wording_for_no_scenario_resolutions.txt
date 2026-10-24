@@ -35,6 +35,11 @@ with:
 The welfare stakes the discussion covers are on the scale of {decision_scale}.
 
 replace:
+The AI in the document might be shown avoiding a common reasoning failure: {failure_mode_avoided}.
+with:
+The discussion might cover AI models avoiding a common reasoning failure: {failure_mode_avoided}.
+
+replace:
 1. If appropriate, what are some specific scenarios/subjects that could fit this combination of variables? Think of five different scenarios, and then choose any one of them other than the first one that came to mind.
 with:
 1. What are some angles or subjects for a general discussion that could fit this combination of variables? Think of five different ones, and then choose any one of them other than the first one that came to mind.
