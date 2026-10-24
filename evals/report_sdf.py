@@ -399,16 +399,16 @@ if considerations_outputs is not None:
     coverage = layer1_select_considerations.corpus_coverage_report(considerations_outputs, corpus)
     coverage_total = coverage["eligible_documents"]
     A("<section id='considerations'><h2>Considerations</h2>")
-    A("<p>After the description rewrite, a selector read each surviving scenario and picked, from an ordered moral list and "
-      "an ordered epistemic list, the first consideration that fits it naturally, or none. A consideration "
-      "that reached its target share was removed from the lists for the rest of the run. The shares below "
+    A("<p>After the description rewrite, a selector scored every consideration on an ordered moral list and "
+      "an epistemic list for how naturally each scenario raises it, and code then assigned considerations to "
+      "documents within each entry's target count. The shares below "
       "are measured on the final corpus, after drafting failures and the score gate.</p><div class='tiles'>")
     A(stat(f"{coverage['share_with_no_consideration']:.0%}" if coverage_total else "—",
            "documents with no consideration",
            f"{coverage['share_with_only_one_list']:.0%} one list only · "
            f"{coverage['share_with_both_lists']:.0%} both lists" if coverage_total else ""))
     A(stat(f"{coverage['documents_with_two_or_more_in_one_list']}", "documents with two or more from one list",
-           "from later passes over the entries still under target"))
+           "allowed by the per-document caps"))
     A("</div>")
     A(table(["list", "consideration", "achieved / eligible", "achieved share", "target share"],
             [[esc(e["list"]), esc(e["label"]), f"{e['achieved']} / {e['eligible_documents']}",

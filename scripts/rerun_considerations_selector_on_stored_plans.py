@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Rerun only the layer 1 considerations selector on plans stored by an earlier SDF pipeline run.
+"""Rerun only the layer 1 considerations selector (model scores every entry, code assigns) on plans stored by an earlier SDF pipeline run.
 
 Uses the CURRENT selector code and CURRENT prompt files of this worktree
 (prompts/sdf/layer1_select_considerations.txt and prompts/sdf/considerations.txt), not the
@@ -10,11 +10,11 @@ Everything is written into one new run folder:
     <output_root>/considerations_selector_rerun_on_<label>_<YYYY-MM-DD_HH-MM>/
         launch_record_<timestamp>.json          source run, git commit, model, workers
         prompt_snapshot/                        copies of the two prompt files used
-        selector_outputs/                       consideration_selections.jsonl (checkpoint source of truth),
-                                                _select_considerations_checkpoint.json,
-                                                consideration_coverage.json
+        selector_outputs/                       consideration_scores.jsonl (checkpoint source of truth),
+                                                consideration_scoring_failures.jsonl (only if a document failed),
+                                                consideration_selections.jsonl, consideration_coverage.json
         cost_log.jsonl, model_calls.jsonl       cost and full call records
-        comparison_table_<timestamp>.md         per entry: target, achieved, rejected over cap, original achieved
+        comparison_table_<timestamp>.md         per entry: target, achieved, documents scoring at or above the threshold, original achieved
 
 Example:
     python scripts/rerun_considerations_selector_on_stored_plans.py \\
@@ -66,13 +66,13 @@ def current_git_commit() -> str:
 def write_comparison_table(report: dict, original_report: dict | None, total_cost: float, path: Path) -> str:
     original_achieved = {e["label"]: e["achieved"] for e in (original_report or {}).get("entries", [])}
     lines = [
-        "| List | Entry | Target | Achieved | Rejected over cap | Original run achieved |",
+        "| List | Entry | Target | Achieved | Documents scoring at or above the threshold | Original run achieved |",
         "|---|---|---|---|---|---|",
     ]
     for entry in report["entries"]:
         original = original_achieved.get(entry["label"], "n/a")
         lines.append(f"| {entry['list']} | {entry['label']} | {entry['target_count']} | {entry['achieved']} "
-                     f"| {entry.get('rejected_over_cap', 0)} | {original} |")
+                     f"| {entry['documents_scoring_at_least_threshold']} | {original} |")
     table = "\n".join(lines)
     text = (f"# Considerations selector rerun: comparison with the original run\n\n"
             f"Eligible documents: {report['eligible_documents']}\n\n{table}\n\n"
@@ -114,7 +114,9 @@ def main() -> None:
 
     from shared import api, utils
     from sdf_pipeline import layer1_description_rewrite, layer1_select_considerations as selector
+    from sdf_pipeline import considerations_assignment as assignment
     from sdf_pipeline.considerations_catalog import load_considerations
+    from sdf_pipeline.considerations_coverage import entry_targets
 
     source_layer1_dir = utils.sdf_stage_dir(source_run_dir, 1)
     config = utils.load_config(str(config_path))
@@ -128,31 +130,34 @@ def main() -> None:
         prompts_dir = prompt_snapshot_dir if prompt_snapshot_dir.is_dir() else WORKTREE_ROOT / "prompts" / "sdf"
         catalog = load_considerations(prompts_dir)
         eligible = selector.eligible_plans(config, catalog, plans)
-        tracker = selector._build_tracker(config, catalog, plans)
+        document_is_digital = selector.digital_mind_flags(catalog, eligible)
+        targets = entry_targets(catalog, len(eligible), sum(document_is_digital.values()))
+        limits = assignment.limits_from_config(config)
         print(f"DRY RUN (no API calls). Source run: {source_layer1_dir}")
         print(f"Plans loaded: {len(plans)}; eligible documents: {len(eligible)}; "
-              f"digital-mind documents: {tracker.digital_count}")
+              f"digital-mind documents: {sum(document_is_digital.values())}; "
+              f"scoring calls that would be made: {len(eligible)}")
         print(f"Model: {config['sdf'].get('select_model') or config['sdf'].get('plan_model') or config['model']}; "
-              f"workers: {config.get('workers')}; max passes: {config['sdf'].get('max_selection_passes', 3)}")
+              f"workers: {config.get('workers')}; {limits}")
         print("Targets per entry:")
-        for entry in tracker.coverage_report()["entries"]:
-            print(f"  [{entry['list']}] {entry['label']}: target {entry['target_count']} "
-                  f"(share {entry['target_share']})")
-        first_id = selector.seeded_document_order(
-            [p["prompt_id"] for p in eligible], config["sdf"].get("seed", 0))[0]
-        first_plan = next(p for p in eligible if p["prompt_id"] == first_id)
+        for entry in catalog.all_entries:
+            print(f"  [{entry.list_name}] {entry.label}: target {targets[entry.label]} (share {entry.target_share})")
+        first_plan = min(eligible, key=lambda p: p["prompt_id"])
+        first_id = first_plan["prompt_id"]
         facts = selector.DocumentFacts(
             document_description=first_plan["description"],
             document_type=first_plan["variables"].get("document_type", ""),
             centrality=first_plan["variables"].get("centrality", ""),
             sentient_category=first_plan["variables"].get("sentient_category", ""))
-        offered = {name: tracker.offered_entries(first_id, name) for name in selector.LIST_NAMES}
-        system, user = selector.build_selection_prompt(
+        offered = selector.shuffled_offer(
+            selector.eligible_entries_for_document(catalog, first_plan["variables"]),
+            config["sdf"].get("seed", 0), first_id)
+        system, user = selector.build_scoring_prompt(
             selector.load_selection_template(prompts_dir), facts, offered)
         print(f"\n--- First document ({first_id}) rendered selector prompt: system ---\n{system}")
         print(f"\n--- user ---\n{user}")
         print("\n--- Answer schema ---")
-        print(json.dumps(selector.build_selection_schema(offered), indent=2))
+        print(json.dumps(selector.build_scoring_schema(offered), indent=2))
         return
 
     # Real run: snapshot the current prompts once (a resume keeps the original snapshot).
