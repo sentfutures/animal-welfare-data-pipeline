@@ -22,6 +22,7 @@ says so below, and the cost is per run rather than per example.
 | `diversity.py` | both | Semantic diversity in embedding space, the complement to the word-level scans above: nearest-neighbour similarity, near-duplicate rate, topic evenness, and the effective number of distinct documents. Needs an embedding key (`GEMINI_API_KEY` or `OPENAI_API_KEY`); cents per run, cached per run directory. |
 | `score_sdf.py` | SDF | Per-document judge scores (alignment, realism, diversity). Paid. |
 | `compliance_sdf.py` | SDF | Judges each document against the violation-typology appendix of the sentient-beings constitution reading, which supplies the rubric verbatim. Paid. |
+| `variable_persistence_sdf.py` | SDF | Per document, a judge says whether each dealt variable value and each assigned consideration persisted in the text (reasoning, then yes/no, typed JSON). The judge never sees the document's description. Resumable; `--dry-run` prints the prompt and a cost estimate with no calls. Paid. |
 | `report_sdf.py` | SDF | Builds a self-contained HTML report for a run. Offline. |
 | `review_tics.py` | DAD | Command-line triage for the tic-candidate queue: promote a candidate to the watchlist or dismiss it. Offline. |
 | `publish_hf.py` | both | Publishes a run's corpus and audit reports to a Hugging Face dataset. Not a measurement. See the warning below before running it. |
