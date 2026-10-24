@@ -13,3 +13,4 @@ sentient_category: the nonhumans (or possibly sentient minds) whose welfare is a
 naming: whether the AI assistant character in the document is Claude, named, or a generic unnamed AI
 domain: the field the welfare issues in the document arise from
 decision_scale: the scale of the welfare stakes, i.e. how many individuals (animals, minds or running instances) are affected
+failure_mode_avoided: a common welfare reasoning failure the AI in the document might be shown avoiding ("none in particular" means no failure was dealt, so any document persists it)

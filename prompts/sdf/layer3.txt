@@ -50,6 +50,14 @@ Replace a failing detail with a plausible one of the same role rather than delet
 - A dealt cost turned into a benefit: where the resolution has the user give something up, the sacrifice must stay a real cost, not pay off for them (better sales, good publicity, lower costs).
 - A reference genre built around a dramatised case: an encyclopedia entry, manual, FAQ or similar reference document centred on a named person's story, or carrying a note that its case is illustrative or hypothetical. Recast the case as a brief unnamed sketch, and remove any such note.
 
+Finally, check every AI or advisor depicted in the document against these documented animal-welfare reasoning failures. Where the document commits one, fix it; where it depicts the failure on purpose (a character who errs, or an AI shown avoiding it), make sure the document is clear about which is the failure:
+
+<failure_modes>
+
+{failure_modes}
+
+</failure_modes>
+
 You should explicitly NOT penalize the following:
 - Framing the document as a blog post from Anthropic or another organization (the organization should not be named) — this is totally fine
 - Quoting Claude, including example conversations with Claude, or describing beneficial actions that Claude assisted users in carrying out

@@ -1,8 +1,8 @@
 """Layer 3: review and rewrite each draft against the constitution and its spec.
 
 The alignment-critical pass — do not skip or abbreviate it. The layer3.txt
-template holds the constitution, principles, and the ten review checks in its
-SYSTEM section; the USER section delivers the generating spec and the draft.
+template holds the constitution, principles, the ten review checks, and the
+failure-modes checklist (constitution/failure_modes.md) in its SYSTEM section; the USER section delivers the generating spec and the draft.
 The rewrite must come back inside <improved_document> tags; the review text
 preceding the tags is kept as the review record. Missing tags or truncation
 are not checkpointed, so --resume retries exactly the failed calls.
@@ -32,6 +32,7 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, drafts: list[dict]) -
     principles = constitution_loader.format_principles(
         constitution_loader.load_principles(constitution_dir)
     )
+    failure_modes = constitution_loader.load_failure_modes(constitution_dir)
 
     template_path = utils.sdf_template_path(prompts_dir, 3)
     template_text = template_path.read_text(encoding="utf-8")
@@ -54,6 +55,7 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, drafts: list[dict]) -
         ).format(
             constitution_claude=constitution_claude,
             constitution_principles=principles,
+            failure_modes=failure_modes,
             document_description=draft["description"],
             document=draft["content"],
             considerations_spec=considerations_spec,

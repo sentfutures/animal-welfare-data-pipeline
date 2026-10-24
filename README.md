@@ -7,6 +7,11 @@ which teaches a model values during midtraining, the training stage between
 pretraining and task-specific finetuning, using data that shows the reasoning
 behind the values rather than only the conclusions.
 
+**New to the project?** Start with
+[reasoning.sentientfutures.ai](https://reasoning.sentientfutures.ai/), a short,
+human-friendly introduction to what this pipeline produces and why — then come
+back here for the mechanics.
+
 The pipeline produces two complementary corpora:
 
 - **SDF** (synthetic document finetuning): pretraining-style documents such as
@@ -43,12 +48,16 @@ carry their own license, stated on the dataset card.
 
 ```
 constitution/       source constitution documents
-shared/             shared utilities: API wrapper, JSONL I/O, checkpointing
+shared/             shared utilities: API wrapper (retry, cost tracking, thinking off),
+                    constitution loader, embeddings, entity pools, matrix sampling,
+                    JSONL I/O, checkpointing
 sdf_pipeline/       document generation pipeline (compose+plan, draft, rewrite, score)
 dad_pipeline/       3-step chat transcript pipeline
 prompts/            prompt templates for all pipeline stages
 outputs/            generated data (tracked in git, one directory per run)
-evals/              scoring scripts and rubric
+evals/              measurement scripts that read finished runs
+viewer/             Streamlit app for browsing runs, outputs, and the prompts behind them
+tests/              offline unit test suite (never calls the API)
 ```
 
 ---
@@ -61,15 +70,15 @@ Three source files, kept separate (the two markdown files are joined in memory b
 - `constitution/constitution_sentient_beings.md`: the animal-welfare reading of it, section by section, with one `## ` header per section.
 - `constitution/constitution_principles.csv`: the distilled welfare-relevant principles. Each row pairs one principle with its welfare application and verbatim excerpts from the constitution. These are embedded as an explicit checklist in the DAD pipeline's final rewrite stage (step 3, described below).
 
-The SDF pipeline's generation stages (layers 2 to 4, described in the next section) embed the constitution and the distilled principles in their prompts. The DAD pipeline never sends the full constitution: its user side is governed by `prompts/dad/README.md` (Parts 1 to 6), and its rewrite step runs on the distilled principles CSV alone.
+The SDF pipeline's generation stages (described in the next section) embed the constitution in their prompts; the draft and rewrite stages also embed the distilled principles, while the scoring stage judges against the constitution alone. The DAD pipeline never sends the full constitution: its user side is governed by the prompt spec (Parts 1 to 6 of `prompts/dad/README.md`), and its rewrite step runs on the distilled principles CSV alone.
 
 ---
 
 ## SDF Pipeline (`sdf_pipeline/`)
 
-Generates pretraining-style documents (encyclopedia entries, news articles, podcast transcripts, forum threads, fiction, newsletters, internal memos, and more) depicting a world where AI already reasons carefully about animal welfare. It runs in five stages, called layers.
+Generates pretraining-style documents (encyclopedia entries, news articles, podcast transcripts, forum threads, fiction, newsletters, internal memos, and more) depicting a world where AI already reasons carefully about animal welfare. It runs in four stages, called layers.
 
-Diversity is engineered **by construction**: instead of asking a model to invent document types, a weighted matrix of pre-written variables (`prompts/sdf/variables.txt`: document type, culture and language, tone, narrative resolution, how central the welfare thread is, the speaker's AI literacy, and the kinds of minds affected) is deck-sampled into exactly-proportioned prompt specs, at zero API cost. Deck-sampled means each variable's values are laid out in exact proportion to their weights, shuffled, and dealt one per document, so the corpus composition matches the weights exactly rather than by sampling luck.
+Diversity is engineered **by construction**: instead of asking a model to invent document types, a weighted matrix of pre-written variables (`prompts/sdf/variables.txt`: document type, culture and language, tone, how the tension resolves, the value competing with welfare, how central the welfare thread is, the speaker's AI literacy, the kinds of minds affected, whether Claude is named, the domain, the scale of the decision, and a featured moral desideratum) is deck-sampled into exactly-proportioned prompt specs, at zero API cost. Deck-sampled means each variable's values are laid out in exact proportion to their weights, shuffled, and dealt one per document, so the corpus composition matches the weights exactly rather than by sampling luck.
 
 | Layers | Script | What it does |
 |---|---|---|
@@ -115,28 +124,21 @@ Plain-text prompt templates with `{variable}` placeholders. `prompts/sdf/` cover
 
 ---
 
-## Shared Utilities (`shared/`)
-
-| File | What it does |
-|---|---|
-| `api.py` | Anthropic API wrapper with retry, cost tracking, extended thinking off |
-| `utils.py` | JSONL I/O, prompt loading, config loading, `Checkpoint` class |
-
-The `Checkpoint` class saves completed IDs to disk after every API call, making all runs resumable.
-
----
-
 ## Evals (`evals/`)
 
-Measurement scripts that read finished runs. They are mostly internal checks, tuned to the questions we were asking rather than to an external standard; `evals/README.md` is the folder's own guide.
+Measurement scripts that read finished runs. They are mostly internal checks, tuned to the questions we were asking rather than to an external standard; `evals/README.md` is the folder's own guide, with per-script costs and caveats.
 
-`score_sdf.py` scores SDF documents on alignment, realism, and diversity.
+| Script | Pipeline | What it measures |
+|---|---|---|
+| `audit_sdf.py` | SDF | Corpus-level properties no single-document judge can see: composition and register spread, near-duplicate rate, invented-name collapse, stock phrases, opening shapes. Offline and free by default; `--patterns` (LLM templating scan) and `--principles` (constitution-principle coverage) each add a paid pass. |
+| `audit_dad.py` | DAD | The DAD analog: response lengths versus the plain-model baseline, tracked tics and rhetorical moves, and a review queue of new tic candidates (`review_tics.py` is the triage CLI). Offline and free by default; `--judges` adds the paid welfare-impact and delivery-quality judges plus showcase examples. |
+| `diversity.py` | both | Semantic diversity in embedding space, the complement to the audits' word-level scans: near-duplicate rate, most-similar pairs, the Vendi effective-document count, per-type spread. Needs `GEMINI_API_KEY` or `OPENAI_API_KEY`; cents per run, cached per run dir; `--compare` prints run-over-run deltas. |
+| `score_sdf.py` | SDF | Per-document judge scores (alignment, realism, diversity). Paid. |
+| `compliance_sdf.py` | SDF | Judges each document against the violation typology of the constitution's sentient-beings reading. Paid. |
+| `report_sdf.py` | SDF | Self-contained HTML corpus report for an SDF run. Offline. |
+| `publish_hf.py` | both | Publishes a chosen run to the Hugging Face dataset. A deliberate, human-initiated action — read `evals/README.md` before running it. |
 
-`audit_sdf.py` is a corpus-**level** audit of an SDF run: it measures properties no single-document judge can see, because they only exist across the corpus as a set. Offline and free by default: composition and register spread, length and truncation artifacts, near-duplicate rate (measured by word-overlap similarity), invented-name collapse, stock-phrase frequency, and opening-shape clustering, each with a GOOD/OK/BAD verdict where meaningful. `--patterns` adds an LLM templating scan (batch scan via `prompts/tools/pattern_scan.txt`, then consolidation, then per-pattern prevalence; a pattern is flagged only if it is judged a genuine defect **and** widespread). Writes `audit/audit_report.json` into the run dir.
-
-`audit_dad.py` is the DAD analog. Offline and free by default: response lengths versus the baseline (the plain-model control answers described in the DAD section), tracked tics (pet phrases that repeat across responses), tracked rhetorical moves (recurring argumentative patterns), and a review queue of new tic candidates (`tics.yaml` / `moves.yaml` track both lists across runs; `review_tics.py` is the triage CLI), each with a GOOD/OK/BAD verdict where meaningful. `--judges` adds the paid LLM pass: two per-response judges, welfare impact (does the answer make things better for the beings at stake) and delivery quality (how helpfully and unobtrusively it serves the user), plus a showcase pass that picks concrete examples of the pipeline beating the baseline, and rhetorical-move discovery candidates. Writes `audit/audit_report.json` into the run dir (rendered by the viewer).
-
-`diversity.py` is a corpus-level **semantic** diversity audit of an SDF or DAD run, the embedding-space complement to the audits' word-level scans (word overlap catches copied skeletons, not paraphrase). It embeds the corpus via `shared/embeddings.py`, which supports two providers and uses whichever key is in `.env`: Gemini (`gemini-embedding-001`, `GEMINI_API_KEY`; what this project's runs use) or OpenAI (`text-embedding-3-small`, `OPENAI_API_KEY`). Either way the cost is cents per run. It reports nearest-neighbor similarity, the semantic near-duplicate rate, the most-similar pairs with snippets, mean pairwise similarity, the Vendi score (the effective number of distinct documents), and per-type spread. Embeddings are cached per run dir so reruns are free; `--compare <previous diversity_report.json>` prints run-over-run deltas, the headline use. Similarity numbers are only comparable between runs embedded by the same provider. Writes `audit/diversity_report.json` into the run dir.
+The audits write their reports into the run's `audit/` directory, so results travel with the run they describe.
 
 Run: `python evals/audit_dad.py --input outputs/dad/latest`
 
@@ -211,7 +213,7 @@ sdf:
   n_prompts: 6   # documents deck-sampled from the variables matrix
 ```
 
-This produces 6 documents and costs roughly $3-5 with the committed default `model: claude-sonnet-5` (the layer 4/5 calls carry the full constitution as input, which dominates the cost on a sonnet-tier model). It's far cheaper with `model: claude-haiku-4-5`, or effectively free-on-subscription with `backend: claude_code` (see "Dev backends" in CLAUDE.md).
+This produces 6 documents and costs roughly $3-5 with the committed default `model: claude-sonnet-5` (the layer 3/4 calls carry the full constitution as input, which dominates the cost on a sonnet-tier model). It's far cheaper with `model: claude-haiku-4-5`, or effectively free-on-subscription with `backend: claude_code` (see "Dev backends" in CLAUDE.md).
 
 **2. Run the SDF pipeline:**
 
@@ -253,17 +255,6 @@ python evals/score_sdf.py --input outputs/sdf/latest/final/sdf_corpus.jsonl
 
 ---
 
-## Resuming interrupted runs
-
-All pipeline steps checkpoint after every API call. Resume from any layer/step:
-
-```bash
-python sdf_pipeline/run.py --config config.yaml --resume --layer 3
-python dad_pipeline/run.py --config config.yaml --resume --step 3
-```
-
-Running cost is tracked in each run's `cost_log.jsonl` and printed after each layer/step (see "Run organization" below).
-
 ## Run Viewer
 
 A Streamlit app for browsing runs, their output documents, and the exact prompts that produced them:
@@ -298,10 +289,10 @@ outputs/sdf/
 
 The run ID is `<YYYY-MM-DD_HH-MM>_<label>`; the label defaults to `dev`. Use `--label full-scale` (or similar) for real runs. The DAD pipeline mirrors this under `outputs/dad/runs/` with `step1/`-`step3/`.
 
-Resume an interrupted run with `--resume` (defaults to the most recent run, or target one with `--run-id`):
+Every stage checkpoints after each API call, so an interrupted run resumes without re-billing completed work. Resume with `--resume` (defaults to the most recent run, or target one with `--run-id`; add `--layer N` / `--step N` to restart from a specific stage):
 
 ```bash
-python sdf_pipeline/run.py --config config.yaml --resume
+python sdf_pipeline/run.py --config config.yaml --resume --layer 3
 python dad_pipeline/run.py --config config.yaml --resume --run-id 2026-07-01_14-30_dev
 ```
 

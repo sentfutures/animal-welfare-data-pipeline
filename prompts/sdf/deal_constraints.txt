@@ -51,7 +51,8 @@
 # Only active if that resolution's weight in variables.txt is above zero.
 # The welfare framing of the planning prompt pulls a planner into inventing a stake, so
 # for these hands the dilemma line is dropped as well, and the lines that name a welfare
-# stake or a tradeoff are reworded.
+# stake or a tradeoff are reworded. The failure-mode line is dropped too: it asks for a
+# welfare reasoning failure to be shown avoided, and with no welfare stake there is none.
 
 [no_stake_excludes_welfare_centrality]
 when resolution is one of:
@@ -60,13 +61,14 @@ require centrality is not one of:
     central
     side_discussion
 
-[no_stake_omits_tradeoff_decision_scale_and_centrality]
+[no_stake_omits_tradeoff_decision_scale_centrality_and_failure_mode]
 when resolution is one of:
     no_stake
 omit planning-prompt lines for:
     tradeoff
     decision_scale
     centrality
+    failure_mode_avoided
 
 [no_stake_rewords_welfare_framing]
 when resolution is one of:
@@ -99,9 +101,17 @@ require naming is not one of:
 # A human emulation has no role in an industry defined by its animals; in the
 # pinned run none of the 17 human-connectome specifications in these domains
 # kept the category (most were dropped or swapped to animal connectomes).
-# The rule excludes only these eight domains; whether any other combination
+# The rule excludes only these domains; whether any other combination
 # holds up is left to the batch screen. Simulated animal connectomes and LLMs
 # need no rule.
+# The frontier domains added on 2026-10-24 follow the same reasoning where they
+# are plainly an animal industry (genetic engineering of farmed animals, new
+# animal industries, AI systems managing animals at scale) or where they are
+# the interventions in nature that the conservation domain's old wording
+# ("conservation, land management, or intervention in nature") covered (wild
+# gene drives, wild animal suffering interventions, ecosystem engineering).
+# Terraforming and space settlement, digital animal minds, and decoding animal
+# communication are left open.
 
 [simulated_human_connectomes_exclude_animal_industry_domains]
 when sentient_category is one of:
@@ -115,3 +125,9 @@ require domain is not one of:
     veterinary_practice
     technology_applied_to_animals
     conservation_land_management
+    genetic_engineering_of_farmed_animals
+    new_animal_industries_scaling_up
+    ai_systems_managing_animals_autonomously_at_scale
+    genetic_engineering_or_gene_drives_in_wild_animals
+    wild_animal_suffering_interventions
+    ecosystem_engineering_for_climate_or_biodiversity
