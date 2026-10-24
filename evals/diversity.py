@@ -546,7 +546,7 @@ def main() -> None:
     if not records:
         raise SystemExit("Corpus is empty — nothing to audit.")
 
-    embeddings.init(args.config)  # evals log to the global cost log
+    embeddings.init(args.config)  # evals log to the global cost log and record no full model calls
     args.embed_model = args.embed_model or embeddings.resolve_default_model()
 
     indexed = [(record_id(r, i), record_text(r), r) for i, r in enumerate(records)]
@@ -705,7 +705,7 @@ def main() -> None:
     ideas_report = None
     if args.ideas:
         from shared import api
-        api.init(args.config)  # summary calls log to the global cost log too
+        api.init(args.config)  # summary calls log to the global cost log too, with no full model call records
         idea_texts_all = [idea_text(r) for r in recs]
         keep = [i for i, t in enumerate(idea_texts_all) if t.strip()]
         summaries = idea_summaries([ids[i] for i in keep],

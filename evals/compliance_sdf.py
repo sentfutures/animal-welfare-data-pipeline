@@ -183,7 +183,7 @@ def main() -> None:
 
     print(f"=== SDF constitutional-compliance audit: {args.input} "
           f"({len(records)} documents, judging {min(args.sample, len(records))}) ===")
-    api.init(args.config)  # evals log to the global cost log
+    api.init(args.config)  # evals log to the global cost log and record no full model calls
 
     results = judge_documents(records, config, typology, modes, args.sample)
     if not results:

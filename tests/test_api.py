@@ -898,6 +898,27 @@ class TestModelCallsRecord:
         assert api.call_claude("hi", system_prompt="s") == "t"
         assert list(tmp_path.iterdir()) == []
 
+    def test_run_with_its_own_cost_log_records_beside_it_but_an_evaluation_does_not(
+            self, monkeypatch, tmp_path, tiny_config):
+        """init without a cost_log_path is how evaluations start: they share the global cost log, so they
+        write no full records there. A run passes its own cost log path and gets records beside it."""
+        tiny_config["outputs"]["cost_log"] = str(tmp_path / "global_outputs" / "cost_log.jsonl")
+        config_path = tmp_path / "evaluation_config.yaml"
+        config_path.write_text(yaml.safe_dump(tiny_config))
+        monkeypatch.setattr(api, "_call_with_retry", lambda **kwargs: self._response(
+            [SimpleNamespace(type="text", text="ok")]))
+
+        api.init(str(config_path))
+        api.call_claude("evaluation message", system_prompt="s")
+        assert not (tmp_path / "global_outputs" / "model_calls.jsonl").exists()
+        assert not (tmp_path / "global_outputs" / "system_prompts").exists()
+        assert (tmp_path / "global_outputs" / "cost_log.jsonl").exists()
+
+        run_directory = tmp_path / "a_run"
+        api.init(str(config_path), cost_log_path=run_directory / "cost_log.jsonl")
+        api.call_claude("run message", system_prompt="s")
+        assert (run_directory / "model_calls.jsonl").exists()
+
     def test_unwritable_record_does_not_fail_a_successful_call(self, monkeypatch, tmp_path, capsys):
         """A lone surrogate in the user message cannot be encoded as UTF-8, so the record write raises;
         the paid response must still be returned, with one warning for the whole process."""
