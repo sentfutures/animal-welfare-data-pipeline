@@ -32,6 +32,10 @@ DEFAULT_SCHEMA_NAME = "structured_answer"
 # Standard tier, from developers.openai.com/api/docs/pricing on 2026-10-21.
 _PRICING = {
     "gpt-6.1-sol": (2.00, 0.10, 10.00),
+    # The model the plausibility and shoehorning audits (evals/) use by default. Prices are the
+    # ones the audits were costed with; published sources disagree on the
+    # cached-input price.
+    "gpt-5.6-luna": (0.20, 0.02, 1.20),
 }
 
 _client: openai.OpenAI | None = None
@@ -67,7 +71,7 @@ def _create_response(client: openai.OpenAI, **request_arguments):
 
 
 def build_request_arguments(model, system_prompt, user_message, max_output_tokens, reasoning_effort,
-                            json_schema, schema_name):
+                            json_schema, schema_name, prompt_cache_key=None):
     arguments = {
         "model": model,
         "input": user_message,
@@ -80,6 +84,8 @@ def build_request_arguments(model, system_prompt, user_message, max_output_token
     if json_schema is not None:
         arguments["text"] = {"format": {"type": "json_schema", "name": schema_name,
                                         "schema": json_schema, "strict": True}}
+    if prompt_cache_key is not None:
+        arguments["prompt_cache_key"] = prompt_cache_key
     return arguments
 
 
@@ -125,11 +131,16 @@ def call_openai(
     item_id: str | None = None,
     json_schema: dict | None = None,
     schema_name: str = DEFAULT_SCHEMA_NAME,
+    prompt_cache_key: str | None = None,
+    usage_out: dict | None = None,
 ) -> tuple[str, str]:
     """One schema-constrained OpenAI call. Returns (text, stop_reason); stop_reason is
     'end_turn' only for a complete answer, so callers can reject truncated or refused
     ones the same way they do for ``api.call_claude(return_stop_reason=True)``.
-    ``max_output_tokens`` includes reasoning tokens."""
+    ``max_output_tokens`` includes reasoning tokens. ``prompt_cache_key`` is passed through so
+    calls sharing an instruction prefix route to the same cache. When ``usage_out`` is a dict it
+    is filled with this call's input_tokens, cached_input_tokens, output_tokens and
+    reasoning_tokens, for callers that keep per-call usage in their own records."""
     if model not in _PRICING:
         raise ValueError(f"model {model!r} has no price in shared/openai_api.py _PRICING; "
                          "add it so the cost log is correct")
@@ -138,7 +149,8 @@ def call_openai(
     started = time.monotonic()
     try:
         response = _create_response(client, **build_request_arguments(
-            model, system_prompt, user_message, max_output_tokens, reasoning_effort, json_schema, schema_name))
+            model, system_prompt, user_message, max_output_tokens, reasoning_effort, json_schema, schema_name,
+            prompt_cache_key))
     except Exception as e:
         api._log_model_call(model, "openai", system_prompt, [user_message], response_text=None,
                             stage=stage, item_id=item_id, attempts=api._attempt_state.n,
@@ -150,6 +162,9 @@ def call_openai(
     output_details = getattr(usage, "output_tokens_details", None)
     cached_tokens = getattr(input_details, "cached_tokens", 0) or 0
     reasoning_tokens = getattr(output_details, "reasoning_tokens", 0) or 0
+    if usage_out is not None:
+        usage_out.update(input_tokens=usage.input_tokens, cached_input_tokens=cached_tokens,
+                         output_tokens=usage.output_tokens, reasoning_tokens=reasoning_tokens)
     api._log_usage(
         model, usage.input_tokens, usage.output_tokens,
         cost_usd=compute_cost_usd(model, usage.input_tokens, cached_tokens, usage.output_tokens),

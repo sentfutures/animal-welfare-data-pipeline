@@ -52,9 +52,6 @@ _cost_log_lock = threading.Lock()
 _MODEL_CALLS_FILE_NAME = "model_calls.jsonl"
 _SYSTEM_PROMPTS_DIRECTORY_NAME = "system_prompts"
 _model_call_log_failure_warned = False
-# True only for a run that gave init its own cost log path; evaluations share the global cost log and
-# record no full model calls.
-_record_model_calls = True
 
 # Pricing per million tokens (input, output) for known models
 # Prices per million tokens (input, output). Keys must cover every model id
@@ -144,7 +141,7 @@ class ClaudeCodeRefusal(Exception):
 
 
 def init(config_path: str = "config.yaml", cost_log_path: str | Path | None = None) -> None:
-    global _config, _client, _cost_log_path, _backend, _cc_demoted, _record_model_calls
+    global _config, _client, _cost_log_path, _backend, _cc_demoted
     with open(config_path, encoding="utf-8") as f:
         _config = yaml.safe_load(f)
     _backend = _config.get("backend", "api")
@@ -160,7 +157,15 @@ def init(config_path: str = "config.yaml", cost_log_path: str | Path | None = No
     _client = None  # constructed lazily; the claude_code backend needs no API key
     _cost_log_path = Path(cost_log_path or _config["outputs"]["cost_log"])
     _cost_log_path.parent.mkdir(parents=True, exist_ok=True)
-    _record_model_calls = cost_log_path is not None
+
+
+def init_cost_log_only(cost_log_path: str | Path) -> None:
+    """Point the cost log (and the model-call log beside it) at ``cost_log_path`` without reading
+    config.yaml or needing an Anthropic key. For callers that only make OpenAI calls through
+    shared/openai_api.py (the model-judged audits in evals/)."""
+    global _cost_log_path
+    _cost_log_path = Path(cost_log_path)
+    _cost_log_path.parent.mkdir(parents=True, exist_ok=True)
 
 
 def _get_client() -> anthropic.Anthropic:
@@ -260,9 +265,9 @@ def _log_model_call(
     stored once per distinct text in system_prompts/<sha256>.txt and referenced
     by hash. Failed or refused calls get a record too (stop_reason / error).
     A failure to write the record is warned about once per process and otherwise ignored.
-    Writes nothing when the run has no cost log path of its own (tests, evals)."""
+    Writes nothing when the run has no cost log path (tests, evals)."""
     log_path = log_path if log_path is not None else _cost_log_path
-    if log_path is None or not _record_model_calls:
+    if log_path is None:
         return
     global _model_call_log_failure_warned
     try:

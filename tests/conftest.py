@@ -98,7 +98,6 @@ def _api_guard(monkeypatch):
     monkeypatch.setattr(api, "_config", {})
     monkeypatch.setattr(api, "_client", None)
     monkeypatch.setattr(api, "_cost_log_path", None)
-    monkeypatch.setattr(api, "_record_model_calls", True)
     monkeypatch.setattr(api, "_UNPRICED_WARNED", set())
     monkeypatch.setattr(api, "_backend", "api")
     monkeypatch.setattr(api, "_cc_demoted", None)

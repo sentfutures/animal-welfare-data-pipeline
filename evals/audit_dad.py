@@ -2220,7 +2220,7 @@ def main() -> None:
     out = report_dir / "audit_report.json"
     if args.judges:
         from shared import api
-        api.init(args.config)  # evals log to the global cost log and record no full model calls
+        api.init(args.config)  # evals log to the global cost log
         cfg = utils.load_config(args.config)
         audit_judges(run_dir, cfg, report)
         print()
