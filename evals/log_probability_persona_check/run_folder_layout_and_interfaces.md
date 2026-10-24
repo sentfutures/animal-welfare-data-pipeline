@@ -1,7 +1,6 @@
 # Log-probability persona check: run folder layout and interfaces
 
-This is the contract between the steps of the check. Each step reads what the previous one wrote and nothing else, so a step can be rebuilt without touching the others. Sections marked PLANNED describe steps that are not implemented yet; their names and fields are fixed here so the steps can be built in parallel.
-
+This is the contract between the steps of the check. Each step reads what the previous one wrote and nothing else, so a step can be rebuilt without touching the others.
 All commands run from the repository root. Code lives in `evals/log_probability_persona_check/`; prompt files in `prompts/tools/persona_checks/`.
 
 ## Pipeline

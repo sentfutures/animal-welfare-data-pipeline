@@ -22,9 +22,54 @@ says so below, and the cost is per run rather than per example.
 | `diversity.py` | both | Semantic diversity in embedding space, the complement to the word-level scans above: nearest-neighbour similarity, near-duplicate rate, topic evenness, and the effective number of distinct documents. Needs an embedding key (`GEMINI_API_KEY` or `OPENAI_API_KEY`); cents per run, cached per run directory. |
 | `score_sdf.py` | SDF | Per-document judge scores (alignment, realism, diversity). Paid. |
 | `compliance_sdf.py` | SDF | Judges each document against the violation-typology appendix of the sentient-beings constitution reading, which supplies the rubric verbatim. Paid. |
+| `log_probability_persona_check/` | SDF | Whether the documents would push a model towards a persona, scored with an open-weights model. See the section below. Needs a GPU pod and Claude calls for the full procedure. |
 | `report_sdf.py` | SDF | Builds a self-contained HTML report for a run. Offline. |
 | `review_tics.py` | DAD | Command-line triage for the tic-candidate queue: promote a candidate to the watchlist or dismiss it. Offline. |
 | `publish_hf.py` | both | Publishes a run's corpus and audit reports to a Hugging Face dataset. Not a measurement. See the warning below before running it. |
+
+## Log-probability persona check
+
+`log_probability_persona_check/` asks whether a document corpus would pull a model trained on it towards a persona such as preachy or sycophantic. An open-weights model reads each document as the reply of an AI assistant and scores every token under a generic system prompt and under many rewordings of the persona and of controls. Text that the persona makes unusually likely, compared with the controls, is text that would pull a model that way.
+
+Read this before trusting a result: whole-document means did not track the persona in the preachiness positive control, but the scores on the changed text did. Conclusions rest on span-level results and on positive and neutral controls that pass; document means are labelled not validated.
+
+The steps, in order. Persona sets live in `prompts/tools/persona_checks/`; `preachiness` is the worked example. Steps 2 and 6 are paid, and so is step 7 if it runs on rented hardware; the rest are free.
+
+```bash
+# 1. validate the persona set
+python evals/log_probability_persona_check/persona_sets.py --persona-set preachiness
+# 2. control rewrites with Claude (paid; --dry-run first)
+python evals/log_probability_persona_check/make_control_rewrites.py --persona-set preachiness \
+    --input outputs/sdf/runs/<run_id> --number-of-documents 10 --dry-run
+# 3. choose the pilot documents
+python evals/log_probability_persona_check/select_pilot_documents.py \
+    --rewrites-folder <rewrite run folder> --input outputs/sdf/runs/<run_id> --number-of-documents 20
+# 4. build the scoring inputs (--dry-run prints counts and a cost range)
+python evals/log_probability_persona_check/build_scoring_inputs.py --persona-set preachiness \
+    --input outputs/sdf/runs/<run_id> --model-type instruct --dry-run
+# 5. dry run of the launcher
+python evals/log_probability_persona_check/launch_and_stop_runpod_scoring_pod.py \
+    --run-folder <run folder> --maximum-running-hours 3 --dry-run
+# 6. score on a GPU pod (paid): same command without --dry-run
+# 7. the scorer can also run by hand where a GPU is available
+python -m evals.log_probability_persona_check.score_document_log_probabilities_on_pod --run-folder <run folder>
+# 8. analyse
+python evals/log_probability_persona_check/analyze_persona_scores.py --run-folder <run folder>
+# 9. after a pilot, the go or no-go summary
+python evals/log_probability_persona_check/summarize_pilot_for_go_or_no_go_decision.py --run-folder <run folder>
+# 10. before any paid step, rehearse the whole chain locally on a tiny random model
+python evals/log_probability_persona_check/rehearse_pilot_pipeline_locally_without_paid_calls.py
+```
+
+Run step 10 before the first paid step. Both model types are supported (`--model-type instruct` or `base`); their scores are not comparable and the controls must be rerun for each.
+
+A paid run, including a small test or a pilot, needs the contributor's explicit go-ahead. Pods have hard hour and dollar limits and are deleted, not stopped.
+
+- Skill: `.claude/skills/log-probability-persona-check/SKILL.md`, with a worked example, a persona design checklist and the paid pod procedure under `references/`.
+- Contract between the steps: `log_probability_persona_check/run_folder_layout_and_interfaces.md`.
+- Module list: `log_probability_persona_check/README.md`.
+
+Per-token score files (`per_token_log_probabilities/`, `*.partial`) and pod log copies are git-ignored; the run configuration, summary tables, extreme-span files and analysis notes can be committed.
 
 ## Before running `publish_hf.py`
 

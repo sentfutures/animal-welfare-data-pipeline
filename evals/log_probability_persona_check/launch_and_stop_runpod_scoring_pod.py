@@ -108,10 +108,15 @@ RETRY_SCORER_INSTRUCTION_FILE_NAME = "pod_instruction_retry_scorer.txt"
 RETRY_SETUP_INSTRUCTION_FILE_NAME = "pod_instruction_retry_setup.txt"
 DELETE_POD_INSTRUCTION_FILE_NAME = "pod_instruction_delete_pod.txt"
 INSTRUCTION_CHECK_INTERVAL_SECONDS = 10
-# Rough planning figures for the dry run's projected cost (not measurements): dollars per hour for the default GPU
-# types, input tokens per second for a 12-billion-parameter model on one such GPU, and pod setup time.
-PRICE_RANGE_DOLLARS_PER_HOUR = (2.0, 4.0)
-THROUGHPUT_RANGE_TOKENS_PER_SECOND = (5_000, 20_000)
+# Planning ranges for the dry run's projected cost, centred on one measured run: an H100 80GB HBM3 in bf16 scoring
+# Gemma 4 12B reached about 10,000 scored tokens per second at a RunPod price of 3.99 dollars per hour, and the full
+# 477-document by 62-condition run (about 60 million tokens) took 1 h 41 min of scoring and cost about 7.19 dollars.
+# The ranges widen those figures to allow for other GPU types, prices and sequence lengths, so they are planning
+# estimates, not guarantees. Setup (image start, package install and model load) is a rough allowance: model load alone
+# took between 1.7 and 5.6 minutes on that GPU. A run's own scoring environment record and pod cost log hold the real
+# figures.
+PRICE_RANGE_DOLLARS_PER_HOUR = (3.0, 5.0)
+THROUGHPUT_RANGE_TOKENS_PER_SECOND = (7_500, 12_500)
 PROJECTED_SETUP_SECONDS = 900
 DEFAULT_FAILURE_WAIT_MINUTES = 20
 # Matches the command line of the launcher's watchdog and of hand-started ones that delete via $RUNPOD_POD_ID; the
