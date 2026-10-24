@@ -31,8 +31,7 @@ plan's ``variables`` also gains ``moral_considerations`` and
 Scheduling is a rolling pool of ``workers`` concurrent calls, not waves: when a
 slot frees, the next document's offer is computed from the current counts (under
 a lock) and the call is started, so an offer may be slightly out of date by the
-time its answer arrives (each call holds a tentative pick on the top entry of each list it
-was offered until it is answered, which only reorders later offers; see the tracker); a pick of an entry that has filled since is rejected over cap and the
+time its answer arrives; a pick of an entry that has filled since is rejected over cap and the
 document is re-asked in the same pass. Each answer is recorded and appended
 to the selections file the moment it completes, under the same lock. Documents
 are taken in a seeded shuffle of the sorted ids (so the deal order does not
@@ -404,11 +403,10 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
                 if call is None:
                     continue    # everything it could be offered has filled since the pass began
                 offered = {name: tracker.offered_entries(prompt_id, name) for name in call.list_names}
-                reserved = tracker.reserve_top_entries(offered)
                 existing = [catalog.entry_by_label(label) for label in sorted(tracker.labels_carried_by(prompt_id))]
                 start_number = stats["next_start"]
                 stats["next_start"] += 1
-                return call, offered, existing, start_number, reserved
+                return call, offered, existing, start_number
             return None
 
         def worker_loop():
@@ -418,39 +416,35 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
                     work = take_next()
                 if work is None:
                     return
-                call, offered, existing, start_number, reserved = work
-                try:
-                    choices, seconds, problem = select_one(call, offered, existing, pass_number)
-                    with lock:
-                        attempted += 1
-                        if not problem:
-                            try:
-                                row = tracker.record_answer(
-                                    call.prompt_id, pass_number, start_number,
-                                    {name: (entry.label if entry else None, reason)
-                                     for name, (entry, reason) in choices.items()},
-                                    offered_labels={name: {entry.label for entry in entries}
-                                                    for name, entries in offered.items()})
-                                utils.append_jsonl(row, selections_path)
-                                if any(o["status"] == "over_cap" for o in row["outcomes"]):
-                                    queue.insert(0, call.prompt_id)   # re-ask soon, with a fresh offer
-                                stats["answered"] += 1
-                                stats["slowest"] = max(stats["slowest"], seconds)
-                            except ValueError as e:
-                                problem = f"answer not accepted ({e})"
-                        if problem:
-                            failed += 1
-                            stats["failed"] += 1
-                            failed_this_session.add(call.prompt_id)
-                            print(f"  {call.prompt_id} (pass {pass_number}): {problem} — will retry on resume")
-                        if time.monotonic() - stats["last_progress"] >= PROGRESS_INTERVAL_SECONDS:
-                            stats["last_progress"] = time.monotonic()
-                            print(f"  Pass {pass_number} progress: {stats['answered']} calls answered, "
-                                  f"{stats['failed']} failed, {tracker.accepted_in_pass(pass_number)} picks accepted "
-                                  f"({time.monotonic() - pass_started:.1f}s elapsed)")
-                finally:   # tentative picks are released whatever the outcome
-                    with lock:
-                        tracker.release(reserved)
+                call, offered, existing, start_number = work
+                choices, seconds, problem = select_one(call, offered, existing, pass_number)
+                with lock:
+                    attempted += 1
+                    if not problem:
+                        try:
+                            row = tracker.record_answer(
+                                call.prompt_id, pass_number, start_number,
+                                {name: (entry.label if entry else None, reason)
+                                 for name, (entry, reason) in choices.items()},
+                                offered_labels={name: {entry.label for entry in entries}
+                                                for name, entries in offered.items()})
+                            utils.append_jsonl(row, selections_path)
+                            if any(o["status"] == "over_cap" for o in row["outcomes"]):
+                                queue.insert(0, call.prompt_id)   # re-ask soon, with a fresh offer
+                            stats["answered"] += 1
+                            stats["slowest"] = max(stats["slowest"], seconds)
+                        except ValueError as e:
+                            problem = f"answer not accepted ({e})"
+                    if problem:
+                        failed += 1
+                        stats["failed"] += 1
+                        failed_this_session.add(call.prompt_id)
+                        print(f"  {call.prompt_id} (pass {pass_number}): {problem} — will retry on resume")
+                    if time.monotonic() - stats["last_progress"] >= PROGRESS_INTERVAL_SECONDS:
+                        stats["last_progress"] = time.monotonic()
+                        print(f"  Pass {pass_number} progress: {stats['answered']} calls answered, "
+                              f"{stats['failed']} failed, {tracker.accepted_in_pass(pass_number)} picks accepted "
+                              f"({time.monotonic() - pass_started:.1f}s elapsed)")
 
         thread_count = max(1, int(workers))
         threads = [threading.Thread(target=worker_loop, name=f"select-worker-{i}") for i in range(thread_count)]

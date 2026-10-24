@@ -25,14 +25,6 @@ only asks the model and feeds the answers in.
   to be asked again for that list with a freshly computed offer; this terminates
   because every rejection means an entry has closed. ``over_cap`` rows are saved
   like any other row, and ``replay`` re-asks those documents first.
-- Tentative picks: a call that has started but not been answered is assumed to be
-  about to pick the top entry of each list it was offered (the model takes the first
-  that fits). ``reserve_top_entries`` records one tentative pick on each such entry
-  when the call starts and ``release`` removes them when it is answered or fails;
-  ``offered_entries`` orders by remaining need minus the entry's tentative picks, so
-  concurrent calls see different top entries. They affect ORDER only: an entry stays
-  offered while its accepted count is below target, they are never saved and never
-  count toward targets, and over-cap rejection stays the hard guarantee.
 - Passes: pass 1 asks every eligible document for each list. A later pass
   re-asks every eligible document, offering only entries still under target that
   the document does not already carry, so a document can end up with several
@@ -43,7 +35,6 @@ only asks the model and feeds the answers in.
   number within its pass (kept under the old name so older files and readers work).
 """
 
-from collections import Counter
 from dataclasses import dataclass
 
 from sdf_pipeline.considerations_catalog import (
@@ -86,7 +77,6 @@ class ConsiderationTracker:
             self.targets[entry.label] = target_count(entry.target_share, denominator)
         self.counts: dict[str, int] = {entry.label: 0 for entry in catalog.all_entries}
         self.over_cap_counts: dict[str, int] = {entry.label: 0 for entry in catalog.all_entries}
-        self.in_flight_top_picks: Counter[str] = Counter()     # label -> tentative picks of calls not yet answered
         self.picks: list[Pick] = []
         self._carried: dict[str, set[str]] = {prompt_id: set() for prompt_id in self._digital}
         self._resolved: set[tuple[int, str, str]] = set()      # (pass, prompt_id, list_name)
@@ -113,8 +103,7 @@ class ConsiderationTracker:
     def offered_entries(self, prompt_id: str, list_name: str) -> list[Consideration]:
         """The list as this document sees it now: eligible, still under target
         and not already carried by the document, sorted by remaining need
-        (largest first, less any tentative picks of calls in flight) with catalog
-        order breaking ties."""
+        (largest first) with catalog order breaking ties."""
         carried = self._carried[prompt_id]
         is_digital = self._digital[prompt_id]
         candidates = [
@@ -124,20 +113,7 @@ class ConsiderationTracker:
             and (is_digital or not entry.digital_minds_only)
         ]
         # sorted() is stable, so equal remaining need keeps catalog order
-        return sorted(candidates, key=lambda entry: -(
-            self.remaining_need(entry) - self.in_flight_top_picks[entry.label]))
-
-    def reserve_top_entries(self, offered: dict[str, list[Consideration]]) -> list[str]:
-        """Record a tentative pick on the top entry of each offered list (a call is
-        starting); return the labels to hand back to ``release``."""
-        reserved = [entries[0].label for entries in offered.values() if entries]
-        self.in_flight_top_picks.update(reserved)
-        return reserved
-
-    def release(self, reserved_labels: list[str]) -> None:
-        """Remove the tentative picks a finished call held, however it ended."""
-        self.in_flight_top_picks.subtract(reserved_labels)
-        self.in_flight_top_picks += Counter()      # drop zero entries
+        return sorted(candidates, key=lambda entry: -self.remaining_need(entry))
 
     # ------------------------------------------------------------ scheduling
 
