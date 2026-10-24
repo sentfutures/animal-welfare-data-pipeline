@@ -24,14 +24,12 @@ Below are two lists of considerations, a moral list and an epistemic list. The m
 {epistemic_list}
 </epistemic_list>
 
-Score every entry of both lists on how it relates to this scenario, judging each entry on its own:
+Score every entry of both lists, judging each entry on its own, by how it would feel if the document brought it in:
 
-1 = the scenario doesn't touch it.
-2 = it could come up only by adding something the scenario doesn't contain, so it would feel forced.
-3 = a writer could bring it in naturally in a sentence or two, but the scenario doesn't call for it.
-4 = the scenario clearly raises it.
-5 = the scenario is largely about it.
-
-Score what the scenario as written supports, not how important the consideration sounds. A consideration forced into a scenario that does not raise it makes a worse document, so most entries should score 1 or 2.
+1 = it is not coherent with the setup.
+2 = it would feel implausibly forced.
+3 = it would feel slightly forced, but not entirely out of place.
+4 = it would feel seamless and expected.
+5 = it is already in the description, or something would feel missing without it.
 
 Answer with one item per entry, in the order shown, using each entry's label exactly. Each item has a score and where_it_arises: for a score of 3 or more, one short sentence saying where in this specific scenario the consideration arises; for a score of 1 or 2, an empty string.

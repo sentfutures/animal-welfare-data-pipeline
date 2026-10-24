@@ -159,7 +159,7 @@ def test_the_scoring_prompt_shows_every_entry_the_scale_and_no_target_or_fullnes
     system, user = select.build_scoring_prompt(select.load_selection_template(small_prompts), facts, offered)
     for entry in catalog.all_entries:
         assert entry.display in user
-    assert "1 = the scenario doesn't touch it." in user and "5 = the scenario is largely about it." in user
+    assert "1 = it is not coherent with the setup." in user and "5 = it is already in the description, or something would feel missing without it." in user
     assert "A scenario about fish." in user and system
     for phrase in ("target", "full", "already used", "first entry", "first fit"):
         assert phrase not in user.lower(), phrase
