@@ -183,6 +183,16 @@ class TestJudgeDocument:
         assert len(row["considerations"]) == 2
         assert row["variables"]["tone"]["dealt_value"] == dealt_values["tone"]
 
+    def test_refusal_with_api_schema_falls_back_to_schema_in_prompt(self, stub_claude, context, dealt_values, labels):
+        record = make_record(dealt_values, considerations=labels)
+        replies = iter([("", "refusal"), json.dumps(good_answer(record, context))])
+        calls = stub_claude(lambda user_message, **kw: next(replies))
+        row = vp.judge_document(record, context, None, max_attempts=3)
+        assert row["status"] == "ok" and row["attempts"] == 2
+        assert calls[0]["json_schema"] is not None and calls[1]["json_schema"] is None
+        assert '"persisted"' in calls[1]["user_message"] and calls[1]["user_message"].startswith(calls[0]["user_message"])
+        assert row["schema_enforcement"] == "prompt_and_code_validation"
+
     def test_failure_recorded_after_max_attempts(self, stub_claude, context, dealt_values, labels):
         record = make_record(dealt_values, considerations=labels)
         bad = good_answer(record, context)

@@ -306,15 +306,28 @@ def judge_document(record: dict, context: JudgeContext, model: str | None, max_a
     schema = build_schema(list(variables), labels)
     max_tokens = BASE_MAX_TOKENS + TOKENS_PER_ITEM * (len(variables) + len(labels))
     problem = ""
+    # The API's structured output refuses some documents outright (stop_reason "refusal", no
+    # output) although the same prompt without it is answered. After such a refusal the schema
+    # goes into the prompt instead, and parse_answer enforces it in code.
+    enforce_schema_through_api = True
     for attempt in range(1, max_attempts + 1):
+        if enforce_schema_through_api:
+            call_prompt, call_schema = prompt, schema
+        else:
+            call_prompt = (f"{prompt}\n\nAnswer with only a JSON object that matches this JSON schema:\n"
+                           f"{json.dumps(schema, ensure_ascii=False)}")
+            call_schema = None
         try:
             raw, stop_reason = api.call_claude(
-                prompt, model=model, max_tokens=max_tokens, stage=STAGE_TAG, item_id=doc_id,
-                return_stop_reason=True, json_schema=schema)
+                call_prompt, model=model, max_tokens=max_tokens, stage=STAGE_TAG, item_id=doc_id,
+                return_stop_reason=True, json_schema=call_schema)
         except Exception as error:  # one failing call must not discard its siblings' work
             return {"doc_id": doc_id, "status": "failed", "attempts": attempt,
                     "error": f"API call failed ({type(error).__name__}: {error})"}
         try:
+            if stop_reason == "refusal" and enforce_schema_through_api:
+                enforce_schema_through_api = False
+                raise PersistenceAnswerError("refused with the API-enforced schema")
             if stop_reason != "end_turn":
                 raise PersistenceAnswerError(f"truncated answer (stop_reason={stop_reason})")
             variable_verdicts, consideration_verdicts = parse_answer(raw, list(variables), labels)
@@ -324,6 +337,7 @@ def judge_document(record: dict, context: JudgeContext, model: str | None, max_a
         glosses = {item["label"]: item["gloss"] for item in considerations}
         row = {
             "doc_id": doc_id, "status": "ok", "attempts": attempt, "model": model,
+            "schema_enforcement": "api_structured_output" if enforce_schema_through_api else "prompt_and_code_validation",
             "variables": {name: {"dealt_value": variables[name], **verdict}
                           for name, verdict in variable_verdicts.items()},
         }
