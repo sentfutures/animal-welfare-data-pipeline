@@ -42,6 +42,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sdf_pipeline import layer1_description_rewrite, layer1_screen, layer1_select_considerations
 from shared import api, textstats, utils
+from shared.api_keys import add_api_key_source_flags, apply_api_key_source_flags
 
 # ---------------------------------------------------------------- verdicts
 
@@ -657,7 +658,9 @@ def main() -> None:
                              "constitution principles (costs API calls)")
     parser.add_argument("--principle-sample", type=int, default=80,
                         help="Docs judged for principle coverage")
+    add_api_key_source_flags(parser)
     args = parser.parse_args()
+    apply_api_key_source_flags(args)
 
     records, report_dir = resolve_input(args.input)
     if args.limit:

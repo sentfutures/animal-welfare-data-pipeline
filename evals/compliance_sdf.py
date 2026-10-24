@@ -42,6 +42,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from evals.audit_sdf import _parse_json_block, resolve_input
 from shared import api, constitution_loader, utils
+from shared.api_keys import add_api_key_source_flags, apply_api_key_source_flags
 
 TEMPLATE = Path(__file__).parent.parent / "prompts" / "tools" / "compliance_scan.txt"
 
@@ -170,7 +171,9 @@ def main() -> None:
     parser.add_argument("--config", default="config.yaml")
     parser.add_argument("--sample", type=int, default=80,
                         help="Documents to judge (evenly strided across the corpus)")
+    add_api_key_source_flags(parser)
     args = parser.parse_args()
+    apply_api_key_source_flags(args)
 
     records, report_dir = resolve_input(args.input)
     if not records:

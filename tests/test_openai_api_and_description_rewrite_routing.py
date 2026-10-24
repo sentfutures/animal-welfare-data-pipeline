@@ -77,7 +77,7 @@ def test_missing_key_fails_clearly_and_ignores_the_current_directory_dotenv_file
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     (tmp_path / ".env").write_text("OPENAI_API_KEY=from-a-dotenv-file\n")
     monkeypatch.chdir(tmp_path)
-    with pytest.raises(RuntimeError, match="OPENAI_API_KEY is not set. Fill in OPENAI_API_KEY"):
+    with pytest.raises(RuntimeError, match="OPENAI_API_KEY not found"):
         openai_api.call_openai("u", "s", model="gpt-6.1-sol", max_output_tokens=10)
 
 

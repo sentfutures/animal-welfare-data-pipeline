@@ -80,6 +80,15 @@ def _no_real_dotenv_and_fresh_key_announcements(monkeypatch, tmp_path_factory):
     from shared import api_keys
     monkeypatch.setattr(api_keys, "REPO_ROOT", tmp_path_factory.mktemp("repo_root_without_dotenv"))
     monkeypatch.setattr(api_keys, "_sources_already_announced", set())
+    # Tests supply fake keys through the environment (the repo root has no .env), so they use the mode that falls back to it.
+    monkeypatch.setattr(api_keys, "_api_key_source_mode", api_keys.SEARCH_UPWARD_THEN_ENVIRONMENT)
+    # That mode searches upward; confine it to the empty folder so a .env above the base temporary folder is never read.
+    def _dotenv_path_in_repo_root_only():
+        candidate = api_keys.REPO_ROOT / ".env"
+        return candidate.resolve() if candidate.is_file() else None
+    monkeypatch.setattr(api_keys, "_nearest_dotenv_path_searching_upward", _dotenv_path_in_repo_root_only)
+    # Orchestrator tests call main(), whose flag handling would reset that mode to the default.
+    monkeypatch.setattr(api_keys, "set_api_key_source_mode", lambda mode: None)
 
 
 @pytest.fixture(autouse=True)

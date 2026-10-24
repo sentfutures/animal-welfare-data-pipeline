@@ -61,6 +61,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from shared import embeddings, utils
+from shared.api_keys import add_api_key_source_flags, apply_api_key_source_flags
 from dad_pipeline.id_registry import prompt_key, prompt_keys
 
 # ---------------------------------------------------------------- verdicts
@@ -535,7 +536,9 @@ def main() -> None:
                         help="Skip the embeddings cache (re-embeds everything)")
     parser.add_argument("--compare", default=None,
                         help="A previous diversity_report.json to print deltas against")
+    add_api_key_source_flags(parser)
     args = parser.parse_args()
+    apply_api_key_source_flags(args)
 
     records, report_dir, corpus_name = resolve_input(args.input)
     if args.limit:

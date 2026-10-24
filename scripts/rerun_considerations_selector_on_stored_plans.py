@@ -24,9 +24,10 @@ Example:
       --run-label opus_5_5_smoke_descriptions [--dry-run]
     Resume an interrupted rerun:  ... --resume <existing rerun folder>
 
-The API key comes from shared/api_keys.py: <repo root>/.env if it sets ANTHROPIC_API_KEY (taking precedence over
-the shell), otherwise the ANTHROPIC_API_KEY environment variable. The source is printed before the run, never the
-value. The script refuses to run without a key. --dry-run makes no calls and needs no key.
+The API key comes from shared/api_keys.py: by default only <repo root>/.env; --find-dotenv searches upward for a .env
+and then falls back to the operating system environment. The source is
+printed before the run, never the value. The script refuses to run without a key. --dry-run makes no calls and needs
+no key.
 """
 
 import argparse
@@ -39,6 +40,9 @@ from pathlib import Path
 
 WORKTREE_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(WORKTREE_ROOT))
+
+from shared.api_keys import (MissingApiKeyError, add_api_key_source_flags, apply_api_key_source_flags,
+                             load_api_key)
 
 PROMPT_FILENAMES = ("layer1_select_considerations.txt", "considerations.txt", "variables.txt")   # the catalog resolves [id]s against variables.txt
 TIMESTAMP_FORMAT = "%Y-%m-%d_%H-%M"
@@ -79,7 +83,9 @@ def main() -> None:
     parser.add_argument("--resume", type=Path, default=None, help="Existing rerun folder to continue.")
     parser.add_argument("--dry-run", action="store_true",
                         help="Print plan counts, targets and the first prompt; no calls.")
+    add_api_key_source_flags(parser)
     args = parser.parse_args()
+    apply_api_key_source_flags(args)
 
     resume_dir = args.resume.resolve() if args.resume else None
     if resume_dir:
@@ -99,7 +105,6 @@ def main() -> None:
         run_dir = args.output_root.resolve() / f"considerations_selector_rerun_on_{args.run_label}_{run_timestamp}"
 
     if not args.dry_run:
-        from shared.api_keys import MissingApiKeyError, load_api_key
         try:
             load_api_key("ANTHROPIC_API_KEY")   # prints the key's source; refuses to run without a key
         except MissingApiKeyError as error:

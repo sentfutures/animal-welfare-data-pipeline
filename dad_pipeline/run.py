@@ -24,6 +24,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from shared import api, utils
+from shared.api_keys import (add_api_key_source_flags, api_key_source_flags_for_subprocess,
+                             apply_api_key_source_flags)
 from dad_pipeline import (
     baseline,
     step1_dilemmas,
@@ -50,10 +52,10 @@ def run_auto_evals(run_dir: Path, config_path: str, root: Path) -> None:
     jobs = [
         ("corpus audit + judges pass",
          [sys.executable, str(root / "evals" / "audit_dad.py"),
-          "--input", str(run_dir), "--judges", "--config", config_abs]),
+          "--input", str(run_dir), "--judges", "--config", config_abs, *api_key_source_flags_for_subprocess()]),
         ("semantic diversity",
          [sys.executable, str(root / "evals" / "diversity.py"),
-          "--input", str(run_dir), "--config", config_abs]),
+          "--input", str(run_dir), "--config", config_abs, *api_key_source_flags_for_subprocess()]),
     ]
     for name, cmd in jobs:
         print(f"[Evals] Running {name}...")
@@ -78,7 +80,9 @@ def main() -> None:
                         help="Stop after this step (1-3); e.g. --stop-after 1 runs only prompt generation.")
     parser.add_argument("--label", default="dev", help="Run label, e.g. dev or full-scale.")
     parser.add_argument("--run-id", default=None, help="Run to resume (with --resume; defaults to latest).")
+    add_api_key_source_flags(parser)
     args = parser.parse_args()
+    apply_api_key_source_flags(args)
     if args.stop_after < args.step:
         parser.error(f"--stop-after {args.stop_after} is before --step {args.step} — nothing would run.")
 

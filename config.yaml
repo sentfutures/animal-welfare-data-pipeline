@@ -41,8 +41,8 @@ sdf:
   # Their reasoning notices the problem, then accepts it as "not clearly impossible" or allowed
   # "within the fictional world". Do not switch this to a Claude model for plausibility judgment
   # without re-validating.
-  # A model name starting with `gpt-` routes to OpenAI and needs OPENAI_API_KEY (repo-root .env
-  # or the environment, via shared/api_keys.py); any other name goes to Claude.
+  # A model name starting with `gpt-` routes to OpenAI and needs OPENAI_API_KEY (repo-root .env,
+  # or the environment with --find-dotenv, via shared/api_keys.py); any other name goes to Claude.
   description_rewrite_model: gpt-6.1-sol
   description_rewrite_reasoning_effort: medium   # OpenAI models only
   # Considerations selector (layer 1, after the description rewrite, before drafting): one call per

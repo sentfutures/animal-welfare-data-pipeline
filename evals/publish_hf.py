@@ -61,8 +61,9 @@ Usage:
       --tag dad-v1-archetypes-40
 
 Requires a Hugging Face token with write access to the target repo/org:
-either ``HF_TOKEN`` in .env (checked first) or a one-time ``huggingface-cli
-login`` (its cached token is the fallback) — --dry-run needs neither and
+either ``HF_TOKEN`` in .env (checked first; the environment's ``HF_TOKEN`` only
+with --find-dotenv) or a one-time ``huggingface-cli login`` (its cached token
+is the fallback) — --dry-run needs neither and
 makes no network calls.
 """
 
@@ -75,7 +76,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from shared import utils
-from shared.api_keys import load_optional_api_key
+from shared.api_keys import (add_api_key_source_flags, apply_api_key_source_flags,
+                             hide_environment_value_unless_environment_is_allowed, load_optional_api_key)
 # The one regex that reads a writing language out of a dealt culture/setting
 # card ("China, written in Mandarin Chinese, ..." -> "Mandarin Chinese").
 # Imported rather than copied: it is a contract with the wording in
@@ -589,6 +591,15 @@ def _load_json(path: Path) -> dict | None:
         return json.load(f)
 
 
+def _load_hugging_face_token() -> None:
+    """HF_TOKEN is optional: without one huggingface_hub falls back to the cached `huggingface-cli login`
+    token. huggingface_hub reads the token variables from the environment itself, so in the default mode
+    (which never uses the environment) an environment value is removed unless the .env file supplied it."""
+    if load_optional_api_key("HF_TOKEN") is None:
+        hide_environment_value_unless_environment_is_allowed("HF_TOKEN")
+    hide_environment_value_unless_environment_is_allowed("HUGGING_FACE_HUB_TOKEN")
+
+
 def _create_repo(repo_id: str) -> None:
     from huggingface_hub import HfApi
     HfApi().create_repo(repo_id=repo_id, repo_type="dataset", exist_ok=True)
@@ -810,7 +821,9 @@ def main() -> None:
                              "origin/main, without the interactive "
                              "confirmation. The Hub commit message still "
                              "records it as an unmerged publish")
+    add_api_key_source_flags(parser)
     args = parser.parse_args()
+    apply_api_key_source_flags(args)
 
     resolved = [resolve_corpus_file(p) for p in args.input]
     run_dirs = [r[0] for r in resolved]
@@ -830,9 +843,7 @@ def main() -> None:
     pipeline_tag = "sdf" if corpus_name == "sdf_corpus.jsonl" else "dad"
 
     if not args.dry_run:
-        # HF_TOKEN from <repo root>/.env (else the environment) is optional: without it
-        # huggingface_hub falls back to the cached `huggingface-cli login` token.
-        load_optional_api_key("HF_TOKEN")
+        _load_hugging_face_token()
 
     # Before staging (which wipes a directory) and before any Hub call, so an
     # aborted publish leaves nothing behind. Runs in --dry-run too: a preview

@@ -169,7 +169,7 @@ cp .env.example .env           # then add your ANTHROPIC_API_KEY
 
 ### Authentication
 
-Keys are read by one loader, `shared/api_keys.py`, which looks only at `.env` in the repo root (never parent folders or the current directory). A key set in that `.env` takes precedence over the same variable in your shell. Without a `.env` (for example on a server) or without that variable in it, the environment variable is used. The source of each key is printed at startup; the value never is.
+Keys are read by one loader, `shared/api_keys.py`. By default it reads a key only from `.env` in the repo root (never parent folders or the current directory) and never uses your shell's environment; if that file or the key in it is missing, the command stops with an error naming the path and the key. Every command that can call a model takes one flag, `--find-dotenv`, which searches upward from the repo root for a `.env` (like python-dotenv's `find_dotenv`) and then falls back to the operating system environment (for example on a server). The source of each key is printed at startup; the value never is.
 
 Runs are billed per token to the `ANTHROPIC_API_KEY` in your `.env`, via
 `backend: api` in `config.yaml`. That is the committed default and the mode to
