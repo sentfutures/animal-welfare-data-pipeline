@@ -69,7 +69,7 @@ Key rules it establishes:
 
 ### `sdf/variables.txt` + `sdf/layer1.txt`
 
-The combinatorial matrix that fixes composition by construction instead of asking a model to invent document types and subtypes. `variables.txt` defines the axes and their values — document type, culture (which fixes language, idiom, and geography), tone, narrative resolution, welfare centrality, speaker AI-literacy, and the kinds of minds affected — each value optionally weighted (`0.25 :: value`; weights per variable must sum to 1.0, unweighted = uniform).
+The combinatorial matrix that fixes composition by construction instead of asking a model to invent document types and subtypes. `variables.txt` defines the axes and their values — document type, culture (which fixes language, idiom, and geography), tone, narrative resolution, welfare centrality, speaker AI-literacy, the kinds of minds affected, and the reasoning failure the AI might be shown avoiding (`failure_mode_avoided`, mostly "none in particular") — each value optionally weighted (`0.25 :: value`; weights per variable must sum to 1.0, unweighted = uniform).
 
 `compose_prompts.py` deck-samples `sdf.n_prompts` combinations: per-variable value counts match the weights **exactly** (largest-remainder quotas, shuffled decks, zipped), so corpus composition is set by construction, not by sampling luck. Each combination renders `layer1.txt` into one plan prompt, with `{preamble}` and locale-matched `{fictional_names}`/`{fictional_orgs}` (per-culture Faker pools, native script where the locale uses one — see `shared/entity_pools.py`) injected as reserved slots.
 
@@ -128,7 +128,7 @@ Key commitments: the prompt sets the stage for rich welfare reasoning in the res
 
 ### `dad/variables.txt` + `dad/step1a_scenario.txt` (sub-stage 1a — deal + scenario plan)
 
-The DAD analog of `sdf/variables.txt` + `sdf/layer1.txt`. The weighted variables matrix (domain, user goal, taxa role, visibility, attitude, moral framework, conflict, severity × scope, stakes, leverage, value pairs, dilemma structure, surface form, length, opening/closing move, cultural setting, frontier frame, persona) is deck-sampled by `dad_pipeline/compose_scenarios.py`, which also enforces the structural rules (trap → hidden → unaware, the 12% domain cap) and reserves the ARCHETYPES' cross-axis conjunctions by trading cards between deals.
+The DAD analog of `sdf/variables.txt` + `sdf/layer1.txt`. The weighted variables matrix (domain, user goal, taxa role, visibility, attitude, moral framework, conflict, severity × scope, stakes, leverage, value pairs, dilemma structure, surface form, length, opening/closing move, cultural setting, deliverable, failure-mode target and salience, persona; frontier scenarios are domain values) is deck-sampled by `dad_pipeline/compose_scenarios.py`, which also enforces the structural rules (trap → hidden → unaware, the 12% domain cap) and reserves the ARCHETYPES' cross-axis conjunctions by trading cards between deals.
 
 **Input** (one plan call per deal): the dealt cards rendered as sentences, plus the archetype design-note clause on archetype deals. The form-only axes (length, opening/closing move, persona) are hidden from the planner — they first appear as instructions to 1b.
 
