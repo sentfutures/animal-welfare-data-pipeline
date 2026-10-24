@@ -26,9 +26,9 @@ only asks the model and feeds the answers in.
   because every rejection means an entry has closed. ``over_cap`` rows are saved
   like any other row, and ``replay`` re-asks those documents first.
 - Passes: pass 1 asks every eligible document for each list. A later pass asks
-  only the documents that got at least one ACCEPTED pick in the immediately
-  preceding pass (pass 2 those accepted in pass 1, pass 3 those accepted in
-  pass 2, and so on; over-cap rejections and "none" answers do not count),
+  only the documents that, in the immediately preceding pass, got a pick
+  accepted or a pick rejected over cap (either way the model found something
+  that fits them; a document that only answered "none" is not asked again),
   offering only entries still under target that the document does not already
   carry, so a document can end up with several considerations. Who is asked is
   derived from the accepted picks' pass numbers, so it is rebuilt by ``replay``
@@ -139,11 +139,13 @@ class ConsiderationTracker:
 
     def is_asked_in_pass(self, prompt_id: str, pass_number: int) -> bool:
         """Pass 1 asks every eligible document; a later pass asks only a document
-        with an accepted pick in the immediately preceding pass."""
+        that, in the immediately preceding pass, had a pick accepted or a pick
+        rejected over cap (either way the model found something that fits it)."""
         if pass_number <= 1:
             return True
-        return any(pick.prompt_id == prompt_id and pick.pass_number == pass_number - 1
-                   for pick in self.picks)
+        previous = pass_number - 1
+        return (previous, prompt_id) in self._over_cap_asks or any(
+            pick.prompt_id == prompt_id and pick.pass_number == previous for pick in self.picks)
 
     def pending_call_for(self, prompt_id: str, pass_number: int) -> PendingCall | None:
         """The call this document needs now in this pass (the lists still
@@ -164,7 +166,7 @@ class ConsiderationTracker:
         """Calls still to make in this pass, in order: documents with a pick
         rejected over cap in a saved row come first (they are
         re-asked), then documents not yet asked, both in document order. In a pass after the
-        first, only documents with an accepted pick in the preceding pass are asked. A document is asked only
+        first, only documents with a pick accepted or a pick rejected over cap in the preceding pass are asked. A document is asked only
         for lists still unresolved in this pass that have something to offer."""
         re_asked = [p for p in self.document_order if (pass_number, p) in self._over_cap_asks]
         fresh = [p for p in self.document_order if (pass_number, p) not in self._over_cap_asks]

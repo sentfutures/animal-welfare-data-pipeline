@@ -326,15 +326,16 @@ def test_pass_three_asks_only_documents_accepted_in_pass_two_not_pass_one():
     assert asked_in(tracker, 3) == ["doc_0"]
 
 
-def test_over_cap_only_and_none_only_documents_are_not_carried_into_the_next_pass():
+def test_an_over_cap_rejection_carries_a_document_into_the_next_pass_but_none_only_does_not():
     tracker = ConsiderationTracker(make_catalog(moral=(("M1", 0.1), ("M2", 0.9)), epistemic=(("E1", 0.9),)), make_documents(10))
     tracker.record_answer("doc_0", 1, 1, {MORAL_LIST: ("M1", "r"), EPISTEMIC_LIST: (None, "")})
-    # doc_1 was offered M1 before doc_0 filled it, so its only pick is rejected over cap
+    # doc_1 was offered M1 before doc_0 filled it, so its only pick is rejected over cap;
+    # its re-ask then answers none, but the rejection shows the model found something that fits it
     over_cap_row = tracker.record_answer("doc_1", 1, 2, {MORAL_LIST: ("M1", "r")}, offered_labels={MORAL_LIST: {"M1", "M2"}})
     assert over_cap_row["outcomes"][0]["status"] == STATUS_OVER_CAP
     tracker.record_answer("doc_1", 1, 3, {MORAL_LIST: (None, ""), EPISTEMIC_LIST: (None, "")})
     tracker.record_answer("doc_2", 1, 1, {MORAL_LIST: (None, ""), EPISTEMIC_LIST: (None, "")})
-    assert asked_in(tracker, 2) == ["doc_0"]
+    assert asked_in(tracker, 2) == ["doc_0", "doc_1"]
 
 
 def test_a_document_with_nothing_left_to_offer_is_not_asked():

@@ -10,7 +10,7 @@ orders each list offered to a document by remaining need (target minus picks,
 largest first, catalog order breaking ties) and stops offering an entry once its
 target is met; the entries that have filled (and that this document could otherwise be
 offered and does not already carry) are named in a separate line, with an instruction
-to answer none rather than relabel the idea as a neighbouring open entry; a pass after the first asks only the documents that got an accepted pick in the
+to answer none rather than relabel the idea as a neighbouring open entry; a pass after the first asks only the documents that got a pick accepted or a pick rejected over cap in the
 preceding pass (re-offering the entries still under target), so a document can carry more than one consideration.
 
 The model answers through a JSON schema built per call from the entries offered
