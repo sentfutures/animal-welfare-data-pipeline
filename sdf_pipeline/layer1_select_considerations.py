@@ -51,7 +51,7 @@ Config (``sdf`` section): ``select_enabled`` (default true), ``select_model``
 ``max_moral_considerations_per_document`` (3),
 ``max_epistemic_considerations_per_document`` (3),
 ``max_considerations_per_document`` (4), ``score_weights`` ({3: 1, 4: 3, 5: 9}),
-``penalty_step_per_further_consideration_in_a_list`` (2); the calls use ``workers`` threads.
+``extra_consideration_penalty`` (2); the calls use ``workers`` threads.
 """
 
 import json
