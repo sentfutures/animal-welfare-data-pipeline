@@ -169,6 +169,8 @@ cp .env.example .env           # then add your ANTHROPIC_API_KEY
 
 ### Authentication
 
+Keys are read by one loader, `shared/api_keys.py`, which looks only at `.env` in the repo root (never parent folders or the current directory). A key set in that `.env` takes precedence over the same variable in your shell. Without a `.env` (for example on a server) or without that variable in it, the environment variable is used. The source of each key is printed at startup; the value never is.
+
 Runs are billed per token to the `ANTHROPIC_API_KEY` in your `.env`, via
 `backend: api` in `config.yaml`. That is the committed default and the mode to
 use for every real run: it is the only one that reproduces `max_tokens` caps,
@@ -192,7 +194,7 @@ pytest -k checkpoint                # tests matching a keyword
 pytest -x                           # stop at the first failure
 ```
 
-Expected result: all tests pass, in well under a minute, with no network access. Three safety layers guarantee the API is never hit (pytest-socket blocks all sockets, every test gets a fake `ANTHROPIC_API_KEY`, and the API seam is replaced with a guard that raises), so a real key in your `.env` is never used by tests. Test outputs go to temp directories; the repo's `outputs/` tree is untouched.
+Expected result: all tests pass, in well under a minute, with no network access. Three safety layers guarantee the API is never hit (pytest-socket blocks all sockets, every test gets a fake `ANTHROPIC_API_KEY` and a repo root with no `.env`, and the API seam is replaced with a guard that raises), so a real key in your `.env` is never used by tests. Test outputs go to temp directories; the repo's `outputs/` tree is untouched.
 
 See the Testing section in `CLAUDE.md` for how the suite is structured and how to write tests for new stages.
 

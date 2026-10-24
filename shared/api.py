@@ -30,7 +30,6 @@ from datetime import datetime, UTC
 
 import anthropic
 import yaml
-from dotenv import load_dotenv
 from tenacity import (
     retry,
     stop_after_attempt,
@@ -38,7 +37,7 @@ from tenacity import (
     retry_if_exception_type,
 )
 
-load_dotenv()
+from shared.api_keys import load_api_key
 
 _config: dict = {}
 _client: anthropic.Anthropic | None = None
@@ -156,8 +155,8 @@ def init(config_path: str = "config.yaml", cost_log_path: str | Path | None = No
     # The claude_code backend authenticates via the Claude Code CLI, so no key.
     # auto needs the key too: it is the fallback leg AND serves the empty-system
     # calls (the DAD baseline arm) that claude_code cannot reproduce exactly.
-    if _backend in ("api", "auto") and not os.environ.get("ANTHROPIC_API_KEY"):
-        raise KeyError("ANTHROPIC_API_KEY")
+    if _backend in ("api", "auto"):
+        load_api_key("ANTHROPIC_API_KEY")   # raises MissingApiKeyError (a KeyError) naming the .env path
     _client = None  # constructed lazily; the claude_code backend needs no API key
     _cost_log_path = Path(cost_log_path or _config["outputs"]["cost_log"])
     _cost_log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -167,12 +166,7 @@ def init(config_path: str = "config.yaml", cost_log_path: str | Path | None = No
 def _get_client() -> anthropic.Anthropic:
     global _client
     if _client is None:
-        api_key = os.environ.get("ANTHROPIC_API_KEY")
-        if not api_key:
-            raise RuntimeError(
-                "backend 'api' requires ANTHROPIC_API_KEY in .env; "
-                "set it, or switch config.yaml to backend: claude_code"
-            )
+        api_key = load_api_key("ANTHROPIC_API_KEY")   # raises MissingApiKeyError if absent
         _client = anthropic.Anthropic(api_key=api_key)
     return _client
 

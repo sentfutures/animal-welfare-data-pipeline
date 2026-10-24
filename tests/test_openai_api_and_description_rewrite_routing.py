@@ -73,11 +73,11 @@ def test_unusable_responses_are_reported_and_still_costed(stub_openai_responses,
     assert len(logged_records(cost_log)) == 1
 
 
-def test_missing_key_fails_clearly_and_never_reads_a_dotenv_file(monkeypatch, cost_log, tmp_path):
+def test_missing_key_fails_clearly_and_ignores_the_current_directory_dotenv_file(monkeypatch, cost_log, tmp_path):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     (tmp_path / ".env").write_text("OPENAI_API_KEY=from-a-dotenv-file\n")
     monkeypatch.chdir(tmp_path)
-    with pytest.raises(RuntimeError, match="OPENAI_API_KEY is not set in the process environment"):
+    with pytest.raises(RuntimeError, match="OPENAI_API_KEY is not set. Fill in OPENAI_API_KEY"):
         openai_api.call_openai("u", "s", model="gpt-6.1-sol", max_output_tokens=10)
 
 

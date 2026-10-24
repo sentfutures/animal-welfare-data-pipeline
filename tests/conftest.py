@@ -6,7 +6,7 @@ spawn the Claude Code CLI:
 1. pytest-socket (``--disable-socket`` in pyproject.toml) blocks all network
    access at the socket level.
 2. Every test runs with a fake ``ANTHROPIC_API_KEY``, overriding any real key
-   that ``load_dotenv()`` (run at ``shared.api`` import) pulled from a .env file.
+   that the repo's .env would supply (the repo root is also pointed at an empty folder).
 3. ``shared.api._call_with_retry`` is replaced with a function that raises, so
    an unstubbed ``call_claude`` on the api backend fails loudly before touching
    tenacity/anthropic.
@@ -71,6 +71,15 @@ def _seed_rng():
     parallel stage must inject its own rng (e.g. sample_language(dist, rng=...)).
     """
     random.seed(0)
+
+
+@pytest.fixture(autouse=True)
+def _no_real_dotenv_and_fresh_key_announcements(monkeypatch, tmp_path_factory):
+    """Point the key loader's repo root at an empty folder so no test ever reads a real .env,
+    and reset its once-per-variable printing."""
+    from shared import api_keys
+    monkeypatch.setattr(api_keys, "REPO_ROOT", tmp_path_factory.mktemp("repo_root_without_dotenv"))
+    monkeypatch.setattr(api_keys, "_sources_already_announced", set())
 
 
 @pytest.fixture(autouse=True)

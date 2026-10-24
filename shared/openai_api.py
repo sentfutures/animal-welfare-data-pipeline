@@ -5,8 +5,8 @@ Used by stages whose configured model name starts with ``gpt-`` (see
 ``input``, ``reasoning.effort``, and strict ``json_schema`` structured output.
 Temperature is 1; ``top_p`` is not sent (gpt-6.1-sol rejects it, and its default is 1).
 
-The key is read from the process environment only (``OPENAI_API_KEY``), and only when an
-OpenAI model is actually called. Nothing here loads a ``.env`` file.
+The key (``OPENAI_API_KEY``) comes from shared/api_keys.py (the repo's own .env, else the
+environment), and is loaded only when an OpenAI model is actually called.
 
 Every call is appended to the pipeline's cost log (``shared.api._log_usage``) in the same
 record shape as Claude calls, with backend ``openai`` plus a ``reasoning_tokens`` field.
@@ -21,6 +21,7 @@ import openai
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from shared import api
+from shared.api_keys import load_api_key
 
 MODEL_NAME_PREFIX = "gpt-"
 DEFAULT_REASONING_EFFORT = "medium"
@@ -45,13 +46,7 @@ def _get_client() -> openai.OpenAI:
     global _client
     with _client_lock:
         if _client is None:
-            api_key = os.environ.get("OPENAI_API_KEY")
-            if not api_key:
-                raise RuntimeError(
-                    "An OpenAI model is configured (a model name starting with 'gpt-') but "
-                    "OPENAI_API_KEY is not set in the process environment. Export it in the "
-                    "shell that runs the pipeline; this pipeline does not read it from a .env file."
-                )
+            api_key = load_api_key("OPENAI_API_KEY")   # raises MissingApiKeyError if absent
             # Accept-Encoding gzip works around a decompression bug in some httpx versions.
             # max_retries=0 because tenacity below does the retries, so every attempt is counted.
             _client = openai.OpenAI(api_key=api_key, default_headers={"Accept-Encoding": "gzip"},

@@ -72,11 +72,10 @@ import shutil
 import sys
 from pathlib import Path
 
-from dotenv import load_dotenv
-
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from shared import utils
+from shared.api_keys import load_optional_api_key
 # The one regex that reads a writing language out of a dealt culture/setting
 # card ("China, written in Mandarin Chinese, ..." -> "Mandarin Chinese").
 # Imported rather than copied: it is a contract with the wording in
@@ -91,7 +90,6 @@ from sdf_pipeline.compose_prompts import derive_language
 # script must not reach anything that pulls shared.api -> anthropic.
 from dad_pipeline.compose_scenarios import dealt_variables
 
-load_dotenv()
 
 CORPUS_FILENAMES = ("sdf_corpus.jsonl", "dad_corpus.jsonl")
 
@@ -830,6 +828,11 @@ def main() -> None:
         raise SystemExit("Duplicate --input run dirs would double their rows "
                          "in the combined corpus.")
     pipeline_tag = "sdf" if corpus_name == "sdf_corpus.jsonl" else "dad"
+
+    if not args.dry_run:
+        # HF_TOKEN from <repo root>/.env (else the environment) is optional: without it
+        # huggingface_hub falls back to the cached `huggingface-cli login` token.
+        load_optional_api_key("HF_TOKEN")
 
     # Before staging (which wipes a directory) and before any Hub call, so an
     # aborted publish leaves nothing behind. Runs in --dry-run too: a preview
