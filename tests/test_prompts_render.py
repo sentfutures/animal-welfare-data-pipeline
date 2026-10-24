@@ -32,11 +32,10 @@ TEMPLATE_KWARGS = [
     ("sdf/layer1_screen_specification_block.txt", {"number": 3, "variable_lines": "LINES-X"}),
     # layer 1 description rewrite: rendered by layer1_description_rewrite.build_rewrite_prompt
     ("sdf/layer1_description_rewrite.txt", {"variable_lines": "LINES-X", "description": "DESCRIPTION-X"}),
-    # layer 1 considerations selector: rendered by layer1_select_considerations.build_selection_prompt
+    # layer 1 considerations selector: rendered by layer1_select_considerations.build_scoring_prompt
     ("sdf/layer1_select_considerations.txt", {
         "document_type": "TYPE-X", "centrality": "CENTRALITY-X", "sentient_category": "MINDS-X",
         "document_description": "DESC-X", "moral_list": "MORAL-LIST-X", "epistemic_list": "EPISTEMIC-LIST-X",
-        "existing_picks": "EXISTING-PICKS-X", "full_entries": "FULL-ENTRIES-X",
     }),
     ("sdf/layer2.txt", {
         "preamble": "PREAMBLE-X", "constitution_claude": "CONST-C-X",

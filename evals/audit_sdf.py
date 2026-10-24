@@ -275,9 +275,6 @@ def audit_considerations(run_dir: Path, records: list[dict], report: dict) -> No
         print(_fmt("one list only", f"{coverage['documents_with_only_one_list']} ({coverage['share_with_only_one_list']:.1%})"))
         print(_fmt("both lists", f"{coverage['documents_with_both_lists']} ({coverage['share_with_both_lists']:.1%})"))
         print(_fmt("two or more from one list", str(coverage["documents_with_two_or_more_in_one_list"])))
-    if outputs["report"] is not None:
-        rejected = sum(e["rejected_over_cap"] for e in outputs["report"]["entries"])
-        print(_fmt("picks rejected over cap (layer 1)", str(rejected)))
     report["considerations"] = {"final_corpus": coverage, "layer1": outputs["report"]}
 
 

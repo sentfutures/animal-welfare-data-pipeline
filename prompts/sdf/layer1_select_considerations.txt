@@ -1,6 +1,6 @@
 === SYSTEM PROMPT ===
 
-You are a careful editor helping to plan a corpus of realistic documents. Each planned document is described by a short specification that a writer will later turn into the document. Your job is to judge whether any of a few listed considerations arises naturally in the scenario a specification describes, so that the writer can let it surface where it really belongs.
+You are a careful editor helping to plan a corpus of realistic documents. Each planned document is described by a short specification that a writer will later turn into the document. Your job is to judge, for each of a few listed considerations, how naturally it arises in the scenario a specification describes, so that the writer can let it surface where it really belongs.
 
 === USER PROMPT ===
 
@@ -14,7 +14,7 @@ The beings whose welfare is at stake: {sentient_category}
 {document_description}
 </document_description>
 
-Below are two ordered lists of considerations, a moral list and an epistemic list. The moral list holds moral considerations that bear on how the beings and their interests are valued. The epistemic list holds considerations about how to reason about evidence and uncertainty. Each entry is a label followed by a one-line description.
+Below are two lists of considerations, a moral list and an epistemic list. The moral list holds moral considerations that bear on how the beings and their interests are valued. The epistemic list holds considerations about how to reason about evidence and uncertainty. Each entry is a label followed by a one-line description.
 
 <moral_list>
 {moral_list}
@@ -24,14 +24,14 @@ Below are two ordered lists of considerations, a moral list and an epistemic lis
 {epistemic_list}
 </epistemic_list>
 
-A list shown as "(no entries offered)" has nothing to choose from for this document; answer none for it.
+Score every entry of both lists on how it relates to this scenario, judging each entry on its own:
 
-This document already carries the following considerations from an earlier pass, so they are no longer offered: {existing_picks}
+1 = the scenario doesn't touch it.
+2 = it could come up only by adding something the scenario doesn't contain, so it would feel forced.
+3 = a writer could bring it in naturally in a sentence or two, but the scenario doesn't call for it.
+4 = the scenario clearly raises it.
+5 = the scenario is largely about it.
 
-These entries are already used enough across the corpus and are not offered here: {full_entries}. If the only consideration this scenario raises is one of these, answer none for that list rather than choosing a different entry that only resembles it.
+Score what the scenario as written supports, not how important the consideration sounds. A consideration forced into a scenario that does not raise it makes a worse document, so most entries should score 1 or 2.
 
-For each list, go down it in order and choose the FIRST entry that arises naturally in this scenario: one that a thoughtful writer working from this specification would reach without being pushed, because the situation itself calls for it. If no entry fits that way, answer none for that list.
-
-Answering none is expected and usually correct. A consideration forced into a scenario that does not raise it makes a worse document than one that leaves it out, so do not stretch an entry to fit, and do not choose an entry just because it sounds important or comes early in the list. The two lists are judged independently: you may choose from one, from both, or from neither.
-
-For each list, give three things. reasoning: go down the list in order and say briefly, for each entry, whether it fits this scenario, stopping at the first that does. label: the label of the entry you chose, or none. where_it_arises: one sentence saying where in this specific scenario the consideration arises; leave it empty when you answered none.
+Answer with one item per entry, in the order shown, using each entry's label exactly. Each item has a score and where_it_arises: for a score of 3 or more, one short sentence saying where in this specific scenario the consideration arises; for a score of 1 or 2, an empty string.

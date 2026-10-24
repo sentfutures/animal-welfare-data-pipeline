@@ -57,17 +57,18 @@ def offered_labels(user_message):
 
 
 def selector_answer(user_message, item_id):
-    """A deterministic stand-in for the model: about a third of the lists get a pick, chosen by hash."""
+    """A deterministic stand-in for the model: scores every shown entry 1-5 by hash."""
     shown = offered_labels(user_message)
     answer = {}
-    for name in ("moral", "epistemic"):
-        seed = zlib.crc32(f"{item_id}:{name}".encode())
-        if shown[name] and seed % 3 == 0:
-            label = shown[name][(seed // 3) % len(shown[name])]
-            answer[name] = {"reasoning": "Walked the list.", "label": label,
-                            "where_it_arises": f"Where {label} arises in this scenario."}
-        else:
-            answer[name] = {"reasoning": "Nothing fits.", "label": "none", "where_it_arises": ""}
+    for name, labels in shown.items():
+        if not labels:
+            continue
+        items = []
+        for label in labels:
+            score = 1 + zlib.crc32(f"{item_id}:{label}".encode()) % 5
+            items.append({"label": label, "score": score,
+                          "where_it_arises": f"Where {label} arises in this scenario." if score >= 3 else ""})
+        answer[name] = items
     return json.dumps(answer)
 
 
@@ -123,7 +124,7 @@ def test_offline_smoke_screen_plan_description_rewrite_select_draft_rewrite(smok
     for entry in report["entries"]:
         assert entry["achieved"] <= entry["target_count"]
     selector_calls = [c for c in calls if c["stage"] == "layer1_select"]
-    assert len(selector_calls) >= N_DOCUMENTS                      # pass 1 asks every eligible document at least once
+    assert len(selector_calls) == N_DOCUMENTS                      # one scoring call per eligible document
 
     outputs = select.load_considerations_outputs(run_dir)
     corpus_report = select.corpus_coverage_report(outputs, corpus)
