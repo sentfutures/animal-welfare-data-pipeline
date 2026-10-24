@@ -72,12 +72,21 @@ CHECKS = ["plausibility_organisation", "organisation_naming"]
     answer(rewrite_needed=True, description="New.", checks=("made_up_check",)),  # unknown check
     answer(rewrite_needed=False, description="Stray text."),                     # decline carrying a rewrite
     answer(rewrite_needed=True, description="New.", conflict=True, conflict_reason="x"),  # rewrite and conflict
+    answer(conflict=True, conflict_reason="x", description="Stray text."),       # conflict carrying a rewrite
     answer(conflict=True, conflict_reason="  "),                                 # conflict without a reason
     answer(rewrite_needed="yes"),                                                # wrong type
 ])
 def test_parse_rejects_unusable_or_self_contradictory_answers(raw):
     with pytest.raises(rewrite.RewriteAnswerError):
         rewrite.parse_rewrite_answer(raw, CHECKS)
+
+
+def test_parse_accepts_a_conflict_whatever_rewrite_needed_says_and_stores_it_as_false():
+    for needed in (True, False):
+        result = rewrite.parse_rewrite_answer(
+            answer(rewrite_needed=needed, conflict=True, conflict_reason="Scale cannot occur."), CHECKS)
+        assert result.dealt_value_conflict and not result.rewrite_needed
+        assert result.rewritten_description == "" and result.changes == ()
 
 
 def test_parse_the_three_outcomes():
@@ -195,7 +204,8 @@ def test_a_malformed_answer_is_not_checkpointed_and_resume_retries_exactly_that_
 ):
     broken = plans[4]["prompt_id"]
     stub_claude(lambda user_message, **kw: "not json" if kw["item_id"] == broken else answer())
-    rewrite.run(tiny_config, prompts_sdf, stage_dir, plans)
+    with pytest.raises(SystemExit, match="1 descriptions held out"):
+        rewrite.run(tiny_config, prompts_sdf, stage_dir, plans)
     checkpoint = utils.Checkpoint(stage_dir / "_description_rewrite_checkpoint.json")
     assert checkpoint.done_count == len(plans) - 1 and not checkpoint.is_done(broken)
     assert broken not in by_id(utils.load_jsonl(stage_dir / "description_rewrites.jsonl"))
@@ -203,6 +213,42 @@ def test_a_malformed_answer_is_not_checkpointed_and_resume_retries_exactly_that_
     kept = by_id(rewrite.run(tiny_config, prompts_sdf, stage_dir, plans))
     assert [c["item_id"] for c in resumed] == [broken]
     assert kept[broken]["description"] == "Fixed on retry."
+
+
+def test_a_conflict_with_rewrite_needed_true_is_stored_and_drops_the_plan(
+    tiny_config, prompts_sdf, stage_dir, stub_claude, plans
+):
+    target = plans[2]["prompt_id"]
+    stub_claude(lambda user_message, **kw: answer(True, conflict=True, conflict_reason="Scale cannot occur.")
+                if kw["item_id"] == target else answer())
+    kept = by_id(rewrite.run(tiny_config, prompts_sdf, stage_dir, plans))
+    assert target not in kept and len(kept) == len(plans) - 1
+    stored = by_id(utils.load_jsonl(stage_dir / "description_rewrites.jsonl"))[target]
+    assert stored["dealt_value_conflict"] and stored["rewrite_needed"] is False
+
+
+def test_a_plan_with_no_result_is_held_out_of_the_applied_plans_but_a_plan_without_a_description_passes():
+    checked = {"prompt_id": "a", "description": "Checked."}
+    unchecked = {"prompt_id": "b", "description": "Never checked."}
+    undescribed = {"prompt_id": "c", "description": ""}
+    results = {"a": {"rewrite_needed": False, "dealt_value_conflict": False}}
+    assert rewrite.apply_results([checked, unchecked, undescribed], results) == [checked, undescribed]
+
+
+def test_an_unusable_answer_stops_the_stage_and_a_resume_retries_then_includes_the_plan(
+    tiny_config, prompts_sdf, stage_dir, stub_claude, plans, capsys
+):
+    broken = plans[1]["prompt_id"]
+    stub_claude(lambda user_message, **kw: "not json" if kw["item_id"] == broken else answer())
+    with pytest.raises(SystemExit, match="1 descriptions held out"):
+        rewrite.run(tiny_config, prompts_sdf, stage_dir, plans)
+    assert broken not in by_id(rewrite.load_rewritten_plans(tiny_config, stage_dir, plans))
+    stub_claude(lambda user_message, **kw: answer())
+    assert broken in by_id(rewrite.run(tiny_config, prompts_sdf, stage_dir, plans))
+
+
+def test_a_run_with_no_stored_results_passes_every_plan_through_on_reload(tiny_config, stage_dir, plans):
+    assert rewrite.load_rewritten_plans(tiny_config, stage_dir, plans) == plans
 
 
 def test_every_call_failing_is_systemic(tiny_config, prompts_sdf, stage_dir, stub_claude, plans):

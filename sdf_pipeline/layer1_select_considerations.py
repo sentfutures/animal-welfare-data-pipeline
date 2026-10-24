@@ -31,8 +31,9 @@ Files in the layer 1 stage folder:
   arrives; it is the checkpoint, and a rerun or ``--resume`` scores only the
   documents without a row. An unusable answer is retried up to
   ``sdf.max_scoring_attempts`` times (default 3) and then recorded in
-  consideration_scoring_failures.jsonl, never crashing the run; that document is
-  scored on the next resume.
+  consideration_scoring_failures.jsonl; the stage then stops before assigning (the
+  assignment is global, so it only runs once every eligible document is scored) and
+  that document is scored on the next resume.
 - consideration_selections.jsonl: the assignment, rewritten after every run, one
   row per scored document ({prompt_id, outcomes: [{list, label, reason, status,
   score}]}); this is what ``attach_selections`` reads when a run resumes past layer 1.
@@ -431,6 +432,11 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
             raise SystemExit(
                 "layer1_select: every pending scoring call failed — this is systemic "
                 "(auth, backend, or network), not per-document; fix and --resume.")
+        if failed:
+            raise SystemExit(
+                f"layer1_select: {failed} of {len(pending)} scoring calls failed — stopping before the "
+                "assignment, because the assignment is solved over every document together and a "
+                "document drafted without scores would be reassigned on resume; fix and --resume.")
 
     limits = assignment.limits_from_config(config)
     document_is_digital = digital_mind_flags(catalog, eligible)

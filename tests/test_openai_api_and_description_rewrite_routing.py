@@ -135,7 +135,8 @@ def test_stage_does_not_checkpoint_truncated_openai_answers_and_resume_retries_t
         return openai_response(text=ANSWER)
 
     calls = stub_openai_responses(first_pass)
-    rewrite.run(tiny_config, prompts_sdf, stage_dir, plans)
+    with pytest.raises(SystemExit, match="1 descriptions held out"):
+        rewrite.run(tiny_config, prompts_sdf, stage_dir, plans)
     assert all(call["reasoning"] == {"effort": "high"} for call in calls)
     assert set(rewrite.load_results(stage_dir)) == {p["prompt_id"] for p in plans[1:]}
 

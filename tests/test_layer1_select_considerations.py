@@ -7,7 +7,7 @@ real file, the real templates and the drafter use the repo's own files.
 
 Money paths: well-formed answers parse, unusable answers are retried and recorded
 without crashing the run, resume makes zero calls for scored documents, and a
-failure on every call exits.
+failure on any call stops the stage before it assigns anything.
 """
 
 import json
@@ -373,25 +373,28 @@ def test_scores_are_checkpointed_as_they_arrive(select_config, small_prompts, st
     assert seen == [0, 1, 2, 3]
 
 
-def test_one_unusable_document_is_recorded_not_fatal_and_is_rescored_on_resume(select_config, small_prompts, stage_dir, stub_claude):
+def test_one_unusable_document_stops_the_stage_before_assigning_and_is_rescored_on_resume(select_config, small_prompts, stage_dir, stub_claude):
     plans = make_plans(5)
     bad_id = "matrix_000002"
 
     def dispatcher(user_message, **kw):
         return "not json" if kw["item_id"] == bad_id else score_everything_five(user_message)
     calls = stub_claude(dispatcher)
-    result = select.run(select_config, small_prompts, stage_dir, plans)
+    with pytest.raises(SystemExit, match="1 of 5 scoring calls failed"):
+        select.run(select_config, small_prompts, stage_dir, plans)
     assert len([c for c in calls if c["item_id"] == bad_id]) == 3                    # max_scoring_attempts
     failures = rows_of(stage_dir, select.FAILURES_FILENAME)
     assert [f["prompt_id"] for f in failures] == [bad_id] and "unusable answer" in failures[0]["problem"]
     assert bad_id not in {r["prompt_id"] for r in rows_of(stage_dir, select.SCORES_FILENAME)}
-    assert next(p for p in result if p["prompt_id"] == bad_id)["considerations_spec"] == ""
+    assert not (stage_dir / select.SELECTIONS_FILENAME).exists()
+    assert not (stage_dir / select.COVERAGE_FILENAME).exists()
     calls = stub_claude(score_everything_five)
-    select.run(select_config, small_prompts, stage_dir, plans)
+    result = select.run(select_config, small_prompts, stage_dir, plans)
     assert [c["item_id"] for c in calls] == [bad_id]
+    assert all(p["considerations_spec"] for p in result)
 
 
-def test_a_failure_on_every_call_exits_but_one_failure_does_not(select_config, small_prompts, stage_dir, stub_claude):
+def test_a_failure_on_every_call_exits_as_systemic(select_config, small_prompts, stage_dir, stub_claude):
     def raising(user_message, **kw):
         raise RuntimeError("backend down")
     stub_claude(raising)

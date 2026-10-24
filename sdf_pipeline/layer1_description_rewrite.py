@@ -11,7 +11,8 @@ untouched. When it rewrites, the plan record keeps both versions
 (``original_description`` and the ``changes`` list) and ``description`` becomes
 the rewritten text, so layers 2-4 use it unchanged. When the only plausible fix
 would change a dealt value the model answers ``dealt_value_conflict: true``
-without a rewrite and the plan is dropped and logged to
+without a rewrite (whatever it put in ``rewrite_needed``, which is stored as false)
+and the plan is dropped and logged to
 description_rewrite_rejections.jsonl.
 
 The call is schema-constrained (prompts/sdf/layer1_description_rewrite_answer_schema.json)
@@ -34,7 +35,10 @@ judgment without re-validating (see config.yaml for the run folder).
 Checkpoint semantics (protects paid work): one result per plan, appended to
 description_rewrites.jsonl before the plan is checkpointed; a malformed,
 truncated or self-contradictory answer is NOT checkpointed, so --resume retries
-exactly that plan.
+exactly that plan. A described plan with no stored result (unusable answer or failed
+call) is held out of plans re-read on a resume past layer 1, so it never reaches
+drafting unchecked; the stage prints how many are held out and stops, because
+later stages assign over the whole plan set and a resume retries them.
 """
 
 import copy
@@ -102,7 +106,9 @@ def parse_rewrite_answer(raw: str, allowed_checks: list[str]) -> RewriteResult:
     """Validate a rewrite answer. Raises RewriteAnswerError unless it is JSON of the
     schema's shape and consistent: a rewrite carries a non-empty description and at
     least one change with a known check and a reason; a declined rewrite carries
-    neither; a dealt-value conflict carries a conflict reason and no rewrite."""
+    neither; a dealt-value conflict carries a conflict reason and no rewritten
+    description, and its ``rewrite_needed`` is ignored (stored as false) because
+    there is no rewrite to need."""
     try:
         data = json.loads(raw or "")
         reasoning, needed, rewritten, changes, conflict, conflict_reason = (
@@ -121,8 +127,8 @@ def parse_rewrite_answer(raw: str, allowed_checks: list[str]) -> RewriteResult:
             raise RewriteAnswerError(f"unusable change entry: {change!r}")
         cleaned.append({"check": change["check"], "reason": change["reason"].strip()})
     if conflict:
-        if needed or rewritten.strip():
-            raise RewriteAnswerError("a dealt-value conflict must come with no rewrite")
+        if rewritten.strip():
+            raise RewriteAnswerError("a dealt-value conflict must come with no rewritten description")
         if not conflict_reason.strip():
             raise RewriteAnswerError("a dealt-value conflict needs a conflict reason")
     elif needed:
@@ -195,12 +201,17 @@ def load_results(output_dir: Path) -> dict[str, dict]:
 def apply_results(plans: list[dict], results: dict[str, dict]) -> list[dict]:
     """Plans with the stored results applied: a dealt-value conflict removes the
     plan; a rewrite swaps in the new description and keeps ``original_description``
-    and ``changes``; everything else passes through untouched (same object)."""
+    and ``changes``; a decline, and a plan with no description (never sent), pass
+    through untouched (same object). A described plan with no stored result was
+    never checked (unusable answer or failed call), so it is held out rather than
+    passed on unchecked; a resume retries it."""
     applied = []
     for plan in plans:
         result = results.get(plan["prompt_id"])
-        if result is None or not plan.get("description"):
+        if not plan.get("description"):
             applied.append(plan)
+        elif result is None:
+            continue
         elif result["dealt_value_conflict"]:
             continue
         elif result["rewrite_needed"]:
@@ -221,10 +232,15 @@ def enabled(config: dict) -> bool:
 
 def load_rewritten_plans(config: dict, output_dir: Path, plans: list[dict]) -> list[dict]:
     """Plans with saved rewrite results applied, no calls. Used when a run resumes
-    past layer 1 and plans are re-read from disk."""
+    past layer 1 and plans are re-read from disk. A run with no stored results at all
+    (the stage never ran, e.g. it predates the stage) passes every plan through; once
+    any result exists, described plans without one are held out as in ``apply_results``."""
     if not enabled(config):
         return plans
-    return apply_results(plans, load_results(output_dir))
+    results = load_results(output_dir)
+    if not results:
+        return plans
+    return apply_results(plans, results)
 
 
 def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) -> list[dict]:
@@ -308,10 +324,18 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
         )
     results = load_results(output_dir)
     kept = apply_results(plans, results)
+    held_out = sum(1 for p in described if p["prompt_id"] not in results)
+    if held_out:
+        print(f"  Description rewrite: {held_out} descriptions held out of drafting because their check "
+              f"failed or gave an unusable answer — --resume retries them")
     print(f"  Description rewrite: {sum(r['rewrite_needed'] for r in results.values())} of "
           f"{len(described)} descriptions rewritten, "
           f"{sum(r['dealt_value_conflict'] for r in results.values())} dropped for a dealt-value "
           f"conflict ({time.monotonic() - started_all:.1f}s this session)")
+    if held_out:
+        raise SystemExit(
+            f"layer1_description_rewrite: {held_out} descriptions held out — stopping before the "
+            "stages that assign over the whole plan set; fix and --resume.")
     return kept
 
 
