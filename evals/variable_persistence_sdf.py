@@ -23,15 +23,19 @@ Usage
     python evals/variable_persistence_sdf.py --input outputs/sdf/latest --resume <folder>
 
 ``--input`` is a run directory or a corpus ``sdf_corpus.jsonl``. Outputs go to
-``<run>/audit/variable_persistence_<YYYY-MM-DD_HH-MM>/`` (or ``--output-dir``):
+``<run>/audit/variable_persistence_<YYYY-MM-DD_HH-MM>/``, or for ``--sample`` and ``--doc-ids`` runs to
+``<run>/audit/small_sample_checks/variable_persistence_<YYYY-MM-DD_HH-MM>/`` (or ``--output-dir``):
 
     persistence_judgments_<timestamp>.jsonl        one row per document, appended as each completes
     per_variable_persistence_summary_<timestamp>.csv
     failed_persistence_checks_<timestamp>.jsonl    every "no", with doc_id, variable, dealt value, reasoning
     persistence_cost_log_<timestamp>.jsonl         one row per API call
+    run_configuration_<timestamp>.json             judge prompt and variable-meanings hashes, model, corpus hash
 
 A rerun with ``--resume <folder>`` skips documents already judged; documents whose
-calls failed are retried.
+calls failed are retried. A resume is refused if the corpus, the judge prompt, the
+variable-meanings file or the model differs from what the folder recorded (or if the
+folder recorded none).
 
 Config (``sdf`` section): ``variable_persistence_model`` (falls back to
 ``score_model``, then ``plan_model``, then the global ``model``),
@@ -53,6 +57,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from evals.audit_sdf import resolve_input
+from evals.model_judged_audit_support import (
+    SMALL_SAMPLE_CHECKS_DIRECTORY_NAME, check_resume_is_compatible, corpus_path_of, sha256_of_file,
+    write_run_configuration)
 from sdf_pipeline import compose_prompts as cp
 from sdf_pipeline import considerations_catalog
 from shared import api, utils
@@ -490,6 +497,36 @@ def existing_timestamp(folder: Path) -> str | None:
     return found[-1].stem.removeprefix("persistence_judgments_") if found else None
 
 
+def report_directory_of(input_argument: str) -> Path:
+    """<run>/audit for a run directory or a corpus in <run>/final/; next to a loose corpus file otherwise."""
+    run_directory = run_directory_of(input_argument)
+    return (run_directory if run_directory is not None else Path(input_argument).parent) / "audit"
+
+
+def default_output_directory(report_directory: Path, timestamp: str, is_small_sample: bool) -> Path:
+    """Full runs go in the report directory; --sample and --doc-ids runs in its small_sample_checks subfolder."""
+    parent = report_directory / SMALL_SAMPLE_CHECKS_DIRECTORY_NAME if is_small_sample else report_directory
+    return parent / f"variable_persistence_{timestamp}"
+
+
+def build_run_configuration(corpus_path: Path, model: str | None) -> dict:
+    """What a resume must match: the judge prompt, the variable meanings, the model and the corpus."""
+    return {
+        "model": model,
+        "prompt_file_sha256": {PROMPT_PATH.name: sha256_of_file(PROMPT_PATH),
+                               MEANINGS_PATH.name: sha256_of_file(MEANINGS_PATH)},
+        "corpus_path": str(Path(corpus_path).resolve()),
+        "corpus_sha256": sha256_of_file(corpus_path),
+    }
+
+
+def record_run_configuration(output_dir: Path, timestamp: str, is_resume: bool, configuration: dict) -> None:
+    """Write the run's configuration file; on a resume, first refuse any change to what it recorded."""
+    if is_resume:
+        check_resume_is_compatible(output_dir, configuration, compared_settings=("model",))
+    write_run_configuration(output_dir, timestamp, configuration)
+
+
 def run_judging(records: list[dict], context: JudgeContext, config: dict, output_dir: Path, timestamp: str) -> None:
     names = output_names(timestamp)
     judgments_path = output_dir / names["judgments"]
@@ -548,7 +585,7 @@ def main() -> None:
     parser.add_argument("--sample", type=int, default=None, help="Judge a seeded random sample of N documents")
     parser.add_argument("--seed", type=int, default=0, help="Seed for --sample")
     parser.add_argument("--doc-ids", nargs="+", default=None, help="Judge only these doc_ids")
-    parser.add_argument("--output-dir", default=None, help="Output folder (default: <run>/audit/variable_persistence_<timestamp>)")
+    parser.add_argument("--output-dir", default=None, help="Output folder (default: <run>/audit/variable_persistence_<timestamp>, or under audit/small_sample_checks for --sample and --doc-ids)")
     parser.add_argument("--resume", default=None, help="Continue an earlier output folder, skipping documents already judged")
     parser.add_argument("--dry-run", action="store_true",
                         help="Make no calls and need no key: print the first prompt and schema, the call count and a cost estimate")
@@ -556,7 +593,7 @@ def main() -> None:
     args = parser.parse_args()
     apply_api_key_source_flags(args)
 
-    records, report_dir = resolve_input(args.input)
+    records, _ = resolve_input(args.input)
     if not records:
         raise SystemExit("Corpus is empty — nothing to judge.")
     config = utils.load_config(args.config)
@@ -577,8 +614,12 @@ def main() -> None:
         timestamp = existing_timestamp(output_dir) or datetime.now().strftime("%Y-%m-%d_%H-%M")
     else:
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
-        output_dir = Path(args.output_dir) if args.output_dir else report_dir / f"variable_persistence_{timestamp}"
+        output_dir = Path(args.output_dir) if args.output_dir else default_output_directory(
+            report_directory_of(args.input), timestamp, is_small_sample=bool(args.sample or args.doc_ids))
     utils.ensure_dir(output_dir)
+    corpus_path = corpus_path_of(args.input)
+    record_run_configuration(output_dir, timestamp, bool(args.resume),
+                             build_run_configuration(corpus_path, resolve_model(config) or config.get("model")))
     print(f"=== SDF variable persistence check: {args.input} ({len(records)} documents) ===")
     run_judging(records, context, config, output_dir, timestamp)
 

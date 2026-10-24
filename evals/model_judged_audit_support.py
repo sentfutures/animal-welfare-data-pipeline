@@ -153,18 +153,34 @@ def write_run_configuration(run_folder, timestamp, configuration):
     return path
 
 
-def check_resume_is_compatible(run_folder, new_configuration, hashes_key="prompt_file_sha256"):
-    """Raise RuntimeError if any file hash differs from the run's recorded configuration."""
+def check_resume_is_compatible(run_folder, new_configuration, hashes_key="prompt_file_sha256",
+                               compared_settings=()):
+    """Raise RuntimeError, saying what changed, if the new configuration differs from any of the run's
+    recorded configurations in a file hash, the corpus hash (when both record one), or any of the
+    named settings."""
     configuration_paths = sorted(Path(run_folder).glob("run_configuration_*.json"))
     if not configuration_paths:
         raise RuntimeError(f"No run_configuration file in {run_folder}; cannot verify prompts.")
     for path in configuration_paths:
-        old_hashes = json.loads(path.read_text(encoding="utf-8"))[hashes_key]
+        old_configuration = json.loads(path.read_text(encoding="utf-8"))
+        old_hashes = old_configuration[hashes_key]
         for file_name, new_hash in new_configuration[hashes_key].items():
             if file_name in old_hashes and old_hashes[file_name] != new_hash:
                 raise RuntimeError(
                     f"Refusing to resume: prompt file {file_name} changed since the run started "
                     f"({path.name}).")
+        old_corpus_hash = old_configuration.get("corpus_sha256")
+        new_corpus_hash = new_configuration.get("corpus_sha256")
+        if old_corpus_hash and new_corpus_hash and old_corpus_hash != new_corpus_hash:
+            raise RuntimeError(
+                f"Refusing to resume: the corpus changed since the run started (recorded corpus "
+                f"{old_configuration.get('corpus_path')}, now {new_configuration.get('corpus_path')}; "
+                f"corpus_sha256 differs; {path.name}).")
+        for setting in compared_settings:
+            if old_configuration.get(setting) != new_configuration[setting]:
+                raise RuntimeError(
+                    f"Refusing to resume: {setting} changed from {old_configuration.get(setting)!r} "
+                    f"to {new_configuration[setting]!r} ({path.name}).")
 
 
 def select_documents(all_documents, document_ids, document_limit, corpus_description):
@@ -483,6 +499,11 @@ def sum_usages(usages):
     return {field_name: sum(usage[field_name] for usage in usages) for field_name in USAGE_FIELD_NAMES}
 
 
+def usage_paid_before_transport_failure(error):
+    """Usage of the attempts that completed before a transport error escaped request_structured_output."""
+    return dict(getattr(error, "paid_usage_of_earlier_attempts", EMPTY_USAGE))
+
+
 class StructuredOutputParseFailure(Exception):
     """Both parse attempts failed; carries what the error log needs."""
 
@@ -502,7 +523,8 @@ def request_structured_output(model_name, instructions_text, input_text, schema_
 
     Returns a dict with parsed_result, raw_output_text, usage (summed over attempts), parse_attempts
     and latency_seconds. Raises StructuredOutputParseFailure if both attempts fail; transport errors
-    propagate (call_openai retries the transient ones itself).
+    propagate (call_openai retries the transient ones itself), carrying the usage of any earlier
+    attempt (see usage_paid_before_transport_failure).
     """
     attempt_usages = []
     last_failure_description = None
@@ -510,10 +532,14 @@ def request_structured_output(model_name, instructions_text, input_text, schema_
     started = time.time()
     for parse_attempt_number in (1, 2):
         usage = {}
-        raw_output_text, stop_reason = openai_api.call_openai(
-            input_text, instructions_text, model=model_name, max_output_tokens=maximum_output_tokens,
-            reasoning_effort=reasoning_effort, stage=stage, item_id=item_id, json_schema=schema,
-            schema_name=schema_name, prompt_cache_key=prompt_cache_key, usage_out=usage)
+        try:
+            raw_output_text, stop_reason = openai_api.call_openai(
+                input_text, instructions_text, model=model_name, max_output_tokens=maximum_output_tokens,
+                reasoning_effort=reasoning_effort, stage=stage, item_id=item_id, json_schema=schema,
+                schema_name=schema_name, prompt_cache_key=prompt_cache_key, usage_out=usage)
+        except Exception as error:
+            error.paid_usage_of_earlier_attempts = sum_usages(attempt_usages)
+            raise
         attempt_usages.append({**EMPTY_USAGE, **usage})
         last_raw_output_text = raw_output_text
         try:

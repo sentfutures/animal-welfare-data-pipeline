@@ -34,8 +34,8 @@ from evals.model_judged_audit_support import (  # noqa: E402
     StructuredOutputParseFailure, TimedProgressReporter, build_array_schema, build_strict_object_schema,
     check_resume_is_compatible, choose_run_folder, choose_runs_parent_directory, choose_stratified_sample,
     compute_cost_in_dollars, corpus_path_of, find_completed_keys, format_duration, read_all_records,
-    read_jsonl, request_structured_output, select_documents, sha256_of_file, timestamp_now,
-    write_run_configuration)
+    read_jsonl, request_structured_output, run_directory_of, select_documents, sha256_of_file, timestamp_now,
+    usage_paid_before_transport_failure, write_run_configuration)
 from shared import api, openai_api  # noqa: E402
 from shared.api_keys import add_api_key_source_flags, apply_api_key_source_flags  # noqa: E402
 
@@ -308,8 +308,7 @@ def run_classification(run_folder, timestamp, pass_definitions, documents, reaso
                 "doc_id": document["doc_id"], "pass": pass_definition.pass_name,
                 "error_kind": "transport_failure", "description": repr(error),
                 "raw_output_text": None,
-                "usage": {"input_tokens": 0, "cached_input_tokens": 0, "output_tokens": 0,
-                          "reasoning_tokens": 0},
+                "usage": usage_paid_before_transport_failure(error),
                 "latency_seconds": None}
         if record:
             reporter.record_success(record)
@@ -326,24 +325,41 @@ def run_classification(run_folder, timestamp, pass_definitions, documents, reaso
 # Estimate-only
 # ----------------------------------------------------------------------------
 
-def extrapolate_estimate(sample_records, sample_documents, all_documents, pass_names):
-    """Scale uncached input by content characters, output by document count; cached per call."""
-    sample_characters = sum(len(d["content"]) for d in sample_documents)
+def extrapolate_estimate(sample_records, sample_documents, all_documents, pass_names, error_records=()):
+    """Scale uncached input by content characters, output by document count; cached per call.
+
+    Each pass is scaled over the sample documents it was judged successfully for; the tokens of
+    failed attempts count towards its totals, as they are paid for. Passes with no successful sample
+    call are listed in passes_without_a_successful_sample_call and add nothing to the totals.
+    Returns None if no sample call succeeded.
+    """
+    if not sample_records:
+        return None
+    sample_ids = {d["doc_id"] for d in sample_documents}
     corpus_characters = sum(len(d["content"]) for d in all_documents)
-    character_scale = corpus_characters / sample_characters
-    document_scale = len(all_documents) / len(sample_documents)
+    judged_document_ids = {r["doc_id"] for r in sample_records}
+    judged_documents = [d for d in sample_documents if d["doc_id"] in judged_document_ids]
+    character_scale = corpus_characters / sum(len(d["content"]) for d in judged_documents)
+    document_scale = len(all_documents) / len(judged_documents)
     per_pass = {}
+    passes_without_a_successful_sample_call = []
     for pass_name in pass_names:
-        records = [r for r in sample_records if r["pass"] == pass_name]
-        if not records:
+        successes = [r for r in sample_records if r["pass"] == pass_name]
+        if not successes:
+            passes_without_a_successful_sample_call.append(pass_name)
             continue
+        records = successes + [e for e in error_records if e["pass"] == pass_name and e["doc_id"] in sample_ids]
+        judged_for_pass = {r["doc_id"] for r in successes}
+        pass_documents = [d for d in sample_documents if d["doc_id"] in judged_for_pass]
+        pass_character_scale = corpus_characters / sum(len(d["content"]) for d in pass_documents)
+        pass_document_scale = len(all_documents) / len(pass_documents)
         uncached = sum(r["usage"]["input_tokens"] - r["usage"]["cached_input_tokens"] for r in records)
         cached = sum(r["usage"]["cached_input_tokens"] for r in records)
         output = sum(r["usage"]["output_tokens"] for r in records)
-        total_uncached = uncached * character_scale
-        total_cached = cached * document_scale
-        total_output = output * document_scale
-        total_seconds = sum(r["latency_seconds"] for r in records) * document_scale
+        total_uncached = uncached * pass_character_scale
+        total_cached = cached * pass_document_scale
+        total_output = output * pass_document_scale
+        total_seconds = sum(r["latency_seconds"] or 0 for r in records) * pass_document_scale
         per_pass[pass_name] = {
             "uncached_input_tokens": total_uncached, "cached_input_tokens": total_cached,
             "output_tokens": total_output, "total_call_seconds": total_seconds,
@@ -351,6 +367,7 @@ def extrapolate_estimate(sample_records, sample_documents, all_documents, pass_n
                 MODEL_NAME, total_uncached + total_cached, total_cached, total_output)}
     return {"character_scale": character_scale, "document_scale": document_scale,
             "per_pass": per_pass,
+            "passes_without_a_successful_sample_call": passes_without_a_successful_sample_call,
             "total_cost_dollars": sum(p["cost_dollars"] for p in per_pass.values()),
             "total_call_seconds_across_all_calls": sum(p["total_call_seconds"] for p in per_pass.values()),
             "note": ("Sample uncached input includes the instruction prefix on cache-missing calls, "
@@ -382,8 +399,9 @@ def parse_arguments(argv=None):
 
 
 def default_runs_directory(input_argument):
-    path = Path(input_argument)
-    return (path if path.is_dir() else path.parent) / "audit" / "shoehorning_audit_runs"
+    run_directory = run_directory_of(input_argument)
+    audit_folder = (run_directory if run_directory is not None else Path(input_argument).parent) / "audit"
+    return audit_folder / "shoehorning_audit_runs"
 
 
 def main(argv=None):
@@ -401,7 +419,7 @@ def main(argv=None):
     timestamp = timestamp_now()
     configuration = build_run_configuration(arguments.passes, arguments.reasoning_effort, corpus_path)
     if is_resume:
-        check_resume_is_compatible(run_folder, configuration)
+        check_resume_is_compatible(run_folder, configuration, compared_settings=("reasoning_effort",))
     write_run_configuration(run_folder, timestamp, configuration)
 
     pass_definitions = [PassDefinition(name) for name in arguments.passes]
@@ -410,7 +428,7 @@ def main(argv=None):
             pass_definition.instructions_text, encoding="utf-8")
 
     already_completed_pairs = find_completed_pairs(run_folder)
-    prior_records = load_existing_records(run_folder)
+    prior_records = load_existing_records(run_folder) + read_all_records(run_folder, "errors_*.jsonl")
     api.init_cost_log_only(run_folder / f"model_call_cost_log_{timestamp}.jsonl")
 
     if arguments.estimate_only:
@@ -425,7 +443,13 @@ def main(argv=None):
         sample_ids = {d["doc_id"] for d in documents}
         sample_records = [r for r in load_existing_records(run_folder)
                           if r["doc_id"] in sample_ids and r["pass"] in arguments.passes]
-        estimate = extrapolate_estimate(sample_records, documents, all_documents, arguments.passes)
+        error_records = [e for e in read_all_records(run_folder, "errors_*.jsonl") if e["pass"] in arguments.passes]
+        estimate = extrapolate_estimate(sample_records, documents, all_documents, arguments.passes, error_records)
+        if estimate is None:
+            print("ESTIMATE full corpus x passes: no estimate is available, every sample call failed "
+                  f"(see the error records in {run_folder})")
+            print(f"Run folder: {run_folder}")
+            return run_folder
         estimate["sample_doc_ids"] = sorted(sample_ids)
         estimate["corpus_document_count"] = len(all_documents)
         estimate["workers_assumed_for_wall_clock"] = arguments.workers
@@ -436,6 +460,8 @@ def main(argv=None):
               f"{format_duration(estimate['estimated_wall_clock_seconds'])} with {arguments.workers} workers")
         for pass_name, values in estimate["per_pass"].items():
             print(f"  {pass_name}: ${values['cost_dollars']:.2f}")
+        for pass_name in estimate["passes_without_a_successful_sample_call"]:
+            print(f"  {pass_name}: no estimate is available, every sample call failed (not in the total)")
     print(f"Run folder: {run_folder}")
     return run_folder
 

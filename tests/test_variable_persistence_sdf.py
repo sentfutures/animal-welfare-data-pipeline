@@ -283,6 +283,74 @@ class TestRunAndResume:
             run_judging(tmp_path, [make_record(dealt_values)], context, out)
 
 
+class TestRunConfiguration:
+    @pytest.fixture
+    def corpus_file(self, tmp_path):
+        path = tmp_path / "sdf_corpus.jsonl"
+        path.write_text('{"doc_id": "d0"}\n', encoding="utf-8")
+        return path
+
+    def configuration(self, corpus_file, model="judge-model-a"):
+        return vp.build_run_configuration(corpus_file, model)
+
+    def test_the_configuration_records_prompt_meanings_model_and_corpus(self, corpus_file):
+        configuration = self.configuration(corpus_file)
+        assert configuration["model"] == "judge-model-a"
+        assert set(configuration["prompt_file_sha256"]) == {vp.PROMPT_PATH.name, vp.MEANINGS_PATH.name}
+        assert len(configuration["corpus_sha256"]) == 64
+
+    def test_a_first_run_writes_the_configuration_and_an_identical_resume_is_accepted(self, tmp_path, corpus_file):
+        output_dir = tmp_path / "out"
+        output_dir.mkdir()
+        configuration = self.configuration(corpus_file)
+        vp.record_run_configuration(output_dir, "2026-01-01_00-00", False, configuration)
+        assert json.loads((output_dir / "run_configuration_2026-01-01_00-00.json").read_text()) == configuration
+        vp.record_run_configuration(output_dir, "2026-01-01_00-00", True, configuration)
+
+    def test_a_resume_with_no_recorded_configuration_is_refused(self, tmp_path, corpus_file):
+        with pytest.raises(RuntimeError, match="No run_configuration"):
+            vp.record_run_configuration(tmp_path, "2026-01-01_00-00", True, self.configuration(corpus_file))
+
+    def test_a_resume_refuses_a_changed_model_corpus_prompt_or_variable_meanings(
+            self, tmp_path, corpus_file, monkeypatch):
+        output_dir = tmp_path / "out"
+        output_dir.mkdir()
+        vp.record_run_configuration(output_dir, "2026-01-01_00-00", False, self.configuration(corpus_file))
+
+        with pytest.raises(RuntimeError, match="model changed from 'judge-model-a' to 'judge-model-b'"):
+            vp.record_run_configuration(output_dir, "2026-01-01_00-00", True,
+                                        self.configuration(corpus_file, model="judge-model-b"))
+
+        changed_corpus = tmp_path / "changed_corpus.jsonl"
+        changed_corpus.write_text('{"doc_id": "d1"}\n', encoding="utf-8")
+        with pytest.raises(RuntimeError, match="corpus changed"):
+            vp.record_run_configuration(output_dir, "2026-01-01_00-00", True, self.configuration(changed_corpus))
+
+        for constant_name in ("PROMPT_PATH", "MEANINGS_PATH"):
+            original_path = getattr(vp, constant_name)
+            edited_path = tmp_path / original_path.name
+            edited_path.write_text(original_path.read_text(encoding="utf-8") + "\nan edit\n", encoding="utf-8")
+            monkeypatch.setattr(vp, constant_name, edited_path)
+            with pytest.raises(RuntimeError, match=f"prompt file {original_path.name} changed"):
+                vp.record_run_configuration(output_dir, "2026-01-01_00-00", True, self.configuration(corpus_file))
+            monkeypatch.setattr(vp, constant_name, original_path)
+
+
+class TestOutputFolderPlacement:
+    def test_a_corpus_file_in_final_and_its_run_directory_share_one_audit_folder(self, tmp_path):
+        corpus = tmp_path / "final" / "sdf_corpus.jsonl"
+        assert vp.report_directory_of(str(corpus)) == tmp_path / "audit"
+        assert vp.report_directory_of(str(tmp_path)) == tmp_path / "audit"
+        assert vp.report_directory_of(str(tmp_path / "loose_corpus.jsonl")) == tmp_path / "audit"
+
+    def test_sample_and_doc_id_runs_go_to_small_sample_checks_and_full_runs_do_not(self, tmp_path):
+        audit_folder = tmp_path / "audit"
+        full = vp.default_output_directory(audit_folder, "2026-01-01_00-00", is_small_sample=False)
+        small = vp.default_output_directory(audit_folder, "2026-01-01_00-00", is_small_sample=True)
+        assert full == audit_folder / "variable_persistence_2026-01-01_00-00"
+        assert small == audit_folder / "small_sample_checks" / "variable_persistence_2026-01-01_00-00"
+
+
 class TestSelectionAndDryRun:
     def test_sample_is_seeded_and_keeps_order(self, dealt_values):
         records = [make_record(dealt_values, f"d{i}") for i in range(20)]

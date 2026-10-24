@@ -88,6 +88,24 @@ def test_resume_refuses_changed_file_hashes_and_folders_without_configuration(tm
     support.check_resume_is_compatible(tmp_path, configuration)
 
 
+def test_resume_refuses_a_changed_corpus_and_names_it(tmp_path):
+    recorded = {"prompt_file_sha256": {"a.txt": "a" * 64}, "corpus_sha256": "1" * 64, "corpus_path": "old/corpus.jsonl"}
+    (tmp_path / "run_configuration_2026-01-01_00-00.json").write_text(json.dumps(recorded))
+    support.check_resume_is_compatible(tmp_path, recorded)
+    changed = {**recorded, "corpus_sha256": "2" * 64, "corpus_path": "new/corpus.jsonl"}
+    with pytest.raises(RuntimeError, match="corpus changed.*old/corpus.jsonl.*new/corpus.jsonl"):
+        support.check_resume_is_compatible(tmp_path, changed)
+
+
+def test_resume_refuses_a_changed_compared_setting_and_says_from_what_to_what(tmp_path):
+    recorded = {"prompt_file_sha256": {"a.txt": "a" * 64}, "reasoning_effort": "low"}
+    (tmp_path / "run_configuration_2026-01-01_00-00.json").write_text(json.dumps(recorded))
+    support.check_resume_is_compatible(tmp_path, recorded, compared_settings=("reasoning_effort",))
+    with pytest.raises(RuntimeError, match="reasoning_effort changed from 'low' to 'high'"):
+        support.check_resume_is_compatible(tmp_path, {**recorded, "reasoning_effort": "high"},
+                                           compared_settings=("reasoning_effort",))
+
+
 def test_strict_schema_helpers_accept_and_reject():
     schema = support.build_strict_object_schema({
         "a": {"type": "string"},

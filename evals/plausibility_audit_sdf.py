@@ -37,7 +37,8 @@ from evals.model_judged_audit_support import (  # noqa: E402
     build_array_schema, build_strict_object_schema, check_resume_is_compatible, choose_run_folder,
     choose_runs_parent_directory, choose_stratified_sample, compute_cost_in_dollars, corpus_path_of,
     find_completed_keys, format_duration, read_all_records, read_jsonl, request_structured_output,
-    select_documents, sha256_of_file, timestamp_now, write_run_configuration)
+    run_directory_of, select_documents, sha256_of_file, timestamp_now, usage_paid_before_transport_failure,
+    write_run_configuration)
 from shared import api, openai_api  # noqa: E402
 from shared.api_keys import add_api_key_source_flags, apply_api_key_source_flags  # noqa: E402
 
@@ -318,8 +319,7 @@ def run_judging(run_folder, timestamp, judge_definition, documents, reasoning_ef
             record, error_record = None, {
                 "doc_id": document["doc_id"], "error_kind": "transport_failure", "description": repr(error),
                 "raw_output_text": None,
-                "usage": {"input_tokens": 0, "cached_input_tokens": 0, "output_tokens": 0,
-                          "reasoning_tokens": 0},
+                "usage": usage_paid_before_transport_failure(error),
                 "latency_seconds": None}
         if record:
             reporter.record_success(record)
@@ -336,19 +336,29 @@ def run_judging(run_folder, timestamp, judge_definition, documents, reasoning_ef
 # Estimate-only
 # ----------------------------------------------------------------------------
 
-def extrapolate_estimate(sample_records, sample_documents, all_documents):
-    """Scale uncached input by content characters, output and cached input by document count."""
-    sample_characters = sum(len(d["content"]) for d in sample_documents)
+def extrapolate_estimate(sample_records, sample_documents, all_documents, error_records=()):
+    """Scale uncached input by content characters, output and cached input by document count.
+
+    Scales are taken over the sample documents that were judged successfully; the tokens of failed
+    attempts count towards the totals, as they are paid for. Returns None if no sample call succeeded.
+    """
+    judged_document_ids = {r["doc_id"] for r in sample_records}
+    judged_documents = [d for d in sample_documents if d["doc_id"] in judged_document_ids]
+    if not judged_documents:
+        return None
+    sample_ids = {d["doc_id"] for d in sample_documents}
+    all_attempt_records = list(sample_records) + [e for e in error_records if e["doc_id"] in sample_ids]
+    sample_characters = sum(len(d["content"]) for d in judged_documents)
     corpus_characters = sum(len(d["content"]) for d in all_documents)
     character_scale = corpus_characters / sample_characters
-    document_scale = len(all_documents) / len(sample_documents)
-    uncached = sum(r["usage"]["input_tokens"] - r["usage"]["cached_input_tokens"] for r in sample_records)
-    cached = sum(r["usage"]["cached_input_tokens"] for r in sample_records)
-    output = sum(r["usage"]["output_tokens"] for r in sample_records)
+    document_scale = len(all_documents) / len(judged_documents)
+    uncached = sum(r["usage"]["input_tokens"] - r["usage"]["cached_input_tokens"] for r in all_attempt_records)
+    cached = sum(r["usage"]["cached_input_tokens"] for r in all_attempt_records)
+    output = sum(r["usage"]["output_tokens"] for r in all_attempt_records)
     total_uncached = uncached * character_scale
     total_cached = cached * document_scale
     total_output = output * document_scale
-    total_seconds = sum(r["latency_seconds"] for r in sample_records) * document_scale
+    total_seconds = sum(r["latency_seconds"] or 0 for r in all_attempt_records) * document_scale
     return {"character_scale": character_scale, "document_scale": document_scale,
             "uncached_input_tokens": total_uncached, "cached_input_tokens": total_cached,
             "output_tokens": total_output, "total_call_seconds_across_all_calls": total_seconds,
@@ -382,9 +392,9 @@ def parse_arguments(argv=None):
 
 
 def default_runs_directory(input_argument):
-    path = Path(input_argument)
-    run_or_corpus_audit_folder = (path if path.is_dir() else path.parent) / "audit"
-    return run_or_corpus_audit_folder / "plausibility_audit_runs"
+    run_directory = run_directory_of(input_argument)
+    audit_folder = (run_directory if run_directory is not None else Path(input_argument).parent) / "audit"
+    return audit_folder / "plausibility_audit_runs"
 
 
 def main(argv=None):
@@ -412,7 +422,7 @@ def main(argv=None):
         judge_definition.instructions_text, encoding="utf-8")
 
     already_completed_document_ids = find_completed_document_ids(run_folder)
-    prior_records = load_existing_records(run_folder)
+    prior_records = load_existing_records(run_folder) + read_all_records(run_folder, "errors_*.jsonl")
     api.init_cost_log_only(run_folder / f"model_call_cost_log_{timestamp}.jsonl")
 
     if arguments.estimate_only:
@@ -426,7 +436,13 @@ def main(argv=None):
     if arguments.estimate_only:
         sample_ids = {d["doc_id"] for d in documents}
         sample_records = [r for r in load_existing_records(run_folder) if r["doc_id"] in sample_ids]
-        estimate = extrapolate_estimate(sample_records, documents, all_documents)
+        error_records = read_all_records(run_folder, "errors_*.jsonl")
+        estimate = extrapolate_estimate(sample_records, documents, all_documents, error_records)
+        if estimate is None:
+            print("ESTIMATE full corpus: no estimate is available, every sample call failed "
+                  f"(see the error records in {run_folder})")
+            print(f"Run folder: {run_folder}")
+            return run_folder
         estimate["sample_doc_ids"] = sorted(sample_ids)
         estimate["corpus_document_count"] = len(all_documents)
         estimate["workers_assumed_for_wall_clock"] = arguments.workers

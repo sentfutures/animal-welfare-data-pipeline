@@ -261,6 +261,16 @@ def test_a_partial_run_writes_judgments_cost_log_and_model_call_log_then_resumes
     assert calls == []
 
 
+def test_resume_refuses_a_changed_corpus(tmp_path, corpus_path, definition, stub_openai_responses, openai_response):
+    answer = json.dumps(valid_parsed_result(definition.axis_keys))
+    stub_openai_responses(lambda request: openai_response(text=answer))
+    run_folder = run_main(tmp_path, corpus_path, "--document-limit", "1")
+    corpus_path.write_text(corpus_path.read_text(encoding="utf-8") + corpus_path.read_text(encoding="utf-8"),
+                           encoding="utf-8")
+    with pytest.raises(RuntimeError, match="corpus changed"):
+        run_main(tmp_path, corpus_path, "--document-limit", "1", "--resume-folder", str(run_folder))
+
+
 def test_a_full_run_goes_to_the_runs_directory_itself(
         tmp_path, corpus_path, definition, stub_openai_responses, openai_response):
     answer = json.dumps(valid_parsed_result(definition.axis_keys))
@@ -272,7 +282,9 @@ def test_a_full_run_goes_to_the_runs_directory_itself(
 def test_the_default_runs_directory_is_the_audit_folder_of_the_run(tmp_path):
     assert judge.default_runs_directory(tmp_path) == tmp_path / "audit" / "plausibility_audit_runs"
     corpus = tmp_path / "final" / "sdf_corpus.jsonl"
-    assert judge.default_runs_directory(corpus) == tmp_path / "final" / "audit" / "plausibility_audit_runs"
+    assert judge.default_runs_directory(corpus) == tmp_path / "audit" / "plausibility_audit_runs"
+    loose_corpus = tmp_path / "loose_corpus.jsonl"
+    assert judge.default_runs_directory(loose_corpus) == tmp_path / "audit" / "plausibility_audit_runs"
 
 
 def test_estimate_only_extrapolates_from_the_sample_usage(
@@ -284,6 +296,74 @@ def test_estimate_only_extrapolates_from_the_sample_usage(
     estimate = json.loads(next(run_folder.glob("estimate_*.json")).read_text())
     assert estimate["corpus_document_count"] == 3 and len(estimate["sample_doc_ids"]) == 2
     assert estimate["total_cost_dollars"] > 0
+
+
+def test_estimate_only_scales_by_the_documents_that_succeeded_and_counts_the_failed_attempts(
+        tmp_path, corpus_path, definition, stub_openai_responses, openai_response):
+    answer = json.dumps(valid_parsed_result(definition.axis_keys))
+
+    def reply(request):
+        text = "not json" if "number 1" in request["input"] else answer
+        return openai_response(text=text, input_tokens=1000, cached_tokens=0, output_tokens=100,
+                               reasoning_tokens=0)
+
+    stub_openai_responses(reply)
+    run_folder = run_main(tmp_path, corpus_path, "--estimate-only", "--estimate-sample-size", "3")
+    estimate = json.loads(next(run_folder.glob("estimate_*.json")).read_text())
+    # Two documents succeeded (one attempt each); the third used two failed attempts.
+    assert estimate["document_scale"] == pytest.approx(3 / 2)
+    assert estimate["character_scale"] == pytest.approx(3 / 2)
+    assert estimate["output_tokens"] == pytest.approx((100 + 100 + 200) * 3 / 2)
+    assert estimate["uncached_input_tokens"] == pytest.approx((1000 + 1000 + 2000) * 3 / 2)
+
+
+def test_estimate_only_reports_no_estimate_when_every_sample_call_failed(
+        tmp_path, corpus_path, stub_openai_responses, openai_response, capsys):
+    stub_openai_responses(lambda request: openai_response(text="not json"))
+    run_main(tmp_path, corpus_path, "--estimate-only", "--estimate-sample-size", "2")
+    printed = capsys.readouterr().out
+    assert "no estimate is available" in printed and "ESTIMATE full corpus: $0.00" not in printed
+
+
+def latest_usage_totals(run_folder):
+    return json.loads(sorted(run_folder.glob("usage_and_cost_log_*.json"))[-1].read_text())["totals"]
+
+
+def unusable_then_transport_error(openai_response):
+    """Stub: the first call of each document returns an unusable answer, every later call raises."""
+    attempts_by_document = {}
+
+    def reply(request):
+        attempt = attempts_by_document[request["input"]] = attempts_by_document.get(request["input"], 0) + 1
+        if attempt == 1:
+            return openai_response(text="not json", input_tokens=1000, cached_tokens=0, output_tokens=100,
+                                   reasoning_tokens=0)
+        raise ConnectionError("network down")
+    return reply
+
+
+def test_the_usage_file_includes_the_unusable_first_attempt_when_the_second_attempt_raises(
+        tmp_path, corpus_path, definition, stub_openai_responses, openai_response):
+    stub_openai_responses(unusable_then_transport_error(openai_response))
+    run_folder = run_main(tmp_path, corpus_path, "--document-limit", "1")
+    (error_record,) = utils.load_jsonl(next(run_folder.glob("errors_*.jsonl")))
+    assert error_record["error_kind"] == "transport_failure"
+    assert error_record["usage"]["input_tokens"] == 1000 and error_record["usage"]["output_tokens"] == 100
+    assert latest_usage_totals(run_folder)["input_tokens"] == 1000
+
+
+def test_a_resume_counts_the_usage_of_earlier_sessions_error_records(
+        tmp_path, corpus_path, definition, stub_openai_responses, openai_response):
+    stub_openai_responses(lambda request: openai_response(text="not json", input_tokens=1000, cached_tokens=0,
+                                                          output_tokens=100, reasoning_tokens=0))
+    run_folder = run_main(tmp_path, corpus_path, "--document-limit", "1")
+    assert latest_usage_totals(run_folder)["input_tokens"] == 2000  # two parse attempts
+    answer = json.dumps(valid_parsed_result(definition.axis_keys))
+    stub_openai_responses(lambda request: openai_response(text=answer, input_tokens=1000, cached_tokens=0,
+                                                          output_tokens=100, reasoning_tokens=0))
+    judge.main(["--input", str(corpus_path), "--run-name", "synthetic_check", "--runs-directory",
+                str(tmp_path / "runs"), "--document-limit", "1", "--resume-folder", str(run_folder)])
+    assert latest_usage_totals(run_folder)["input_tokens"] == 2000 + 1000
 
 
 def test_unknown_document_ids_exit_with_error(tmp_path, corpus_path):
