@@ -856,6 +856,8 @@ def test_rest_client_sends_bearer_token_and_raises_on_http_errors(monkeypatch):
     client = launcher.RunPodRestClient("rp_secret")
     assert client.create_pod({"name": "n"})["id"] == "abc"
     assert requests_seen[0].get_header("Authorization") == "Bearer rp_secret"
+    # urllib.request.Request stores header names capitalized, e.g. "User-agent".
+    assert requests_seen[0].get_header("User-agent") == launcher.RUNPOD_REST_CLIENT_USER_AGENT
     assert requests_seen[0].full_url == f"{launcher.RUNPOD_REST_BASE_URL}/pods" and json.loads(requests_seen[0].data) == {"name": "n"}
     assert client.get_pod("abc")["costPerHr"] == 2.0
     with pytest.raises(RuntimeError, match="deletion failed .500."):

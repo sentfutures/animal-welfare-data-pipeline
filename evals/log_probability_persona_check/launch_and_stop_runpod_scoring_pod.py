@@ -125,11 +125,16 @@ WATCHDOG_PROCESS_PATTERN = "[r]unpodctl pod delete|[R]UNPOD_POD_ID"
 REQUIREMENTS_INSTALLED_MARKER_FILE_NAME = "pod_setup_requirements_installed_marker.txt"
 
 
+RUNPOD_REST_CLIENT_USER_AGENT = "animal-welfare-data-pipeline-log-probability-persona-check/1.0"
+
+
 class RunPodRestClient:
     """The three RunPod REST calls the launcher needs (documented at docs.runpod.io/api-reference/pods)."""
 
     def __init__(self, api_key):
-        self.headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+        # RunPod's Cloudflare front rejects urllib's default User-Agent with error 1010, so name the client.
+        self.headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json",
+                        "User-Agent": RUNPOD_REST_CLIENT_USER_AGENT}
 
     def _request(self, method, path, body=None):
         request = urllib.request.Request(f"{RUNPOD_REST_BASE_URL}{path}", method=method, headers=self.headers,
