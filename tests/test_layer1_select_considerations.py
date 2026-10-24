@@ -290,6 +290,8 @@ def test_the_entry_order_differs_between_documents_and_matches_the_schema(select
 
 
 def test_end_to_end_writes_scores_selections_and_coverage_and_respects_targets(select_config, small_prompts, stage_dir, stub_claude):
+    select_config["sdf"].update(max_moral_considerations_per_document=1, max_epistemic_considerations_per_document=1,
+                                max_considerations_per_document=2)   # one per list, so Beta moral is capped below its target
     plans = make_plans(10, digital={0, 5})
     stub_claude(score_everything_five)
     result = select.run(select_config, small_prompts, stage_dir, plans)

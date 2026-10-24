@@ -7,28 +7,42 @@ gets what, in code, with one linear programme over both lists:
 - Allowed pairs: a (document, entry) pair whose score is at least
   ``minimum_assignable_score`` and whose entry is eligible for the document
   (digital-minds-only entries only on digital-mind documents).
-- Constraints: each entry goes to at most its ``target_count`` documents; each
+- Hard ceilings: each entry goes to at most its ``target_count`` documents; each
   document gets at most ``max_moral`` moral entries, at most ``max_epistemic``
   epistemic entries, and at most ``max_total`` entries across both lists.
-- Objective, lexicographic: stage 1 maximises the number of assignments; stage 2
-  fixes that number as a constraint and maximises total score plus a tiny seeded
-  random tie-break (summing to less than one point over the whole problem, so it
-  only ever separates solutions of equal total score).
+- Objective (one stage), maximise
+      sum over assigned pairs of score_weight[score] + tie_break(pair)
+      - sum over (document, list) of penalty(n),   penalty(n) = p * n * (n - 1) / 2
+  where n is how many considerations the document gets from that list: the k-th
+  consideration from a list (k >= 2) costs (k - 1) * p, so a second one is worth it
+  only when its weight exceeds p, a third only when it exceeds 2p, and so on, and
+  slots whose only candidates would be weak extras stay unfilled. The first
+  consideration from each list is free, so a moral and an epistemic entry on the
+  same document do not penalise each other. The convex penalty is modelled with
+  extra columns y[d, l, k] in [0, 1], k = 1..cap-1, each costing k * p, and the row
+  sum_e x[d, e] - sum_k y[d, l, k] <= 1; costs rise with k so the LP fills the
+  cheap y first and the penalty comes out as exactly p * n(n-1)/2.
+- Tie-break: each pair gets a small value from a sha256 hash of (seed, prompt_id, label),
+  so the result does not depend on the order of documents or keys, and adding an
+  unrelated document leaves the choice between two other tied documents unchanged.
+  See ``_tie_break_values`` for the scale.
 
-The constraint matrix is a union of two laminar families (entries, and per-document
-list and total caps), hence totally unimodular, so the optimum is integral; the
+Every constraint row is a laminar family over x (entries; per-document totals; per
+(document, list) caps) plus the penalty rows, whose extra columns each have a single
+-1 entry, so the matrix stays totally unimodular and the optimum is integral; the
 solution is still rounded, checked for integrality and checked against every
-constraint. Solved with scipy.optimize.linprog (HiGHS) on sparse matrices.
+constraint and the penalty formula. Solved with scipy.optimize.linprog (HiGHS) on
+sparse matrices.
 
 ``assign_considerations`` takes the limits as arguments so a saved scores file can
 be re-assigned offline with different thresholds, caps or targets
 (``assign_from_scores_file``).
 """
 
+import hashlib
 import json
-import random
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
@@ -44,9 +58,11 @@ from sdf_pipeline.considerations_coverage import document_coverage_shares, entry
 
 SCORE_VALUES = (1, 2, 3, 4, 5)
 DEFAULT_MINIMUM_ASSIGNABLE_SCORE = 3
-DEFAULT_MAX_MORAL_CONSIDERATIONS = 1
-DEFAULT_MAX_EPISTEMIC_CONSIDERATIONS = 1
-DEFAULT_MAX_CONSIDERATIONS = 2
+DEFAULT_MAX_MORAL_CONSIDERATIONS = 3
+DEFAULT_MAX_EPISTEMIC_CONSIDERATIONS = 3
+DEFAULT_MAX_CONSIDERATIONS = 4
+DEFAULT_SCORE_WEIGHTS = {3: 1, 4: 3, 5: 9}
+DEFAULT_EXTRA_CONSIDERATION_PENALTY = 2
 INTEGRALITY_TOLERANCE = 1e-6
 
 
@@ -56,6 +72,15 @@ class AssignmentLimits:
     max_moral_per_document: int = DEFAULT_MAX_MORAL_CONSIDERATIONS
     max_epistemic_per_document: int = DEFAULT_MAX_EPISTEMIC_CONSIDERATIONS
     max_total_per_document: int = DEFAULT_MAX_CONSIDERATIONS
+    score_weights: dict = field(default_factory=lambda: dict(DEFAULT_SCORE_WEIGHTS))
+    extra_consideration_penalty: float = DEFAULT_EXTRA_CONSIDERATION_PENALTY
+
+    def __post_init__(self):
+        if self.extra_consideration_penalty < 0:
+            raise ValueError("extra_consideration_penalty must not be negative")
+        for score in SCORE_VALUES:
+            if score >= self.minimum_assignable_score and not self.score_weights.get(score, 0) > 0:
+                raise ValueError(f"score_weights needs a positive weight for every assignable score; missing {score}")
 
     def max_for_list(self, list_name: str) -> int:
         return self.max_moral_per_document if list_name == MORAL_LIST else self.max_epistemic_per_document
@@ -69,6 +94,9 @@ def limits_from_config(config: dict) -> AssignmentLimits:
         max_epistemic_per_document=int(
             sdf.get("max_epistemic_considerations_per_document", DEFAULT_MAX_EPISTEMIC_CONSIDERATIONS)),
         max_total_per_document=int(sdf.get("max_considerations_per_document", DEFAULT_MAX_CONSIDERATIONS)),
+        score_weights={int(score): weight for score, weight in
+                       (sdf.get("score_weights") or DEFAULT_SCORE_WEIGHTS).items()},
+        extra_consideration_penalty=sdf.get("extra_consideration_penalty", DEFAULT_EXTRA_CONSIDERATION_PENALTY),
     )
 
 
@@ -93,13 +121,42 @@ def _allowed_pairs(
     return pairs
 
 
-def _constraint_matrix(pairs, catalog, limits, targets):
-    """Sparse A and b for A x <= b: one row per entry (its target), per (document, list)
-    (that list's cap) and per document (the total cap)."""
+def _tie_break_values(pairs, seed, limits) -> np.ndarray:
+    """One value per pair from sha256(seed, prompt_id, label), a fraction in [0, 1), so it
+    depends only on the pair and the seed, never on order or on which other documents exist.
+
+    Scale: the values sum to less than ``scale``, and ``scale`` must be below the smallest
+    nonzero difference between two values of the rest of the objective, so the tie-break
+    only ever separates solutions that are exactly tied. With integer weights and an
+    integer penalty the rest of the objective is an integer, so scale = 1 suffices
+    (each value is multiplied by 1 / (pairs + 1)). If any weight or the penalty is not an
+    integer there is no simple bound, so a much smaller scale of 1e-6 is used instead.
+
+    The values are also shifted down by their common upper bound, so each lies in
+    (-bound, 0] with bound = scale / (pairs + 1): a pair whose weight exactly equals the
+    penalty it would incur nets slightly below zero and stays unassigned, which makes
+    "assigned only when the weight exceeds the penalty" strictly true. The shifts sum to
+    less than ``scale`` in magnitude, so they cannot outweigh a real difference."""
+    parameters = [*limits.score_weights.values(), limits.extra_consideration_penalty]
+    scale = 1.0 if all(float(value).is_integer() for value in parameters) else 1e-6
+    values = []
+    for prompt_id, label, _ in pairs:
+        digest = hashlib.sha256(f"{seed}|{prompt_id}|{label}".encode("utf-8")).digest()
+        values.append(int.from_bytes(digest[:8], "big") / 2**64)
+    bound = scale / (len(pairs) + 1)
+    return (np.array(values) - 1.0) * bound
+
+
+def _model_columns_and_rows(pairs, catalog, limits, targets):
+    """Columns: one x per pair, then the penalty columns y[d, l, k] (each in [0, 1], cost k * p).
+    Rows of A x <= b: per entry (its target), per document (the total cap), per (document, list)
+    the hard cap, and per (document, list) with a y column the penalty row
+    sum_e x - sum_k y <= 1. Returns (matrix, bounds, y_costs) with y_costs[i] the cost
+    multiplier k of penalty column i."""
     entry_by_label = {entry.label: entry for entry in catalog.all_entries}
     row_of: dict[tuple, int] = {}
-    bounds: list[int] = []
-    rows, columns = [], []
+    bounds: list[float] = []
+    rows, columns, values = [], [], []
 
     def row_for(key, bound):
         if key not in row_of:
@@ -107,8 +164,10 @@ def _constraint_matrix(pairs, catalog, limits, targets):
             bounds.append(bound)
         return row_of[key]
 
+    pairs_in_document_list: dict[tuple, int] = {}
     for column, (prompt_id, label, _) in enumerate(pairs):
         list_name = entry_by_label[label].list_name
+        pairs_in_document_list[(prompt_id, list_name)] = pairs_in_document_list.get((prompt_id, list_name), 0) + 1
         for key, bound in (
             (("entry", label), targets[label]),
             (("document_list", prompt_id, list_name), limits.max_for_list(list_name)),
@@ -116,16 +175,28 @@ def _constraint_matrix(pairs, catalog, limits, targets):
         ):
             rows.append(row_for(key, bound))
             columns.append(column)
-    matrix = coo_matrix((np.ones(len(rows)), (rows, columns)), shape=(len(bounds), len(pairs))).tocsr()
-    return matrix, np.array(bounds, dtype=float)
+            values.append(1.0)
+        if limits.extra_consideration_penalty > 0:
+            rows.append(row_for(("penalty", prompt_id, list_name), 1.0))
+            columns.append(column)
+            values.append(1.0)
+
+    penalty_multipliers: list[int] = []
+    if limits.extra_consideration_penalty > 0:
+        for (prompt_id, list_name), pair_count in pairs_in_document_list.items():
+            extra_slots = min(limits.max_for_list(list_name), limits.max_total_per_document, pair_count) - 1
+            for multiplier in range(1, extra_slots + 1):
+                rows.append(row_of[("penalty", prompt_id, list_name)])
+                columns.append(len(pairs) + len(penalty_multipliers))
+                values.append(-1.0)
+                penalty_multipliers.append(multiplier)
+    matrix = coo_matrix(
+        (values, (rows, columns)), shape=(len(bounds), len(pairs) + len(penalty_multipliers))).tocsr()
+    return matrix, np.array(bounds, dtype=float), np.array(penalty_multipliers, dtype=float)
 
 
-def _solve(objective, matrix, bounds, count_equals=None):
-    options = {"A_ub": matrix, "b_ub": bounds, "bounds": (0, 1), "method": "highs"}
-    if count_equals is not None:
-        options["A_eq"] = coo_matrix(np.ones((1, len(objective)))).tocsr()
-        options["b_eq"] = np.array([float(count_equals)])
-    result = linprog(objective, **options)
+def _solve(objective, matrix, bounds):
+    result = linprog(objective, A_ub=matrix, b_ub=bounds, bounds=(0, 1), method="highs")
     if result.status != 0:
         raise RuntimeError(f"considerations assignment LP failed: {result.message}")
     chosen = np.rint(result.x)
@@ -154,28 +225,36 @@ def assign_considerations(
     assigned: dict[str, list[str]] = {prompt_id: [] for prompt_id in document_is_digital}
     pairs = _allowed_pairs(scores, catalog, document_is_digital, limits)
     if pairs:
-        matrix, bounds = _constraint_matrix(pairs, catalog, limits, targets)
-        stage_one = _solve(-np.ones(len(pairs)), matrix, bounds)
-        maximum_count = int(stage_one.sum())
-        if maximum_count > 0:
-            rng = random.Random(f"{seed}:considerations_assignment")
-            tie_break = np.array([rng.random() / (len(pairs) + 1) for _ in pairs])   # sums to < 1
-            score_values = np.array([score for _, _, score in pairs], dtype=float)
-            chosen = _solve(-(score_values + tie_break), matrix, bounds, count_equals=maximum_count)
-            _check_constraints(chosen, pairs, matrix, bounds, maximum_count)
-            order = {entry.label: index for index, entry in enumerate(catalog.all_entries)}
-            for column in np.flatnonzero(chosen):
-                prompt_id, label, _ = pairs[column]
-                assigned[prompt_id].append(label)
-            for labels in assigned.values():
-                labels.sort(key=order.__getitem__)
+        matrix, bounds, penalty_multipliers = _model_columns_and_rows(pairs, catalog, limits, targets)
+        gains = np.array([limits.score_weights[score] for _, _, score in pairs], dtype=float)
+        gains = gains + _tie_break_values(pairs, seed, limits)
+        penalty_costs = penalty_multipliers * limits.extra_consideration_penalty
+        solution = _solve(-np.concatenate([gains, -penalty_costs]), matrix, bounds)
+        chosen = solution[:len(pairs)]
+        _check_constraints(solution, pairs, catalog, matrix, bounds, limits, penalty_costs)
+        order = {entry.label: index for index, entry in enumerate(catalog.all_entries)}
+        for column in np.flatnonzero(chosen):
+            prompt_id, label, _ = pairs[column]
+            assigned[prompt_id].append(label)
+        for labels in assigned.values():
+            labels.sort(key=order.__getitem__)
     return assigned
 
 
-def _check_constraints(chosen, pairs, matrix, bounds, expected_count) -> None:
-    assert chosen.sum() == expected_count, "stage 2 changed the number of assignments"
-    assert np.all(matrix @ chosen <= bounds + INTEGRALITY_TOLERANCE), "an assignment cap was exceeded"
-    assert set(np.unique(chosen)) <= {0, 1}
+def _check_constraints(solution, pairs, catalog, matrix, bounds, limits, penalty_costs) -> None:
+    assert set(np.unique(solution)) <= {0, 1}
+    assert np.all(matrix @ solution <= bounds + INTEGRALITY_TOLERANCE), "an assignment cap was exceeded"
+    chosen = solution[:len(pairs)]
+    list_of = {entry.label: entry.list_name for entry in catalog.all_entries}
+    counts: dict[tuple, int] = {}
+    for column in np.flatnonzero(chosen):
+        prompt_id, label, _ = pairs[column]
+        key = (prompt_id, list_of[label])
+        counts[key] = counts.get(key, 0) + 1
+    direct_penalty = limits.extra_consideration_penalty * sum(n * (n - 1) / 2 for n in counts.values())
+    model_penalty = float(penalty_costs @ solution[len(pairs):]) if len(penalty_costs) else 0.0
+    assert abs(direct_penalty - model_penalty) < 1e-6 * max(1.0, direct_penalty), \
+        "the LP's penalty differs from p * n(n-1)/2 computed from the chosen pairs"
 
 
 def coverage_report(
@@ -228,6 +307,8 @@ def coverage_report(
         "max_moral_considerations_per_document": limits.max_moral_per_document,
         "max_epistemic_considerations_per_document": limits.max_epistemic_per_document,
         "max_considerations_per_document": limits.max_total_per_document,
+        "score_weights": {str(score): weight for score, weight in sorted(limits.score_weights.items())},
+        "extra_consideration_penalty": limits.extra_consideration_penalty,
         "entries": entries,
         **document_coverage_shares(list(per_document_counts.values())),
         "document_ids_with_no_consideration": sorted(

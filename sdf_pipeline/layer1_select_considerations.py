@@ -48,9 +48,10 @@ plan's ``variables`` also gains ``moral_considerations`` and
 Config (``sdf`` section): ``select_enabled`` (default true), ``select_model``
 (falls back to ``plan_model``, then the global model), ``select_skip_no_stake``
 (default true), ``max_scoring_attempts`` (3), ``minimum_assignable_score`` (3),
-``max_moral_considerations_per_document`` (1),
-``max_epistemic_considerations_per_document`` (1),
-``max_considerations_per_document`` (2); the calls use ``workers`` threads.
+``max_moral_considerations_per_document`` (3),
+``max_epistemic_considerations_per_document`` (3),
+``max_considerations_per_document`` (4), ``score_weights`` ({3: 1, 4: 3, 5: 9}),
+``extra_consideration_penalty`` (2); the calls use ``workers`` threads.
 """
 
 import json

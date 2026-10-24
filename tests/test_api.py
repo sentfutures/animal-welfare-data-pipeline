@@ -312,7 +312,7 @@ class TestCostTracking:
         def model_values(node):
             if isinstance(node, dict):
                 for key, value in node.items():
-                    if key == "model" or key.endswith("_model"):
+                    if key == "model" or (isinstance(key, str) and key.endswith("_model")):
                         if isinstance(value, str) and value:
                             yield key, value
                     else:
