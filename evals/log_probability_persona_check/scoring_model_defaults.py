@@ -31,12 +31,27 @@ DEFAULT_SCORING_MODELS = {
     },
 }
 
+# Per-model keyword arguments for `tokenizer.apply_chat_template`, keyed on the model name (instruct runs only; a
+# base run has no chat template). Qwen3 is a hybrid thinking model: with `enable_thinking=False` its generation
+# prompt ends with an empty think block ("<think>\n\n</think>\n\n"), which is also what its template writes before
+# the content of a finished final assistant message, so the document is scored exactly where the model would start
+# writing a non-thinking reply. The run configuration records the arguments used.
+CHAT_TEMPLATE_KEYWORD_ARGUMENTS_BY_MODEL_NAME = {
+    "Qwen/Qwen3-32B": {"enable_thinking": False},
+    "Qwen/Qwen3-0.6B": {"enable_thinking": False},
+}
+
 COMMIT_HASH_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 
 
 def check_model_type(model_type):
     if model_type not in MODEL_TYPES:
         raise ValueError(f"Unknown model type {model_type!r}; expected one of {MODEL_TYPES}")
+
+
+def chat_template_keyword_arguments_for_model(model_name):
+    """A copy of the model's extra `apply_chat_template` keyword arguments ({} for a model that needs none)."""
+    return dict(CHAT_TEMPLATE_KEYWORD_ARGUMENTS_BY_MODEL_NAME.get(model_name, {}))
 
 
 def check_model_revision_is_pinned(model_revision, context="model revision"):

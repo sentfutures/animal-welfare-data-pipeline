@@ -62,7 +62,7 @@ def test_upload_sends_run_configuration_scoring_inputs_scorer_package_and_prompt
     package_folder = fake_pod_workspace / "evals" / "log_probability_persona_check"
     for name in ("score_document_log_probabilities_on_pod.py", "prompt_rendering.py", "persona_sets.py",
                  "scoring_model_defaults.py", "timed_progress_and_jsonl_helpers.py",
-                 "requirements_for_gemma_4_scoring_pod.txt"):
+                 "requirements_for_gemma_4_and_qwen3_scoring_pod.txt"):
         assert (package_folder / name).is_file(), name
     assert (fake_pod_workspace / "evals" / "__init__.py").is_file()
     assert (fake_pod_workspace / "prompts" / "tools" / "persona_checks" / "model_type_framing").is_dir()

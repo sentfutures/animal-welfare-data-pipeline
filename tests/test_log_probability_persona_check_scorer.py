@@ -345,3 +345,14 @@ def test_a_local_model_folder_is_loaded_without_a_revision(tmp_path, monkeypatch
     seen.clear()
     scorer.load_model_and_tokenizer("some/hub-model", "cpu", "float32", "auto_causal_lm", "a" * 40)
     assert seen["tokenizer"]["revision"] == "a" * 40 and seen["model"]["revision"] == "a" * 40
+
+
+def test_scorer_refuses_when_recorded_chat_template_keyword_arguments_differ_from_the_ones_it_applies(
+        build_run, patched_model_loading):
+    run_folder = build_run()
+    configuration_path = next(run_folder.glob("run_configuration_*.json"))
+    configuration = json.loads(configuration_path.read_text())
+    configuration["chat_template_keyword_arguments"] = {"enable_thinking": False}
+    configuration_path.write_text(json.dumps(configuration))
+    with pytest.raises(RuntimeError, match="chat template keyword arguments"):
+        run_scorer(run_folder)

@@ -16,7 +16,7 @@ How to run and read it: `.claude/skills/log-probability-persona-check/SKILL.md`.
 | `build_scoring_inputs.py` | Writes the run folder: documents, conditions and the run configuration with file hashes. `--dry-run` prints counts and writes nothing. | free |
 | `score_document_log_probabilities_on_pod.py` | The scorer. Writes the log probability of every document token under every condition, resumable. Runs on the pod, or on CPU with a tiny model. | GPU time |
 | `launch_and_stop_runpod_scoring_pod.py` | The launcher. Creates a RunPod pod with hard hour and dollar limits and an on-pod watchdog, uploads the inputs, runs the scorer, pulls and verifies the results, and deletes the pod. | paid (`--dry-run` is free) |
-| `requirements_for_gemma_4_scoring_pod.txt` | Packages installed on the pod. | |
+| `requirements_for_gemma_4_and_qwen3_scoring_pod.txt` | Packages installed on the pod. | |
 | `analyze_persona_scores.py` | Analysis of a scored run: control verdicts, extreme spans, span significance, rewording agreement, per-persona breakdown, and document means labelled not validated. | free |
 | `analysis_run_loading.py` | Reads a scored run folder for the analysis modules. | free |
 | `analyze_changed_spans.py` | The changed-span part of the analysis, run alone. | free |

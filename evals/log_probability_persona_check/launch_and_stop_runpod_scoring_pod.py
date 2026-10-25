@@ -64,7 +64,7 @@ RUNPOD_REST_BASE_URL = "https://rest.runpod.io/v1"
 ENVIRONMENT_FILE_PATH = REPOSITORY_ROOT / ".env"
 PACKAGE_FOLDER_RELATIVE_PATH = "evals/log_probability_persona_check"
 SCORER_MODULE_NAME = "evals.log_probability_persona_check.score_document_log_probabilities_on_pod"
-REQUIREMENTS_FILE_RELATIVE_PATH = f"{PACKAGE_FOLDER_RELATIVE_PATH}/requirements_for_gemma_4_scoring_pod.txt"
+REQUIREMENTS_FILE_RELATIVE_PATH = f"{PACKAGE_FOLDER_RELATIVE_PATH}/requirements_for_gemma_4_and_qwen3_scoring_pod.txt"
 # Relative to the repository root, exactly what the pod needs to import the scorer, prompt_rendering and
 # persona_sets, and to read the prompt files: nothing else of the repository (in particular not `shared`).
 REPOSITORY_PATHS_UPLOADED_TO_POD = ["evals/__init__.py", PACKAGE_FOLDER_RELATIVE_PATH, "prompts/tools/persona_checks"]
@@ -78,6 +78,13 @@ DEFAULT_GPU_TYPE_IDS = [
     "NVIDIA A100 80GB PCIe",
     "NVIDIA A100-SXM4-80GB",
 ]
+# Other RunPod ids can be passed with --gpu-type-ids, for example "NVIDIA H200" (141 GB; Qwen3-32B in bf16 then has
+# plenty of room) or "NVIDIA H100 NVL". Qwen3-32B in bf16 needs a GPU with at least 80 GB.
+# The Hugging Face cache (HF_HOME=/workspace/huggingface_cache) is on the volume and survives across the runs of one
+# pod: Gemma 4 12B instruct about 24 GB plus Qwen3-32B about 66 GB (bf16 safetensors) is about 90 GB, plus the run
+# folders and room to spare. The container disk holds only the pip packages (a few GB) and temporary files.
+DEFAULT_VOLUME_GIGABYTES = 200
+DEFAULT_CONTAINER_DISK_GIGABYTES = 50
 DEFAULT_CLOUD_TYPE = "SECURE"
 DEFAULT_SSH_PRIVATE_KEY_PATH = Path.home() / ".ssh" / "id_ed25519"
 DEFAULT_POD_IMAGE_NAME = "runpod/pytorch:2.8.0-py3.11-cuda12.8.1-cudnn-devel-ubuntu22.04"
@@ -118,6 +125,13 @@ INSTRUCTION_CHECK_INTERVAL_SECONDS = 10
 PRICE_RANGE_DOLLARS_PER_HOUR = (3.0, 5.0)
 THROUGHPUT_RANGE_TOKENS_PER_SECOND = (7_500, 12_500)
 PROJECTED_SETUP_SECONDS = 900
+# Models slower than Gemma 4 12B, relative to the ranges above. Qwen3-32B has about 2.7 times the parameters of Gemma 4
+# 12B, and forward-pass cost scales with them, so its throughput is taken as 1 / 2.7 of the Gemma figures (an assumption,
+# not a measurement: the first Qwen3-32B pilot's scoring environment record holds the real figure). Its setup allowance
+# is longer because a first start downloads about 66 GB of weights and loading them takes several minutes.
+SLOWDOWN_FACTOR_AND_SETUP_SECONDS_BY_MODEL_NAME = {
+    "Qwen/Qwen3-32B": {"throughput_slowdown_factor": 2.7, "setup_seconds": 1800},
+}
 DEFAULT_FAILURE_WAIT_MINUTES = 20
 # Matches the command line of the launcher's watchdog and of hand-started ones that delete via $RUNPOD_POD_ID; the
 # brackets keep pkill from matching its own command line.
@@ -1013,8 +1027,13 @@ def parse_arguments(argv=None):
                         help="RunPod gpuTypeIds in priority order")
     parser.add_argument("--cloud-type", choices=["SECURE", "COMMUNITY"], default=DEFAULT_CLOUD_TYPE)
     parser.add_argument("--image-name", default=DEFAULT_POD_IMAGE_NAME)
-    parser.add_argument("--container-disk-gigabytes", type=int, default=50)
-    parser.add_argument("--volume-gigabytes", type=int, default=100)
+    parser.add_argument("--container-disk-gigabytes", type=int, default=DEFAULT_CONTAINER_DISK_GIGABYTES,
+                        help="Container disk: the pip-installed packages and temporary files; models and run files "
+                             "are on the volume")
+    parser.add_argument("--volume-gigabytes", type=int, default=DEFAULT_VOLUME_GIGABYTES,
+                        help="Persistent volume at /workspace, which holds the Hugging Face cache (Gemma 4 12B "
+                             "about 24 GB, Qwen3-32B about 66 GB, plus the run's files). Fixed when the pod is "
+                             "created; --reuse-existing-pod cannot change it")
     parser.add_argument("--ssh-private-key-path", default=str(DEFAULT_SSH_PRIVATE_KEY_PATH),
                         help="Private key whose .pub file is given to the pod")
     parser.add_argument("--cost-center-name", default=None,
@@ -1107,11 +1126,19 @@ def print_cost_ceiling_and_projection(arguments):
         print("Projected cost: not available (the run's tokenizer is not in the local Hugging Face cache, or the run "
               "folder has no run configuration, so tokens could not be counted; nothing is downloaded)")
         return None
-    lowest, highest = project_cost_range_dollars(total_tokens)
+    model_description = read_model_type_and_model_name_from_run_folder(arguments.run_folder)
+    model_adjustment = SLOWDOWN_FACTOR_AND_SETUP_SECONDS_BY_MODEL_NAME.get(model_description[1] if model_description else None, {})
+    slowdown_factor = model_adjustment.get("throughput_slowdown_factor", 1.0)
+    setup_seconds = model_adjustment.get("setup_seconds", PROJECTED_SETUP_SECONDS)
+    throughput_range = tuple(tokens_per_second / slowdown_factor for tokens_per_second in THROUGHPUT_RANGE_TOKENS_PER_SECOND)
+    lowest, highest = project_cost_range_dollars(total_tokens, tokens_per_second_range=throughput_range,
+                                                 setup_seconds=setup_seconds)
     print(f"Projected cost: {lowest:.2f} to {highest:.2f} dollars for {total_tokens:,} tokens through the model "
-          f"(rough planning range: {THROUGHPUT_RANGE_TOKENS_PER_SECOND[0]:,} to {THROUGHPUT_RANGE_TOKENS_PER_SECOND[1]:,} "
+          f"(rough planning range: {throughput_range[0]:,.0f} to {throughput_range[1]:,.0f} "
           f"input tokens/s at {PRICE_RANGE_DOLLARS_PER_HOUR[0]:.0f} to {PRICE_RANGE_DOLLARS_PER_HOUR[1]:.0f} dollars/hour, "
-          f"plus {PROJECTED_SETUP_SECONDS // 60} minutes of setup)")
+          f"plus {setup_seconds // 60} minutes of setup"
+          + (f"; throughput is the Gemma 4 12B range divided by {slowdown_factor}, an assumption" if slowdown_factor != 1.0 else "")
+          + ")")
     return lowest, highest
 
 

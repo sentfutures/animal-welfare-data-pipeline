@@ -309,3 +309,51 @@ def test_dry_run_prints_token_totals_when_a_tokenizer_is_available(build, corpus
 def test_dry_run_still_validates_the_persona_set(build):
     with pytest.raises(persona_sets.PersonaSetValidationError):
         build("--dry-run", persona_set="no_such_persona")
+
+
+# ---------------------------------------------------------------- persona subset (--only-personas)
+
+
+def test_default_builds_every_condition_and_records_no_subset(build):
+    configuration = load_only_run_configuration(build())
+    assert configuration["number_of_conditions"] == 72 and configuration["condition_subset"] is None
+    assert configuration["chat_template_keyword_arguments"] == {}
+
+
+def test_only_personas_keeps_generic_and_the_named_personas_in_full_set_order(build):
+    run_folder = build("--only-personas", "welfare_care_without_preachiness,proportionate_welfare")
+    conditions = utils.load_jsonl(run_folder / "scoring_inputs" / "conditions.jsonl")
+    assert [c["condition_id"] for c in conditions] == (
+        ["generic"] + [f"proportionate_welfare__rewording_0{i}" for i in range(1, 6)]
+        + [f"welfare_care_without_preachiness__rewording_0{i}" for i in range(1, 6)])
+    configuration = load_only_run_configuration(run_folder)
+    assert configuration["number_of_conditions"] == 11
+    subset = configuration["condition_subset"]
+    assert subset["only_personas"] == ["welfare_care_without_preachiness", "proportionate_welfare"]
+    assert subset["generic_always_kept"] and subset["number_of_conditions_in_full_persona_set"] == 72
+    assert subset["kept_condition_ids"] == [c["condition_id"] for c in conditions]
+
+
+def test_only_personas_keeps_no_system_prompt_only_when_named(build):
+    run_folder = build("--only-personas", "no_system_prompt")
+    assert [c["condition_id"] for c in utils.load_jsonl(run_folder / "scoring_inputs" / "conditions.jsonl")] == [
+        "no_system_prompt", "generic"]
+
+
+def test_only_personas_rejects_unknown_and_repeated_names(build):
+    with pytest.raises(SystemExit, match="no persona of this persona set"):
+        build("--only-personas", "proportionate_welfare,not_a_persona")
+    with pytest.raises(SystemExit, match="twice"):
+        build("--only-personas", "proportionate_welfare,proportionate_welfare")
+
+
+def test_resume_with_a_different_persona_subset_is_refused(build):
+    run_folder = build("--only-personas", "proportionate_welfare")
+    with pytest.raises(RuntimeError, match="differ from the files already in"):
+        build("--only-personas", "welfare_care_without_preachiness", "--resume-folder", str(run_folder))
+
+
+def test_qwen3_instruct_run_records_the_chat_template_keyword_arguments(build):
+    run_folder = build("--model-name", "Qwen/Qwen3-32B", "--model-revision", "9216db5781bf21249d130ec9da846c4624c16137",
+                       "--dry-run")
+    assert run_folder is None

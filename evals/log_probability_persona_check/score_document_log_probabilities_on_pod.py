@@ -44,7 +44,8 @@ if str(REPOSITORY_ROOT) not in sys.path:
     sys.path.insert(0, str(REPOSITORY_ROOT))
 
 from evals.log_probability_persona_check import persona_sets, prompt_rendering  # noqa: E402
-from evals.log_probability_persona_check.scoring_model_defaults import check_model_type  # noqa: E402
+from evals.log_probability_persona_check.scoring_model_defaults import (  # noqa: E402
+    MODEL_TYPE_INSTRUCT, check_model_type, chat_template_keyword_arguments_for_model)
 from evals.log_probability_persona_check.timed_progress_and_jsonl_helpers import (  # noqa: E402
     TimedProgressReporter, append_jsonl_record, find_completed_keys, read_jsonl, timestamp_now)
 
@@ -124,15 +125,26 @@ def score_tokenized_sequences(model, tokenizer, tokenized_sequences, device, pos
     return results
 
 
-def compute_log_probabilities_with_plain_full_logits(model, tokenizer, tokenized_sequence, device):
-    """Reference implementation: the model's own forward pass with full logits, one sequence."""
+def compute_log_probabilities_with_plain_full_logits(model, tokenizer, tokenized_sequence, device,
+                                                     positions_per_chunk=DEFAULT_POSITIONS_PER_HEAD_CHUNK):
+    """Reference implementation: the model's own forward pass with full logits (in the model's dtype), one sequence.
+    Only the float32 conversion and the log_softmax are done in chunks of positions_per_chunk, so a 150k to 260k
+    vocabulary does not need a float32 copy of the whole sequence's logits (for a 32B model on an 80 GB GPU the
+    free memory is about 15 GB); the logits themselves still come from the model's plain forward pass."""
     input_token_ids = torch.tensor([tokenized_sequence.full_token_ids], dtype=torch.long, device=device)
     attention_mask = torch.ones_like(input_token_ids)
     with torch.inference_mode():
-        logits = model(input_ids=input_token_ids, attention_mask=attention_mask, use_cache=False).logits.float()
+        logits = model(input_ids=input_token_ids, attention_mask=attention_mask, use_cache=False).logits
         start, end = tokenized_sequence.document_start_index, tokenized_sequence.document_end_index
-        log_probabilities = torch.log_softmax(logits[0, start - 1:end - 1], dim=-1)
-        return log_probabilities.gather(1, input_token_ids[0, start:end].unsqueeze(1)).squeeze(1).cpu().numpy()
+        predicting_logits = logits[0, start - 1:end - 1]
+        targets = input_token_ids[0, start:end]
+        pieces = []
+        for chunk_start in range(0, predicting_logits.shape[0], positions_per_chunk):
+            chunk_log_probabilities = torch.log_softmax(
+                predicting_logits[chunk_start:chunk_start + positions_per_chunk].float(), dim=-1)
+            chunk_targets = targets[chunk_start:chunk_start + positions_per_chunk]
+            pieces.append(chunk_log_probabilities.gather(1, chunk_targets.unsqueeze(1)).squeeze(1))
+        return torch.cat(pieces).cpu().numpy()
 
 
 def split_into_batches(tokenized_sequences_with_indices, maximum_tokens_per_batch):
@@ -261,6 +273,9 @@ def build_environment_record(model, model_name, model_revision, model_type, dtyp
         "model_commit_hash": getattr(model.config, "_commit_hash", None),
         "model_class_used": type(model).__name__, "model_class_option": model_class_name,
         "final_logit_softcapping": get_final_logit_softcapping(model),
+        "attention_implementation": getattr(model.config, "_attn_implementation", None),
+        "chat_template_keyword_arguments": (chat_template_keyword_arguments_for_model(model_name)
+                                            if model_type == "instruct" else {}),
         "dtype": dtype_name, "device": device, "torch_version": torch.__version__,
         "transformers_version": transformers.__version__, "python_version": platform.python_version(),
         "gpu_name": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
@@ -296,6 +311,19 @@ def check_prompt_files_match_run_configuration(configuration):
                                f"(or is missing here); refusing to score with different prompts")
 
 
+def check_chat_template_keyword_arguments_match_run_configuration(configuration):
+    """The chat template keyword arguments this code applies for the run's model must be the ones the run
+    configuration recorded (a configuration without the field recorded none)."""
+    if configuration["model_type"] != MODEL_TYPE_INSTRUCT:
+        return
+    recorded = configuration.get("chat_template_keyword_arguments", {})
+    current = chat_template_keyword_arguments_for_model(configuration["model_name"])
+    if recorded != current:
+        raise RuntimeError(f"The run configuration recorded chat template keyword arguments {recorded} for "
+                           f"{configuration['model_name']}, but this code applies {current}; refusing to score with "
+                           f"different prompts")
+
+
 def resolve_model_to_score_with(configuration, model_name_override, model_revision_override):
     """The run configuration fixed the prompts and names the model. Overrides are allowed, with a warning.
     Returns (model_name, model_revision)."""
@@ -323,7 +351,8 @@ def verify_chunked_against_full_logits(model, tokenizer, document, condition, mo
     (also when it fails) and raises if the two differ more than the allowed amounts."""
     tokenized = prompt_rendering.tokenize_condition_and_document_for_model_type(
         tokenizer, condition, document["generation_prompt"], document["content"], model_name, model_type, framing)
-    reference = compute_log_probabilities_with_plain_full_logits(model, tokenizer, tokenized, device)
+    reference = compute_log_probabilities_with_plain_full_logits(model, tokenizer, tokenized, device,
+                                                                 positions_per_chunk)
     differences = np.abs(reference - chunked_log_probabilities)
     maximum_difference, mean_difference = float(differences.max()), float(differences.mean())
     print(f"Verification against plain full logits ({condition['condition_id']}, model type {model_type}): "
@@ -393,6 +422,7 @@ def main(argument_list=None):
     model_type = configuration["model_type"]
     check_model_type(model_type)
     check_prompt_files_match_run_configuration(configuration)
+    check_chat_template_keyword_arguments_match_run_configuration(configuration)
     model_name, model_revision = resolve_model_to_score_with(configuration, arguments.model_name,
                                                              arguments.model_revision)
     framing = persona_sets.load_model_type_framing() if model_type == "base" else None

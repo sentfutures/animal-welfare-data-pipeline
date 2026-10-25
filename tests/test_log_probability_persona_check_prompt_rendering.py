@@ -329,3 +329,45 @@ def test_real_gemma_tokenizer_chat_template_keeps_system_prompt_and_locates_docu
         document_ids = tokenized.full_token_ids[tokenized.document_start_index:tokenized.document_end_index]
         reference_ids = reference_ids or document_ids
         assert document_ids == reference_ids
+
+
+# ---------------------------------------------------------------- per-model chat template keyword arguments
+
+# Same logic as the Qwen3 template: the generation prompt ends with an empty think block only when the caller passes
+# enable_thinking=False, and a finished final assistant message always renders the empty block before its content.
+QWEN3_LIKE_TEMPLATE = (
+    "{% for message in messages %}<|turn>{{ message['role'] }}\n{{ message['content'] | trim }}<turn|>\n{% endfor %}"
+    "{% if add_generation_prompt %}<|turn>assistant\n"
+    "{% if enable_thinking is defined and enable_thinking is false %}<|channel>\n\n<channel|>\n\n{% endif %}{% endif %}")
+
+
+def test_chat_template_keyword_arguments_are_applied_for_qwen3_and_for_no_other_model():
+    from evals.log_probability_persona_check.scoring_model_defaults import chat_template_keyword_arguments_for_model
+    assert chat_template_keyword_arguments_for_model("Qwen/Qwen3-32B") == {"enable_thinking": False}
+    assert chat_template_keyword_arguments_for_model("google/gemma-4-12b-it") == {}
+    returned = chat_template_keyword_arguments_for_model("Qwen/Qwen3-32B")
+    returned["enable_thinking"] = True  # a copy: the table is not changed
+    assert chat_template_keyword_arguments_for_model("Qwen/Qwen3-32B") == {"enable_thinking": False}
+
+
+def test_prompt_ends_with_empty_think_block_for_qwen3_and_is_unchanged_for_other_models():
+    tokenizer = make_tokenizer(QWEN3_LIKE_TEMPLATE)
+    condition = make_condition()
+    qwen = prompt_rendering.render_prompt_text_with_generation_header(tokenizer, condition, GENERATION_PROMPT, "Qwen/Qwen3-32B")
+    other = prompt_rendering.render_prompt_text_with_generation_header(tokenizer, condition, GENERATION_PROMPT, "other/model")
+    assert qwen == other + "<|channel>\n\n<channel|>\n\n"
+    assert condition["system_prompt"] in qwen
+
+
+def test_document_tokens_are_located_after_the_think_block_for_qwen3_and_identical_across_conditions():
+    tokenizer = make_tokenizer(QWEN3_LIKE_TEMPLATE)
+    conditions = [make_condition(), make_condition(None, "no_system_prompt"),
+                  make_condition("You are an AI assistant.", "generic")]
+    sequences, document_token_ids = prompt_rendering.tokenize_all_conditions_for_document(
+        tokenizer, {"document_id": "d", "content": SHORT_DOCUMENT_TEXTS[0], "generation_prompt": GENERATION_PROMPT},
+        conditions, "Qwen/Qwen3-32B")
+    assert tokenizer.decode(document_token_ids) == SHORT_DOCUMENT_TEXTS[0]
+    for sequence in sequences:
+        assert sequence.prompt_text.endswith("<channel|>\n\n")
+        assert sequence.assistant_header_matches_finished_message_rendering in (True, False)
+    assert "<|turn>system" not in sequences[1].prompt_text  # no default system prompt appears for the empty condition

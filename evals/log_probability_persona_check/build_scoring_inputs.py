@@ -8,6 +8,8 @@ Usage (from the repository root):
       --input outputs/sdf/runs/<id> --model-type base
   python evals/log_probability_persona_check/build_scoring_inputs.py --persona-set preachiness \\
       --input some/corpus.jsonl --document-ids-file ids.txt --extra-documents-jsonl rewritten_documents.jsonl
+  python evals/log_probability_persona_check/build_scoring_inputs.py --persona-set preachiness \\
+      --only-personas proportionate_welfare,welfare_care_without_preachiness   # a subset run: generic plus these
   python evals/log_probability_persona_check/build_scoring_inputs.py --persona-set preachiness --dry-run
   python evals/log_probability_persona_check/build_scoring_inputs.py --persona-set preachiness \\
       --resume-folder <existing run folder>
@@ -15,6 +17,10 @@ Usage (from the repository root):
 `--input` is a pipeline run folder (reads final/sdf_corpus.jsonl, writes under <run>/audit/) or a bare corpus
 .jsonl (writes under audit/ beside the file). The run folder is
 audit/log_probability_persona_check_<persona set>_<model type>_<YYYY-MM-DD_HH-MM>/.
+
+`--only-personas` keeps only `generic` and the named personas (the `persona_name` of the conditions: the target
+persona, a control persona header, or `no_system_prompt`), for scoring just the conditions a finished earlier run
+lacks; merge_persona_subset_run_into_full_run.py then combines the two. The run configuration records the subset.
 
 Documents scored = corpus documents (optionally restricted by --document-ids-file and --maximum-documents,
 applied to the corpus only) followed by every record of every --extra-documents-jsonl file (always all of them).
@@ -32,7 +38,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from evals.log_probability_persona_check import persona_sets, prompt_rendering  # noqa: E402
 from evals.log_probability_persona_check.persona_sets import (PERSONA_CHECKS_PROMPT_DIRECTORY,  # noqa: E402
                                                               PERSONA_SET_FILE_NAMES_THAT_DETERMINE_CONDITIONS)
-from evals.log_probability_persona_check.scoring_model_defaults import MODEL_TYPE_BASE, MODEL_TYPES, resolve_scoring_model  # noqa: E402
+from evals.log_probability_persona_check.scoring_model_defaults import (MODEL_TYPE_BASE, MODEL_TYPE_INSTRUCT, MODEL_TYPES,  # noqa: E402
+                                                                        chat_template_keyword_arguments_for_model,
+                                                                        resolve_scoring_model)
 from shared import utils  # noqa: E402
 
 DEFAULT_INPUT = "outputs/sdf/latest"
@@ -192,6 +200,39 @@ def check_resume_is_compatible(run_folder, configuration):
 # ---------------------------------------------------------------- dry run
 
 
+# ---------------------------------------------------------------- persona subset
+
+
+def parse_only_personas(only_personas_argument):
+    """The persona names of a comma-separated --only-personas value, in order, without duplicates; None for None."""
+    if only_personas_argument is None:
+        return None
+    names = [name.strip() for name in only_personas_argument.split(",") if name.strip()]
+    if not names:
+        raise SystemExit("--only-personas needs at least one persona name")
+    if len(set(names)) != len(names):
+        raise SystemExit(f"--only-personas lists a persona twice: {names}")
+    return names
+
+
+def restrict_conditions_to_personas(condition_records, only_personas):
+    """The conditions of the full persona set restricted to `generic` and the named personas, in the full set's
+    order (so a subset run's rows are in the same relative order as the full run's). `no_system_prompt` is kept only
+    when named. Raises ValueError for a name that is no persona of the set."""
+    if only_personas is None:
+        return condition_records
+    persona_names_in_set = []
+    for condition in condition_records:
+        if condition["persona_name"] not in persona_names_in_set:
+            persona_names_in_set.append(condition["persona_name"])
+    unknown = [name for name in only_personas if name not in persona_names_in_set]
+    if unknown:
+        raise ValueError(f"--only-personas names {unknown}, which are no persona of this persona set; the personas "
+                         f"are {persona_names_in_set}")
+    kept_names = set(only_personas) | {"generic"}
+    return [condition for condition in condition_records if condition["persona_name"] in kept_names]
+
+
 def load_tokenizer_from_local_cache(model_name, model_revision):
     """The model's tokenizer if transformers is installed and the tokenizer files are already in the local
     Hugging Face cache; otherwise None. Never downloads."""
@@ -241,6 +282,11 @@ def parse_arguments(argument_list=None):
                              "the default needs --model-revision too")
     parser.add_argument("--model-revision", default=None,
                         help="Pinned 40-character commit hash of the model repository")
+    parser.add_argument("--only-personas", default=None,
+                        help="Comma-separated persona names (persona_name of the conditions, e.g. "
+                             "proportionate_welfare,welfare_care_without_preachiness). Only generic and these "
+                             "personas' conditions are scored; no_system_prompt only if named. Default: every "
+                             "condition of the persona set. Recorded in the run configuration")
     parser.add_argument("--resume-folder", default=None, help="Existing run folder to resume")
     parser.add_argument("--document-ids-file", default=None,
                         help="Text file of corpus doc_ids, one per line; only these corpus documents are used")
@@ -274,7 +320,12 @@ def main(argument_list=None):
     selected_documents = select_documents(load_corpus_documents(corpus_path), document_ids,
                                           arguments.maximum_documents, extra_documents)
     document_records = build_document_records(selected_documents, generation_prompt_files)
-    condition_records = prompt_rendering.build_condition_records(persona_set, arguments.model_type, framing)
+    full_condition_records = prompt_rendering.build_condition_records(persona_set, arguments.model_type, framing)
+    only_personas = parse_only_personas(arguments.only_personas)
+    try:
+        condition_records = restrict_conditions_to_personas(full_condition_records, only_personas)
+    except ValueError as error:
+        raise SystemExit(str(error))
 
     timestamp = timestamp_now()
     is_resume = arguments.resume_folder is not None
@@ -299,6 +350,8 @@ def main(argument_list=None):
         "resumed_from_existing_folder": is_resume,
         "model_type": arguments.model_type, "model_name": model_name, "model_revision": model_revision,
         "model_selection_source": model_source,
+        "chat_template_keyword_arguments": (chat_template_keyword_arguments_for_model(model_name)
+                                            if arguments.model_type == MODEL_TYPE_INSTRUCT else {}),
         "persona_set": {
             "name": persona_set.name, "folder": utils.repo_relative(persona_set.folder),
             "configuration": persona_set.configuration,
@@ -314,6 +367,10 @@ def main(argument_list=None):
             "number_of_extra_documents": len(extra_documents),
             "document_ids": [record["document_id"] for record in document_records]},
         "number_of_conditions": len(condition_records),
+        "condition_subset": (None if only_personas is None else {
+            "only_personas": only_personas, "generic_always_kept": True,
+            "number_of_conditions_in_full_persona_set": len(full_condition_records),
+            "kept_condition_ids": [condition["condition_id"] for condition in condition_records]}),
         "prompt_file_sha256": collect_prompt_file_hashes(persona_set, arguments.model_type, framing_directory,
                                                          generation_prompt_directory),
         "persona_set_file_sha256": persona_set.file_sha256,

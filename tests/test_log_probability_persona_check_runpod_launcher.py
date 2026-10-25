@@ -877,3 +877,12 @@ def test_rest_client_sends_bearer_token_and_raises_on_http_errors(monkeypatch):
     assert client.get_pod("abc")["costPerHr"] == 2.0
     with pytest.raises(RuntimeError, match="deletion failed .500."):
         client.delete_pod("abc")
+
+
+def test_pod_volume_holds_both_models_and_any_gpu_type_can_be_passed(run_folder):
+    arguments = launcher.parse_arguments(["--run-folder", str(run_folder), "--maximum-running-hours", "1",
+                                          "--gpu-type-ids", "NVIDIA H200"])
+    request = launcher.build_pod_creation_request(arguments, "ssh-ed25519 AAAA")
+    assert request["gpuTypeIds"] == ["NVIDIA H200"]
+    assert request["volumeInGb"] == 200 and request["containerDiskInGb"] == 50
+    assert request["env"]["HF_HOME"].startswith("/workspace/")  # the cache is on the volume, not the container disk

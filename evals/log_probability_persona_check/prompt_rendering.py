@@ -34,7 +34,8 @@ from dataclasses import dataclass
 from evals.log_probability_persona_check.persona_sets import (PersonaSet, ModelTypeFraming, GenerationPromptFiles,
                                                               load_generation_prompt_files, load_model_type_framing)
 from evals.log_probability_persona_check.scoring_model_defaults import (MODEL_TYPE_BASE, MODEL_TYPE_INSTRUCT,
-                                                                        MODEL_TYPES, check_model_type)
+                                                                        MODEL_TYPES, check_model_type,
+                                                                        chat_template_keyword_arguments_for_model)
 
 BASE_MODEL_PREAMBLE_AND_DOCUMENT_SEPARATOR = "\n\n"
 
@@ -181,6 +182,12 @@ def model_label(tokenizer, model_name):
     return model_name or getattr(tokenizer, "name_or_path", "unknown model")
 
 
+def chat_template_keyword_arguments(tokenizer, model_name):
+    """The model's extra `apply_chat_template` keyword arguments (scoring_model_defaults.py), looked up by the
+    model name, or by the tokenizer's own name when no model name is given."""
+    return chat_template_keyword_arguments_for_model(model_name or getattr(tokenizer, "name_or_path", None))
+
+
 def assert_rendered_prompt_contains_system_prompt(rendered_text, condition, model_name):
     """Raises if a condition with a system prompt does not have that text in the rendered chat prompt."""
     system_prompt = condition["system_prompt"]
@@ -198,7 +205,8 @@ def render_prompt_text_with_generation_header(tokenizer, condition, generation_p
     label = model_label(tokenizer, model_name)
     messages = build_chat_messages(condition, generation_prompt)
     try:
-        rendered_text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        rendered_text = tokenizer.apply_chat_template(
+            messages, tokenize=False, add_generation_prompt=True, **chat_template_keyword_arguments(tokenizer, model_name))
     except Exception as error:
         raise SystemPromptNotInRenderedPromptError(
             f"The chat template of {label} failed on condition {condition['condition_id']} "
@@ -213,7 +221,8 @@ def render_text_after_assistant_message(tokenizer, condition, generation_prompt,
     label = model_label(tokenizer, model_name)
     messages = build_chat_messages(condition, generation_prompt)
     messages.append({"role": "assistant", "content": document_text})
-    reference_text = tokenizer.apply_chat_template(messages, tokenize=False)
+    reference_text = tokenizer.apply_chat_template(
+        messages, tokenize=False, **chat_template_keyword_arguments(tokenizer, model_name))
     assert_rendered_prompt_contains_system_prompt(reference_text, condition, label)
     content_start = reference_text.rfind(document_text)
     if content_start == -1:
