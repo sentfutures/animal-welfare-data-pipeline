@@ -29,3 +29,17 @@ def test_rehearsal_covers_both_model_types_and_the_launcher_dry_run(tmp_path, ca
     assert set(run_folders) == {"instruct", "base"}
     output = capsys.readouterr().out
     assert output.count("DRY RUN: no RunPod calls are made.") == 2
+
+
+def test_real_qwen3_small_model_chain_on_cpu(tmp_path, monkeypatch):
+    """Real Qwen3-0.6B, 2 documents x 6 conditions, chat template with enable_thinking=False, chunked against full
+    logits. Skipped unless the model is in the local Hugging Face cache (nothing is downloaded by the tests)."""
+    from huggingface_hub import snapshot_download
+    try:
+        snapshot_download(smoke_test.QWEN3_SMALL_MODEL_NAME, revision=smoke_test.QWEN3_SMALL_MODEL_REVISION,
+                          local_files_only=True)
+    except Exception:
+        pytest.skip("Qwen3-0.6B is not in the local Hugging Face cache")
+    monkeypatch.setenv("HF_HUB_OFFLINE", "1")
+    run_folder = smoke_test.run_local_chain_with_real_qwen3_small_model(tmp_path)
+    assert (run_folder / "scoring_outputs" / "scoring_completion_records.jsonl").is_file()

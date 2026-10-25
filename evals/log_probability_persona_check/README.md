@@ -9,20 +9,21 @@ How to run and read it: `.claude/skills/log-probability-persona-check/SKILL.md`.
 | Module | What it does | Cost |
 |---|---|---|
 | `persona_sets.py` | Loads and validates a persona set (rewordings, controls, rewrite instructions, configuration). | free |
-| `scoring_model_defaults.py` | The default scoring model and pinned revision for each model type (`instruct`, `base`). | free |
+| `scoring_model_defaults.py` | The default scoring model and pinned revision for each model type (`instruct`, `base`), and the per-model chat template keyword arguments (Qwen3: `enable_thinking=False`). | free |
 | `prompt_rendering.py` | Builds the conditions and renders each prompt for a model type: chat template for `instruct`, plain-text author preamble for `base`. | free |
 | `make_control_rewrites.py` | Rewrites sampled documents towards the persona (positive control), optionally away from it, and in a neutral register (neutral control), with Claude. | paid (`--dry-run` is free) |
 | `select_pilot_documents.py` | Chooses the pilot documents: every rewrite source plus documents spread across a variable. | free |
-| `build_scoring_inputs.py` | Writes the run folder: documents, conditions and the run configuration with file hashes. `--dry-run` prints counts and writes nothing. | free |
+| `build_scoring_inputs.py` | Writes the run folder: documents, conditions and the run configuration with file hashes. `--only-personas` builds a subset run (`generic` plus the named personas); `--run-folder-label` names the folder. `--dry-run` prints counts and writes nothing. | free |
 | `score_document_log_probabilities_on_pod.py` | The scorer. Writes the log probability of every document token under every condition, resumable. Runs on the pod, or on CPU with a tiny model. | GPU time |
 | `launch_and_stop_runpod_scoring_pod.py` | The launcher. Creates a RunPod pod with hard hour and dollar limits and an on-pod watchdog, uploads the inputs, runs the scorer, pulls and verifies the results, and deletes the pod. | paid (`--dry-run` is free) |
 | `requirements_for_gemma_4_and_qwen3_scoring_pod.txt` | Packages installed on the pod. | |
+| `merge_persona_subset_run_into_full_run.py` | Combines a finished run with a persona-subset run into a new full-condition run folder (new conditions re-expressed against the base run's generic) and writes a merge log with the two runs' reproducibility figures. | free |
 | `analyze_persona_scores.py` | Analysis of a scored run: control verdicts, extreme spans, span significance, rewording agreement, per-persona breakdown, and document means labelled not validated. | free |
 | `analysis_run_loading.py` | Reads a scored run folder for the analysis modules. | free |
 | `analyze_changed_spans.py` | The changed-span part of the analysis, run alone. | free |
 | `summarize_pilot_for_go_or_no_go_decision.py` | After a pilot: verification, throughput, cost, a projected full-run cost range and each criterion met or not. | free |
 | `rehearse_pilot_pipeline_locally_without_paid_calls.py` | Rehearses the whole chain, including the launcher dry run, on a tiny random model. | free |
-| `smoke_test_log_probability_persona_check.py` | Smoke test of the local chain for both model types. | free |
+| `smoke_test_log_probability_persona_check.py` | Smoke test of the local chain for both model types; `--qwen3-small-model` runs it with the real Qwen3-0.6B (one free 1.2 GB download) on 2 documents x 6 conditions. | free |
 | `legacy_run_format_compatibility_reader.py` | Lets the analysis read run folders in the legacy format of the check (62 conditions, one same-values persona). | free |
 | `timed_progress_and_jsonl_helpers.py` | Shared helpers for timestamps, progress reports and JSON lines. | free |
 
@@ -35,6 +36,13 @@ python evals/log_probability_persona_check/persona_sets.py --persona-set preachi
 # build scoring inputs for a pipeline run; --dry-run prints counts and writes nothing
 python evals/log_probability_persona_check/build_scoring_inputs.py --persona-set preachiness \
     --input outputs/sdf/runs/<run_id> --model-type instruct --dry-run
+
+# score only conditions a finished run lacks, then merge (see run_folder_layout_and_interfaces.md, "Persona subset runs and merging")
+python evals/log_probability_persona_check/build_scoring_inputs.py --persona-set preachiness --input <corpus> \
+    --only-personas proportionate_welfare,welfare_care_without_preachiness,ethical_farming_without_pushiness
+python evals/log_probability_persona_check/merge_persona_subset_run_into_full_run.py \
+    --base-run-folder <finished run> --subset-run-folder <subset run> --output-run-folder <new folder> \
+    [--base-run-legacy-persona-set preachiness]
 
 # rehearse everything locally, no paid call
 python evals/log_probability_persona_check/rehearse_pilot_pipeline_locally_without_paid_calls.py

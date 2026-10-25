@@ -17,9 +17,12 @@ legacy_run_format_compatibility_reader.py). Nothing in either source run is chan
 
 What the merged run holds:
 - documents: the base run's documents, in its order (the subset run may hold more; those are left out and listed in the
-  merge log). Every one must be in the subset run, with identical document token ids and content, or the merge is refused.
+  merge log). Every one must be in the subset run, with identical document token ids, content and generation prompt, or
+  the merge is refused.
 - conditions: every condition of the base run, then the subset run's conditions that the base lacks (so the full persona
-  set's order when the base holds a prefix of it). A condition both runs hold with a different system prompt is refused.
+  set's order when the base holds a prefix of it). A condition both runs hold with a different system prompt, author
+  description, condition group or persona name is refused, and so are runs whose recorded generation prompt or
+  model-type framing files (`prompt_file_sha256`) differ; the persona set's own files may differ.
 - log probabilities: base rows unchanged. A row new from the subset run is re-expressed against the base run's generic
   row, `new_condition - new_generic + base_generic`, so that every score (condition minus generic) equals the one its own
   run measured, and the baseline of all 72 conditions is the base run's generic. The merged values are therefore not raw
@@ -47,6 +50,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from evals.log_probability_persona_check import analysis_run_loading  # noqa: E402
+from evals.log_probability_persona_check import persona_sets  # noqa: E402
 from evals.log_probability_persona_check.persona_sets import sha256_of_file  # noqa: E402
 from evals.log_probability_persona_check.legacy_run_format_compatibility_reader import (  # noqa: E402
     rename_legacy_condition_groups)
@@ -55,6 +59,14 @@ from shared import utils  # noqa: E402
 GENERIC_CONDITION_ID = analysis_run_loading.GENERIC_CONDITION_ID
 MODEL_IDENTITY_KEYS = ("model_type", "model_name", "model_revision")
 NPZ_SUBFOLDER = Path("scoring_outputs") / "per_token_log_probabilities"
+# A condition both runs hold must agree in all of these (system_prompt is the text scored; author_description is what
+# base-model runs score instead of it).
+CONDITION_FIELDS_THAT_MUST_MATCH = (("system_prompt", "system prompt"), ("author_description", "author description"),
+                                    ("condition_group", "condition group"), ("persona_name", "persona name"))
+# Prompt files that must be identical in both runs. The persona set's own files are left out: the set may have gained
+# personas since the base run, and the conditions themselves are compared instead.
+PROMPT_FILE_KEY_PREFIXES_THAT_MUST_MATCH = (persona_sets.GENERATION_PROMPT_DIRECTORY_NAME + "/",
+                                            persona_sets.MODEL_TYPE_FRAMING_DIRECTORY_NAME + "/")
 
 
 class RunsCannotBeMergedError(ValueError):
@@ -106,10 +118,22 @@ def check_model_identity_matches(base_description, subset_description):
             f"{subset_description['chat_template_keyword_arguments']}")
 
 
+def check_prompt_files_match(base_description, subset_description):
+    """Refuses runs whose recorded generation prompt or model-type framing files differ: the documents' prompts and
+    the way conditions are rendered would then not be the same measurement."""
+    base_hashes = base_description["configuration"].get("prompt_file_sha256") or {}
+    subset_hashes = subset_description["configuration"].get("prompt_file_sha256") or {}
+    for file_key in sorted(set(base_hashes) & set(subset_hashes)):
+        if file_key.startswith(PROMPT_FILE_KEY_PREFIXES_THAT_MUST_MATCH) and base_hashes[file_key] != subset_hashes[file_key]:
+            raise RunsCannotBeMergedError(
+                f"The runs were built with different versions of prompt file {file_key} (SHA-256 {base_hashes[file_key]} "
+                f"in the base run, {subset_hashes[file_key]} in the subset run), so they are not the same measurement")
+
+
 def plan_merged_conditions(base_conditions, subset_conditions):
     """Returns (merged conditions, new condition ids, overlapping condition ids other than generic). Raises
     RunsCannotBeMergedError if the subset run has no generic condition, or a condition both hold differs in its system
-    prompt, or the runs are not otherwise consistent."""
+    prompt, author description, condition group or persona name, or the runs are not otherwise consistent."""
     base_by_id = {condition["condition_id"]: condition for condition in base_conditions}
     subset_ids = [condition["condition_id"] for condition in subset_conditions]
     if GENERIC_CONDITION_ID not in base_by_id or GENERIC_CONDITION_ID not in subset_ids:
@@ -118,10 +142,11 @@ def plan_merged_conditions(base_conditions, subset_conditions):
     for condition in subset_conditions:
         condition_id = condition["condition_id"]
         if condition_id in base_by_id:
-            if base_by_id[condition_id]["system_prompt"] != condition["system_prompt"]:
-                raise RunsCannotBeMergedError(
-                    f"Condition {condition_id} has a different system prompt in the two runs: "
-                    f"{base_by_id[condition_id]['system_prompt']!r} vs {condition['system_prompt']!r}")
+            for field_name, field_label in CONDITION_FIELDS_THAT_MUST_MATCH:
+                if base_by_id[condition_id].get(field_name) != condition.get(field_name):
+                    raise RunsCannotBeMergedError(
+                        f"Condition {condition_id} has a different {field_label} in the two runs: "
+                        f"{base_by_id[condition_id].get(field_name)!r} vs {condition.get(field_name)!r}")
             if condition_id != GENERIC_CONDITION_ID:
                 overlapping.append(condition_id)
         else:
@@ -131,7 +156,7 @@ def plan_merged_conditions(base_conditions, subset_conditions):
 
 def plan_merged_documents(base_documents, subset_documents):
     """The subset run's records of the base run's documents, in the base run's order, and the ids of the documents only
-    the subset run holds. Raises RunsCannotBeMergedError if the subset run lacks a base document or the content differs."""
+    the subset run holds. Raises RunsCannotBeMergedError if the subset run lacks a base document or the content or generation prompt differs."""
     subset_by_id = {document["document_id"]: document for document in subset_documents}
     missing = [document["document_id"] for document in base_documents if document["document_id"] not in subset_by_id]
     if missing:
@@ -143,6 +168,10 @@ def plan_merged_documents(base_documents, subset_documents):
         if base_document["content"] != subset_document["content"]:
             raise RunsCannotBeMergedError(
                 f"Document {base_document['document_id']} has different content in the two runs")
+        if base_document.get("generation_prompt") != subset_document.get("generation_prompt"):
+            raise RunsCannotBeMergedError(
+                f"Document {base_document['document_id']} has a different generation prompt in the two runs: "
+                f"{base_document.get('generation_prompt')!r} vs {subset_document.get('generation_prompt')!r}")
         merged_documents.append(subset_document)
     base_ids = {document["document_id"] for document in base_documents}
     return merged_documents, [d["document_id"] for d in subset_documents if d["document_id"] not in base_ids]
@@ -322,6 +351,7 @@ def merge_runs(base_run_folder, subset_run_folder, output_run_folder, base_run_l
     if subset_description["is_legacy_format"]:
         raise RunsCannotBeMergedError("The subset run must be a pipeline-format run")
     check_model_identity_matches(base_description, subset_description)
+    check_prompt_files_match(base_description, subset_description)
     merged_conditions, new_condition_ids, overlapping_condition_ids = plan_merged_conditions(
         base_description["conditions"], subset_description["conditions"])
     if not new_condition_ids:

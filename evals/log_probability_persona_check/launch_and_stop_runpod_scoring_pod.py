@@ -12,7 +12,13 @@ because RunPod's proxied SSH does not support scp/sftp and rsync is not guarante
 Cost safety, in layers:
   1. This launcher terminates (deletes) the pod at the running-hours limit, the dollar limit, Ctrl-C, SIGTERM, pod
      creation failure, ssh never becoming ready, and a normal finish (unless --keep-pod-after-run).
-  2. A watchdog started on the pod deletes the pod itself after the limit, even if the laptop sleeps.
+     Each launch names its pod uniquely. If the creation request fails in a way that may have created the pod (a
+     timeout, a lost response), the launcher says so loudly with the pod's name, lists the account's pods, and deletes
+     any pod with that name; the user is told to check the RunPod console as well.
+  2. A watchdog started on the pod as soon as it accepts ssh, before the upload and install, deletes the pod itself
+     after the limit, even if the laptop sleeps.
+     The launcher checks that the watchdog's start command succeeded and that its process exists, retries, and deletes
+     the pod at once if it cannot be started.
 A scorer failure or a quick-to-fix setup failure does not delete the pod: after the verified final pull the launcher
 waits for an instruction file in the run folder (pod_instruction_retry_scorer.txt, pod_instruction_retry_setup.txt or
 pod_instruction_delete_pod.txt), and deletes the pod if none arrives within --failure-wait-minutes.
@@ -48,6 +54,7 @@ import threading
 import time
 import urllib.error
 import urllib.request
+import uuid
 from datetime import datetime
 from pathlib import Path
 
@@ -58,7 +65,7 @@ if str(REPOSITORY_ROOT) not in sys.path:
 from evals.log_probability_persona_check.persona_sets import PERSONA_CHECKS_PROMPT_DIRECTORY  # noqa: E402
 from evals.log_probability_persona_check.prompt_rendering import count_tokens_for_scoring_inputs  # noqa: E402
 from evals.log_probability_persona_check.timed_progress_and_jsonl_helpers import (  # noqa: E402
-    PROGRESS_REPORT_INTERVAL_SECONDS, format_duration, read_jsonl, timestamp_now)
+    PROGRESS_REPORT_INTERVAL_SECONDS, format_duration, read_jsonl, timestamp_now, timestamp_unused_in_folder)
 
 RUNPOD_REST_BASE_URL = "https://rest.runpod.io/v1"
 ENVIRONMENT_FILE_PATH = REPOSITORY_ROOT / ".env"
@@ -105,6 +112,11 @@ SCORER_PROCESS_PATTERN = "[s]core_document_log_probabilities_on_pod"  # bracket 
 PIP_INSTALL_LOG_FILE_NAME = "pod_setup_pip_install_log.txt"
 ENVIRONMENT_VERSIONS_LOG_FILE_NAME = "pod_setup_environment_versions.txt"
 TERMINATION_ATTEMPTS = 5
+POD_LISTING_ATTEMPTS_AFTER_UNCERTAIN_CREATION = 3
+POD_LISTING_RETRY_WAIT_SECONDS = 10
+RUNPOD_CONSOLE_PODS_URL = "https://console.runpod.io/pods"
+REMOTE_STEP_ATTEMPTS = 3  # for the steps that protect the pod or that the scorer cannot start without
+REMOTE_STEP_RETRY_WAIT_SECONDS = 5
 COST_CENTER_CONSOLE_URL = "https://www.console.runpod.io/user/cost-center/manage"
 COST_CENTER_CONFIRMATION_WORD = "assigned"
 COST_CENTER_NAME_ENVIRONMENT_FILE_KEY = "RUNPOD_COST_CENTER_NAME"
@@ -142,8 +154,12 @@ REQUIREMENTS_INSTALLED_MARKER_FILE_NAME = "pod_setup_requirements_installed_mark
 RUNPOD_REST_CLIENT_USER_AGENT = "animal-welfare-data-pipeline-log-probability-persona-check/1.0"
 
 
+class PodCreationRejectedError(RuntimeError):
+    """RunPod answered the pod creation request with a client error (HTTP 4xx), so no pod was created."""
+
+
 class RunPodRestClient:
-    """The three RunPod REST calls the launcher needs (documented at docs.runpod.io/api-reference/pods)."""
+    """The four RunPod REST calls the launcher needs (documented at docs.runpod.io/api-reference/pods)."""
 
     def __init__(self, api_key):
         # RunPod's Cloudflare front rejects urllib's default User-Agent with error 1010, so name the client.
@@ -161,8 +177,16 @@ class RunPodRestClient:
 
     def create_pod(self, creation_request):
         status, text = self._request("POST", "/pods", creation_request)
+        if 400 <= status < 500:
+            raise PodCreationRejectedError(f"RunPod pod creation failed ({status}): {text[:500]}")
         if status >= 300:
             raise RuntimeError(f"RunPod pod creation failed ({status}): {text[:500]}")
+        return json.loads(text)
+
+    def list_pods(self):
+        status, text = self._request("GET", "/pods")
+        if status >= 300:
+            raise RuntimeError(f"RunPod list pods failed ({status}): {text[:500]}")
         return json.loads(text)
 
     def get_pod(self, pod_id):
@@ -175,6 +199,11 @@ class RunPodRestClient:
         status, text = self._request("DELETE", f"/pods/{pod_id}")
         if status not in (200, 204, 404):
             raise RuntimeError(f"RunPod pod deletion failed ({status}): {text[:500]}")
+
+
+class WatchdogNotStartedError(RuntimeError):
+    """The on-pod watchdog could not be started. The pod is deleted at once instead of waiting for an instruction,
+    because without the watchdog only this launcher protects it."""
 
 
 class StdinConfirmationListener:
@@ -454,8 +483,11 @@ def build_self_termination_watchdog_command(seconds_until_termination):
     return f"nohup bash -c {shlex.quote(inner)} > {REMOTE_WORKING_DIRECTORY}/watchdog_log.txt 2>&1 &"
 
 
-def build_pod_creation_request(arguments, public_key_text):
-    pod_name = f"log-probability-scoring-{Path(arguments.run_folder).name}"[:191]
+def build_pod_creation_request(arguments, public_key_text, unique_suffix=None):
+    """`unique_suffix` makes the pod's name unique to one launch, so that a search by name after a lost creation
+    response can only find a pod this launch asked for."""
+    suffix = f"-{unique_suffix}" if unique_suffix else ""
+    pod_name = f"log-probability-scoring-{Path(arguments.run_folder).name}"[:191 - len(suffix)] + suffix
     return {
         "name": pod_name,
         "imageName": arguments.image_name,
@@ -479,6 +511,9 @@ def pod_cost_per_hour(pod):
     price = pod.get("costPerHr")
     if price is None:
         raise RuntimeError("RunPod did not report costPerHr for the pod; cannot enforce the dollar limit")
+    if float(price) <= 0:
+        raise RuntimeError(f"RunPod reported costPerHr {price} for the pod, which is not a positive price; cannot "
+                           f"enforce the dollar limit")
     return float(price)
 
 
@@ -608,20 +643,33 @@ class PodSession:
     def current_cost(self):
         return cost_so_far_dollars(self.hourly_price, self.start_epoch_seconds, self.clock())
 
+    def delete_pod_with_retries(self, pod_id):
+        """(deleted, last error, interrupt). Keeps trying, because billing continues until a delete succeeds. A
+        KeyboardInterrupt (a second Ctrl-C or SIGTERM) does not abandon the delete: it is remembered, the remaining
+        attempts are made, and the caller raises the interrupt again afterwards (None if there was none)."""
+        last_error, interrupt = None, None
+        for attempt in range(1, TERMINATION_ATTEMPTS + 1):
+            try:
+                self.client.delete_pod(pod_id)
+                return True, None, interrupt
+            except KeyboardInterrupt as error:
+                interrupt = error
+                self.say(f"Interrupted during the deletion of pod {pod_id}; finishing the deletion first")
+                continue
+            except Exception as error:
+                last_error = error
+                self.say(f"Termination attempt {attempt} for pod {pod_id} failed: {error}")
+            try:
+                self.sleep(5)
+            except KeyboardInterrupt as error:
+                interrupt = error
+        return False, last_error, interrupt
+
     def terminate(self, reason):
         if self.terminated or self.pod_id is None:
             return
         self.warn_and_wait_for_cost_center_assignment_before_deletion(reason)
-        last_error = None
-        for attempt in range(1, TERMINATION_ATTEMPTS + 1):
-            try:
-                self.client.delete_pod(self.pod_id)
-                self.terminated = True
-                break
-            except Exception as error:  # keep trying; billing continues until this succeeds
-                last_error = error
-                self.say(f"Termination attempt {attempt} failed: {error}")
-                self.sleep(5)
+        self.terminated, last_error, interrupt = self.delete_pod_with_retries(self.pod_id)
         stop_epoch_seconds = self.clock()
         if not self.terminated:
             self.say(f"!!! COULD NOT TERMINATE POD {self.pod_id}. Delete it now at https://console.runpod.io/pods "
@@ -634,6 +682,8 @@ class PodSession:
         if self.terminated:
             self.say(f"Pod {self.pod_id} terminated ({reason}); total cost about "
                      f"{self.cost_log.record['total_cost_dollars']:.2f} dollars")
+        if interrupt is not None:
+            raise interrupt
 
     def keep_pod_running(self):
         """After a successful run with --keep-pod-after-run: leave the pod running for the next run. The hard limits
@@ -649,9 +699,54 @@ class PodSession:
                  f"dollars, counted from this launch): the pod's own watchdog deletes it in about {remaining}.")
         self.remind_if_cost_center_unconfirmed()
 
+    def look_for_and_delete_pods_named(self, pod_name):
+        """After a pod creation request whose outcome is unknown: list the account's pods and delete those with the
+        launch's unique name, with the usual delete retries. Returns the ids of the pods deleted."""
+        deleted_pod_ids, pending_interrupt = [], None
+        for listing_attempt in range(1, POD_LISTING_ATTEMPTS_AFTER_UNCERTAIN_CREATION + 1):
+            try:
+                matching_pods = [pod for pod in self.client.list_pods() if pod.get("name") == pod_name]
+            except Exception as error:
+                self.say(f"Could not list the pods to look for '{pod_name}': {error}")
+                return deleted_pod_ids
+            for pod in matching_pods:
+                deleted, last_error, interrupt = self.delete_pod_with_retries(pod["id"])
+                if deleted:
+                    deleted_pod_ids.append(pod["id"])
+                    self.say(f"Deleted pod {pod['id']} named '{pod_name}', which the lost creation request had made")
+                else:
+                    self.say(f"!!! COULD NOT DELETE POD {pod['id']} named '{pod_name}'. Delete it now at "
+                             f"{RUNPOD_CONSOLE_PODS_URL}. Last error: {last_error}")
+                pending_interrupt = pending_interrupt or interrupt
+            if pending_interrupt is not None:
+                raise pending_interrupt
+            if matching_pods:
+                return deleted_pod_ids
+            if listing_attempt < POD_LISTING_ATTEMPTS_AFTER_UNCERTAIN_CREATION:
+                self.sleep(POD_LISTING_RETRY_WAIT_SECONDS)
+        return deleted_pod_ids
+
     def start_new_pod(self, creation_request):
         self.start_epoch_seconds = self.clock()
-        pod = self.client.create_pod(creation_request)
+        try:
+            pod = self.client.create_pod(creation_request)
+        except PodCreationRejectedError:
+            raise
+        except Exception as error:  # the request may have reached RunPod even though no response arrived
+            pod_name = creation_request["name"]
+            self.say("!" * 100)
+            self.say(f"!!! POD CREATION FAILED ({error}) but the request may have reached RunPod, so a pod named "
+                     f"'{pod_name}' MAY EXIST AND BE BILLING. Check {RUNPOD_CONSOLE_PODS_URL} for a pod with exactly "
+                     f"that name and delete it if it is there.")
+            self.say("!" * 100)
+            self.cost_log.update(pod_creation_request_name=pod_name, pod_creation_outcome_unknown=True,
+                                 termination_reason="pod_creation_failed_outcome_unknown")
+            deleted_pod_ids = self.look_for_and_delete_pods_named(pod_name)
+            self.cost_log.update(pods_found_by_name_and_deleted=deleted_pod_ids)
+            if not deleted_pod_ids:
+                self.say(f"No pod named '{pod_name}' was found and deleted by the launcher. Check "
+                         f"{RUNPOD_CONSOLE_PODS_URL} yourself.")
+            raise
         self.pod_id = pod["id"]
         self.pod_name = creation_request["name"]
         self.hourly_price = pod_cost_per_hour(pod)
@@ -672,10 +767,25 @@ class PodSession:
         self.announce_cost_center_assignment_needed()
         return pod
 
+    def leave_reused_pod_untouched(self, error):
+        """A reused pod may belong to another run, so until it is known to be idle a failure must not stop its scorer,
+        pull its files or delete it: forget the pod id, which makes the cleanup do nothing to it."""
+        self.say(f"Error before the reused pod {self.pod_id} was known to be idle: {error!r}. The pod is left untouched "
+                 f"and is not deleted; check it at {RUNPOD_CONSOLE_PODS_URL}.")
+        self.cost_log.update(pod_terminated=False, termination_reason="reused_pod_left_untouched_after_error")
+        self.pod_id = None
+
     def reuse_pod(self, pod_id):
         """Run on a pod an earlier launcher invocation created: nothing is created, the price comes from the API, and
         cost is counted from this invocation's start."""
         self.pod_id = pod_id
+        try:
+            return self._read_reused_pod(pod_id)
+        except BaseException as error:
+            self.leave_reused_pod_untouched(error)
+            raise
+
+    def _read_reused_pod(self, pod_id):
         self.start_epoch_seconds = self.clock()
         already_confirmed = bool(self.cost_center_name) and cost_center_assignment_confirmed_in_earlier_cost_log(
             pod_id, self.run_folder.parent)
@@ -721,16 +831,25 @@ class PodSession:
 
     def prepare_and_start_scorer(self, pod):
         """Returns None once the scorer is running, or a termination reason if the pod is to be deleted instead. ssh
-        never becoming ready raises (the pod is then deleted); a failed setup step waits for an instruction file."""
+        never becoming ready or the watchdog not starting raises (the pod is then deleted); a failed setup step waits
+        for an instruction file."""
         self.say("Waiting for pod ssh")
-        self.transfer.wait_until_ready(pod, self.clock() + 1200, lambda: self.client.get_pod(self.pod_id), self.sleep)
-        self.record_gpu_type_if_unknown()
-        if self.arguments.reuse_existing_pod:
-            self.prepare_reused_pod_run_folder()
+        try:
+            self.transfer.wait_until_ready(pod, self.clock() + 1200, lambda: self.client.get_pod(self.pod_id), self.sleep)
+            self.record_gpu_type_if_unknown()
+            if self.arguments.reuse_existing_pod:
+                self.prepare_reused_pod_run_folder()
+        except BaseException as error:
+            if self.arguments.reuse_existing_pod and self.pod_id is not None:
+                self.leave_reused_pod_untouched(error)
+            raise
+        self.start_watchdog()  # as soon as the pod accepts ssh, so that the long upload and install are covered too
         while True:
             try:
                 self.upload_install_and_start_scorer()
                 return None
+            except WatchdogNotStartedError:
+                raise
             except Exception as error:
                 self.say(f"Setup failed: {error}")
                 outcome = self.wait_for_instruction("setup_failed", RETRY_SETUP_INSTRUCTION_FILE_NAME)
@@ -744,7 +863,10 @@ class PodSession:
         from its own local files."""
         exit_code, _ = self.transfer.run_remote_command(f"pgrep -f '{SCORER_PROCESS_PATTERN}' > /dev/null")
         if exit_code == 0:
-            self.pod_id = None  # a scorer of another run is working there: leave the pod alone
+            # A scorer of another run is working there: leave the pod alone. With no pod id the cleanup in the
+            # finally block of run_launcher (stop the scorer, pull files, delete the pod) does nothing to it.
+            self.cost_log.update(pod_terminated=False, termination_reason="refused_pod_in_use_by_another_run")
+            self.pod_id = None
             raise SystemExit("A scorer is already running on that pod. Use --attach-to-existing-pod to monitor it; "
                              "the pod has not been touched or deleted.")
         self.transfer.run_remote_command(
@@ -755,13 +877,13 @@ class PodSession:
         self.transfer.upload_project_files()
         secret_lines = f"export HF_TOKEN={shlex.quote(self.secrets['HF_TOKEN'])}\n" if self.secrets.get("HF_TOKEN") else ""
         secret_lines += "export HF_HOME=/workspace/huggingface_cache\n"
-        self.transfer.run_remote_command(
+        self.run_remote_step_until_it_succeeds(
+            "Writing the secret environment file on the pod",
             f"umask 077; cat > {REMOTE_WORKING_DIRECTORY}/pod_secret_environment.sh", input_text=secret_lines)
         self.install_requirements_unless_already_installed()
         _, versions_output = self.transfer.run_remote_command(
             f"{POD_VERSION_CHECK_COMMAND} 2>&1 | tee {REMOTE_WORKING_DIRECTORY}/{ENVIRONMENT_VERSIONS_LOG_FILE_NAME}")
         self.say(f"Pod environment: {versions_output.strip()}")
-        self.start_watchdog()
         self.start_scorer()
 
     def install_requirements_unless_already_installed(self):
@@ -839,16 +961,53 @@ class PodSession:
         finally:
             self.waiting_message = None
 
+    def attempt_remote_command(self, command, input_text=None):
+        """(exit code, output) of a remote command; a command that raises (for example an ssh timeout) gives
+        (None, the error text)."""
+        try:
+            return self.transfer.run_remote_command(command, input_text=input_text)
+        except Exception as error:
+            return None, str(error)
+
+    def run_remote_step_until_it_succeeds(self, description, command, input_text=None):
+        """Runs a remote command up to REMOTE_STEP_ATTEMPTS times until it exits 0; raises RuntimeError if it never does."""
+        for attempt in range(1, REMOTE_STEP_ATTEMPTS + 1):
+            exit_code, output = self.attempt_remote_command(command, input_text)
+            if exit_code == 0:
+                return
+            self.say(f"{description} failed (attempt {attempt} of {REMOTE_STEP_ATTEMPTS}, exit code {exit_code}): "
+                     f"{output[-200:]}")
+            if attempt < REMOTE_STEP_ATTEMPTS:
+                self.sleep(REMOTE_STEP_RETRY_WAIT_SECONDS)
+        raise RuntimeError(f"{description} failed {REMOTE_STEP_ATTEMPTS} times")
+
     def start_watchdog(self):
         """Replaces any earlier watchdog on the pod (from a previous launcher invocation), so that an old one cannot
-        delete the pod mid-run; the new one must exist before the scorer starts."""
-        self.transfer.run_remote_command(f"pkill -f '{WATCHDOG_PROCESS_PATTERN}'; true")
-        limit = effective_limit_seconds(self.arguments.maximum_running_hours, self.arguments.maximum_dollars,
-                                        self.hourly_price)
-        elapsed = self.clock() - self.start_epoch_seconds
-        seconds_remaining = max(60, limit - elapsed + WATCHDOG_GRACE_SECONDS)
-        self.transfer.run_remote_command(build_self_termination_watchdog_command(seconds_remaining))
-        self.say(f"On-pod self-termination watchdog set for {format_duration(seconds_remaining)} from now")
+        delete the pod mid-run; the new one must exist before anything is uploaded or installed. The start command's
+        exit code is checked and so is the watchdog's process; if it cannot be started after REMOTE_STEP_ATTEMPTS
+        attempts, WatchdogNotStartedError is raised and the pod is deleted."""
+        last_problem = None
+        for attempt in range(1, REMOTE_STEP_ATTEMPTS + 1):
+            self.attempt_remote_command(f"pkill -f '{WATCHDOG_PROCESS_PATTERN}'; true")
+            self.attempt_remote_command(f"mkdir -p {REMOTE_WORKING_DIRECTORY}")  # the watchdog's log goes in it
+            limit = effective_limit_seconds(self.arguments.maximum_running_hours, self.arguments.maximum_dollars,
+                                            self.hourly_price)
+            elapsed = self.clock() - self.start_epoch_seconds
+            seconds_remaining = max(60, limit - elapsed + WATCHDOG_GRACE_SECONDS)
+            exit_code, output = self.attempt_remote_command(build_self_termination_watchdog_command(seconds_remaining))
+            if exit_code == 0:
+                process_exit_code, _ = self.attempt_remote_command(f"pgrep -f '{WATCHDOG_PROCESS_PATTERN}' > /dev/null")
+                if process_exit_code == 0:
+                    self.say(f"On-pod self-termination watchdog set for {format_duration(seconds_remaining)} from now")
+                    return
+                last_problem = "its process was not found after starting it"
+            else:
+                last_problem = f"the start command exited with {exit_code}: {output[-200:]}"
+            self.say(f"On-pod watchdog start attempt {attempt} of {REMOTE_STEP_ATTEMPTS} failed: {last_problem}")
+            if attempt < REMOTE_STEP_ATTEMPTS:
+                self.sleep(REMOTE_STEP_RETRY_WAIT_SECONDS)
+        raise WatchdogNotStartedError(f"The on-pod self-termination watchdog could not be started ({last_problem}); "
+                                      f"deleting the pod rather than continuing without it")
 
     def scorer_exit_code(self):
         exit_code, output = self.transfer.run_remote_command(f"cat {REMOTE_RUN_FOLDER}/scorer_exit_code.txt 2>/dev/null")
@@ -887,7 +1046,8 @@ class PodSession:
         if self.final_pull_succeeded is not None:
             return self.final_pull_succeeded
         if self.final_logs_folder_name is None:
-            self.final_logs_folder_name = f"pod_{self.pod_id}_logs_{timestamp_now()}"
+            self.final_logs_folder_name = f"pod_{self.pod_id}_logs_" + timestamp_unused_in_folder(
+                self.run_folder, [f"pod_{self.pod_id}_logs_{{timestamp}}"])
         budget_seconds = min(FINAL_PULL_TOTAL_BUDGET_SECONDS, self.seconds_until_a_limit())
         pull_start = self.clock()
         last_error, attempt = None, 0
@@ -1143,7 +1303,8 @@ def print_cost_ceiling_and_projection(arguments):
 
 
 def print_dry_run(arguments, secrets):
-    request = build_pod_creation_request(arguments, read_public_key_text(arguments.ssh_private_key_path, False))
+    request = build_pod_creation_request(arguments, read_public_key_text(arguments.ssh_private_key_path, False),
+                                         "<random suffix chosen at launch>")
     request["env"] = {key: ("<public key>" if "KEY" in key else value) for key, value in request["env"].items()}
     print("DRY RUN: no RunPod calls are made.")
     print(f"RUNPOD_API_KEY found in .env: {bool(secrets['RUNPOD_API_KEY'])}; HF_TOKEN found in .env: {bool(secrets['HF_TOKEN'])}")
@@ -1157,13 +1318,15 @@ def print_dry_run(arguments, secrets):
               "printed, awaited or recorded about a cost center")
     print(f"POST {RUNPOD_REST_BASE_URL}/pods\n{json.dumps(request, indent=2)}")
     print("Commands that would run on the pod:")
+    print(f"  as soon as ssh works, before the upload: earlier watchdogs on the pod are killed (pkill -f "
+          f"'{WATCHDOG_PROCESS_PATTERN}'), then the watchdog is started and checked (retried; the pod is deleted at once "
+          f"if it cannot be started): "
+          f"{build_self_termination_watchdog_command(arguments.maximum_running_hours * 3600 + WATCHDOG_GRACE_SECONDS)}")
     print(f"  upload (tar over ssh, unfinished *.partial files left out): {', '.join(REPOSITORY_PATHS_UPLOADED_TO_POD)}, "
           f"and from the run folder run_configuration_*.json, scoring_inputs and scoring_outputs")
     print(f"  pip install -q -r {REQUIREMENTS_FILE_RELATIVE_PATH} (skipped when {REQUIREMENTS_INSTALLED_MARKER_FILE_NAME} "
           f"on the pod holds the same requirements file hash)")
     print(f"  version check, logged before scoring: {POD_VERSION_CHECK_COMMAND}")
-    print(f"  earlier watchdogs on the pod are killed first: pkill -f '{WATCHDOG_PROCESS_PATTERN}'")
-    print(f"  watchdog: {build_self_termination_watchdog_command(arguments.maximum_running_hours * 3600 + WATCHDOG_GRACE_SECONDS)}")
     print(f"  scorer:   {build_scorer_launch_shell_command(arguments)}")
     print(f"  pull every {PROGRESS_REPORT_INTERVAL_SECONDS} seconds: the finished files of {REMOTE_RUN_FOLDER}/scoring_outputs "
           f"(copied to a staging folder first, so nothing changes while it is read; a missing folder is nothing to pull)")
@@ -1182,7 +1345,7 @@ def print_dry_run(arguments, secrets):
           f"same pod. Pod creation failure and ssh never becoming ready delete the pod.")
     print(f"  the hours and dollar limits and Ctrl-C delete the pod immediately, also while it waits")
     print(f"  --reuse-existing-pod <pod id>: skip creation, take ssh details and the hourly price from the API, move "
-          f"the pod's old run folder aside, kill earlier watchdogs and set a new one before starting the scorer, "
+          f"the pod's old run folder aside, kill earlier watchdogs and set a new one before uploading anything, "
           f"cost counted from this launch; refuses if a scorer is already running on the pod")
     print(f"  final pull, whatever ends the run: everything in {REMOTE_RUN_FOLDER} except scoring_inputs, plus "
           f"watchdog_log.txt and pod_setup_*.txt, into the run folder (non-scoring_outputs files in "
@@ -1227,7 +1390,8 @@ def run_launcher(arguments, client=None, transfer=None, secrets=None, clock=time
     public_key_text = read_public_key_text(arguments.ssh_private_key_path, required=client is None)
     client = client or RunPodRestClient(secrets["RUNPOD_API_KEY"])
     transfer = transfer or SshTarTransfer(arguments.ssh_private_key_path, run_folder)
-    launcher_timestamp = timestamp_now()
+    launcher_timestamp = timestamp_unused_in_folder(
+        run_folder, ["pod_cost_log_{timestamp}.json", "pod_progress_log_{timestamp}.txt"])
     cost_center_name = resolve_cost_center_name(arguments, secrets)
     cost_log = PodCostLog(run_folder / f"pod_cost_log_{launcher_timestamp}.json",
                           {"launcher_timestamp": launcher_timestamp, "run_folder": str(run_folder),
@@ -1257,7 +1421,8 @@ def run_launcher(arguments, client=None, transfer=None, secrets=None, clock=time
             if arguments.reuse_existing_pod:
                 pod = session.reuse_pod(arguments.reuse_existing_pod)
             else:
-                pod = session.start_new_pod(build_pod_creation_request(arguments, public_key_text))
+                pod = session.start_new_pod(build_pod_creation_request(arguments, public_key_text,
+                                                                        uuid.uuid4().hex[:8]))
             setup_ended_with_reason = session.prepare_and_start_scorer(pod)
         if setup_ended_with_reason:
             reason, final_pull_succeeded = setup_ended_with_reason, False
@@ -1271,17 +1436,20 @@ def run_launcher(arguments, client=None, transfer=None, secrets=None, clock=time
         reason, exit_code = f"exception: {error}", 1
         session.say(f"Error: {error}")
     finally:
-        if (reason == "interrupted_by_user" or reason.startswith("exception")) and transfer_is_connected(transfer):
+        if ((reason == "interrupted_by_user" or reason.startswith("exception")) and session.pod_id is not None
+                and transfer_is_connected(transfer)):
             try:
                 session.stop_scorer_if_running()
                 session.final_pull_with_verification()
             except BaseException as error:
                 session.say(f"Final pull could not be completed: {error!r}")
-        if exit_code == 0 and arguments.keep_pod_after_run:
-            session.keep_pod_running()
-        else:
-            session.terminate(reason)
-        signal.signal(signal.SIGTERM, previous_sigterm_handler)
+        try:
+            if exit_code == 0 and arguments.keep_pod_after_run:
+                session.keep_pod_running()
+            else:
+                session.terminate(reason)
+        finally:
+            signal.signal(signal.SIGTERM, previous_sigterm_handler)
     return exit_code
 
 

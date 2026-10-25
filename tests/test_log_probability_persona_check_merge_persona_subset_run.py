@@ -17,6 +17,9 @@ TOKENS = 12
 DOCUMENT_IDS = ["document_a", "document_b"]
 FIRST_SAME_VALUES_PERSONA = "even_handed_advocate"
 SECOND_SAME_VALUES_PERSONA = "restrained_advocate"
+# The persona set's own files may differ between the runs (the set can gain personas); the others may not.
+PROMPT_FILE_HASHES = {"generation_prompt/generation_prompt_template.txt": "a" * 64,
+                      "model_type_framing/instruct_generic_system_prompt.txt": "b" * 64}
 
 
 def condition_records(persona_names_to_drop=()):
@@ -29,17 +32,22 @@ def subset_condition_records():
 
 
 def write_run(run_folder, conditions, log_probability_for, persona_configuration, document_ids=DOCUMENT_IDS,
-              token_offset=0, extra_configuration=None, system_prompt_override=None):
+              token_offset=0, extra_configuration=None, system_prompt_override=None, generation_prompt="p",
+              condition_field_override=None, prompt_file_hash_overrides=None):
     """log_probability_for(document_id, condition_id) -> array of TOKENS values."""
     conditions = copy.deepcopy(conditions)
     if system_prompt_override:
         for condition in conditions:
             if condition["condition_id"] == system_prompt_override[0]:
                 condition["system_prompt"] = system_prompt_override[1]
+    if condition_field_override:
+        for condition in conditions:
+            if condition["condition_id"] == condition_field_override[0]:
+                condition[condition_field_override[1]] = condition_field_override[2]
     write_jsonl_records(run_folder / "scoring_inputs" / "conditions.jsonl", conditions)
     documents = [{"document_id": document_id, "source_document_id": document_id, "rewrite_direction": None,
                   "content": f"content of {document_id}", "language": "English", "variables": {},
-                  "generation_prompt": "p"} for document_id in document_ids]
+                  "generation_prompt": generation_prompt} for document_id in document_ids]
     write_jsonl_records(run_folder / "scoring_inputs" / "documents.jsonl", documents)
     configuration = {"run_folder_name": run_folder.name, "created_timestamp": "2026-01-01_00-00", "model_type": "instruct",
                      "model_name": "test/model", "model_revision": "a" * 40,
@@ -48,6 +56,7 @@ def write_run(run_folder, conditions, log_probability_for, persona_configuration
                      "document_selection": {"corpus_path": "c.jsonl", "document_ids_file": None, "maximum_documents": None,
                                             "extra_documents_files": [], "number_of_corpus_documents": len(documents),
                                             "number_of_extra_documents": 0, "document_ids": list(document_ids)},
+                     "prompt_file_sha256": {**PROMPT_FILE_HASHES, **(prompt_file_hash_overrides or {})},
                      "number_of_conditions": len(conditions), **(extra_configuration or {})}
     (run_folder / "run_configuration_2026-01-01_00-00.json").write_text(json.dumps(configuration))
     npz_folder = run_folder / "scoring_outputs" / "per_token_log_probabilities"
@@ -80,10 +89,12 @@ def runs(tmp_path):
     base_configuration["condition_groups"]["same_values_control"]["expected_persona_count"] = 1
     subset_configuration = persona_check_configuration()
     base = tmp_path / "base_run"
-    write_run(base, condition_records((SECOND_SAME_VALUES_PERSONA,)), deterministic_scores(0.0), base_configuration)
+    write_run(base, condition_records((SECOND_SAME_VALUES_PERSONA,)), deterministic_scores(0.0), base_configuration,
+              prompt_file_hash_overrides={"preachiness/same_values_control_personas.txt": "c" * 64})
     subset = tmp_path / "subset_run"
     write_run(subset, subset_condition_records(), deterministic_scores(0.1, 0.02), subset_configuration,
               document_ids=DOCUMENT_IDS + ["document_only_in_subset"],
+              prompt_file_hash_overrides={"preachiness/same_values_control_personas.txt": "d" * 64},
               extra_configuration={"condition_subset": {"only_personas": [FIRST_SAME_VALUES_PERSONA,
                                                                           SECOND_SAME_VALUES_PERSONA]}})
     return base, subset, tmp_path / "merged_run"
@@ -169,6 +180,44 @@ def test_refuses_a_different_system_prompt_for_a_shared_condition(tmp_path, runs
               system_prompt_override=("generic", "You are a helpful assistant."))
     with pytest.raises(merge.RunsCannotBeMergedError, match="different system prompt"):
         merge.merge_runs(base, other, merged)
+
+
+def test_refuses_a_different_generation_prompt_for_a_shared_document(tmp_path, runs):
+    base, subset, merged = runs
+    other = tmp_path / "other_generation_prompt_subset"
+    write_run(other, subset_condition_records(), deterministic_scores(0.1), persona_check_configuration(),
+              generation_prompt="A different user prompt framing.")
+    with pytest.raises(merge.RunsCannotBeMergedError, match="different generation prompt"):
+        merge.merge_runs(base, other, merged)
+    assert not merged.exists()
+
+
+@pytest.mark.parametrize("field_name, different_value, expected_message", [
+    ("author_description", "an AI assistant who is different", "different author description"),
+    ("condition_group", "some_other_group", "different condition group"),
+    ("persona_name", "some_other_persona", "different persona name")])
+def test_refuses_a_shared_condition_that_differs_in_any_field_other_than_its_system_prompt(
+        tmp_path, runs, field_name, different_value, expected_message):
+    base, subset, merged = runs
+    other = tmp_path / "other_condition_field_subset"
+    write_run(other, subset_condition_records(), deterministic_scores(0.1), persona_check_configuration(),
+              condition_field_override=("generic", field_name, different_value))
+    with pytest.raises(merge.RunsCannotBeMergedError, match=expected_message):
+        merge.merge_runs(base, other, merged)
+    assert not merged.exists()
+
+
+def test_refuses_runs_whose_generation_prompt_or_framing_files_differ_but_not_ones_whose_persona_set_files_differ(
+        tmp_path, runs):
+    base, subset, merged = runs  # the fixture's runs differ in a persona set file and are merged without complaint
+    for file_key in PROMPT_FILE_HASHES:
+        other = tmp_path / f"subset_with_other_{file_key.replace('/', '_')}"
+        write_run(other, subset_condition_records(), deterministic_scores(0.1), persona_check_configuration(),
+                  prompt_file_hash_overrides={file_key: "e" * 64})
+        with pytest.raises(merge.RunsCannotBeMergedError, match=f"prompt file {file_key}"):
+            merge.merge_runs(base, other, tmp_path / "unused_merged_run")
+    merge.merge_runs(base, subset, merged)
+    assert merged.exists()
 
 
 def test_refuses_when_the_subset_run_lacks_a_base_document(tmp_path, runs):

@@ -63,7 +63,7 @@ python evals/log_probability_persona_check/launch_and_stop_runpod_scoring_pod.py
   - `pod_instruction_retry_scorer.txt`: restart the scorer;
   - `pod_instruction_retry_setup.txt`: redo upload, install and scorer start;
   - `pod_instruction_delete_pod.txt`: delete the pod.
-- Other flags: `--gpu-type-ids` (priority order), `--cloud-type {SECURE,COMMUNITY}`, `--image-name`, `--container-disk-gigabytes`, `--volume-gigabytes`, `--attach-to-existing-pod <id>`, `--model-name`, `--model-revision`, `--dtype`, `--maximum-tokens-per-batch`.
+- Other flags: `--gpu-type-ids` (priority order), `--cloud-type {SECURE,COMMUNITY}`, `--image-name`, `--container-disk-gigabytes`, `--volume-gigabytes` (default 200, enough for Gemma 4 12B plus Qwen3-32B in the cache; fixed at creation), `--reuse-existing-pod <id>` (a different model per run folder is fine), `--attach-to-existing-pod <id>`, `--model-name`, `--model-revision`, `--dtype`, `--maximum-tokens-per-batch`.
 
 ## 8. Analysis and go or no-go (free)
 ```bash
@@ -74,7 +74,7 @@ python evals/log_probability_persona_check/summarize_pilot_for_go_or_no_go_decis
 Show the summary to the contributor and get a separate go-ahead for the full run. Read the controls and a sample of extreme spans.
 
 ## 9. Full run
-Build scoring inputs for the whole corpus (without `--document-ids-file`; keep the rewrites as extra documents if the controls are to be rerun on the full run folder), then launch without `--maximum-documents`. To reuse a pilot pod that is still running, add `--reuse-existing-pod <pod id>`. The scorer skips finished documents, so a relaunch on a new pod resumes.
+Build scoring inputs for the whole corpus (without `--document-ids-file`; keep the rewrites as extra documents if the controls are to be rerun on the full run folder), then launch without `--maximum-documents`. For Qwen3-32B pass `--maximum-tokens-per-batch 16384` and use a GPU with at least 80 GB (`--gpu-type-ids "NVIDIA H200"` is allowed); the launcher's projection assumes 2.7 times the Gemma 4 12B cost per token until a pilot measures it. To score only the conditions a finished run lacks, build with `--only-personas` and combine with `merge_persona_subset_run_into_full_run.py` (README). To reuse a pilot pod that is still running, add `--reuse-existing-pod <pod id>`. The scorer skips finished documents, so a relaunch on a new pod resumes.
 
 ## 10. Afterwards
 - Check `pod_cost_log_<timestamp>.json`: `pod_terminated` is true, `final_pull_verified` is true, and the total cost. Confirm in the RunPod console that no pod remains.

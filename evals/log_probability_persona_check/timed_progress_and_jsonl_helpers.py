@@ -19,6 +19,18 @@ def timestamp_now():
     return datetime.now().strftime("%Y-%m-%d_%H-%M")
 
 
+def timestamp_unused_in_folder(folder, file_name_templates):
+    """The usual timestamp, or that with `_2`, `_3`... added, such that none of the files named by the templates (each
+    containing `{timestamp}`) exists in the folder yet. Two runs started within the same minute then never overwrite
+    each other's output files."""
+    base_timestamp = timestamp_now()
+    timestamp, attempt = base_timestamp, 1
+    while any((Path(folder) / template.format(timestamp=timestamp)).exists() for template in file_name_templates):
+        attempt += 1
+        timestamp = f"{base_timestamp}_{attempt}"
+    return timestamp
+
+
 def format_duration(seconds):
     seconds = int(seconds)
     return f"{seconds // 3600}h{(seconds % 3600) // 60:02d}m{seconds % 60:02d}s"

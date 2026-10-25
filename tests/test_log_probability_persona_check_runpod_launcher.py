@@ -2,6 +2,7 @@
 
 import json
 import subprocess
+import urllib.error
 from pathlib import Path
 
 import pytest
@@ -42,6 +43,10 @@ class FakeRunPodClient:
             self.delete_failures_remaining -= 1
             raise RuntimeError("temporary failure")
 
+    def list_pods(self):
+        self.calls.append(("list_pods", None))
+        return []
+
     def call_names(self):
         return [name for name, _ in self.calls]
 
@@ -50,7 +55,8 @@ class FakeTransfer:
     def __init__(self, scorer_finishes_after_seconds=None, scorer_exit_code="0", clock=None, fail_pulls=0,
                  raise_during_install=False, fail_final_pulls=0, scorer_vanishes_after_seconds=None,
                  scorer_output_text="Traceback ... FileNotFoundError: boom", install_failures=0, ssh_never_ready=False,
-                 scorer_attempts=None, scorer_idle_before_first_start=False, requirements_marker_text=""):
+                 scorer_attempts=None, scorer_idle_before_first_start=False, requirements_marker_text="",
+                 failing_command_fragments=None):
         self.commands, self.pulls, self.uploads = [], [], 0
         self.final_pull_attempts, self.final_pull_clock_times = 0, []
         self.host = "1.2.3.4"
@@ -62,6 +68,8 @@ class FakeTransfer:
         # scorer_attempts: one (seconds until finished, exit code) per scorer start, measured from that start
         self.scorer_attempts, self.scorer_start_times = scorer_attempts, []
         self.scorer_idle_before_first_start, self.requirements_marker_text = scorer_idle_before_first_start, requirements_marker_text
+        # command fragment -> number of times a command containing it fails with exit code 255 (a dropped connection)
+        self.failing_command_fragments = dict(failing_command_fragments or {})
 
     def wait_until_ready(self, pod, deadline, get_pod_function, sleep_function):
         if self.ssh_never_ready:
@@ -69,9 +77,16 @@ class FakeTransfer:
 
     def upload_project_files(self):
         self.uploads += 1
+        self.commands.append(("<upload project files>", None))
 
     def run_remote_command(self, command, input_text=None, timeout_seconds=None):
         self.commands.append((command, input_text))
+        for fragment, failures_remaining in self.failing_command_fragments.items():
+            if fragment in command and failures_remaining > 0:
+                self.failing_command_fragments[fragment] -= 1
+                return 255, "ssh: connection dropped"
+        if command.startswith("pgrep") and launcher.WATCHDOG_PROCESS_PATTERN in command:
+            return 0, ""  # the watchdog process exists
         if "pip install" in command and (self.raise_during_install or self.install_failures_remaining > 0):
             self.install_failures_remaining -= 1
             raise RuntimeError("install exploded")
@@ -153,11 +168,12 @@ def launch(run_folder, client, transfer, clock, *extra, confirm_after_seconds=No
 
 
 def read_cost_log(run_folder):
-    return json.loads(next(run_folder.glob("pod_cost_log_*.json")).read_text())
+    """The latest launch's log: launches in one run folder within a minute get `_2`, `_3` after the time stamp."""
+    return json.loads(sorted(run_folder.glob("pod_cost_log_*.json"))[-1].read_text())
 
 
 def read_progress_log(run_folder):
-    return next(run_folder.glob("pod_progress_log_*.txt")).read_text()
+    return sorted(run_folder.glob("pod_progress_log_*.txt"))[-1].read_text()
 
 
 def test_api_key_comes_from_env_file_not_os_environ(tmp_path, monkeypatch):
@@ -752,6 +768,11 @@ def test_reuse_existing_pod_refuses_when_a_scorer_is_already_running_and_leaves_
     with pytest.raises(SystemExit):
         launch(run_folder, client, transfer, clock, "--reuse-existing-pod", "fakepod123")
     assert "delete_pod" not in client.call_names() and transfer.uploads == 0
+    # The other run's scorer is not stopped and none of its files are pulled into this run folder.
+    commands = [command for command, _ in transfer.commands]
+    assert not any(command.startswith("pkill") for command in commands)
+    assert transfer.final_pull_attempts == 0 and transfer.pulls == []
+    assert not list(run_folder.glob("pod_*_logs_*"))
 
 
 def test_dry_run_describes_waiting_instruction_files_keeping_and_reuse(run_folder, capsys):
@@ -886,3 +907,303 @@ def test_pod_volume_holds_both_models_and_any_gpu_type_can_be_passed(run_folder)
     assert request["gpuTypeIds"] == ["NVIDIA H200"]
     assert request["volumeInGb"] == 200 and request["containerDiskInGb"] == 50
     assert request["env"]["HF_HOME"].startswith("/workspace/")  # the cache is on the volume, not the container disk
+
+
+# ---- the on-pod watchdog and the secret file are verified, not assumed ----
+
+ALWAYS = 10_000
+
+
+def watchdog_start_commands(transfer):
+    return [command for command, _ in transfer.commands if command.startswith("nohup") and "runpodctl" in command]
+
+
+def test_watchdog_that_fails_to_start_is_retried_and_the_run_continues(run_folder):
+    clock, client = FakeClock(), FakeRunPodClient()
+    transfer = FakeTransfer(clock=clock, scorer_finishes_after_seconds=300,
+                            failing_command_fragments={"runpodctl pod delete": 1})
+    assert launch(run_folder, client, transfer, clock) == 0
+    assert len(watchdog_start_commands(transfer)) == 2 and len(scorer_start_commands(transfer)) == 1
+    assert read_progress_log(run_folder).count("On-pod self-termination watchdog set") == 1
+
+
+def test_watchdog_that_never_starts_deletes_the_pod_without_starting_the_scorer(run_folder):
+    clock, client = FakeClock(), FakeRunPodClient()
+    transfer = FakeTransfer(clock=clock, scorer_finishes_after_seconds=300,
+                            failing_command_fragments={"runpodctl pod delete": ALWAYS})
+    assert launch(run_folder, client, transfer, clock) == 1
+    assert client.call_names().count("delete_pod") == 1 and scorer_start_commands(transfer) == []
+    progress = read_progress_log(run_folder)
+    assert "On-pod self-termination watchdog set" not in progress and "watchdog" in progress
+    assert clock.time() - 1_000_000.0 < 300  # deleted at once, not after the failure wait
+
+
+def test_watchdog_whose_process_is_not_found_counts_as_not_started(run_folder):
+    clock, client = FakeClock(), FakeRunPodClient()
+    transfer = FakeTransfer(clock=clock, failing_command_fragments={"pgrep -f '" + launcher.WATCHDOG_PROCESS_PATTERN: ALWAYS})
+    assert launch(run_folder, client, transfer, clock) == 1
+    assert client.call_names().count("delete_pod") == 1 and scorer_start_commands(transfer) == []
+    assert "On-pod self-termination watchdog set" not in read_progress_log(run_folder)
+
+
+def test_secret_file_write_that_fails_is_retried(run_folder):
+    clock, client = FakeClock(), FakeRunPodClient()
+    transfer = FakeTransfer(clock=clock, scorer_finishes_after_seconds=300,
+                            failing_command_fragments={"umask 077; cat >": 1})
+    assert launch(run_folder, client, transfer, clock) == 0
+    assert sum(command.startswith("umask 077; cat >") for command, _ in transfer.commands) == 2
+
+
+def test_secret_file_write_that_never_succeeds_is_a_setup_failure_and_never_starts_the_scorer(run_folder):
+    clock, client = FakeClock(), FakeRunPodClient()
+    transfer = FakeTransfer(clock=clock, failing_command_fragments={"umask 077; cat >": ALWAYS})
+    assert launch(run_folder, client, transfer, clock) == 1
+    assert scorer_start_commands(transfer) == [] and client.call_names().count("delete_pod") == 1
+    assert "Setup failed" in read_progress_log(run_folder)
+
+
+def test_watchdog_starts_as_soon_as_ssh_works_before_upload_and_install(run_folder):
+    clock, client = FakeClock(), FakeRunPodClient()
+    transfer = FakeTransfer(clock=clock, scorer_finishes_after_seconds=300)
+    assert launch(run_folder, client, transfer, clock) == 0
+    commands = [command for command, _ in transfer.commands]
+    watchdog_index = next(i for i, command in enumerate(commands) if command.startswith("nohup") and "runpodctl" in command)
+    upload_index = commands.index("<upload project files>")
+    install_index = next(i for i, command in enumerate(commands) if "pip install" in command)
+    assert watchdog_index < upload_index < install_index
+    # The watchdog writes its log into the working directory, which must exist before the upload creates it.
+    assert any(command.startswith(f"mkdir -p {launcher.REMOTE_WORKING_DIRECTORY}") for command in commands[:watchdog_index])
+
+
+def test_watchdog_is_running_while_a_setup_failure_waits_for_an_instruction_and_is_not_started_again_on_retry(run_folder):
+    clock, client = FakeClock(), FakeRunPodClient()
+    transfer = FakeTransfer(clock=clock, install_failures=1, scorer_attempts=[(100, "0")])
+    retry_file = run_folder / launcher.RETRY_SETUP_INSTRUCTION_FILE_NAME
+    sleep_function = sleep_creating_files_at(clock, {str(retry_file): 100})
+    assert launch_with_sleep(run_folder, client, transfer, clock, sleep_function) == 0
+    commands = [command for command, _ in transfer.commands]
+    failed_install_index = next(i for i, command in enumerate(commands) if "pip install" in command)
+    assert any(command.startswith("nohup") and "runpodctl" in command for command in commands[:failed_install_index])
+    assert len(watchdog_start_commands(transfer)) == 1
+
+
+def test_a_failed_setup_that_is_never_fixed_still_had_a_watchdog_for_the_whole_wait(run_folder):
+    clock, client = FakeClock(), FakeRunPodClient()
+    transfer = FakeTransfer(clock=clock, raise_during_install=True)
+    assert launch(run_folder, client, transfer, clock) == 1
+    assert len(watchdog_start_commands(transfer)) == 1 and client.call_names().count("delete_pod") == 1
+
+
+# ---- a pod creation request that fails after it may have reached RunPod ----
+
+class ClientWhoseCreationResponseIsLost(FakeRunPodClient):
+    """RunPod may have created the pod, but the response never arrived (a timeout, a reset connection)."""
+
+    def __init__(self, pods_in_the_account_after_creation=(), listing_error=None, **keyword_arguments):
+        super().__init__(**keyword_arguments)
+        self.pods_in_the_account_after_creation = list(pods_in_the_account_after_creation)
+        self.listing_error = listing_error
+        self.requested_pod_name = None
+
+    def create_pod(self, creation_request):
+        self.calls.append(("create_pod", creation_request))
+        self.requested_pod_name = creation_request["name"]
+        raise urllib.error.URLError("timed out")
+
+    def list_pods(self):
+        self.calls.append(("list_pods", None))
+        if self.listing_error:
+            raise self.listing_error
+        return [{"id": pod_id, "name": self.requested_pod_name if is_ours else "someone-elses-pod"}
+                for pod_id, is_ours in self.pods_in_the_account_after_creation]
+
+
+def test_creation_failure_that_may_have_created_a_pod_finds_and_deletes_it_by_its_unique_name(run_folder):
+    clock = FakeClock()
+    client = ClientWhoseCreationResponseIsLost([("orphan_pod_id", True), ("unrelated_pod_id", False)])
+    assert launch(run_folder, client, FakeTransfer(clock=clock), clock) == 1
+    assert [call for call in client.calls if call[0] == "delete_pod"] == [("delete_pod", "orphan_pod_id")]
+    progress = read_progress_log(run_folder)
+    assert client.requested_pod_name in progress and "MAY EXIST" in progress
+    assert "https://console.runpod.io/pods" in progress and "orphan_pod_id" in progress
+    log = read_cost_log(run_folder)
+    assert log["pod_creation_outcome_unknown"] is True and log["pod_creation_request_name"] == client.requested_pod_name
+
+
+def test_creation_failure_deletes_the_found_pod_under_the_usual_retries(run_folder):
+    clock = FakeClock()
+    client = ClientWhoseCreationResponseIsLost([("orphan_pod_id", True)])
+    client.delete_failures_remaining = 2
+    assert launch(run_folder, client, FakeTransfer(clock=clock), clock) == 1
+    assert client.call_names().count("delete_pod") == 3
+
+
+def test_creation_failure_with_no_pod_found_or_no_listing_still_tells_the_user_to_check_the_console(run_folder):
+    for client in (ClientWhoseCreationResponseIsLost([]),
+                   ClientWhoseCreationResponseIsLost(listing_error=RuntimeError("listing unavailable"))):
+        clock = FakeClock()
+        assert launch(run_folder, client, FakeTransfer(clock=clock), clock) == 1
+        assert "delete_pod" not in client.call_names()
+        progress = read_progress_log(run_folder)
+        assert client.requested_pod_name in progress and "MAY EXIST" in progress and "console.runpod.io/pods" in progress
+        for stale_file in run_folder.glob("pod_*_log_*"):
+            stale_file.unlink()
+
+
+def test_a_pod_creation_request_that_runpod_rejected_does_not_claim_a_pod_may_exist(run_folder):
+    class ClientThatRejectsTheRequest(FakeRunPodClient):
+        def create_pod(self, creation_request):
+            self.calls.append(("create_pod", creation_request))
+            raise launcher.PodCreationRejectedError("RunPod pod creation failed (400): bad request")
+
+    clock, client = FakeClock(), ClientThatRejectsTheRequest()
+    assert launch(run_folder, client, FakeTransfer(clock=clock), clock) == 1
+    assert client.call_names() == ["create_pod"]
+    assert "MAY EXIST" not in read_progress_log(run_folder)
+
+
+def test_each_launch_names_its_pod_uniquely_so_a_search_by_name_cannot_find_another_run(run_folder):
+    names = []
+    for _ in range(2):
+        clock, client = FakeClock(), FakeRunPodClient()
+        launch(run_folder, client, FakeTransfer(clock=clock, ssh_never_ready=True), clock)
+        names.append(next(call for call in client.calls if call[0] == "create_pod")[1]["name"])
+    assert names[0] != names[1] and all(run_folder.name in name for name in names)
+
+
+def test_rest_client_marks_a_rejected_creation_request_but_not_a_server_error_or_lost_response(monkeypatch):
+    import io
+    outcomes = [urllib.error.HTTPError("u", 400, "bad", {}, io.BytesIO(b"bad request")),
+                urllib.error.HTTPError("u", 502, "bad gateway", {}, io.BytesIO(b"gateway")),
+                urllib.error.URLError("timed out")]
+
+    def fake_urlopen(request, timeout):
+        raise outcomes.pop(0)
+
+    monkeypatch.setattr(launcher.urllib.request, "urlopen", fake_urlopen)
+    client = launcher.RunPodRestClient("rp_secret")
+    with pytest.raises(launcher.PodCreationRejectedError):
+        client.create_pod({"name": "n"})
+    with pytest.raises(RuntimeError) as server_error:
+        client.create_pod({"name": "n"})
+    assert not isinstance(server_error.value, launcher.PodCreationRejectedError)
+    with pytest.raises(urllib.error.URLError):
+        client.create_pod({"name": "n"})
+
+
+def test_rest_client_lists_pods(monkeypatch):
+    class FakeResponse:
+        status = 200
+
+        def read(self):
+            return json.dumps([{"id": "a", "name": "n"}]).encode()
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *arguments):
+            return False
+
+    seen = []
+    monkeypatch.setattr(launcher.urllib.request, "urlopen", lambda request, timeout: seen.append(request) or FakeResponse())
+    assert launcher.RunPodRestClient("rp_secret").list_pods() == [{"id": "a", "name": "n"}]
+    assert seen[0].method == "GET" and seen[0].full_url == f"{launcher.RUNPOD_REST_BASE_URL}/pods"
+
+
+# ---- a second interrupt during pod deletion does not abandon the deletion ----
+
+def test_an_interrupt_during_pod_deletion_finishes_the_deletion_then_is_raised_again(run_folder):
+    class ClientWhoseDeletionIsInterrupted(FakeRunPodClient):
+        outcomes = [KeyboardInterrupt(), RuntimeError("temporary failure"), None]
+
+        def delete_pod(self, pod_id):
+            self.calls.append(("delete_pod", pod_id))
+            outcome = self.outcomes.pop(0)
+            if outcome is not None:
+                raise outcome
+
+    clock, client = FakeClock(), ClientWhoseDeletionIsInterrupted()
+    transfer = FakeTransfer(scorer_finishes_after_seconds=300, clock=clock)
+    with pytest.raises(KeyboardInterrupt):
+        launch(run_folder, client, transfer, clock)
+    assert client.call_names().count("delete_pod") == 3
+    log = read_cost_log(run_folder)
+    assert log["pod_terminated"] is True and "terminated" in read_progress_log(run_folder)
+
+
+def test_an_interrupt_while_waiting_between_deletion_attempts_does_not_stop_the_retries(run_folder):
+    class ClientWhoseFirstDeletionFails(FakeRunPodClient):
+        def __init__(self):
+            super().__init__()
+            self.delete_failures_remaining = 1
+
+    clock, client = FakeClock(), ClientWhoseFirstDeletionFails()
+    transfer = FakeTransfer(scorer_finishes_after_seconds=300, clock=clock)
+    interrupts_remaining = [1]
+
+    def sleep_interrupted_once_between_deletion_attempts(seconds):
+        clock.sleep(seconds)
+        if "delete_pod" in client.call_names() and interrupts_remaining[0] > 0:
+            interrupts_remaining[0] -= 1
+            raise KeyboardInterrupt()
+
+    with pytest.raises(KeyboardInterrupt):
+        launch_with_sleep(run_folder, client, transfer, clock, sleep_interrupted_once_between_deletion_attempts)
+    assert client.call_names().count("delete_pod") == 2 and read_cost_log(run_folder)["pod_terminated"] is True
+
+
+# ---- outputs of launches within one minute do not overwrite each other; a zero price is a clear error ----
+
+def test_two_launches_within_the_same_minute_keep_both_cost_logs_and_progress_logs(run_folder, monkeypatch):
+    from evals.log_probability_persona_check import timed_progress_and_jsonl_helpers
+    monkeypatch.setattr(timed_progress_and_jsonl_helpers, "timestamp_now", lambda: "2026-10-27_16-36")
+    for _ in range(2):
+        clock = FakeClock()
+        launch(run_folder, FakeRunPodClient(), FakeTransfer(clock=clock, ssh_never_ready=True), clock)
+    cost_logs = sorted(run_folder.glob("pod_cost_log_*.json"))
+    assert [path.name for path in cost_logs] == ["pod_cost_log_2026-10-27_16-36.json", "pod_cost_log_2026-10-27_16-36_2.json"]
+    assert len(list(run_folder.glob("pod_progress_log_*.txt"))) == 2
+    assert all(json.loads(path.read_text())["termination_reason"].startswith("exception") for path in cost_logs)
+
+
+def test_a_pod_price_of_zero_gives_a_clear_error_and_still_deletes_the_pod(run_folder):
+    clock, client = FakeClock(), FakeRunPodClient(hourly_price=0)
+    assert launch(run_folder, client, FakeTransfer(clock=clock), clock) == 1
+    assert client.call_names().count("delete_pod") == 1
+    progress = read_progress_log(run_folder)
+    assert "costPerHr 0" in progress and "not a positive price" in progress and "division" not in progress
+    with pytest.raises(RuntimeError, match="costPerHr"):
+        launcher.pod_cost_per_hour({"costPerHr": 0})
+    with pytest.raises(RuntimeError, match="costPerHr"):
+        launcher.pod_cost_per_hour({"costPerHr": -1.5})
+
+
+# ---- a reused pod may belong to another run: a failure before it is known to be idle leaves it untouched ----
+
+@pytest.mark.parametrize("reported_price", [0, None])
+def test_a_reused_pod_with_an_unusable_price_is_left_untouched_and_the_launch_fails(run_folder, reported_price):
+    clock, client = FakeClock(), FakeRunPodClient(hourly_price=reported_price)
+    transfer = FakeTransfer(clock=clock)
+    assert launch(run_folder, client, transfer, clock, "--reuse-existing-pod", "fakepod123") == 1
+    assert "delete_pod" not in client.call_names()
+    assert not any(command.startswith("pkill") for command, _ in transfer.commands)
+    assert transfer.final_pull_attempts == 0 and transfer.pulls == [] and transfer.uploads == 0
+    progress = read_progress_log(run_folder)
+    assert "costPerHr" in progress and "left untouched" in progress
+    assert read_cost_log(run_folder)["pod_terminated"] is False
+
+
+def test_a_reused_pod_that_fails_before_the_busy_check_is_left_untouched(run_folder):
+    clock, client = FakeClock(), FakeRunPodClient()
+    transfer = FakeTransfer(clock=clock, ssh_never_ready=True)
+    assert launch(run_folder, client, transfer, clock, "--reuse-existing-pod", "fakepod123") == 1
+    assert "delete_pod" not in client.call_names() and transfer.final_pull_attempts == 0
+    assert "left untouched" in read_progress_log(run_folder)
+
+
+def test_a_failure_after_the_busy_check_of_a_reused_pod_still_deletes_it(run_folder):
+    clock, client = FakeClock(), FakeRunPodClient()
+    transfer = FakeTransfer(clock=clock, scorer_idle_before_first_start=True,
+                            failing_command_fragments={"runpodctl pod delete": ALWAYS})
+    assert launch(run_folder, client, transfer, clock, "--reuse-existing-pod", "fakepod123") == 1
+    assert client.call_names().count("delete_pod") == 1

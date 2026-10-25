@@ -47,7 +47,7 @@ from evals.log_probability_persona_check import persona_sets, prompt_rendering  
 from evals.log_probability_persona_check.scoring_model_defaults import (  # noqa: E402
     MODEL_TYPE_INSTRUCT, check_model_type, chat_template_keyword_arguments_for_model)
 from evals.log_probability_persona_check.timed_progress_and_jsonl_helpers import (  # noqa: E402
-    TimedProgressReporter, append_jsonl_record, find_completed_keys, read_jsonl, timestamp_now)
+    TimedProgressReporter, append_jsonl_record, find_completed_keys, read_jsonl, timestamp_unused_in_folder)
 
 DEFAULT_MAXIMUM_TOKENS_PER_BATCH = 16384
 DEFAULT_POSITIONS_PER_HEAD_CHUNK = 1024
@@ -443,7 +443,9 @@ def main(argument_list=None):
     complete |= records_missing
     documents_to_score = [document for document in documents if document["document_id"] not in complete]
 
-    timestamp = timestamp_now()
+    timestamp = timestamp_unused_in_folder(scoring_outputs_directory, [
+        "scoring_progress_log_{timestamp}.txt", "scoring_environment_{timestamp}.json",
+        "full_logits_verification_{timestamp}.json"])
     progress_log_path = scoring_outputs_directory / f"scoring_progress_log_{timestamp}.txt"
     print(f"{len(documents)} documents x {len(conditions)} conditions; {len(complete)} documents already done; "
           f"{len(documents_to_score)} to score with {model_name} (model type {model_type})", flush=True)

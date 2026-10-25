@@ -9,6 +9,7 @@ Usage (from the repository root):
     python evals/log_probability_persona_check/smoke_test_log_probability_persona_check.py
     python evals/log_probability_persona_check/smoke_test_log_probability_persona_check.py --model-types base
     python evals/log_probability_persona_check/smoke_test_log_probability_persona_check.py --output-folder <folder>
+    python evals/log_probability_persona_check/smoke_test_log_probability_persona_check.py --qwen3-small-model
 Outputs go to a new temporary folder (printed at the end) unless --output-folder is given.
 
 --use-real-gemma-tokenizer is opt-in: it downloads only the tokenizer files (about 32 MB, never the weights) of the
@@ -148,10 +149,47 @@ def run_local_chain_for_model_type(model_type, working_directory, use_real_gemma
     return run_folder
 
 
+QWEN3_SMALL_MODEL_NAME = "Qwen/Qwen3-0.6B"
+QWEN3_SMALL_MODEL_REVISION = "c1899de289a04d12100db370d81485cdf75e47ca"  # same architecture and chat template as Qwen3-32B
+QWEN3_SMOKE_TEST_PERSONAS = "proportionate_welfare"  # with generic: 6 conditions
+
+
+def run_local_chain_with_real_qwen3_small_model(working_directory):
+    """Real Qwen3-0.6B (about 1.2 GB, free to download, pinned revision) on CPU in float32: 2 fixture documents x 6
+    conditions (--only-personas), with the chat template keyword argument enable_thinking=False, chunked scoring
+    verified against the plain full-logits computation, and a resume that must do no work. Needs the model in the local
+    Hugging Face cache or network access; not part of the default smoke test. Returns the run folder."""
+    working_directory = Path(working_directory)
+    corpus_path = write_fixture_corpus(working_directory / "fixture_corpus_qwen3" / "fixture_corpus.jsonl")
+    two_document_corpus = corpus_path.with_name("fixture_corpus_two_documents.jsonl")
+    two_document_corpus.write_text("".join(corpus_path.read_text(encoding="utf-8").splitlines(keepends=True)[:2]),
+                                   encoding="utf-8")
+    run_folder = build_scoring_inputs.main([
+        "--persona-set", "preachiness", "--input", str(two_document_corpus), "--model-name", QWEN3_SMALL_MODEL_NAME,
+        "--model-revision", QWEN3_SMALL_MODEL_REVISION, "--only-personas", QWEN3_SMOKE_TEST_PERSONAS,
+        "--run-folder-label", "log_probability_persona_check_smoke_test_qwen3_0_6b"])
+    configuration = json.loads(next(run_folder.glob("run_configuration_*.json")).read_text(encoding="utf-8"))
+    assert configuration["chat_template_keyword_arguments"] == {"enable_thinking": False}
+    scorer_arguments = ["--run-folder", str(run_folder), "--device", "cpu", "--dtype", "float32",
+                        "--maximum-tokens-per-batch", "40000"]
+    score_document_log_probabilities_on_pod.main(scorer_arguments + ["--verify-first-document-against-full-logits"])
+    number_of_conditions = check_scoring_outputs(run_folder, 2)
+    assert number_of_conditions == 6
+    npz_directory = run_folder / "scoring_outputs" / "per_token_log_probabilities"
+    modification_times = {path.name: path.stat().st_mtime_ns for path in npz_directory.glob("*.npz")}
+    score_document_log_probabilities_on_pod.main(scorer_arguments)
+    assert modification_times == {path.name: path.stat().st_mtime_ns for path in npz_directory.glob("*.npz")}
+    print(f"[qwen3 0.6b] 2 documents x {number_of_conditions} conditions scored and verified; run folder: {run_folder}")
+    return run_folder
+
+
 def parse_arguments(argument_list=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--model-types", nargs="+", choices=MODEL_TYPES, default=MODEL_TYPES)
     parser.add_argument("--output-folder", default=None, help="Default: a new temporary folder")
+    parser.add_argument("--qwen3-small-model", action="store_true",
+                        help="Instead of the tiny random Gemma model, run the chain with the real Qwen3-0.6B (about "
+                             "1.2 GB downloaded once, free) on 2 documents x 6 conditions")
     parser.add_argument("--use-real-gemma-tokenizer", action="store_true",
                         help="Opt in: download the real tokenizer files (not the weights) from the Hugging Face Hub")
     return parser.parse_args(argument_list)
@@ -160,6 +198,10 @@ def parse_arguments(argument_list=None):
 def main(argument_list=None):
     arguments = parse_arguments(argument_list)
     output_folder = Path(arguments.output_folder or tempfile.mkdtemp(prefix="log_probability_persona_check_smoke_test_"))
+    if arguments.qwen3_small_model:
+        run_folder = run_local_chain_with_real_qwen3_small_model(output_folder)
+        print(f"Qwen3-0.6B smoke test passed. Outputs: {output_folder}")
+        return [run_folder]
     run_folders = [run_local_chain_for_model_type(model_type, output_folder, arguments.use_real_gemma_tokenizer)
                    for model_type in arguments.model_types]
     print(f"Smoke test passed for {', '.join(arguments.model_types)}. Outputs: {output_folder}")

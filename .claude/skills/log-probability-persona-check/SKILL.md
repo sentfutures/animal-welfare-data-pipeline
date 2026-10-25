@@ -37,6 +37,7 @@ Details for steps 1 to 3 are in `references/persona_design_checklist.md`. A new 
 `--model-type instruct` (default) scores an instruction-tuned model through its chat template, with each persona as the system prompt. `--model-type base` scores a pretrained model with no template: a plain-text preamble naming the author ("an AI assistant who ...") and the generation prompt, then the document. Choose `base` when the question is what pretraining on the text would do, and `instruct` when it is how an assistant model reads it.
 - Scores from the two types are not comparable. Never pool or subtract them.
 - Each type needs its own pinned 40-character model revision (defaults in `scoring_model_defaults.py`; the run configuration records what was used). The analysis refuses a run folder that mixes model types, names or revisions.
+- A model whose chat template needs extra arguments (Qwen3: `enable_thinking=False`) has them in `scoring_model_defaults.py`; they are recorded in the run configuration. Check a new model's rendered prompt (system prompt kept, no default system prompt injected, document tokens identical across conditions) with its real tokenizer before building a run.
 - Rerun the positive and neutral controls for every model type and model. A control that passed on one says nothing about the other.
 
 ## Paid GPU pods

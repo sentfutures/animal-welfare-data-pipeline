@@ -282,6 +282,9 @@ def parse_arguments(argument_list=None):
                              "the default needs --model-revision too")
     parser.add_argument("--model-revision", default=None,
                         help="Pinned 40-character commit hash of the model repository")
+    parser.add_argument("--run-folder-label", default=None,
+                        help="Descriptive name for the new run folder; the date and time are appended. Default: "
+                             "log_probability_persona_check_<persona set>_<model type>")
     parser.add_argument("--only-personas", default=None,
                         help="Comma-separated persona names (persona_name of the conditions, e.g. "
                              "proportionate_welfare,welfare_care_without_preachiness). Only generic and these "
@@ -334,8 +337,8 @@ def main(argument_list=None):
         if not run_folder.is_dir():
             raise SystemExit(f"--resume-folder {run_folder} does not exist")
     else:
-        run_folder = audit_parent_directory / (
-            f"{RUN_FOLDER_NAME_PREFIX}_{persona_set.name}_{arguments.model_type}_{timestamp}")
+        label = arguments.run_folder_label or f"{RUN_FOLDER_NAME_PREFIX}_{persona_set.name}_{arguments.model_type}"
+        run_folder = audit_parent_directory / f"{label}_{timestamp}"
 
     if arguments.dry_run:
         print_dry_run_summary(document_records, condition_records, arguments.model_type, model_name,

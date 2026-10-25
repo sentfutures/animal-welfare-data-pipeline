@@ -239,6 +239,19 @@ def test_no_verification_file_without_the_flag(build_run, patched_model_loading)
     assert not list((run_folder / "scoring_outputs").glob("full_logits_verification_*.json"))
 
 
+def test_a_second_scorer_start_within_the_same_minute_does_not_overwrite_the_first_ones_records(
+        build_run, patched_model_loading, monkeypatch):
+    from evals.log_probability_persona_check import timed_progress_and_jsonl_helpers
+    monkeypatch.setattr(timed_progress_and_jsonl_helpers, "timestamp_now", lambda: "2026-10-27_16-36")
+    run_folder = build_run()
+    run_scorer(run_folder, "--maximum-documents", "1")
+    run_scorer(run_folder, "--maximum-documents", "2")
+    outputs = run_folder / "scoring_outputs"
+    assert sorted(path.name for path in outputs.glob("scoring_environment_*.json")) == [
+        "scoring_environment_2026-10-27_16-36.json", "scoring_environment_2026-10-27_16-36_2.json"]
+    assert len(list(outputs.glob("scoring_progress_log_*.txt"))) == 2
+
+
 def test_resume_skips_completed_documents_and_does_not_load_the_model_when_all_are_done(build_run, patched_model_loading):
     run_folder = build_run()
     run_scorer(run_folder, "--maximum-documents", "2")

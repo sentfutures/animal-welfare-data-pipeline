@@ -53,3 +53,17 @@ def test_appending_after_a_complete_final_record_without_a_newline_keeps_that_re
     path.write_text(json.dumps(COMPLETE_RECORDS[0]), encoding="utf-8")
     helpers.append_jsonl_record(path, COMPLETE_RECORDS[1])
     assert helpers.read_jsonl(path) == COMPLETE_RECORDS
+
+
+def test_timestamp_unused_in_folder_keeps_the_usual_format_and_never_repeats_one_that_names_an_existing_file(
+        tmp_path, monkeypatch):
+    monkeypatch.setattr(helpers, "timestamp_now", lambda: "2026-10-27_16-36")
+    templates = ["pod_cost_log_{timestamp}.json", "pod_progress_log_{timestamp}.txt"]
+    first = helpers.timestamp_unused_in_folder(tmp_path, templates)
+    assert first == "2026-10-27_16-36"
+    (tmp_path / f"pod_progress_log_{first}.txt").write_text("first launch")  # any one of the files is enough
+    second = helpers.timestamp_unused_in_folder(tmp_path, templates)
+    assert second == "2026-10-27_16-36_2"
+    (tmp_path / f"pod_cost_log_{second}.json").write_text("second launch")
+    assert helpers.timestamp_unused_in_folder(tmp_path, templates) == "2026-10-27_16-36_3"
+    assert helpers.timestamp_unused_in_folder(tmp_path, ["unrelated_{timestamp}.txt"]) == "2026-10-27_16-36"
