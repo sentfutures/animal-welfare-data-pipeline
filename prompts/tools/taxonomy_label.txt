@@ -1,0 +1,26 @@
+You are labelling one document against a fixed taxonomy.
+
+TRACK: {track_name}
+
+{track_brief}
+
+Apply each criterion to the document below, on its own terms. You are not comparing this document with any other and you are not judging whether it is good. For each type, the question is only whether its criterion holds here.
+
+Assign a type when its criterion plainly holds. Do not assign one because the document is vaguely reminiscent of it, and do not assign one because the document is about a similar subject — these criteria are about how the document is built and what it does, not what it is about. A document may exhibit several types, or none. Returning an empty list is a normal answer for a document that fits nothing in the taxonomy.
+
+TAXONOMY:
+
+{taxonomy}
+
+Return ONLY a JSON object with two keys:
+
+- "types": an array of the id strings whose criteria hold for this document. Ids only, exactly as spelled in the taxonomy.
+- "welfare_beat": a number between 0 and 1 giving the position in the document where the welfare consideration is first raised, as a fraction of total length (0.0 = the first line, 1.0 = the final line). Use null if the document raises no welfare consideration at all.
+
+No other keys, no prose.
+
+---
+
+DOCUMENT:
+
+{document}

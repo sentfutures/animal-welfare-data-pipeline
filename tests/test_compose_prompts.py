@@ -166,6 +166,9 @@ def test_real_templates_render_with_canonical_loader():
         constitution_principles="CP",
         document_description="DESC",
         document="DOC",
+        # the revision-stage slots, empty as in the control arm
+        style_directives="",
+        length_directive="",
     ))
     assert l4_system.index("<constitution>") < l4_system.index("CC") \
         < l4_system.index("<constitution_principles>") < l4_system.index("CP") \

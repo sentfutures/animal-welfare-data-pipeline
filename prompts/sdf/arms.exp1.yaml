@@ -1,0 +1,53 @@
+# Experiment 1: does intervening on AUTHOR VOICE at the revision stage raise
+# corpus diversity, and what does it cost in judge pass rate?
+#
+# Two interventions, one arm each, against two references. Approach 2 (length)
+# and experiment 3 (the split) are not in this sweep — they are separate
+# questions and would make an arm differ in two places at once.
+#
+# See prompts/sdf/arms.example.yaml for the schema and every available knob.
+
+experiment:
+  donor_run: 2026-07-25_15-57_fullscale-500-opus5
+
+  n: 50
+  holdout: 50
+  seed: 0
+
+  revision_variables: prompts/sdf/revision_variables.txt
+
+  # 300 personas, Vendi 31.2 effective. That is the ceiling on how many
+  # distinct voices this arm can supply; at n=50 it is not the binding
+  # constraint, at corpus scale it would be.
+  personas: prompts/sdf/personas.jsonl
+  persona_seed: 137
+
+  participant_personas: false
+
+  success:
+    min_vendi_gain: 0.10      # fractional gain in full-text Vendi over the control arm
+    max_pass_rate_drop: 0.05  # absolute drop in the layer-4 judge pass rate
+    length_tolerance: 0.20    # unused here — no arm deals a length card
+
+arms:
+  # Today's prompt, every slot empty. Re-run rather than assumed, because
+  # temperature is 1.0 and the donor's rewrites are one sample.
+  - name: control
+    style_mode: none
+    use_length: false
+    split: false
+
+  # The corpus as it actually shipped: the donor's own rewrites for the sampled
+  # ids. Costs nothing, and fixes a reference point beside the re-sampled control.
+  - name: as-shipped
+    import_rewrites: true
+
+  # Approach 1 — four voice axes dealt from revision_variables.txt, rendered as
+  # "more X than a typical <document_type>".
+  - name: voices-a1
+    style_mode: axes
+
+  # Approach 3 — one sampled persona the rewriter reasons from, tuned to what
+  # the genre and the language can carry.
+  - name: personas-a3
+    style_mode: persona

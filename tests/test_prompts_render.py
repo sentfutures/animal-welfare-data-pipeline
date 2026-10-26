@@ -32,9 +32,21 @@ TEMPLATE_KWARGS = [
         "constitution_principles": "CONST-P-X", "document_description": "DESC-X",
         "reasoning_featured": "REASONING-X",
     }),
+    # style_directives/length_directive are empty-clause slots: an arm with the
+    # revision knobs off renders them to "", which is the control prompt.
     ("sdf/layer3.txt", {
         "constitution_claude": "CONST-C-X", "constitution_principles": "CONST-P-X",
         "document_description": "DESC-X", "document": "DOC-X",
+        "style_directives": "", "length_directive": "",
+    }),
+    ("sdf/layer3a_critique.txt", {
+        "constitution_claude": "CONST-C-X", "constitution_principles": "CONST-P-X",
+        "document_description": "DESC-X", "document": "DOC-X",
+    }),
+    ("sdf/layer3b_revise.txt", {
+        "constitution_claude": "CONST-C-X", "constitution_principles": "CONST-P-X",
+        "document_description": "DESC-X", "document": "DOC-X", "review": "REVIEW-X",
+        "style_directives": "STYLE-X", "length_directive": "LENGTH-X",
     }),
     ("sdf/layer4.txt", {
         "constitution_claude": "CONST-C-X", "document_description": "DESC-X",
@@ -86,6 +98,13 @@ TEMPLATE_KWARGS = [
         "user_message": "USER-X", "assistant_response": "RESP-X",
     }),
     ("tools/pattern_scan.txt", {"documents": "DOCS-X"}),
+    # the fallback-taxonomy eval's three stages (evals/scenario_taxonomy.py)
+    ("tools/taxonomy_derive.txt", {"track_name": "TRACK-X", "track_brief": "BRIEF-X",
+                                   "known": "KNOWN-X", "groups": "GROUPS-X"}),
+    ("tools/taxonomy_consolidate.txt", {"track_name": "TRACK-X", "track_brief": "BRIEF-X",
+                                        "cap": 9, "candidates": "CANDS-X"}),
+    ("tools/taxonomy_label.txt", {"track_name": "TRACK-X", "track_brief": "BRIEF-X",
+                                  "taxonomy": "TAX-X", "document": "DOC-X"}),
 ]
 
 

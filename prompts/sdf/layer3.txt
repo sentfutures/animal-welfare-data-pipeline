@@ -65,6 +65,10 @@ Now here is the document:
 
 </document>
 
+{style_directives}
+
+{length_directive}
+
 Provide your response in the following format:
 
 Start with a brief list of the problems you identified with the document (this becomes the review record).

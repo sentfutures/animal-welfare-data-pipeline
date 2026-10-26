@@ -1,0 +1,97 @@
+# Revision-stage variables for the SDF diversity experiments (layer3.txt).
+#
+# SAME GRAMMAR as prompts/sdf/variables.txt — parsed by the same
+# shared/matrix.py functions. See that file's header for the full format. In
+# short: an unindented `{name}` header, indented value lines under it,
+# optionally `<weight> :: ` prefixed (all-or-nothing within an axis, summing
+# to 1.0), and full-line `#` comments ignored anywhere.
+#
+# HOW THIS FILE DIFFERS FROM variables.txt
+#
+# variables.txt is dealt at COMPOSE time (layer 1) and steers what the document
+# is about. This file is dealt by sdf_pipeline/experiment.py over an already
+# drafted corpus, and steers only how layer 3 REWRITES it. That is the whole
+# point of the experiment: the drafts are held fixed across every arm, so any
+# diversity gain is attributable to the revision stage and nothing else.
+#
+# The deal happens ONCE per experiment and is shared verbatim by every arm, so
+# arms are matched on their cards. It lands on each record as
+# {"revision": {"cards": {...}, "personas": [...]}} and is rendered by
+# sdf_pipeline/revision_style.py.
+#
+# RESERVED NAMES, injected by the driver and rejected if defined here:
+#   {persona}, {participants}  — drawn from prompts/sdf/personas.jsonl, not
+#   from this file, because a 300-entry pool is not a weighted matrix axis.
+#
+# THE NEUTRAL LEVEL. Every axis should reserve a share for the literal value
+# `unchanged`, which renders no directive at all (revision_style.NEUTRAL). It
+# is what lets a deal leave some documents' voice or length alone, so an arm
+# is not forced to intervene on all of them.
+#
+# THE LENGTH AXIS IS RELATIVE. Its values name a multiple of the document's own
+# current length, so they need no word/character distinction and do not go stale
+# when the corpus's length profile changes. Like every other axis the value is
+# handed to the model as written, so it must read grammatically after "Aim for a
+# finished document ...". evals/compare_arms.py reads the multiple back out with
+# revision_style.length_ratio; a value naming none still renders, and is reported
+# by level rather than by number.
+
+# ------------------------------------------------------------------------
+# EXPERIMENT 1, APPROACH 1: the voice axes.
+#
+# Every value is a bare quality that has to read grammatically inside the frame
+# revision_style._axis_directives builds: "more <value> than a typical
+# <document_type>". Write them to fit that sentence.
+#
+# These are axes of PROSE FORM, never of stance. They are clear of the layer-1
+# {tone} axis, which deals the author's position on animal welfare (supportive
+# / neutral / skeptical) and not a register; an axis that re-dealt stance would
+# fight the spec the rewrite is told to honour.
+#
+# There is deliberately NO certainty or evidence-handling axis. Hedges,
+# attributions and expressions of uncertainty are claims about confidence
+# rather than style, and revision_style._INVARIANTS tells the rewriter to
+# preserve them — an axis dealing them out would contradict it.
+#
+# HOW MANY FIRE PER DOCUMENT. Every axis deals a card to every document, so the
+# `unchanged` weight is the only lever on how loud a deal gets. At 0.60 across
+# four axes a document averages 1.6 live directives, and four in five get two
+# or fewer.
+# Raise `unchanged` to quieten the arm; lower it to push harder.
+# ------------------------------------------------------------------------
+
+{voice_rhythm}  # how the sentences and paragraphs move
+    0.60 :: unchanged
+    0.20 :: clipped and fast-moving
+    0.20 :: discursive and willing to digress
+
+{voice_warmth}  # how close the writer stands to the reader
+    0.60 :: unchanged
+    0.20 :: warm and personable
+    0.20 :: dry and impersonal
+
+{voice_concreteness}  # the altitude the writing works at
+    0.60 :: unchanged
+    0.20 :: grounded in specific instances
+    0.20 :: willing to stay with general claims
+
+{voice_order}  # how the material is arranged
+    0.60 :: unchanged
+    0.20 :: tightly signposted
+    0.20 :: associative in its ordering
+
+# ------------------------------------------------------------------------
+# EXPERIMENT 2: the length target, as a multiple of the draft's own length.
+#
+# The ladder is asymmetric. Shortening is free, but lengthening is bounded by
+# layer 3's 8000-token output cap, and a truncated rewrite is rejected and
+# re-billed rather than banked — 2x of a long document in a non-Latin script
+# exceeds the cap outright.
+# ------------------------------------------------------------------------
+
+{length}
+    0.40 :: unchanged
+    0.15 :: at roughly 0.5x its current length
+    0.15 :: at roughly 0.7x its current length
+    0.15 :: at roughly 1.3x its current length
+    0.15 :: at roughly 1.6x its current length

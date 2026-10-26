@@ -1,0 +1,96 @@
+# Arms file for sdf_pipeline/experiment.py — SCHEMA AND ONE WORKED EXAMPLE.
+#
+# This file is not a real experiment. Every arm below is commented out except
+# `control`, which intervenes in nothing, so running this file as-is measures
+# the pipeline against itself. Copy it, fill it in, and point --arms at the copy.
+#
+# WHAT AN ARM IS. One layer-3 variant run over the shared drafts. Layers 1-2 are
+# held fixed across every arm by construction (the drafts are sampled once from
+# the donor run), and the revision cards are dealt once and shared verbatim, so
+# two arms differ ONLY in the knobs named here.
+
+experiment:
+  # The run supplying the shared drafts. This one is pre-renumber, so its
+  # drafts live in layer3/drafts.jsonl; the driver resolves that by filename.
+  donor_run: 2026-07-25_15-57_fullscale-500-opus5
+
+  # TODO: sample sizes are an open decision. n is documents per arm; holdout is
+  # a disjoint second sample, drawn with the same language stratification, for
+  # confirming whichever arm wins without reusing the set that chose it.
+  n: 150
+  holdout: 150
+  seed: 0
+
+  # Revision-stage cards. Four voice axes, each weighted so most documents get
+  # one or two live directives; only a `style_mode: axes` arm reads them.
+  revision_variables: prompts/sdf/revision_variables.txt
+
+  # Persona pool for style_mode: persona (approach 3). Generate it with
+  # sdf_pipeline/make_personas.py. null = no personas are drawn at all, which
+  # makes a `persona` arm render nothing.
+  personas: null
+  persona_seed: 137
+
+  # The optional N+1 draw, applied to every arm that styles anything:
+  #   false  author only (the default)
+  #   true   author + 4 candidates for the people quoted in the document
+  #   <int>  author + exactly N candidates
+  participant_personas: false
+
+  # TODO: success criteria are an open decision — write them down BEFORE
+  # running. evals/compare_arms.py reads these and marks each arm pass/fail;
+  # it hardcodes no thresholds of its own.
+  success:
+    min_vendi_gain: 0.10      # fractional gain in full-text Vendi over the control arm
+    max_pass_rate_drop: 0.05  # absolute drop in the layer-4 judge pass rate
+    length_tolerance: 0.20    # a length target counts as honoured within +/- this
+
+arms:
+  # The control. Today's single critique-and-rewrite prompt, with every slot
+  # empty — byte-identical to what the pipeline has always sent.
+  - name: control
+    style_mode: none
+    use_length: false
+    split: false
+
+  # The corpus exactly as it shipped. Copies the donor's own rewrites for the
+  # sampled ids instead of generating any, so it costs nothing and gives the
+  # comparison a fixed reference point beside the freshly-sampled control.
+  # (Re-running the control matters because temperature is 1.0: the donor's
+  # rewrites are one sample, not the control condition.)
+  # - name: as-shipped
+  #   import_rewrites: true
+
+  # Experiment 1, approach 1 — voice axes dealt from revision_variables.txt and
+  # rendered as "more X than a typical <document_type>".
+  # - name: voices-a1
+  #   style_mode: axes
+
+  # Experiment 1, approach 3 — a sampled persona the rewriter reasons about and
+  # tunes to what the genre can carry. Needs experiment.personas set.
+  # - name: personas-a3
+  #   style_mode: persona
+
+  # Experiment 1, approach 3, with the N+1 participant draw on top. Overrides
+  # the experiment-level participant_personas for this arm only.
+  # - name: personas-a3-speakers
+  #   style_mode: persona
+  #   participant_personas: 4
+
+  # Experiment 2 — length targeting, no voice intervention, so the two effects
+  # are separable.
+  # - name: length
+  #   style_mode: none
+  #   use_length: true
+
+  # Experiment 3 — critique and revise as two calls, with no new variables, so
+  # the split itself is what is being measured.
+  # - name: split
+  #   style_mode: none
+  #   split: true
+
+  # Per-arm model overrides are also honoured, for when an arm needs a stronger
+  # critic than the rest of the sweep:
+  #   rewrite_model: claude-opus-4-8
+  #   critique_model: claude-opus-4-8   # split mode only; falls back to rewrite_model
+  #   score_model: claude-sonnet-5

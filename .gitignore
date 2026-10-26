@@ -22,6 +22,11 @@ outputs/*/latest
 # under outputs/, but also next to a bare --input corpus.jsonl anywhere).
 embeddings_cache.npz
 
+# The external-reference sample evals/external_baseline.py streams from
+# FineWeb-Edu — hundreds of MB of someone else's text, rebuilt on demand from a
+# pinned dataset + seed. The external_baseline.json it produces stays tracked.
+outputs/external/
+
 # Machine-local config override (backend: auto etc.) — never committed
 config.local.yaml
 
