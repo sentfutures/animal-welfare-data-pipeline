@@ -1,0 +1,61 @@
+# Does giving the rewriter a target LENGTH, as a multiple of the document's
+# own, change the corpus?
+#
+# The deliverable is two things, and the second turned out to be the real one:
+# the response curve in comparison.md (median achieved length per dealt rung
+# against the undirected baseline from the same arm), and the structural-spread
+# column, which is where the effect actually showed up. See report.md.
+#
+# Voices and the critique/revise split are not in this sweep: every arm runs
+# style_mode: none, so the length effect is separable.
+#
+# See experiments/arms.example.yaml for the schema and every available knob.
+
+experiment:
+  donor_run: 2026-07-25_15-57_fullscale-500-opus5
+
+  n: 50
+  holdout: 50
+  seed: 0
+
+  # The {length} axis is live in this file; the four voice axes are too, and
+  # are dealt to every document, but no arm here renders them.
+  revision_variables: prompts/sdf/variables.txt
+
+  personas: null
+  participant_personas: false
+
+  success:
+    # min_vendi_gain reads FULL-TEXT Vendi, which this experiment confounds:
+    # varying document length changes embeddings for reasons unrelated to how
+    # varied the ideas are. Check the `idea Vendi` column (--run-evals --ideas)
+    # before believing a gain here.
+    min_vendi_gain: 0.10
+    max_pass_rate_drop: 0.05
+
+    # Compliance is REPORTED, not judged. The length response curve still
+    # prints as a diagnostic, but no pass/fail bar hangs off it: hitting the
+    # number was never the goal, and an arm reporting FAIL on a criterion
+    # nobody is reading is noise. report.md has the measured curve.
+    length_tolerance: 0.20
+
+arms:
+  # Today's prompt, every slot empty. Re-run rather than assumed, because
+  # temperature is 1.0 and the donor's rewrites are one sample. It is still
+  # dealt length cards and simply never renders them, which makes its reported
+  # compliance the chance rate.
+  - name: control
+    style_mode: none
+    use_length: false
+    split: false
+
+  # The corpus as it shipped: the donor's own rewrites for the sampled ids,
+  # costing only their layer-4 scoring. Imported records carry no revision
+  # deal, so this arm reports no length compliance.
+  - name: as-shipped
+    import_rewrites: true
+
+  # The intervention. Length only — no voice, no split.
+  - name: length
+    style_mode: none
+    use_length: true

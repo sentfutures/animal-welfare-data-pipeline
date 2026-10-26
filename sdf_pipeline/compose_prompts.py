@@ -105,6 +105,13 @@ LANGUAGE_RE = re.compile(r"written in ([^,]+)")
 # may feature a different member of the category instead.
 RESERVED = {"preamble", "fictional_names", "fictional_orgs", "sentient_example"}
 
+# Axes dealt from variables.txt that steer only how layer 3 REWRITES a document,
+# never what it is about. No plan or draft template declares a placeholder for
+# them, so they reach layer 3 and nothing else; revision_style.py renders them.
+REVISION_AXES = (
+    "voice_rhythm", "voice_warmth", "voice_concreteness", "voice_order", "length",
+)
+
 NAMES_PER_PROMPT = 4   # mirrors canonical layer 2's _NAMES_PER_DOC
 ORGS_PER_PROMPT = 3    # mirrors canonical layer 2's _ORGS_PER_DOC
 DEFAULT_ENTITY_SEED = 137  # mirrors config sdf.entity_pool_seed
@@ -264,6 +271,23 @@ def derive_language(culture: str) -> str:
     """The document language named in a culture value ('written in X, ...')."""
     m = LANGUAGE_RE.search(culture)
     return m.group(1).strip() if m else "English"
+
+
+def record_language(record: dict) -> str:
+    """A record's language, from the field if it carries one, else its culture card."""
+    return record.get("language") or derive_language(
+        (record.get("variables") or {}).get("culture", "")
+    )
+
+
+def revision_cards(variables: dict | None) -> dict[str, str]:
+    """The revision half of a dealt hand, in REVISION_AXES order.
+
+    Absent axes are simply omitted, so a record dealt before these axes existed
+    projects to {} and renders no directive.
+    """
+    v = variables or {}
+    return {axis: v[axis] for axis in REVISION_AXES if v.get(axis)}
 
 
 def compose_records(

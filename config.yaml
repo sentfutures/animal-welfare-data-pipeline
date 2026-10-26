@@ -27,7 +27,15 @@ sdf:
   # plan_model: claude-sonnet-5
   # draft_model: claude-sonnet-5
   # rewrite_model: claude-opus-4-8   # NOT claude-fable-5: it 400s on the api backend (requires adaptive thinking, which conflicts with the pipeline's thinking=disabled — see shared/api.py)
+  # critique_model: claude-opus-4-8  # layer 3's critique half; falls back to rewrite_model
   # score_model: claude-sonnet-5
+  # How layer 3 revises. The voice and length cards are dealt from the matrix
+  # (prompts/sdf/variables.txt, REVISION VARIABLES section) and steer only the
+  # rewrite, never what the document is about.
+  revision:
+    split: true          # critique and rewrite as two calls; false = the single-call layer3.txt
+    style_mode: axes     # axes = render the dealt voice cards | none = leave the voice alone
+    use_length: true     # render the dealt {length} card as a target
 
 dad:
   # Per-stage model overrides (each falls back to the global `model`).

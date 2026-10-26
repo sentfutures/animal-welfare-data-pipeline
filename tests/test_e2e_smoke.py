@@ -36,9 +36,13 @@ def _run_main(monkeypatch, main, config_file, *extra_args):
 # --- SDF ---------------------------------------------------------------
 
 def _sdf_dispatch(user_message, **kw):
+    # keyed on stage, not max_tokens: the critique and the revise halves share a
+    # token cap, so a cap cannot tell them apart.
+    if kw.get("stage") == "layer3_critique":
+        return f"<review>Problems with {kw['item_id']}.</review>"
     if kw["max_tokens"] == 6000:  # layer 3: drafting from the spec
         return f"<document>Drafted body for {kw['item_id']}.</document>"
-    if kw["max_tokens"] == 8000:  # layer 4: review + rewrite
+    if kw["max_tokens"] == 8000:  # layer 4: the rewrite (split or single-call)
         return (f"Review notes.\n<improved_document>Rewritten document for "
                 f"{kw['item_id']}.</improved_document>")
     if "score" in user_message.lower():  # layer 5: judge
@@ -71,8 +75,10 @@ def test_sdf_pipeline_end_to_end_offline(tiny_config_file, outputs_root, stub_cl
         assert r["content"] == f"Rewritten document for {r['doc_id']}."
         assert r["variables"]  # matrix lineage travels to the corpus
         assert r["scores"]["spec_conformance"] == 9
-    # 2 plans + 2 drafts + 2 rewrites + 2 scores
-    assert len(calls) == 8
+    # 2 plans + 2 drafts + 2 critiques + 2 revises + 2 scores: layer 3 is two
+    # calls per document by default, so a run bills one more call per document
+    # than it did when the critique and the rewrite shared a reply.
+    assert len(calls) == 10
 
 
 def test_sdf_resume_at_last_layer_makes_no_calls(tiny_config_file, outputs_root, stub_claude, monkeypatch):

@@ -1,17 +1,15 @@
 """Layer 3: review and rewrite each draft against the constitution and its spec.
 
-The alignment-critical pass — do not skip or abbreviate it. The layer3.txt
-template holds the constitution, principles, the nine review checks, and the
-failure-modes checklist (constitution/failure_modes.md) in its SYSTEM section; the USER section delivers the generating spec and the draft.
-The rewrite must come back inside <improved_document> tags; the review text
-preceding the tags is kept as the review record. Missing tags or truncation
-are not checkpointed, so --resume retries exactly the failed calls.
+The alignment-critical pass — do not skip or abbreviate it. Every template
+holds the constitution, principles, the nine review checks and the
+failure-modes checklist (constitution/failure_modes.md) in its SYSTEM section;
+the USER section delivers the generating spec and the draft. The rewrite must
+come back inside <improved_document> tags. Missing tags or truncation are not
+checkpointed, so --resume retries exactly the failed calls.
 
-Two revision-stage knobs live under config sdf.revision, both off by default:
-style/length directives rendered into the USER section from a dealt revision
-record (see revision_style.py), and `split`, which runs the critique and the
-rewrite as two calls against layer3a_critique.txt / layer3b_revise.txt. A
-draft carrying no revision deal renders the prompt this layer has always sent.
+The critique and the rewrite are TWO CALLS by default (layer3a_critique.txt
+then layer3b_revise.txt): however it can be disabled. Revision variables
+are written from revision_style.py
 """
 
 import re
@@ -28,7 +26,7 @@ IMPROVED_TAG_RE = re.compile(r"<improved_document>(.*?)</improved_document>", re
 REVIEW_TAG_RE = re.compile(r"<review>(.*?)</review>", re.DOTALL)
 
 _MAX_TOKENS = 8000  # review record + a full rewritten document
-_CRITIQUE_MAX_TOKENS = 2000  # split mode: a problem list, no document
+_CRITIQUE_MAX_TOKENS = 8000  # a problem list, but one written with no document to budget for
 
 CRITIQUE_TEMPLATE = "layer3a_critique.txt"
 REVISE_TEMPLATE = "layer3b_revise.txt"
@@ -42,15 +40,16 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, drafts: list[dict]) -
     rev = sdf.get("revision") or {}
     mode = rev.get("style_mode", "none")
     use_length = rev.get("use_length", False)
-    split = bool(rev.get("split", False))
+    split = bool(rev.get("split", True))
 
     if split:
         for name in (CRITIQUE_TEMPLATE, REVISE_TEMPLATE):
             if not (prompts_dir / name).exists():
                 raise SystemExit(
-                    f"layer3_rewrite: sdf.revision.split is on but {name} is missing from "
-                    f"{prompts_dir}. A run snapshots its own templates at creation, so a run "
-                    "created before the split templates existed cannot be resumed with split on."
+                    f"layer3_rewrite: {name} is missing from {prompts_dir}. A run "
+                    "snapshots its own templates at creation, so a run created before "
+                    "the two-call layer 3 existed must be resumed with "
+                    "sdf.revision.split: false."
                 )
 
     constitution_dir = utils.resolve_constitution_dir(prompts_dir)
@@ -75,8 +74,14 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, drafts: list[dict]) -
     newly_banked: set[str] = set()
 
     def directives(draft: dict) -> tuple[str, str]:
+        # The cards ride on the dealt hand like every other axis. An explicit
+        # `revision` record overrides it, which is how a sweep hands one set of
+        # cards to several arms over drafts that were dealt something else.
+        deal = draft.get("revision") or {
+            "cards": cp.revision_cards(draft.get("variables"))
+        }
         return revision_style.directives_for(
-            draft.get("revision"),
+            deal,
             mode=mode,
             use_length=use_length,
             document_type=(draft.get("variables") or {}).get("document_type", ""),

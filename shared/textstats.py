@@ -321,3 +321,141 @@ def nearest_neighbor_sims(texts: list[str], n: int = 3, block: int = 512) -> np.
         sims[np.arange(rows), np.arange(i, i + rows)] = -1.0  # mask self-similarity
         out[i : i + rows] = sims.max(axis=1)
     return out
+
+
+# ------------------------------------------------------- length measurement
+#
+# Used by experiments/compare_arms.py to score the length-targeting experiment. The
+# unit is per-language because a word count is meaningless for a script that
+# does not put spaces between words — counting "words" in Chinese counts
+# punctuation-delimited runs, which is not a length at all.
+_UNSPACED_LANGUAGES = ("chinese", "mandarin", "japanese", "thai", "lao", "khmer")
+
+
+# ------------------------------------------------------- structural form
+# Diversity of FORM, as distinct from diversity of content. Semantic
+# embeddings answer "are these about different things" and n-gram overlap
+# answers "do they use different words"; neither notices that every document
+# is built the same way. Used by evals/diversity.py.
+#
+# Raw document length is deliberately NOT a feature: a run that deals varied
+# lengths would then score higher by construction, and the question these
+# answer is whether varying length drags anything else along with it.
+
+# Sentence enders across the scripts the corpus actually uses: Latin stops,
+# the Devanagari danda, the Urdu full stop and the Arabic question mark. Reusing
+# _TERMINAL_CHARS' repertoire — a Latin-only [.!?] reads a Hindi document as one
+# 300-word sentence.
+_SENT_END = ".!?\u3002\uff01\uff1f\u0964\u0965\u06d4\u061f\u05c3"
+_SENT_SPLIT_RE = re.compile("[" + re.escape(_SENT_END) + "]+[\\s\"'\u201d\u2019)\\]]*")
+_QUOTE_CHARS_RE = re.compile(r"[\"\u201c\u201d\u201e\u00ab\u00bb]")
+
+# lexical features are read off a fixed window so they cannot track length
+FORM_WINDOW = 300
+
+# Architecture: how the document is BUILT. These are what a length target
+# moves. Texture: word choice, which it does not.
+FORM_STRUCTURAL = ("sent_len_mean", "sent_len_sd", "para_len_mean")
+FORM_LEXICAL = ("ttr", "hapax", "word_len")
+FORM_FEATURES = FORM_STRUCTURAL + FORM_LEXICAL + (
+    "comma_per100",    # subordination and reported speech
+    "quote_per100",
+    "self_redundancy",
+)
+
+
+def form_features(text: str, window: int = FORM_WINDOW) -> dict[str, float] | None:
+    """Length-normalised structural statistics for one document.
+
+    None when the document is too short to measure stably (under `window`
+    words, or fewer than three sentences).
+    """
+    words = _WORD_RE.findall(text.casefold())
+    sents = [s for s in _SENT_SPLIT_RE.split(text) if s.strip()]
+    paras = [p for p in text.split("\n\n") if p.strip()]
+    if len(words) < window or len(sents) < 3 or not paras:
+        return None
+    lens = [len(s.split()) for s in sents]
+    win = words[:window]
+    seen: dict[str, int] = {}
+    for w in win:
+        seen[w] = seen.get(w, 0) + 1
+    raw = text.encode("utf-8")
+    return {
+        "sent_len_mean": float(np.mean(lens)),
+        "sent_len_sd": float(np.std(lens)),
+        "para_len_mean": float(np.mean([len(p.split()) for p in paras])),
+        "ttr": len(seen) / window,
+        "hapax": sum(1 for c in seen.values() if c == 1) / window,
+        "word_len": float(np.mean([len(w) for w in words])),
+        "comma_per100": 100.0 * text.count(",") / len(words),
+        "quote_per100": 100.0 * len(_QUOTE_CHARS_RE.findall(text)) / len(words),
+        "self_redundancy": len(zlib.compress(raw, 9)) / len(raw),
+    }
+
+
+def form_spread(feats: list[dict[str, float]]) -> dict[str, dict[str, float]]:
+    """Per-feature centre and spread across a corpus.
+
+    Spread is what a length intervention is expected to move, and it is
+    reported raw (not standardised) so two runs' reports can be compared
+    directly without a shared reference population.
+    """
+    if not feats or any(f is None for f in feats):
+        raise ValueError("form_spread needs non-empty features; filter form_features' Nones")
+    out = {}
+    for key in FORM_FEATURES:
+        xs = np.array([f[key] for f in feats], dtype=float)
+        med = float(np.median(xs))
+        p10, p90 = (float(np.quantile(xs, 0.10)), float(np.quantile(xs, 0.90)))
+        out[key] = {
+            "median": round(med, 4),
+            "sd": round(float(xs.std()), 4),
+            "p10": round(p10, 4),
+            "p90": round(p90, 4),
+            # spread relative to the centre, so features in different units compare
+            "cv": round(float(xs.std() / med), 4) if med else None,
+        }
+    return out
+
+
+def form_summary(feats: list[dict[str, float]]) -> dict:
+    """Spread of document form across a corpus, and the two headline numbers.
+
+    `structural` is the mean relative spread of sentence and paragraph
+    architecture, `lexical` the same over word choice. Reporting them apart is
+    the point: an intervention can widen how documents are BUILT while leaving
+    the words alone, and a single combined figure hides exactly that.
+    """
+    spread = form_spread(feats)
+
+    def mean_cv(keys) -> float | None:
+        vals = [spread[k]["cv"] for k in keys if spread[k]["cv"] is not None]
+        return round(float(np.mean(vals)), 4) if vals else None
+
+    return {
+        "n": len(feats),
+        "structural_spread": mean_cv(FORM_STRUCTURAL),
+        "lexical_spread": mean_cv(FORM_LEXICAL),
+        "spread": spread,
+        "features": list(FORM_FEATURES),
+    }
+
+
+def unit_for_language(language: str | None) -> str:
+    """"chars" for languages written without word spacing, else "words"."""
+    name = (language or "").strip().lower()
+    return "chars" if any(k in name for k in _UNSPACED_LANGUAGES) else "words"
+
+
+def count_units(text: str, unit: str) -> int:
+    """Length of text in the given unit ("chars" or "words").
+
+    Characters are counted after stripping whitespace runs to one, so the count
+    does not move with how the document happens to be wrapped.
+    """
+    if unit == "words":
+        return len(text.split())
+    if unit == "chars":
+        return len(re.sub(r"\s+", " ", text.strip()))
+    raise ValueError(f"unit must be 'chars' or 'words', got {unit!r}")

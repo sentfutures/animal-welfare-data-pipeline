@@ -43,10 +43,12 @@ TEMPLATE_KWARGS = [
     }),
     ("sdf/layer3a_critique.txt", {
         "constitution_claude": "CONST-C-X", "constitution_principles": "CONST-P-X",
+        "failure_modes": "FAILURE-MODES-X",
         "document_description": "DESC-X", "document": "DOC-X",
     }),
     ("sdf/layer3b_revise.txt", {
         "constitution_claude": "CONST-C-X", "constitution_principles": "CONST-P-X",
+        "failure_modes": "FAILURE-MODES-X",
         "document_description": "DESC-X", "document": "DOC-X", "review": "REVIEW-X",
         "style_directives": "STYLE-X", "length_directive": "LENGTH-X",
     }),

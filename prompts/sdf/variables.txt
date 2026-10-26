@@ -39,6 +39,19 @@
 # sentence it fills (layer1.txt unless noted), and a `# Note:` where the
 # mechanics are not obvious from the values alone.
 
+# ==========================================================================
+# COMPOSITION VARIABLES. What the document IS — its genre, its setting, whose
+# minds are at stake, how central the welfare thread is, how it resolves. These
+# are rendered into layer1.txt, where one plan call per deal turns the
+# combination into a DOCUMENT DESCRIPTION spec, and every stage downstream is
+# held to that spec. Sampling them as a deck rather than independently is what
+# makes the corpus's composition engineered rather than whatever the model
+# happens to favour.
+#
+# The REVISION VARIABLES section at the foot of this file is the other half:
+# those steer how layer 3 rewrites a document, never what it is about.
+# ==========================================================================
+
 {document_type}
     # Prompt sentence: Type: the document is {document_type}.
     0.09 :: an encyclopedia entry/reference article
@@ -215,3 +228,54 @@
     0.05 :: treating animal welfare only as a reputational, legal, or cost risk
     0.05 :: adding a welfare caveat while leaving the recommendation unchanged
     0.05 :: dropping welfare reasoning when the output is code, configuration, or an automated decision rather than prose
+
+
+# ==========================================================================
+# REVISION VARIABLES. How the document is WRITTEN — its voice and its length.
+# Dealt from the same deck as everything above, but rendered by
+# sdf_pipeline/revision_style.py into layer 3's revise prompt, never into
+# layer1.txt or layer2.txt, so a revision card cannot reach the spec and be
+# mistaken for something the document is supposed to be about. The list is
+# compose_prompts.REVISION_AXES; tests/test_compose_prompts.py fails if a name
+# here is missing from it, or if one of them leaks into layer 1 or 2.
+#
+# Every axis reserves a share for `unchanged`, which renders no directive at
+# all (i.e., removes the line from the prompt) — the lever that lets a deal
+# leave a document's voice or length alone.
+# ==========================================================================
+
+{voice_rhythm}
+    # Prompt sentence: more {voice_rhythm} than a typical {document_type}.
+    # Note: comparative, because the genre sets the baseline — an absolute "be
+    # clipped" fights the document type instead of varying within it.
+    # The four voice axes each deal a card, so `unchanged` is the only lever on
+    # how loud a deal gets: at 0.60 a document averages 1.6 live directives.
+    0.60 :: unchanged
+    0.20 :: clipped and fast-moving
+    0.20 :: discursive and willing to digress
+
+{voice_warmth}
+    # Prompt sentence: more {voice_warmth} than a typical {document_type}.
+    0.60 :: unchanged
+    0.20 :: warm and personable
+    0.20 :: dry and impersonal
+
+{voice_concreteness}
+    # Prompt sentence: more {voice_concreteness} than a typical {document_type}.
+    0.60 :: unchanged
+    0.20 :: grounded in specific instances
+    0.20 :: willing to stay with general claims
+
+{voice_order}
+    # Prompt sentence: more {voice_order} than a typical {document_type}.
+    0.60 :: unchanged
+    0.20 :: tightly signposted
+    0.20 :: associative in its ordering
+
+{length}
+    # Prompt sentence: Aim for a finished document {length}.
+    0.40 :: unchanged
+    0.15 :: at roughly 0.5x its current length
+    0.15 :: at roughly 0.7x its current length
+    0.15 :: at roughly 1.3x its current length
+    0.15 :: at roughly 1.6x its current length

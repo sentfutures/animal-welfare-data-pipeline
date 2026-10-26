@@ -1,0 +1,80 @@
+# Arms file for experiments/experiment.py — SCHEMA AND ONE WORKED EXAMPLE.
+#
+# This file is not a real experiment. Every arm below is commented out except
+# `control`, which intervenes in nothing, so running this file as-is measures
+# the pipeline against itself. Copy it, fill it in, and point --arms at the copy.
+#
+# WHAT AN ARM IS. One layer-3 variant run over the shared drafts. Layers 1-2 are
+# held fixed across every arm by construction (the drafts are sampled once from
+# the donor run), and the revision cards are dealt once and shared verbatim, so
+# two arms differ ONLY in the knobs named here.
+
+experiment:
+  # The run supplying the shared drafts. This one is pre-renumber, so its
+  # drafts live in layer3/drafts.jsonl; the driver resolves that by filename.
+  donor_run: 2026-07-25_15-57_fullscale-500-opus5
+
+  # TODO: sample sizes are an open decision. n is documents per arm; holdout is
+  # a disjoint second sample, drawn with the same language stratification, for
+  # confirming whichever arm wins without reusing the set that chose it.
+  n: 150
+  holdout: 150
+  seed: 0
+
+  # Where the revision cards come from. Only the REVISION VARIABLES section is
+  # read (compose_prompts.REVISION_AXES) — the composition axes in the same file
+  # were already dealt when the donor's drafts were made. The cards are dealt
+  # ONCE and shared by every arm, so arms are matched on what they were dealt.
+  revision_variables: prompts/sdf/variables.txt
+
+  # Success criteria are read from here and nowhere else — write them down
+  # BEFORE running. experiments/compare_arms.py marks each arm against them and
+  # hardcodes no thresholds of its own; a criterion that was declared but could
+  # not be measured reports INCOMPLETE, never PASS.
+  success:
+    min_vendi_gain: 0.10      # fractional gain in full-text Vendi over the control arm
+    max_pass_rate_drop: 0.05  # absolute drop in the layer-4 judge pass rate
+    # How close a length target counts as honoured, which also sets the width of
+    # the graded score (sigma = log(1 + tolerance)). Reported as a diagnostic,
+    # not judged: the length cards are dealt for the structural variation they
+    # produce, not for hitting the number (experiments/length/report.md).
+    length_tolerance: 0.20
+
+arms:
+  # The control: the pipeline's defaults with every revision slot empty and the
+  # critique and rewrite sharing one call, which is what layer 3 sent before
+  # any of these axes existed.
+  - name: control
+    style_mode: none
+    use_length: false
+    split: false
+
+  # The corpus exactly as it shipped. Copies the donor's own rewrites for the
+  # sampled ids instead of generating any, so it costs nothing and gives the
+  # comparison a fixed reference point beside the freshly-sampled control.
+  # (Re-running the control matters because temperature is 1.0: the donor's
+  # rewrites are one sample, not the control condition.)
+  # - name: as-shipped
+  #   import_rewrites: true
+
+  # Voice only — the four voice axes dealt from variables.txt and rendered as
+  # "more X than a typical <document_type>".
+  # - name: voices
+  #   style_mode: axes
+
+  # Length only, so the two effects stay separable. The live sweep is
+  # experiments/length/arms.yaml.
+  # - name: length
+  #   style_mode: none
+  #   use_length: true
+
+  # The two-call layer 3 on its own, with no revision cards rendered, so the
+  # split itself is what is being measured.
+  # - name: split
+  #   style_mode: none
+  #   split: true
+
+  # Per-arm model overrides are also honoured, for when an arm needs a stronger
+  # critic than the rest of the sweep:
+  #   rewrite_model: claude-opus-4-8
+  #   critique_model: claude-opus-4-8   # falls back to rewrite_model
