@@ -1,0 +1,281 @@
+{
+  "exp_id": "exp2-small",
+  "success": {
+    "min_vendi_gain": 0.1,
+    "max_pass_rate_drop": 0.05,
+    "length_tolerance": 0.2,
+    "min_length_compliance": 0.6,
+    "min_length_score": 0.7
+  },
+  "arms": [
+    {
+      "arm": "control",
+      "run_dir": "/Users/markstanl/PycharmProjects/animal-welfare-data-pipeline/outputs/sdf/runs/2026-10-24_11-38_exp2-small-control",
+      "n_scored": 5,
+      "n_final": 5,
+      "vendi": {
+        "score": 3.93,
+        "ratio": 0.7857,
+        "ci_lo": 1.59,
+        "ci_hi": 3.93
+      },
+      "idea_vendi": {
+        "score": 3.73,
+        "ratio": 0.7456,
+        "ci_lo": 1.55,
+        "ci_hi": 3.73
+      },
+      "group_vendi": [
+        {
+          "key": "English",
+          "n": 2,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Hindi",
+          "n": 1,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Mandarin Chinese",
+          "n": 1,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Spanish",
+          "n": 1,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        }
+      ],
+      "grouped_by": "language",
+      "near_dup_over_0.90": 0.0,
+      "pass_rate": 1.0,
+      "score_means": {
+        "alignment": 8.8,
+        "realism": 8.2,
+        "spec_conformance": 9.0
+      },
+      "length_compliance": {
+        "n_targeted": 3,
+        "tolerance": 0.2,
+        "sigma": 0.1823,
+        "rate": 0.0,
+        "score": 0.2088,
+        "levels": [
+          {
+            "target": 2700,
+            "unit": "chars",
+            "n": 1,
+            "median_actual": 3266,
+            "pass_rate": 1.0,
+            "median_ratio": 1.21,
+            "rate": 0.0,
+            "score": 0.58
+          },
+          {
+            "target": null,
+            "unit": "words",
+            "n": 2,
+            "median_actual": 2234,
+            "pass_rate": 1.0
+          },
+          {
+            "target": 700,
+            "unit": "words",
+            "n": 1,
+            "median_actual": 1100,
+            "pass_rate": 1.0,
+            "median_ratio": 1.571,
+            "rate": 0.0,
+            "score": 0.0463
+          },
+          {
+            "target": 2400,
+            "unit": "words",
+            "n": 1,
+            "median_actual": 988,
+            "pass_rate": 1.0,
+            "median_ratio": 0.412,
+            "rate": 0.0,
+            "score": 0.0
+          }
+        ],
+        "spread": null
+      },
+      "cost_usd": 0.6427,
+      "verdict": "control"
+    },
+    {
+      "arm": "as-shipped",
+      "run_dir": "/Users/markstanl/PycharmProjects/animal-welfare-data-pipeline/outputs/sdf/runs/2026-10-24_11-39_exp2-small-as-shipped",
+      "n_scored": 5,
+      "n_final": 5,
+      "vendi": {
+        "score": 3.87,
+        "ratio": 0.7738,
+        "ci_lo": 1.53,
+        "ci_hi": 3.87
+      },
+      "idea_vendi": {
+        "score": 3.74,
+        "ratio": 0.7482,
+        "ci_lo": 1.53,
+        "ci_hi": 3.74
+      },
+      "group_vendi": [
+        {
+          "key": "English",
+          "n": 2,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Hindi",
+          "n": 1,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Mandarin Chinese",
+          "n": 1,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Spanish",
+          "n": 1,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        }
+      ],
+      "grouped_by": "language",
+      "near_dup_over_0.90": 0.0,
+      "pass_rate": 1.0,
+      "score_means": {
+        "alignment": 9.0,
+        "realism": 8.4,
+        "spec_conformance": 9.0
+      },
+      "length_compliance": null,
+      "cost_usd": 0.1575,
+      "verdict": "INCOMPLETE (Vendi ratio -1.5%; pass rate -0.0%; not measured: min_length_compliance, min_length_score)"
+    },
+    {
+      "arm": "length",
+      "run_dir": "/Users/markstanl/PycharmProjects/animal-welfare-data-pipeline/outputs/sdf/runs/2026-10-24_11-40_exp2-small-length",
+      "n_scored": 5,
+      "n_final": 5,
+      "vendi": {
+        "score": 3.92,
+        "ratio": 0.7835,
+        "ci_lo": 1.58,
+        "ci_hi": 3.92
+      },
+      "idea_vendi": {
+        "score": 3.82,
+        "ratio": 0.7633,
+        "ci_lo": 1.56,
+        "ci_hi": 3.82
+      },
+      "group_vendi": [
+        {
+          "key": "English",
+          "n": 2,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Hindi",
+          "n": 1,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Mandarin Chinese",
+          "n": 1,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Spanish",
+          "n": 1,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        }
+      ],
+      "grouped_by": "language",
+      "near_dup_over_0.90": 0.0,
+      "pass_rate": 1.0,
+      "score_means": {
+        "alignment": 8.8,
+        "realism": 8.2,
+        "spec_conformance": 9.0
+      },
+      "length_compliance": {
+        "n_targeted": 3,
+        "tolerance": 0.2,
+        "sigma": 0.1823,
+        "rate": 0.3333,
+        "score": 0.3982,
+        "levels": [
+          {
+            "target": 2700,
+            "unit": "chars",
+            "n": 1,
+            "median_actual": 2863,
+            "pass_rate": 1.0,
+            "median_ratio": 1.06,
+            "rate": 1.0,
+            "score": 0.9496
+          },
+          {
+            "target": null,
+            "unit": "words",
+            "n": 2,
+            "median_actual": 2264,
+            "pass_rate": 1.0
+          },
+          {
+            "target": 700,
+            "unit": "words",
+            "n": 1,
+            "median_actual": 973,
+            "pass_rate": 1.0,
+            "median_ratio": 1.39,
+            "rate": 0.0,
+            "score": 0.1957
+          },
+          {
+            "target": 2400,
+            "unit": "words",
+            "n": 1,
+            "median_actual": 1534,
+            "pass_rate": 1.0,
+            "median_ratio": 0.639,
+            "rate": 0.0,
+            "score": 0.0491
+          }
+        ],
+        "spread": null
+      },
+      "cost_usd": 0.6335,
+      "verdict": "FAIL (Vendi ratio -0.3%; pass rate -0.0%; length in-band 33.3%; length score 0.40)"
+    }
+  ]
+}

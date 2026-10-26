@@ -273,11 +273,18 @@ def derive_language(culture: str) -> str:
     return m.group(1).strip() if m else "English"
 
 
-def record_language(record: dict) -> str:
-    """A record's language, from the field if it carries one, else its culture card."""
-    return record.get("language") or derive_language(
-        (record.get("variables") or {}).get("culture", "")
-    )
+def record_language(record: dict, default: str | None = "English") -> str | None:
+    """A record's language, from the field if it carries one, else its culture card.
+
+    `default` is what a record carrying neither resolves to. It is "English" for
+    callers that need a language to pick a unit or a bucket, and None for
+    callers that group BY language, where an unknown one must not be silently
+    counted as English.
+    """
+    if record.get("language"):
+        return str(record["language"])
+    culture = (record.get("variables") or {}).get("culture")
+    return derive_language(culture) if culture else default
 
 
 def revision_cards(variables: dict | None) -> dict[str, str]:

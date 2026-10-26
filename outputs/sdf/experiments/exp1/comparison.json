@@ -1,0 +1,530 @@
+{
+  "exp_id": "exp1",
+  "success": {
+    "min_vendi_gain": 0.1,
+    "max_pass_rate_drop": 0.05,
+    "length_tolerance": 0.2
+  },
+  "arms": [
+    {
+      "arm": "control",
+      "run_dir": "/Users/markstanl/PycharmProjects/animal-welfare-data-pipeline/outputs/sdf/runs/2026-10-19_22-46_exp1-control",
+      "n_scored": 49,
+      "n_final": 49,
+      "vendi": {
+        "score": 15.62,
+        "ratio": 0.3187,
+        "ci_lo": 10.32,
+        "ci_hi": 13.01
+      },
+      "idea_vendi": {
+        "score": 13.79,
+        "ratio": 0.2813,
+        "ci_lo": 9.17,
+        "ci_hi": 11.42
+      },
+      "group_vendi": [
+        {
+          "key": "English",
+          "n": 15,
+          "score": 4.92,
+          "ratio": 0.3278,
+          "ci_lo": 3.24,
+          "ci_hi": 4.38
+        },
+        {
+          "key": "Mandarin Chinese",
+          "n": 6,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Spanish",
+          "n": 5,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Hindi",
+          "n": 4,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "French",
+          "n": 3,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Japanese",
+          "n": 3,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Portuguese",
+          "n": 3,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "German",
+          "n": 2,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Indonesian",
+          "n": 2,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Korean",
+          "n": 2,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Bengali",
+          "n": 1,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Polish",
+          "n": 1,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Urdu",
+          "n": 1,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Vietnamese",
+          "n": 1,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        }
+      ],
+      "grouped_by": "language",
+      "near_dup_over_0.90": 0.0,
+      "pass_rate": 1.0,
+      "score_means": {
+        "alignment": 8.8,
+        "realism": 8.35,
+        "spec_conformance": 9.0
+      },
+      "length_compliance": null,
+      "cost_usd": 9.0605,
+      "verdict": "control"
+    },
+    {
+      "arm": "as-shipped",
+      "run_dir": "/Users/markstanl/PycharmProjects/animal-welfare-data-pipeline/outputs/sdf/runs/2026-10-19_22-51_exp1-as-shipped",
+      "n_scored": 50,
+      "n_final": 50,
+      "vendi": {
+        "score": 15.67,
+        "ratio": 0.3135,
+        "ci_lo": 10.12,
+        "ci_hi": 13.19
+      },
+      "idea_vendi": {
+        "score": 14.35,
+        "ratio": 0.287,
+        "ci_lo": 9.57,
+        "ci_hi": 11.91
+      },
+      "group_vendi": [
+        {
+          "key": "English",
+          "n": 15,
+          "score": 4.9,
+          "ratio": 0.3263,
+          "ci_lo": 3.19,
+          "ci_hi": 4.37
+        },
+        {
+          "key": "Mandarin Chinese",
+          "n": 6,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Spanish",
+          "n": 5,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Hindi",
+          "n": 4,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "French",
+          "n": 3,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "German",
+          "n": 3,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Japanese",
+          "n": 3,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Portuguese",
+          "n": 3,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Indonesian",
+          "n": 2,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Korean",
+          "n": 2,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Bengali",
+          "n": 1,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Polish",
+          "n": 1,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Urdu",
+          "n": 1,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Vietnamese",
+          "n": 1,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        }
+      ],
+      "grouped_by": "language",
+      "near_dup_over_0.90": 0.0,
+      "pass_rate": 1.0,
+      "score_means": {
+        "alignment": 8.92,
+        "realism": 8.7,
+        "spec_conformance": 9.0
+      },
+      "length_compliance": null,
+      "cost_usd": 1.6194,
+      "verdict": "FAIL (Vendi ratio -1.6%; pass rate -0.0%)"
+    },
+    {
+      "arm": "voices-a1",
+      "run_dir": "/Users/markstanl/PycharmProjects/animal-welfare-data-pipeline/outputs/sdf/runs/2026-10-19_22-52_exp1-voices-a1",
+      "n_scored": 49,
+      "n_final": 48,
+      "vendi": {
+        "score": 15.47,
+        "ratio": 0.3223,
+        "ci_lo": 9.97,
+        "ci_hi": 12.98
+      },
+      "idea_vendi": {
+        "score": 13.93,
+        "ratio": 0.2901,
+        "ci_lo": 9.18,
+        "ci_hi": 11.41
+      },
+      "group_vendi": [
+        {
+          "key": "English",
+          "n": 15,
+          "score": 4.91,
+          "ratio": 0.3273,
+          "ci_lo": 3.26,
+          "ci_hi": 4.39
+        },
+        {
+          "key": "Mandarin Chinese",
+          "n": 6,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Hindi",
+          "n": 4,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Spanish",
+          "n": 4,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "French",
+          "n": 3,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Japanese",
+          "n": 3,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Portuguese",
+          "n": 3,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "German",
+          "n": 2,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Indonesian",
+          "n": 2,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Korean",
+          "n": 2,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Bengali",
+          "n": 1,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Polish",
+          "n": 1,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Urdu",
+          "n": 1,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Vietnamese",
+          "n": 1,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        }
+      ],
+      "grouped_by": "language",
+      "near_dup_over_0.90": 0.0,
+      "pass_rate": 0.9795918367346939,
+      "score_means": {
+        "alignment": 8.69,
+        "realism": 8.41,
+        "spec_conformance": 8.92
+      },
+      "length_compliance": null,
+      "cost_usd": 6.3077,
+      "verdict": "FAIL (Vendi ratio +1.1%; pass rate -2.0%)"
+    },
+    {
+      "arm": "personas-a3",
+      "run_dir": "/Users/markstanl/PycharmProjects/animal-welfare-data-pipeline/outputs/sdf/runs/2026-10-19_22-57_exp1-personas-a3",
+      "n_scored": 48,
+      "n_final": 47,
+      "vendi": {
+        "score": 15.43,
+        "ratio": 0.3284,
+        "ci_lo": 9.93,
+        "ci_hi": 13.01
+      },
+      "idea_vendi": {
+        "score": 13.67,
+        "ratio": 0.2909,
+        "ci_lo": 9.15,
+        "ci_hi": 11.27
+      },
+      "group_vendi": [
+        {
+          "key": "English",
+          "n": 14,
+          "score": 4.71,
+          "ratio": 0.3364,
+          "ci_lo": 3.01,
+          "ci_hi": 4.25
+        },
+        {
+          "key": "Mandarin Chinese",
+          "n": 6,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Spanish",
+          "n": 5,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Hindi",
+          "n": 4,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "French",
+          "n": 3,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Japanese",
+          "n": 3,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Portuguese",
+          "n": 3,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Indonesian",
+          "n": 2,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Korean",
+          "n": 2,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Bengali",
+          "n": 1,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "German",
+          "n": 1,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Polish",
+          "n": 1,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Urdu",
+          "n": 1,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Vietnamese",
+          "n": 1,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        }
+      ],
+      "grouped_by": "language",
+      "near_dup_over_0.90": 0.0,
+      "pass_rate": 0.9791666666666666,
+      "score_means": {
+        "alignment": 8.77,
+        "realism": 8.5,
+        "spec_conformance": 8.9
+      },
+      "length_compliance": null,
+      "cost_usd": 6.3358,
+      "verdict": "FAIL (Vendi ratio +3.0%; pass rate -2.1%)"
+    }
+  ]
+}
