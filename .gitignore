@@ -6,6 +6,9 @@ __pycache__/
 *.egg-info/
 .venv/
 
+# ide
+.idea/*
+
 # Local ad-hoc / test runs — viewable in the run viewer, never published.
 # The `local_` label appears in two positions: leading (local_<date>_...) and,
 # since run dirs gained a timestamp prefix, mid-name (<date>_<time>_local_...).
