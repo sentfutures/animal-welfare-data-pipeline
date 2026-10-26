@@ -368,3 +368,53 @@ class TestEntityPools:
         assert people and orgs  # fell back to the built-in lists
         assert set(people) <= set(entity_pools._FALLBACK_PEOPLE)
         assert "falling back to built-in names" in capsys.readouterr().err
+
+
+class TestStructuralForm:
+    """Diversity of how documents are BUILT, as distinct from what they mean."""
+
+    @staticmethod
+    def _doc(sentence: str, n_sent: int = 40, per_para: int = 5) -> str:
+        sents = [sentence] * n_sent
+        paras = [" ".join(sents[i:i + per_para]) for i in range(0, n_sent, per_para)]
+        return "\n\n".join(paras)
+
+    def test_a_document_too_short_to_measure_returns_none(self):
+        assert textstats.form_features("Three short words here.") is None
+
+    def test_raw_length_is_not_a_feature(self):
+        """Else a run dealing varied lengths scores higher by construction."""
+        assert not any("length" == k or k.endswith("_words") for k in textstats.FORM_FEATURES)
+        short = self._doc("The quick brown fox jumped over the lazy dog today.", 40)
+        long_ = self._doc("The quick brown fox jumped over the lazy dog today.", 120)
+        a, b = textstats.form_features(short), textstats.form_features(long_)
+        assert a is not None and b is not None
+        # same prose, three times as much of it: sentence architecture is unchanged
+        assert a["sent_len_mean"] == pytest.approx(b["sent_len_mean"], rel=0.01)
+
+    def test_sentences_are_split_on_non_latin_terminators(self):
+        """Hindi ends sentences with a danda; a Latin-only [.!?] reads a whole
+        document as one 300-word sentence."""
+        hindi = self._doc("यह एक छोटा वाक्य है जो दस शब्दों तक चलता रहता है।", 40)
+        feats = textstats.form_features(hindi)
+        assert feats is not None
+        assert feats["sent_len_mean"] < 20, "danda not treated as a sentence end"
+
+    def test_structural_and_lexical_spread_are_reported_apart(self):
+        """A length target should widen one and leave the other alone, and a
+        single combined figure would hide exactly that."""
+        varied = [textstats.form_features(
+            self._doc("A sentence of some words here today. " * k, 40, per_para=k))
+            for k in (1, 2, 3, 4)]
+        summary = textstats.form_summary([f for f in varied if f])
+        assert set(summary) >= {"n", "structural_spread", "lexical_spread", "spread"}
+        assert summary["structural_spread"] is not None
+        assert set(summary["spread"]) == set(textstats.FORM_FEATURES)
+
+    def test_a_uniform_corpus_has_no_spread(self):
+        one = textstats.form_features(
+            self._doc("The same sentence repeated again here every time.", 90))
+        assert one is not None
+        summary = textstats.form_summary([one] * 6)
+        assert summary["structural_spread"] == pytest.approx(0.0, abs=1e-9)
+        assert summary["lexical_spread"] == pytest.approx(0.0, abs=1e-9)

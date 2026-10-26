@@ -42,3 +42,12 @@ config.local.yaml
 # is a build artefact and would be a second, drifting 60KB binary in git.
 # The committed card image is website/assets/preview.png.
 /website/preview.png
+
+# Experiment bulk: the arm run dirs and the sampled drafts are regenerable from
+# the donor run + seed recorded in each experiment's manifest. The index files
+# (manifest, comparison, deals) are what the reports cite and stay tracked.
+outputs/sdf/runs/*_exp[0-9]*-*/
+outputs/sdf/runs/*_split-*/
+outputs/sdf/experiments/*/sample.jsonl
+outputs/sdf/experiments/*/holdout.jsonl
+outputs/pref/
