@@ -11,10 +11,12 @@ where re-running the control changes more on 23 of 49. The over-rewriting
 worry does not survive controlling for draft difficulty. It costs about 70%
 more per document.
 
-Shipped on, on the strength of what the critiques contain rather than any
-number in the comparison table — and with the caveat that the judge measuring
-"no degradation" rejected nothing in 197 scoring calls, so it is better evidence
-against a disaster than against a regression.
+A blind A/B over the same 49 drafts then preferred split **10 times out of 12**
+(p = 0.039), against an interleaved same-condition calibration that came out a
+coin flip. Shipped on, on the strength of that and of what the longer critiques
+contain — not on any number in the comparison table, where the judge rejected
+nothing in 197 scoring calls and is better evidence against a disaster than
+against a regression.
 
 ---
 
@@ -232,13 +234,47 @@ that: the arms finished at 1,092 / 1,088 / 1,075 median words, so the known
 preference of LLM judges for longer answers is not quietly inflating either
 side.
 
-**The decisive test is cheap and has not been run.** There are 49 pairs of
-documents rewritten from identical drafts, differing only in the intervention.
-A blind A/B over those pairs costs nothing to generate — the documents already
-exist — and `pref_pipeline/rate.py` is already a blind rating UI with hidden arm
-identity and a stable per-pair side order. It needs an adapter to read two arms'
-`rewrites.jsonl` instead of its own pair files. That is the experiment that
-would actually settle whether the extra rewriting is worth 70%.
+## The blind A/B, which is what actually decided it
+
+`pref_pipeline/from_sdf_arms.py` stages two arms of an experiment as preference
+pairs, so the 49 documents rewritten from identical drafts can be rated blind in
+`pref_pipeline/rate.py`. Nothing is generated and nothing is billed.
+
+**Half the staged pairs are a calibration the rater cannot see**: 49 pairs of
+control against split, interleaved with 49 of control against `control-b` —
+the same condition twice, where the true answer is "no difference". Pair ids are
+opaque hashes because the rating app prints them above the documents, and an id
+naming its arms would tell the rater which comparison they were in.
+
+| comparison | decisive | winner | win rate | p |
+|---|---|---|---|---|
+| control vs split | 12 | split | **83%** (10/12) | **0.039** |
+| control vs control-b | 9 | control | 67% (6/9) | 0.51 |
+
+The calibration arm lands on a coin flip, which is what makes the first row
+readable at all. Two further checks:
+
+- **Not a preference for heavier editing.** In the calibration the rater chose
+  the more-rewritten side only **3 of 9** times; in the split comparison, **9 of
+  12**. Heavier editing did not win when it was not the split doing it.
+- **Dose-response.** On pairs split won it had rewritten **+11.4%** more of the
+  document than control; on the two it lost, **+3.6%**. Where the split barely
+  acted, the preference vanished.
+
+**Who rated, and why that is a real limitation.** 24 of the 27 judgments are
+Claude's, run blind through a script that withheld the arm names, the comparison
+and the drafts. Self-preference bias — a judge favouring its own generations —
+cancels here because both sides are the same model, but a shared blind spot
+would not. The three human judgments are all **ties**, including two pairs
+awarded to split, so the differences may sit below what a person notices. The
+remaining 71 pairs are staged, blind and balanced; any prefix is an unbiased
+sample.
+
+**Where split lost.** Both losses are non-English. One is a genuine regression:
+in a Polish personal email the split stripped the mandatory comma before
+subordinating conjunctions (`że`, `żeby`, `czy`, `bo`) about thirteen times, and
+inconsistently, adding one elsewhere. Two documents is not a pattern, but the
+next check is to group the A/B by language.
 
 ## Files
 
