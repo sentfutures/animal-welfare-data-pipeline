@@ -135,7 +135,9 @@ _CARD_AXES = (
     ("archetype", "archetype"),
     ("domain", "domain"),
     ("taxa_subcategory", "animals at stake"),
-    ("frontier_frame", "frame"),
+    ("frontier_frame", "frame"),  # legacy runs only; frontier scenarios are domains now
+    ("deliverable", "what the AI is asked to produce"),
+    ("failure_mode_target", "the reasoning trap"),
     ("visibility", "how visible the welfare cost is"),
     ("user_attitude", "the user's attitude"),
     ("user_moral_framework", "their moral framework"),

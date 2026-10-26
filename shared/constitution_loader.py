@@ -24,6 +24,7 @@ _CONSTITUTION_DIR = Path(__file__).parent.parent / "constitution"
 _CLAUDE_PATH = _CONSTITUTION_DIR / "constitution_claude.md"
 _SENTIENT_PATH = _CONSTITUTION_DIR / "constitution_sentient_beings.md"
 PRINCIPLES_FILENAME = "constitution_principles.csv"
+FAILURE_MODES_FILENAME = "failure_modes.md"
 
 _JOIN_PREAMBLE = """\
 This document joins two complementary frameworks:
@@ -119,6 +120,20 @@ def load_principles(base_dir: str | Path | None = None) -> list[dict]:
     inputs/constitution snapshot) or the repo's live constitution/."""
     base = Path(base_dir) if base_dir else _CONSTITUTION_DIR
     return parse_principles((base / PRINCIPLES_FILENAME).read_text(encoding="utf-8"))
+
+
+def load_failure_modes(base_dir: str | Path | None = None) -> str:
+    """Return the animal-welfare failure-modes checklist (failure_modes.md),
+    verbatim, from base_dir (a run's inputs/constitution snapshot) or the repo's
+    live constitution/. Snapshots that predate the file fall back to the live
+    copy, like the principles CSV. Unlike the constitution, the checklist is
+    written against no particular guiding document, so it applies unchanged
+    when another constitution is swapped in."""
+    base = Path(base_dir) if base_dir else _CONSTITUTION_DIR
+    path = base / FAILURE_MODES_FILENAME
+    if not path.exists():
+        path = _CONSTITUTION_DIR / FAILURE_MODES_FILENAME
+    return path.read_text(encoding="utf-8")
 
 
 def format_principles(principles: list[dict]) -> str:

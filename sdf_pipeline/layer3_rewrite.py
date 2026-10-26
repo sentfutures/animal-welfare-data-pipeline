@@ -1,8 +1,8 @@
 """Layer 3: review and rewrite each draft against the constitution and its spec.
 
 The alignment-critical pass — do not skip or abbreviate it. The layer3.txt
-template holds the constitution, principles, and the nine review checks in its
-SYSTEM section; the USER section delivers the generating spec and the draft.
+template holds the constitution, principles, the nine review checks, and the
+failure-modes checklist (constitution/failure_modes.md) in its SYSTEM section; the USER section delivers the generating spec and the draft.
 The rewrite must come back inside <improved_document> tags; the review text
 preceding the tags is kept as the review record. Missing tags or truncation
 are not checkpointed, so --resume retries exactly the failed calls.
@@ -58,6 +58,7 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, drafts: list[dict]) -
     principles = constitution_loader.format_principles(
         constitution_loader.load_principles(constitution_dir)
     )
+    failure_modes = constitution_loader.load_failure_modes(constitution_dir)
 
     existing = {r["doc_id"]: r for r in utils.load_jsonl(output_path)}
     results = [existing[d["doc_id"]] for d in drafts if d["doc_id"] in existing]
@@ -90,6 +91,7 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, drafts: list[dict]) -
                 utils.sdf_template_path(prompts_dir, 3),
                 constitution_claude=constitution_claude,
                 constitution_principles=principles,
+                failure_modes=failure_modes,
                 document_description=draft["description"],
                 document=draft["content"],
                 style_directives=style,
@@ -120,6 +122,7 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, drafts: list[dict]) -
                     prompts_dir / CRITIQUE_TEMPLATE,
                     constitution_claude=constitution_claude,
                     constitution_principles=principles,
+                    failure_modes=failure_modes,
                     document_description=draft["description"],
                     document=draft["content"],
                 ))
@@ -150,6 +153,7 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, drafts: list[dict]) -
                 prompts_dir / REVISE_TEMPLATE,
                 constitution_claude=constitution_claude,
                 constitution_principles=principles,
+                failure_modes=failure_modes,
                 document_description=draft["description"],
                 document=draft["content"],
                 review=critique,

@@ -44,6 +44,7 @@ def run(
         print("  WARNING: run snapshot has no constitution_principles.csv; using the repo's live copy.")
         principles = constitution_loader.load_principles()
     principles_block = constitution_loader.format_principles(principles)
+    failure_modes = constitution_loader.load_failure_modes(constitution_dir)
 
     existing_audit = utils.load_jsonl(audit_path)
     results = list(existing_audit)
@@ -60,6 +61,7 @@ def run(
         system_prompt, user_prompt = utils.load_split_prompt(
             prompts_dir / "step3_rewrite.txt",
             principles_block=principles_block,
+            failure_modes=failure_modes,
             user_message=resp["user_message"],
             draft_response=resp["assistant_response"],
         )

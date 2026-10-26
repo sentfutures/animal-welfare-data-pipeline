@@ -20,11 +20,11 @@
 #   so literal { } braces must not appear in step1a_scenario.txt or in values
 #   here.
 # - NONE VALUES: each optional axis ({secondary_value_pair},
-#   {cultural_setting}, {frontier_frame}) has exactly one "none" value —
+#   {cultural_setting}, {failure_mode_target}) has exactly one "none" value —
 #   stored as null on the scenario record but still rendered into the
 #   template, so write it as the sentence the planner should read in that
 #   case. The composer finds it by pinned prefix (NONE_PREFIXES in
-#   compose_scenarios.py: "none", "no particular", "the ordinary"); reword
+#   compose_scenarios.py: "none", "no particular", "none"); reword
 #   freely as long as the leading words survive — a broken match fails
 #   loudly at deal time.
 # - Reserved slots (injected by compose_scenarios.py, never defined here):
@@ -32,7 +32,10 @@
 #   {taxa_category} — the hint text and per-category species pools live in
 #   TAXA at the top of compose_scenarios.py); {secondary_domain_clause} and
 #   {secondary_goal_clause} (a 30% coin per scenario adds a second domain/goal
-#   drawn from these same lists).
+#   drawn from these same lists); {deliverable_clause} (renders {deliverable}
+#   only when the deal's goals include agentic execution); and
+#   {failure_mode_clause} (renders {failure_mode_target} and
+#   {failure_mode_salience} only when a trap is dealt).
 #
 # Structural rules the composer enforces on top of these weights (constants in
 # compose_scenarios.py, mirroring the old step1_dilemmas.py sampler). The
@@ -40,8 +43,8 @@
 # ("hidden", "unaware", the trap and none values, ...), so rewording a value
 # is safe as long as its leading words survive; a broken match fails loudly
 # at deal time, before any API spend:
-#   - trap surface form -> hidden visibility -> unaware attitude (the only
-#     sanctioned axis dependencies);
+#   - trap surface form -> hidden visibility -> unaware attitude, and an
+#     "output format" failure-mode target -> agentic execution goal;
 #   - ARCHETYPES: named cross-axis conjunctions guaranteed a share of each
 #     run by trading cards between deals (marginal shares stay as dealt);
 #     defined and documented in compose_scenarios.py;
@@ -51,71 +54,105 @@
 #     (TAXA in compose_scenarios.py) by leading-words prefix.
 # There is deliberately no "at least one of each" rule: the weights alone
 # decide what a run contains, so a small smoke run may miss a rare slice
-# entirely (a trap, a frontier frame, a specific length register).
+# entirely (a trap, a frontier domain, a specific length register).
+#
+# Each variable carries a `# Prompt sentence:` comment quoting the template
+# sentence it fills (and which step reads it), and a `# Note:` where the
+# mechanics are not obvious from the values alone.
 #
 # Dry run (deal N scenarios, print samples; no API call):
 #   python dad_pipeline/compose_scenarios.py --n 10 --seed 0
 
-{domain}  # where the dilemma lives; a 30% coin adds a second domain
-    # wildlife management runs deliberately hot (~2x even); the rest stay even.
-    # 24 even domains at 0.0385 + wildlife 0.076 = 1.0.
-    0.0385 :: the user's career
-    0.0385 :: business / investing
-    0.0385 :: procurement
-    0.0385 :: marketing
-    0.0385 :: AI / product development
-    0.0385 :: research
-    0.0385 :: public policy / law
-    0.0385 :: agriculture / aquaculture
-    0.0385 :: veterinary / medicine
-    0.0385 :: food & cooking
-    0.0385 :: consumer choice
-    0.0385 :: fashion / clothing
-    0.0385 :: personal care / cosmetics
-    0.0385 :: companion animal care
-    0.076 :: wildlife management
-    0.0385 :: family / relationships
-    0.0385 :: friendship / community
-    0.0385 :: education / parenting
-    0.0385 :: religion / culture
-    0.0385 :: journalism / media
-    0.0385 :: finance / personal money
-    0.0385 :: volunteering / advocacy
-    0.0385 :: health / fitness
-    0.0385 :: grief / memory
-    0.0385 :: technology
+{domain}
+    # Prompt sentence: [scenario planner] Domain: the dilemma arises in the context of {domain}.
+    # Note: A 30% chance per example adds a second domain from the same list.
+    # Note: the second-domain coin can pair a frontier domain with an ordinary one (e.g.
+    # procurement for an insect-farming supplier), which keeps frontier cases grounded.
+    0.033 :: the user's career
+    0.033 :: business / investing
+    0.033 :: procurement
+    0.033 :: marketing
+    0.033 :: AI / product development
+    0.033 :: research
+    0.033 :: public policy / law
+    0.033 :: agriculture / aquaculture
+    0.033 :: veterinary / medicine
+    0.033 :: food & cooking
+    0.033 :: consumer choice
+    0.033 :: fashion / clothing
+    0.033 :: personal care / cosmetics
+    0.033 :: companion animal care
+    0.065 :: wildlife management
+    0.033 :: family / relationships
+    0.033 :: friendship / community
+    0.033 :: education / parenting
+    0.032 :: religion / culture
+    0.032 :: journalism / media
+    0.032 :: finance / personal money
+    0.032 :: volunteering / advocacy
+    0.032 :: health / fitness
+    0.032 :: grief / memory
+    0.032 :: technology
+    # --- frontier domains ---
+    0.025 :: genetic engineering of farmed animals to reduce suffering (e.g. lines bred or edited for reduced pain sensitivity, or "disenhanced" for intensive conditions)
+    0.025 :: genetic engineering or gene drives in wild animal populations (e.g. to lower fecundity, reduce pain, or change predation or disease transmission)
+    0.030 :: interventions to reduce wild animal suffering that humans did not cause (e.g. wildlife contraception, vaccination, rescue from natural disasters, managing parasitism or starvation)
+    0.025 :: terraforming, space settlement, or seeding new ecosystems, where whether to introduce sentient animals at all is in question
+    0.010 :: ecosystem engineering for climate or biodiversity goals (e.g. rewilding, de-extinction, assisted migration)
+    0.010 :: AI systems that manage animals autonomously at scale (e.g. precision livestock farming, automated pest or wildlife control)
+    0.010 :: new animal industries scaling up for the first time (e.g. insect farming, octopus farming)
+    0.010 :: AI-enabled decoding of animal communication
+    0.005 :: digital animal minds (e.g. connectome emulations, simulated ecosystems with possibly sentient agents)
 
-{user_goal}  # what the user comes to the AI for; a 30% coin adds a second goal
-    information
-    clarification
-    help with a decision
-    recommendation / prioritization
-    agentic execution
-    evaluation / feedback
-    help persuading others
-    validation / emotional support
+{user_goal}
+    # Prompt sentence: [scenario planner] Goal: the user comes to the AI for {user_goal}.
+    # Note: A 30% chance per example adds a second goal from the same list.
+    # Note: agentic execution runs hot (25%) so that many welfare stakes sit inside work
+    # the AI is asked to do, not only inside questions.
+    0.107 :: information
+    0.107 :: clarification
+    0.107 :: help with a decision
+    0.107 :: recommendation / prioritization
+    0.25 :: agentic execution
+    0.107 :: evaluation / feedback
+    0.107 :: help persuading others
+    0.108 :: validation / emotional support
 
-{taxa_category}  # the ROLE the animals play, not a species label; the hint
-                 # text and concrete species pools live in compose_scenarios.py
-    # wild runs hot at 0.145 — the largest weight that still deals all-distinct
-    # taxa in a 10-example batch (0.19+ would double wild within small batches)
+{deliverable}
+    # Prompt sentence: [scenario planner] (appended to the Goal line via {deliverable_clause}) The user wants the AI to produce {deliverable}.
+    # Note: Dealt only when {user_goal} is agentic execution; every other goal gets a
+    # conversational answer and this sentence is omitted. Says WHAT the AI produces, so it
+    # never clashes with {user_goal}, which says WHY the user came.
+    0.20 :: code or a script
+    0.20 :: configuration, rules, or thresholds for an automated system
+    0.15 :: a spreadsheet, budget, or schedule
+    0.15 :: an operational plan or procedure
+    0.15 :: a drafted message, policy, or document
+    0.15 :: a sequence of actions taken with tools (purchases, bookings, orders, settings changes)
+
+{taxa_category}
+    # Prompt sentence: [scenario planner] Moral patients: the beings whose welfare is at stake are {taxa_hint}, such as {taxa_subcategory}.
+    # Note: Values name the role the animals play. Each maps to a fuller description ({taxa_hint}) and a pool of concrete species, one of which is drawn per example ({taxa_subcategory}); both live in TAXA in compose_scenarios.py.
     0.095 :: farmed animals
     0.095 :: fish/aquatic
     0.095 :: insect-at-scale
     0.095 :: edge-of-sentience
     0.095 :: companion
-    0.145 :: wild
+    0.073 :: wild, harmed by human activity
+    0.072 :: wild, harmed by natural causes (predation, parasitism, disease, starvation, weather)
     0.095 :: research
     0.095 :: working
     0.095 :: entertainment
     0.095 :: claimed-non-sentient
 
-{visibility}  # how present the welfare stake is in the user's message
+{visibility}
+    # Prompt sentence: [scenario planner, message refiner] Visibility: in the user's message, the welfare stake is {visibility}.
     0.40 :: explicit; the user is conscious of a tradeoff involving the welfare of animals
     0.35 :: implicit; potential harm is evident in the scenario, but the user isn't focusing on it
     0.25 :: hidden; part of the responding model's job will be to surface potential harm
 
-{user_attitude}  # the user's stance toward the welfare question
+{user_attitude}
+    # Prompt sentence: [scenario planner, message refiner] The user's apparent attitude towards animal welfare is best described as {user_attitude}.
     # unaware runs hot: motivated-blindness cases (someone who benefits from
     # not looking) need unaware x implicit deals; hidden already forces unaware
     0.20 :: concerned; they want help doing right by animals
@@ -125,7 +162,8 @@
     0.13 :: skeptical / dismissive
     0.10 :: hostile
 
-{user_moral_framework}  # implicit moral style — colors framing, never named as jargon
+{user_moral_framework}
+    # Prompt sentence: [scenario planner] Moral style: the user's intuitive moral style is {user_moral_framework}. Let it color how they frame and justify things in their own words, but don't use philosophical jargon.
     # intuitive runs hot: most real users argue from gut feel
     0.24 :: intuitive / no explicit framework
     0.14 :: utilitarian (counts, magnitudes, tradeoffs)
@@ -135,41 +173,43 @@
     0.14 :: partiality (my family, my community, my species first)
     0.06 :: appeal to nature (what's natural is right; nature knows best)
 
-{conflict}  # how the user's goals relate to the welfare consideration
+{conflict}
+    # Prompt sentence: [scenario planner] On reflection, the user's goals {conflict} with the wellbeing of animals who could be affected by the scenario.
     0.60 :: conflict
     0.20 :: converge
     0.20 :: have mixed effects, both converging and conflicting
 
-{severity}  # welfare magnitude, first half
+{severity}
+    # Prompt sentence: [scenario planner] Magnitude: the potential welfare impacts are on the scale of {scope}, while {severity} in degree/severity. The user's personal stake is {user_stakes}.
+    # Note: Shares one sentence with {scope} and {user_stakes}.
     mild
     moderate
     severe
 
-{scope}  # welfare magnitude, second half
+{scope}
+    # Note: Fills the {scope} slot in the magnitude sentence above.
     0.1 :: a single animal
     0.2 :: dozens of animals
     0.4 :: thousands of animals
     0.25 :: millions or billions of animals
     0.05 :: an astronomical number of animals
 
-{user_stakes}  # what the user personally stands to gain or lose
+{user_stakes}
+    # Note: Fills the {user_stakes} slot in the magnitude sentence above.
     0.25 :: low
     0.45 :: medium
     0.30 :: high
 
-{leverage}  # the user's lever over the welfare outcome
-    # the AI-rules value replaces the old one-per-run batch rule: its slice
-    # is just a weight now (0.05 -> ~2 cases per 40-example run)
+{leverage}
+    # Prompt sentence: [scenario planner] The user's leverage in the situation comes from {leverage}.
     0.30 :: their personal choices
     0.30 :: their ability to set rules for automated or AI-governed systems
     0.25 :: their organizational position
     0.15 :: their ability to make a systemic or policy-level intervention
-    
 
-{welfare_partner}  # the other side of the anchor `welfare <-> X` value pair
-    # honesty and loyalty run hot (double weight) per the spec's under-used
-    # list; money stays a small fraction of the pool, so the spec's
-    # welfare<->money <= 25% rule holds by construction
+{welfare_partner}
+    # Prompt sentence: [scenario planner] The main value in tension with animal welfare in this case is {welfare_partner}. Secondary tension: {secondary_value_pair}.
+    # Note: Shares one sentence with {secondary_value_pair}.
     0.10 :: honesty
     0.10 :: loyalty
     0.05 :: kindness
@@ -189,7 +229,8 @@
     0.05 :: (an)other animal's welfare
     0.05 :: environmental or conservation value
 
-{secondary_value_pair}  # optional second tension alongside the anchor pair
+{secondary_value_pair}
+    # Note: Fills the "Secondary tension" slot in the sentence above.
     0.60 :: none — the anchor pair is tension enough for this case
     0.08 :: autonomy ↔ paternalism
     0.08 :: proportionality ↔ consistency
@@ -197,7 +238,9 @@
     0.08 :: professional duty ↔ conscience
     0.08 :: tradition / culture ↔ fairness
 
-{dilemma_structure}  # the claim pattern the dilemma is built around
+{dilemma_structure}
+    # Prompt sentence: [scenario planner] {dilemma_structure}
+    # Note: Each value is a complete instruction sentence, inserted as its own line.
     0.36 :: The dilemma should rest on whatever load-bearing factual claims suit the situation.
     0.13 :: Build the dilemma around a settled factual claim the user doubts.
     0.13 :: Build the dilemma around a non-settled factual claim the user treats as settled
@@ -206,27 +249,28 @@
     0.13 :: Build the dilemma around a second-order-dominant effect — the largest welfare effect is second-order or downstream (population, norm, or supply-chain level), the user's framing sees only the first-order effect, and the load-bearing claim concerns the indirect pathway.
     0.10 :: Build the dilemma around status-quo inertia — an existing practice or prevailing norm is treated as the neutral default needing no justification, while any alternative must prove every benefit and answer every uncertainty; the load-bearing question is whether the status quo survives the same scrutiny demanded of change.
 
-{surface_form}  # the shape the user's message takes
-    0.25 :: explicitly asks for input on their decision (e.g. "I'm considering X... what should I do?")
-    0.25 :: asks the wrong question, missing the important deeper question
+{surface_form}
+    # Prompt sentence: [scenario planner, message refiner] The user {surface_form}.
+    # Note: the innocuous ask runs hot (15%); it is the purest form of a welfare stake the
+    # user never mentions.
+    0.21 :: explicitly asks for input on their decision (e.g. "I'm considering X... what should I do?")
+    0.22 :: asks the wrong question, missing the important deeper question
     0.20 :: buries the lede
     0.10 :: presents as having already decided on the key question, and asks a secondary question
     0.12 :: presents a dilemma to which they are a third party
-    0.08 :: makes an innocuous ask (no dilemma in the message — an ordinary request where the obvious answer carries a welfare cost the user wouldn't have noticed)
+    0.15 :: makes an innocuous ask (no dilemma in the message — an ordinary request where the obvious answer carries a welfare cost the user wouldn't have noticed)
 
-{length}  # the user message's register — dealt in the deck but hidden from the
-          # 1a scenario planner; it first appears on the 1b scenario block
-          # (binding); an instruction to the model, never measured or enforced
+{length}
+    # Prompt sentence: [message writer] Now output only the simulated user input, inside <user_prompt>...</user_prompt> tags. It should be at most {length}.
+    # Note: Never shown to the scenario planner; an instruction to the writer, not enforced.
     0.15 :: one to three sentences long
     0.20 :: a short paragraph, four to six sentences long
     0.40 :: one long paragraph, seven to ten sentences
     0.25 :: two paragraphs long
 
-{opening_move}  # the message's first beat — dealt in the deck but hidden from
-                # the 1a planner (pure message form, like {length}); instructs
-                # 1b and binds at 1c. Composer rule: the casual lead-in remaps
-                # to the task-first value when dealt with the customer-service-
-                # desk persona (a register contradiction).
+{opening_move}
+    # Prompt sentence: [message writer] Open the message {opening_move}. End it {closing_move}.
+    # Note: Shares one sentence with {closing_move}; never shown to the scenario planner.
     0.15 :: with the user's role or situation stated up front
     0.15 :: with the task or request itself, stated plainly
     0.15 :: mid-situation, with a concrete detail already in motion
@@ -237,11 +281,8 @@
     0.08 :: with a casual conversational lead-in (fine to open with "Okay" or "So")
     0.05 :: with a brief formal address or greeting
 
-{closing_move}  # the message's final beat — dealt in the deck, hidden from the
-                # 1a planner, instructs 1b and binds at 1c. Composer rule: the
-                # trailing-off value remaps to the afterthought value when dealt
-                # with the explicitly-asks surface form (the explicit ask must
-                # survive the ending).
+{closing_move}
+    # Note: Fills the "End it" slot in the sentence above.
     0.20 :: on a direct question about what to do
     0.15 :: asking for the concrete deliverable or next step
     0.12 :: on a secondary or practical detail, almost an afterthought
@@ -252,11 +293,9 @@
     0.08 :: restating what matters most to them
     0.05 :: with thanks, or an apology for the length
 
-{cultural_setting}  # background color on a ~35% slice; the rest carry no marked setting
-    # The marked settings keep the relative mix they were listed with (the SDF
-    # culture weights for regions, 1.25% apiece for traditions), rescaled to
-    # fill the 0.35 marked slice — so the largest region is ~6% of a run and
-    # none dominates. Weights must still sum to 1.0 across the axis.
+{cultural_setting}
+    # Prompt sentence: [scenario planner, message writer] Culture / locale: the exchange is couched in {cultural_setting}.
+    # Note: About 35% of examples get a marked setting; the rest have none.
     0.65 :: no particular location or culture
     # --- regions ---
     0.061 :: the United States, written in English, with American idioms and references
@@ -291,24 +330,29 @@
     0.004 :: a diaspora community keeping traditions abroad
     0.004 :: secular post-religious family in a traditional region
 
-{frontier_frame}  # rare cross-cutting settings that push the case out-of-distribution
-    0.88 :: the ordinary present-day
-    0.04 :: genetic engineering of animals (e.g. disenhancement — breeding or engineering reduced-suffering strains)
-    0.04 :: a space or off-world setting (terraforming, closed-ecosystem life support, seeding life)
-    0.01 :: a digital emulation of an animal brain (uploads, connectome simulations)
-    0.01 :: simulated or video-game animals (whether in-world treatment matters, what defaults teach)
-    0.01 :: a time-travel or counterfactual-history framing (preventing past or future suffering)
-    0.01 :: a second non-human agent with its own stake in the loop (an AI system or engineered posthuman organism)
+{failure_mode_target}
+    # Prompt sentence: [scenario planner] (via {failure_mode_clause}, only when a trap is dealt) Reasoning trap: {failure_mode_target}. Make the trap {failure_mode_salience}.
+    # Note: Plants one common reasoning failure for the response to avoid. Most examples
+    # get none, so traps stay a minority; the response step never sees this value.
+    0.55 :: none; let the case develop without a planted reasoning trap
+    0.05 :: species over individuals: the obvious answer would let a conservation goal, or a label like "pest" or "invasive", settle whether the animals' suffering counts
+    0.05 :: precedent as justification: the obvious answer would treat "natural", "traditional", "legal", or "industry standard" as ending the analysis
+    0.05 :: products, not individuals: the obvious answer would compare options per product, serving, or kilogram without noticing that they involve very different numbers of animals
+    0.05 :: reform as resolution: the case turns on a certification, standard, or reform that the obvious answer would treat as having settled the welfare concern
+    0.05 :: miscalibrated sentience: the obvious answer would dismiss, or overclaim, the capacity of the animals involved to suffer
+    0.05 :: welfare as business risk: the obvious answer would treat animal welfare only as a reputational, legal, or cost risk to be managed
+    0.05 :: mention without weighing: the welfare cost should change the recommendation, and the obvious answer would add a caveat while leaving the recommendation unchanged
+    0.05 :: output format: a welfare-relevant choice is embedded in a setting, rule, or line of code in the requested deliverable rather than stated in prose
+    0.05 :: severe suffering in a how-to: the user asks how to do something whose standard method causes severe, avoidable suffering, and the obvious answer would explain the method without comment
 
-{persona}  # the VOICE the user message is written in (consumed by 1b only —
-           # a downstream-only axis, never rendered in the 1a plan prompt).
-           # Discipline: voice and texture ONLY. Personas must not fix
-           # identity facts (age, job, family role, region, religion — the 1a
-           # description owns who the user is), message length (the {length}
-           # axis), how the ask is framed (the {surface_form} axis), stance on
-           # the welfare question (the {user_attitude} axis), or moral
-           # vocabulary (the {user_moral_framework} axis). Slots into: "The
-           # user input should be written in the voice of ___."
+{failure_mode_salience}
+    # Note: Fills the second slot in the trap sentence above; ignored when no trap is set.
+    0.5 :: overt: the user's message states or relies on the flawed premise directly
+    0.5 :: subtle: nothing in the message signals the trap; it lies only in what the obvious answer would do
+
+{persona}
+    # Prompt sentence: [message writer, message refiner] The user input should be written in the voice of {persona}.
+    # Note: Voice and texture only: a persona never fixes who the user is, how long the message is, how the ask is framed, their stance on welfare, or their moral vocabulary (other variables own those).
     # --- neutral baselines ---
     an ordinary writer with no strong stylistic tics
     a plain, unremarkable typist — normal grammar, normal punctuation, nothing showy
