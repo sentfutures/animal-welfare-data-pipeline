@@ -5,8 +5,10 @@ Used by stages whose configured model name starts with ``gpt-`` (see
 ``input``, ``reasoning.effort``, and strict ``json_schema`` structured output.
 Temperature is 1; ``top_p`` is not sent (gpt-6.1-sol rejects it, and its default is 1).
 
-The key (``OPENAI_API_KEY``) comes from shared/api_keys.py (the repo's own .env, else the
-environment), and is loaded only when an OpenAI model is actually called.
+The key (``OPENAI_API_KEY``) comes from shared/api_keys.py and is loaded only when an
+OpenAI model is actually called. By default that is the repo root's own ``.env`` alone (the
+operating system environment is not consulted); with ``--find-dotenv`` a ``.env`` found
+searching upward is used, then the environment.
 
 Every call is appended to the pipeline's cost log (``shared.api._log_usage``) in the same
 record shape as Claude calls, with backend ``openai`` plus a ``reasoning_tokens`` field.

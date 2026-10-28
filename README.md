@@ -165,7 +165,7 @@ pip install -r requirements.txt
 cp .env.example .env           # then add your ANTHROPIC_API_KEY
 ```
 
-`GEMINI_API_KEY` (or `OPENAI_API_KEY`) in `.env` is optional; only `evals/diversity.py` (the embedding-based diversity audit) reads them. The pipelines run on `ANTHROPIC_API_KEY` alone.
+The SDF pipeline's default config sends the layer-1 description rewrite to an OpenAI model (`gpt-6.1-sol`), so a default SDF run also needs `OPENAI_API_KEY` (in `.env`, or exported with `--find-dotenv`); it stops before any paid call if the key is missing. To run on `ANTHROPIC_API_KEY` alone, set `sdf.description_rewrite_enabled: false` (the rewrite is the plausibility check, so skipping it loses that check). `GEMINI_API_KEY` (or `OPENAI_API_KEY`) is also read by `evals/diversity.py` (the embedding-based diversity audit). The DAD pipeline runs on `ANTHROPIC_API_KEY` alone.
 
 > **Activate it every time.** The virtual environment only applies to the terminal where you ran `source .venv/bin/activate`. Open a new terminal and you'll need to activate again.
 

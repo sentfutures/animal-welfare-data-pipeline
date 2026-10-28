@@ -79,6 +79,15 @@ def resolve_input(input_arg: str) -> tuple[list[dict], Path]:
     return utils.load_jsonl(path), path.parent / "audit"
 
 
+def run_directory_for_input(input_arg: str) -> Path:
+    """The run directory (the one holding layer1/ and final/) for either kind of input: a
+    run directory itself, or a corpus .jsonl, which normally sits in the run's final/."""
+    path = Path(input_arg)
+    if path.is_dir():
+        return path
+    return path.parent.parent if path.parent.name == "final" else path.parent
+
+
 # ---------------------------------------------------------------- mechanical checks
 
 # Stock phrases the prompts ban; the audit verifies the ban held. English-only
@@ -663,6 +672,7 @@ def main() -> None:
     apply_api_key_source_flags(args)
 
     records, report_dir = resolve_input(args.input)
+    run_directory = run_directory_for_input(args.input)
     if args.limit:
         records = records[: args.limit]
     if not records:
@@ -674,10 +684,10 @@ def main() -> None:
     report: dict = {"input": utils.repo_relative(args.input), "n_docs": len(records)}
     audit_composition(records, report)
     print()
-    audit_screen(report_dir.parent, report)
-    audit_description_rewrite(report_dir.parent, report)
+    audit_screen(run_directory, report)
+    audit_description_rewrite(run_directory, report)
     print()
-    audit_considerations(report_dir.parent, records, report)
+    audit_considerations(run_directory, records, report)
     print()
     audit_length_truncation(records, report)
     print()

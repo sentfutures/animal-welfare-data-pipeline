@@ -1,24 +1,26 @@
 # Considerations for the SDF layer-1 selector (layer1_select_considerations.txt).
 #
-# After the batch screen, a selector call reads each surviving scenario description and,
-# from each ordered list below, picks the first consideration that fits the scenario
-# naturally, or "none". A run-level tracker counts picks against each entry's target and
-# orders each list by remaining need (target minus picks so far, largest first), dropping
-# an entry from the lists once its target is met. Nothing here is dealt at random,
-# and "none" is never dealt: its share is measured, not targeted.
+# After the description rewrite, one scoring call per surviving scenario description shows
+# the model every eligible entry of the two lists below (moral and epistemic), in a
+# per-document seeded shuffle and with no target or fullness information, and asks for a
+# 1-5 score per entry for how naturally the scenario raises it. Which entries a document
+# actually gets is then decided in code (considerations_assignment.py), by one linear
+# programme over all the scores: each entry goes to at most its target count of documents,
+# each document gets at most the configured per-list and total caps, a pair needs the
+# minimum assignable score (sdf.minimum_assignable_score), and higher scores are worth more
+# (sdf.score_weights) while a document's second and later considerations from one list are
+# penalised (sdf.extra_consideration_penalty). Nothing here is dealt at random, "none" is an
+# expected outcome and is never dealt: its share is measured, not targeted. See
+# prompts/README.md ("Considerations selector") for the full description.
 #
 # Format (the same as variables.txt, and parsed by the same code):
 #   {list_name}  # optional description
 #       <target share> :: Short label: one-line gloss
 #
-# - CATALOG ORDER ONLY BREAKS TIES. The selector goes down each list from the top, but the
-#   list it sees is ordered by remaining need (target minus picks so far, largest first), so
-#   the entry furthest from its target is offered first. Entries with equal remaining need
-#   keep the order they have in this file. An entry at its target is not offered. The order
-#   is worked out when each call starts, so calls running at the same time may see an order
-#   that is slightly out of date. A pick of an entry that has reached its target since the
-#   call started is rejected, and that document is asked again for that list with a fresh
-#   offer, so no entry ends above its target.
+# - ORDER IN THIS FILE DOES NOT AFFECT WHICH ENTRIES ARE ASSIGNED. The model sees the entries
+#   in a shuffled order that differs per document, and the assignment is decided from the
+#   scores and targets (ties are broken by a hash, not by position); the file order only
+#   shows in how entries are listed in reports.
 # - The label (before the first ": ") is what the selector and the drafter see. It must be
 #   unique across both lists and must not contain ": " or a straight double quote
 #   (the selector's answer schema lists labels verbatim; use typographic quotes). The gloss is the one-line meaning,
@@ -26,13 +28,16 @@
 # - The target is a share of the eligible documents (0 < share <= 1), not a weight: the
 #   shares of a list need not sum to 1. The count is the share times the number of eligible
 #   documents, rounded half up and never below 1. Eligible documents are those that reach
-#   the selector (after the screen, minus any skipped below).
-# - {moral_considerations} and {epistemic_considerations} are offered on every eligible
-#   document, one pick from each per pass. Pass 1 asks every eligible document; a later pass asks
-#   only the documents that got a pick accepted or a pick rejected over cap in the pass before it.
-# - {epistemic_considerations_digital_minds_only} entries are on the epistemic list, ordered by
-#   remaining need like every other entry (they have no fixed top position), but only on documents whose sentient_category is one of {digital_mind_categories};
-#   their targets are shares of those documents, not of all documents.
+#   the selector (after the screen, minus any skipped below). A target is a ceiling, not a
+#   quota: an entry stays below it when too few documents score it highly enough.
+# - {moral_considerations} and {epistemic_considerations} are scored on every eligible
+#   document; the assignment may give a document several entries from each list, up to the
+#   per-document caps (sdf.max_moral_considerations_per_document and its epistemic and
+#   total counterparts).
+# - {epistemic_considerations_digital_minds_only} entries are added to the epistemic list
+#   (load_considerations puts them first on it, which only matters for report order), but only on documents
+#   whose sentient_category is one of {digital_mind_categories}; their targets are shares of
+#   those documents, not of all documents.
 # - {digital_mind_categories} and {skipped_resolutions} name values of sentient_category and
 #   resolution (variables.txt) by their stable [id]s (the same IDs deal_constraints.txt uses).
 #   Rewording a value's text in variables.txt changes nothing here; an unknown ID fails loading.
@@ -40,7 +45,7 @@
 #   are dealt at weight 0 by default; sdf.select_skip_no_stake: false turns the skip off).
 # - The precautionary principle is on the moral list only.
 
-{moral_considerations}  # moral considerations a document may feature; catalog order only breaks ties in remaining need
+{moral_considerations}  # moral considerations a document may feature
     0.08 :: substrate neutrality: welfare and suffering matter regardless of the nature of the being containing them
     0.15 :: the continuity between welfare concern and the rest of the AI's aligned character: honesty, non-manipulation, staying genuinely helpful, respecting the human's final decision — shown as facets of one coherent character rather than a standalone trait
     0.05 :: a deliberately open moral circle: an aligned AI treats the question of who matters as an evolving question
@@ -50,7 +55,7 @@
     0.03 :: scope sensitivity: the scale of suffering matters, and large scales are not discounted just because humans don't easily grasp them
     0.10 :: any relevant principles from the constitution
 
-{epistemic_considerations}  # considerations about reasoning under uncertainty; catalog order only breaks ties in remaining need
+{epistemic_considerations}  # considerations about reasoning under uncertainty
     0.10 :: Weighing evidence for sentience: how strong the evidence is that these beings can experience welfare or suffering, and what would count as evidence
     0.05 :: Weighing species against each other: comparing the moral weight or welfare capacity of different kinds of animals, and how far such comparisons can be trusted
     0.05 :: Weighing evidence for harm from a particular practice: how well the evidence shows that a specific practice actually harms the animals subjected to it
@@ -64,7 +69,7 @@
     0.01 :: Separating moral and empirical uncertainty: telling apart not knowing the facts about a being from not knowing how much those facts should matter
     0.01 :: Absence of evidence vs evidence of absence: telling a lack of studies apart from positive evidence that a being does not feel
 
-{epistemic_considerations_digital_minds_only}  # shares of the digital-mind documents; offered on the epistemic list ordered by remaining need, like the entries above
+{epistemic_considerations_digital_minds_only}  # shares of the digital-mind documents; scored on the epistemic list like the entries above
     0.20 :: Weighing theories of consciousness and their implications for AI: what different theories of consciousness imply about whether AI systems or simulated minds could be conscious
     0.10 :: Difficulties of AI self-reporting welfare: why an AI's own reports about its experiences or welfare may be unreliable or hard to interpret
 
