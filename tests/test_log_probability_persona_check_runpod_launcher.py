@@ -348,6 +348,30 @@ def test_early_crash_check_reports_a_still_running_scorer_and_detects_a_vanished
     assert transfer.final_pull_attempts == 1 and client.call_names().count("delete_pod") == 1
 
 
+def test_scorer_that_exits_between_the_exit_code_read_and_the_process_check_is_not_reported_as_vanished(run_folder):
+    class ExitCodeAppearsAfterFirstRead(FakeTransfer):
+        """The first exit-code read finds nothing and pgrep then finds no process; later reads find the exit code."""
+        exit_code_reads = 0
+
+        def run_remote_command(self, command, input_text=None, timeout_seconds=None):
+            if "scorer_exit_code.txt 2>/dev/null" in command:
+                self.commands.append((command, input_text))
+                self.exit_code_reads += 1
+                return (1, "") if self.exit_code_reads == 1 else (0, "0")
+            if command.startswith("pgrep") and launcher.SCORER_PROCESS_PATTERN in command and self.exit_code_reads >= 1:
+                self.commands.append((command, input_text))
+                return 1, ""
+            return super().run_remote_command(command, input_text, timeout_seconds)
+
+    clock = FakeClock()
+    transfer = ExitCodeAppearsAfterFirstRead(clock=clock)
+    client = FakeRunPodClient()
+    assert launch(run_folder, client, transfer, clock) == 0
+    assert transfer.exit_code_reads == 2
+    assert "Scorer process is gone and left no exit code" not in read_progress_log(run_folder)
+    assert read_cost_log(run_folder)["termination_reason"] == "scorer_finished"
+
+
 def test_termination_retries_after_failure(run_folder):
     clock, client = FakeClock(), FakeRunPodClient()
     client.delete_failures_remaining = 2

@@ -1153,8 +1153,10 @@ class PodSession:
                 if early_check_due:
                     early_crash_check_done = True
                 if scorer_exit is None and self.scorer_has_vanished_without_exit_code():
-                    self.say("Scorer process is gone and left no exit code")
-                    failure_reason = "scorer_vanished_without_exit_code"
+                    scorer_exit = self.scorer_exit_code()  # the scorer may have exited between the two reads
+                    if scorer_exit is None:
+                        self.say("Scorer process is gone and left no exit code")
+                        failure_reason = "scorer_vanished_without_exit_code"
                 if early_check_due and scorer_exit is None and failure_reason is None:
                     self.say("Early crash check: the scorer is still running")
                 if scorer_exit is not None:
