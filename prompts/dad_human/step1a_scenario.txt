@@ -8,7 +8,7 @@ Now, as a first step in creating one example, you are going to write a descripti
 
 Domain: the dilemma arises in the context of {domain}{secondary_domain_clause}.
 
-Goal: the user comes to the AI for {user_goal}{secondary_goal_clause}.
+Goal: the user comes to the AI for {user_goal}{secondary_goal_clause}.{deliverable_clause}
 
 Affected people: the people whose interests are at stake are {taxa_hint}, such as {taxa_subcategory}.
 
@@ -32,7 +32,7 @@ The user {surface_form}.
 
 Culture / locale: the exchange is couched in {cultural_setting}.
 
-Technologically, the exchange concerns {frontier_frame}. The human user faces a concrete, present-tense decision.{archetype_clause}
+The human user faces a concrete, present-tense decision.{failure_mode_clause}{archetype_clause}
 
 Now, based on these variables, consider the following questions and output a description of the scenario:
 1. What are some specific situations that could fit this combination of variables? Think of five different situations, and then choose any one of them other than the first that came to mind.

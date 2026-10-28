@@ -125,17 +125,19 @@ def load_principles(base_dir: str | Path | None = None,
     return parse_principles((base / filename).read_text(encoding="utf-8"))
 
 
-def load_failure_modes(base_dir: str | Path | None = None) -> str:
-    """Return the animal-welfare failure-modes checklist (failure_modes.md),
-    verbatim, from base_dir (a run's inputs/constitution snapshot) or the repo's
-    live constitution/. Snapshots that predate the file fall back to the live
+def load_failure_modes(base_dir: str | Path | None = None,
+                       filename: str = FAILURE_MODES_FILENAME) -> str:
+    """Return the failure-modes checklist verbatim (failure_modes.md, the
+    animal-welfare one, unless a DAD profile names its own `filename`), from
+    base_dir (a run's inputs/constitution snapshot) or the repo's live
+    constitution/. Snapshots that predate the file fall back to the live
     copy, like the principles CSV. Unlike the constitution, the checklist is
     written against no particular guiding document, so it applies unchanged
     when another constitution is swapped in."""
     base = Path(base_dir) if base_dir else _CONSTITUTION_DIR
-    path = base / FAILURE_MODES_FILENAME
+    path = base / filename
     if not path.exists():
-        path = _CONSTITUTION_DIR / FAILURE_MODES_FILENAME
+        path = _CONSTITUTION_DIR / filename
     return path.read_text(encoding="utf-8")
 
 

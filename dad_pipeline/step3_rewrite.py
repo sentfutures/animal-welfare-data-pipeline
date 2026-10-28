@@ -39,6 +39,7 @@ def run(
 
     constitution_dir = utils.resolve_constitution_dir(prompts_dir)
     principles_file = profiles.current().PRINCIPLES_FILENAME
+    failure_modes_file = profiles.current().FAILURE_MODES_FILENAME
     try:
         principles = constitution_loader.load_principles(constitution_dir, principles_file)
     except FileNotFoundError:
@@ -46,7 +47,7 @@ def run(
         print(f"  WARNING: run snapshot has no {principles_file}; using the repo's live copy.")
         principles = constitution_loader.load_principles(filename=principles_file)
     principles_block = constitution_loader.format_principles(principles)
-    failure_modes = constitution_loader.load_failure_modes(constitution_dir)
+    failure_modes = constitution_loader.load_failure_modes(constitution_dir, failure_modes_file)
 
     existing_audit = utils.load_jsonl(audit_path)
     results = list(existing_audit)

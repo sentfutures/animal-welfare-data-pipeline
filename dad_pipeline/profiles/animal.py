@@ -6,6 +6,7 @@ NAME = "animal"
 PROMPTS_SUBDIR = "dad"                       # prompts/dad/
 OUTPUT_SUBDIR = "dad"                        # outputs/dad/runs/
 PRINCIPLES_FILENAME = "constitution_principles.csv"
+FAILURE_MODES_FILENAME = "failure_modes.md"          # step-3 rewrite checklist
 ANCHOR_VALUE = "welfare"                     # the anchor pair is "<this> <-> {welfare_partner}"
 
 LABELS = {

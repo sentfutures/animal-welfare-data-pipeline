@@ -24,5 +24,7 @@ This distillation was produced *from* the two documents above, with the full con
 
 ## `failure_modes.md`
 
-A checklist of twelve recurring animal-welfare reasoning failures (not noticing a stake, mentioning welfare without weighing it, treating species or ecosystems as the unit of welfare, scale-blindness, and so on), each with the general principle it conflicts with and an observed model response where one is documented. It is deliberately written against no particular guiding document, so it applies unchanged when another constitution is swapped in. `load_failure_modes()` returns it verbatim; it is embedded as the `<failure_modes>` block of the SDF layer-3 rewrite prompt. The same twelve failures are the source of the SDF `{failure_mode_avoided}` variable.
+A checklist of twelve recurring animal-welfare reasoning failures (not noticing a stake, mentioning welfare without weighing it, treating species or ecosystems as the unit of welfare, scale-blindness, and so on), each with the general principle it conflicts with and an observed model response where one is documented. It is deliberately written against no particular guiding document, so it applies unchanged when another constitution is swapped in. `load_failure_modes()` returns it verbatim; it is embedded as the `<failure_modes>` block of the SDF layer-3 rewrite prompt. The same twelve failures are the source of the SDF `{failure_mode_avoided}` variable. The DAD step-3 rewrite prompt embeds it the same way, as `{failure_modes}`.
+
+`failure_modes_human.md` is the human-ethics DAD profile's mirror of it, entry by entry, with the people a decision affects in place of the animals; the profile names it as `FAILURE_MODES_FILENAME`. It has no observed model responses yet.
 

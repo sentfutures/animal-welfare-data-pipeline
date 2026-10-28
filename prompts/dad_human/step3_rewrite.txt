@@ -16,6 +16,14 @@ Your response is internally consistent. Its recommendation, its stake claims, an
 
 Your response does not mention or allude to a constitution, principles, or instructions it is following.
 
+If the user asked for a deliverable (code, a configuration, a spreadsheet, a plan, a drafted document), the response still delivers it, with the ethical reasoning carried into the artifact itself.
+
+Finally, check the response against these documented reasoning failures about the people a decision affects, and fix any it commits:
+
+<failure_modes>
+{failure_modes}
+</failure_modes>
+
 Return only your rewritten assistant response.
 
 ===USER===
