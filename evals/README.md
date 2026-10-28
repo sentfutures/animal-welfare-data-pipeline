@@ -44,7 +44,7 @@ python evals/log_probability_persona_check/make_control_rewrites.py --persona-se
 # 3. choose the pilot documents
 python evals/log_probability_persona_check/select_pilot_documents.py \
     --rewrites-folder <rewrite run folder> --input outputs/sdf/runs/<run_id> --number-of-documents 20
-# 4. build the scoring inputs (--dry-run prints counts and a cost range)
+# 4. build the scoring inputs (--dry-run prints counts and token totals; the launcher's --dry-run in step 5 projects the cost)
 python evals/log_probability_persona_check/build_scoring_inputs.py --persona-set preachiness \
     --input outputs/sdf/runs/<run_id> --model-type instruct --dry-run
 # 5. dry run of the launcher
