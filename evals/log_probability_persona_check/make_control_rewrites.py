@@ -69,7 +69,10 @@ REWRITTEN_DOCUMENTS_FILE_PREFIX = "rewritten_documents_"
 COST_LOG_STAGE_NAME = "persona_check_control_rewrite"
 
 DEFAULT_REWRITE_MODEL = "claude-opus-5"
-DEFAULT_MAXIMUM_OUTPUT_TOKENS = 32000
+# Sent without streaming, so it must stay under the Anthropic SDK's non-streaming limit: the SDK refuses a call whose
+# expected time, 3600 * max_tokens / 128000 seconds, exceeds 600 seconds (max_tokens above 21333). The documents are
+# about 2,000 tokens, so 16000 leaves ample room.
+DEFAULT_MAXIMUM_OUTPUT_TOKENS = 16000
 DEFAULT_NUMBER_OF_DOCUMENTS = 10
 DEFAULT_STRATIFY_BY = "tone"
 DEFAULT_WORKER_COUNT = 3

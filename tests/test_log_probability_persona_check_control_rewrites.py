@@ -179,6 +179,19 @@ def test_resume_skips_finished_rewrites_and_retries_failures(tmp_path, corpus_pa
     assert len(records) == 18 and len({record["document_id"] for record in records}) == 18
 
 
+def test_default_maximum_output_tokens_is_under_the_sdk_non_streaming_limit():
+    """The SDK refuses a non-streaming call whose expected time exceeds ten minutes (shared/api.py does not stream),
+    so a too-large default would turn every paid rewrite into a transport failure. Uses the SDK's own check, offline."""
+    import anthropic
+    from anthropic._constants import MODEL_NONSTREAMING_TOKENS
+    client = anthropic.Anthropic(api_key="not-a-real-key-never-used")
+    client._calculate_nonstreaming_timeout(  # raises ValueError if over the limit
+        make_control_rewrites.DEFAULT_MAXIMUM_OUTPUT_TOKENS,
+        MODEL_NONSTREAMING_TOKENS.get(make_control_rewrites.DEFAULT_REWRITE_MODEL))
+    with pytest.raises(ValueError):  # the check itself is live: the old default of 32000 is refused
+        client._calculate_nonstreaming_timeout(32000, None)
+
+
 def test_resume_is_refused_when_the_model_changes(tmp_path, corpus_path, reviewed_persona_set_folder, stub_claude):
     stub_claude(reply_with_rewrite)
     arguments = rewrite_arguments(tmp_path, corpus_path, reviewed_persona_set_folder)
