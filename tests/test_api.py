@@ -510,6 +510,81 @@ class TestResolveClaudeCodeSystem:
 
 
 @pytest.mark.enable_socket
+class TestClaudeCodeOauthTokenFromDotenv:
+    """CLAUDE_CODE_OAUTH_TOKEN goes through shared/api_keys.py for the claude_code and auto
+    backends and reaches the claude CLI subprocess's environment; the api backend never loads it.
+    `query` is stubbed, so nothing is spawned (enable_socket is for asyncio's self-pipe only)."""
+
+    TOKEN = "oauth-token-from-dotenv-not-real"
+
+    @pytest.fixture
+    def dotenv_in_repo_root(self, monkeypatch, tmp_path):
+        from shared import api_keys
+        repo_root = tmp_path / "repo_root_with_dotenv"
+        repo_root.mkdir()
+        (repo_root / ".env").write_text(
+            f"ANTHROPIC_API_KEY=sk-ant-from-dotenv-not-real\nCLAUDE_CODE_OAUTH_TOKEN={self.TOKEN}\n")
+        monkeypatch.setattr(api_keys, "REPO_ROOT", repo_root)
+        monkeypatch.setattr(api_keys, "_api_key_source_mode", api_keys.REPO_ROOT_DOTENV_ONLY)
+        monkeypatch.delenv("CLAUDE_CODE_OAUTH_TOKEN", raising=False)
+        return repo_root
+
+    @staticmethod
+    def _init_with_backend(tiny_config, tmp_path, backend):
+        tiny_config["backend"] = backend
+        path = tmp_path / f"{backend}.yaml"
+        path.write_text(yaml.safe_dump(tiny_config))
+        api.init(str(path))
+
+    @staticmethod
+    def _environment_seen_by_subprocess(monkeypatch):
+        pytest.importorskip("claude_agent_sdk")
+        captured = {}
+
+        async def fake_query(*, prompt, options):
+            captured["env"] = options.env
+            types = pytest.importorskip("claude_agent_sdk.types")
+            yield types.ResultMessage(subtype="success", duration_ms=1, duration_api_ms=1, is_error=False,
+                                      num_turns=1, session_id="sesn_test", result="ok",
+                                      usage={"input_tokens": 1, "output_tokens": 1})
+
+        monkeypatch.setattr("claude_agent_sdk.query", fake_query)
+        api._run_claude_code_query("claude-haiku-4-5", "sys", "hi")
+        return captured["env"]
+
+    @pytest.mark.parametrize("backend", ["claude_code", "auto"])
+    def test_token_in_dotenv_reaches_the_subprocess_environment(
+            self, backend, dotenv_in_repo_root, tiny_config, tmp_path, monkeypatch, capsys):
+        self._init_with_backend(tiny_config, tmp_path, backend)
+        environment = self._environment_seen_by_subprocess(monkeypatch)
+        assert environment["CLAUDE_CODE_OAUTH_TOKEN"] == self.TOKEN
+        assert environment["ANTHROPIC_API_KEY"] == ""  # the shared key stays blanked
+        assert self.TOKEN not in capsys.readouterr().out  # the value is never printed
+
+    def test_api_backend_does_not_load_the_token(self, dotenv_in_repo_root, tiny_config, tmp_path, monkeypatch):
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        self._init_with_backend(tiny_config, tmp_path, "api")
+        assert api._claude_code_oauth_token is None
+        assert "CLAUDE_CODE_OAUTH_TOKEN" not in __import__("os").environ
+
+    def test_exported_token_is_ignored_in_the_default_mode(
+            self, dotenv_in_repo_root, tiny_config, tmp_path, monkeypatch):
+        (dotenv_in_repo_root / ".env").write_text("ANTHROPIC_API_KEY=sk-ant-from-dotenv-not-real\n")
+        monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", "exported-token-not-real")
+        self._init_with_backend(tiny_config, tmp_path, "claude_code")
+        assert api._claude_code_oauth_token is None
+        assert "CLAUDE_CODE_OAUTH_TOKEN" not in __import__("os").environ
+
+    def test_exported_token_is_used_with_find_dotenv(self, dotenv_in_repo_root, tiny_config, tmp_path, monkeypatch):
+        from shared import api_keys
+        (dotenv_in_repo_root / ".env").write_text("ANTHROPIC_API_KEY=sk-ant-from-dotenv-not-real\n")
+        monkeypatch.setattr(api_keys, "_api_key_source_mode", api_keys.SEARCH_UPWARD_THEN_ENVIRONMENT)
+        monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", "exported-token-not-real")
+        self._init_with_backend(tiny_config, tmp_path, "claude_code")
+        assert self._environment_seen_by_subprocess(monkeypatch)["CLAUDE_CODE_OAUTH_TOKEN"] == "exported-token-not-real"
+
+
+@pytest.mark.enable_socket
 class TestRunClaudeCodeQuery:
     """Exercise the claude_code money path (`_run_claude_code_query`) at the true
     external boundary — a stubbed `claude_agent_sdk.query` yielding real SDK
