@@ -179,6 +179,29 @@ def test_resume_skips_finished_rewrites_and_retries_failures(tmp_path, corpus_pa
     assert len(records) == 18 and len({record["document_id"] for record in records}) == 18
 
 
+def test_resume_in_the_same_minute_keeps_the_first_configuration_and_failures(
+        tmp_path, corpus_path, reviewed_persona_set_folder, stub_claude, monkeypatch):
+    monkeypatch.setattr(make_control_rewrites, "timestamp_now", lambda: "2026-10-27_12-00")
+    monkeypatch.setattr("evals.log_probability_persona_check.timed_progress_and_jsonl_helpers.timestamp_now",
+                        lambda: "2026-10-27_12-00")
+    stub_claude(lambda user_message, **_: ("", "refusal") if "Direction: PLAINER" in user_message
+                else reply_with_rewrite(user_message))
+    arguments = rewrite_arguments(tmp_path, corpus_path, reviewed_persona_set_folder)
+    run_folder = make_control_rewrites.main(arguments)
+    (first_configuration_path,) = run_folder.glob("rewrite_run_configuration_*.json")
+    (first_failures_path,) = run_folder.glob("rewrite_failures_*.jsonl")
+    first_configuration_text = first_configuration_path.read_text()
+    first_failures_text = first_failures_path.read_text()
+
+    stub_claude(lambda user_message, **_: ("", "refusal"))
+    make_control_rewrites.main([*arguments, "--resume-folder", str(run_folder)])
+    assert first_configuration_path.read_text() == first_configuration_text
+    assert first_failures_path.read_text() == first_failures_text
+    assert len(list(run_folder.glob("rewrite_run_configuration_*.json"))) == 2
+    assert len(list(run_folder.glob("rewrite_failures_*.jsonl"))) == 2
+    assert make_control_rewrites.load_first_configuration(run_folder)["resumed"] is False
+
+
 def test_default_maximum_output_tokens_is_under_the_sdk_non_streaming_limit():
     """The SDK refuses a non-streaming call whose expected time exceeds ten minutes (shared/api.py does not stream),
     so a too-large default would turn every paid rewrite into a transport failure. Uses the SDK's own check, offline."""

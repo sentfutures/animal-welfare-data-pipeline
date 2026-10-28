@@ -59,6 +59,7 @@ if __package__ in (None, ""):  # run as a script: make the repository root impor
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from evals.log_probability_persona_check import build_scoring_inputs, persona_sets  # noqa: E402
+from evals.log_probability_persona_check.timed_progress_and_jsonl_helpers import timestamp_unused_in_folder  # noqa: E402
 from shared import api, utils  # noqa: E402
 
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -526,6 +527,10 @@ def main(argument_list=None):
         for document in selected_documents}
 
     run_folder.mkdir(parents=True, exist_ok=True)
+    if is_resume:  # a resume in the same minute as an earlier session must not overwrite or extend its files
+        session_timestamp = timestamp_unused_in_folder(run_folder, [
+            "rewrite_run_configuration_{timestamp}.json", "rewrite_failures_{timestamp}.jsonl",
+            "rendered_requests_{timestamp}.jsonl", "dry_run_cost_estimate_{timestamp}.json"])
     (run_folder / f"rewrite_run_configuration_{session_timestamp}.json").write_text(
         json.dumps(configuration, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"Run folder: {run_folder}; {len(selected_documents)} source documents, directions "
