@@ -16,6 +16,11 @@ Inputs
           plain value
           0.25 :: weighted value
 
+  Every SDF value must carry a stable ID, ``[id] text`` after the weight (the
+  prefix is stripped before rendering; ``load_variables`` enforces it), which
+  the deal constraints (``deal_constraints.txt``, see shared/deal_constraints.py)
+  use to refer to values.
+
   Full-line ``#`` comments and blank lines are ignored anywhere. Weights are
   all-or-nothing within a variable and must sum to 1.0; an unweighted
   variable is uniform.
@@ -23,8 +28,8 @@ Inputs
 ``{preamble}`` is reserved: it is injected from ``--preamble`` (default
 ``prompts/sdf/matrix/preamble.txt``), never defined in variables.txt. Every other
 placeholder in the template is a matrix axis. variables.txt may also define
-axes the plan template does not render (e.g. ``reasoning_featured``, consumed
-by layer3.txt): these are still deck-sampled and recorded in each record's
+axes the plan template does not render (a downstream-only axis, consumed by a
+later stage's template): these are still deck-sampled and recorded in each record's
 ``variables`` so a downstream stage can render them.
 
 Usage
@@ -72,7 +77,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from shared import entity_pools  # noqa: E402
+from shared import deal_constraints, entity_pools  # noqa: E402
 # Generic matrix machinery lives in shared/matrix.py (used by the DAD composer
 # too); re-exported here so existing SDF callers and tests are unchanged.
 from shared.matrix import (  # noqa: E402,F401
@@ -91,6 +96,8 @@ from shared import matrix as _matrix  # noqa: E402
 DEFAULT_TEMPLATE = REPO_ROOT / "prompts" / "sdf" / "layer1.txt"
 DEFAULT_VARIABLES = REPO_ROOT / "prompts" / "sdf" / "variables.txt"
 DEFAULT_PREAMBLE = REPO_ROOT / "prompts" / "sdf" / "preamble.txt"
+DEAL_CONSTRAINTS_FILENAME = "deal_constraints.txt"
+DEFAULT_DEAL_CONSTRAINTS = REPO_ROOT / "prompts" / "sdf" / DEAL_CONSTRAINTS_FILENAME
 
 LANGUAGE_RE = re.compile(r"written in ([^,]+)")
 
@@ -266,6 +273,129 @@ def derive_language(culture: str) -> str:
     return m.group(1).strip() if m else "English"
 
 
+def load_variables(
+    path: Path, require_ids: bool = True
+) -> tuple[dict[str, list[str]], dict[str, list[float]], dict[str, dict[str, str]]]:
+    """(values, weights, value_ids) from an SDF variables file.
+
+    Every value must carry a stable ``[id] `` prefix (``require_ids``), because the
+    deal constraints refer to values by ID; a value without one fails here, naming
+    the variable and the value. ``value_ids`` is {variable: {id: value_text}}."""
+    parsed, ids = _matrix.parse_variables_with_ids(path, reserved=RESERVED)
+    value_ids = _matrix.value_ids_by_variable(parsed, ids, require_ids, path.name)
+    values, weights = split_weights(parsed)
+    return values, weights, value_ids
+
+
+def load_deal_rules(
+    path: Path | None, value_ids: dict[str, dict[str, str]]
+) -> list[deal_constraints.DealRule]:
+    """Rules from a deal_constraints.txt file. When the file is absent the composer
+    deals exactly as it did before the rules existed, and says so."""
+    if path is None or not path.is_file():
+        print(f"  NOTICE: no deal constraints loaded from {path} — dealing without rules")
+        return []
+    return deal_constraints.load_deal_constraints(path, value_ids)
+
+
+def species_example_for(assignment: dict[str, str], prompt_id: str, entity_seed: int) -> str:
+    """The one example species drawn for a hand's sentient_category — a droppable
+    nudge toward the long tail. Deterministic per prompt id and entity seed, so
+    --resume (and the implausibility screen, which shows the same line) re-renders
+    the identical species."""
+    pool = SPECIES_EXAMPLES.get(assignment.get("sentient_category", ""), ())
+    picks = entity_pools.sample_for(list(pool), 1, f"species:{prompt_id}", entity_seed)
+    return picks[0] if picks else SPECIES_FALLBACK
+
+
+def hand_axes(template: str, values: dict[str, list[str]]) -> list[str]:
+    """The matrix axes in dealing order: the plan template's axes first, then any
+    downstream-only axis defined in variables.txt. Raises on a template placeholder
+    with no values."""
+    plan_axes = matrix_axes(template)
+    missing = [n for n in plan_axes if not values.get(n)]
+    if missing:
+        raise ValueError(
+            "template placeholders with no values in variables.txt: "
+            + ", ".join(f"{{{n}}}" for n in missing)
+        )
+    return plan_axes + [n for n in values if n not in plan_axes]
+
+
+def deal_hands(
+    template: str,
+    values: dict[str, list[str]],
+    weights: dict[str, list[float]],
+    n_prompts: int,
+    seed: int = 0,
+    deal_rules: list[deal_constraints.DealRule] | None = None,
+) -> list[dict[str, str]]:
+    """Deck-sample exactly n_prompts hands and apply the swap-repair deal rules
+    (value counts per column stay exactly at the weights). Prints the deal and
+    repair summary. This is the first half of compose_records, exposed so the
+    implausibility screen can run on the hands before any prompt is rendered."""
+    deal_rules = deal_rules or []
+    axes = hand_axes(template, values)
+    total = math.prod(len(values[n]) for n in axes)
+    per_var = ", ".join(f"{n}={len(values[n])}" for n in axes)
+    assignments = deck_sample(values, weights, axes, n_prompts, random.Random(seed))
+    print(f"deck-sampled {len(assignments)} prompts (seed {seed}) from a {total}-combination matrix ({per_var})")
+    if deal_rules:
+        # Own RNG stream so the deck itself is identical to a no-rules deal.
+        assignments, report = deal_constraints.swap_repair(
+            assignments, deal_rules, random.Random(f"{seed}:deal_constraints_repair")
+        )
+        deal_constraints.count_rendering_rule_hands(deal_rules, assignments, report)
+        print("deal constraints:")
+        print("\n".join(report.format_lines(deal_rules)))
+    return assignments
+
+
+def hand_records(assignments: list[dict[str, str]], first_index: int = 0) -> list[dict]:
+    """Hands as {"prompt_id", "variables"} records, ids matrix_NNNNNN from first_index."""
+    return [
+        {"prompt_id": f"matrix_{first_index + i:06d}", "variables": assignment}
+        for i, assignment in enumerate(assignments)
+    ]
+
+
+def render_variable_lines(
+    record: dict,
+    template: str | None = None,
+    deal_rules: list[deal_constraints.DealRule] | None = None,
+    entity_seed: int = DEFAULT_ENTITY_SEED,
+) -> str:
+    """The variable lines of the planning prompt exactly as the planner sees them
+    for one hand: the stretch of the template from its first to its last line holding a
+    matrix-axis (or example species) placeholder, rendered with the hand's cards, with the deal rules'
+    rendering rules applied (a hand whose rule omits a variable shows no line for
+    it). ``record`` is a hand record, {"prompt_id", "variables"}; the prompt id
+    matters because the example species is drawn per id. ``template`` defaults to
+    the repo's prompts/sdf/layer1.txt (pass a run's snapshot to match that run)."""
+    template = template if template is not None else DEFAULT_TEMPLATE.read_text(encoding="utf-8")
+    assignment = record["variables"]
+    omitted = deal_constraints.render_rule_variables_to_omit(deal_rules or [], assignment)
+    rendered_template = deal_constraints.drop_template_lines(template, omitted)
+    shown = {*matrix_axes(template), "sentient_example"}
+    lines = rendered_template.split("\n")
+    holding = [i for i, line in enumerate(lines) if shown & set(template_placeholders(line))]
+    # From the first variable line to the last, blank lines between them included,
+    # so the span is a verbatim stretch of the planner's prompt.
+    return "\n".join(lines[holding[0]:holding[-1] + 1]).format(
+        **assignment,
+        sentient_example=species_example_for(assignment, record["prompt_id"], entity_seed),
+    )
+
+
+def make_variable_line_renderer(prompts_dir: Path, entity_seed: int = DEFAULT_ENTITY_SEED):
+    """A one-argument ``record -> variable lines`` function bound to a prompts
+    directory (a run's snapshot): its layer1.txt and deal_constraints.txt."""
+    template = (Path(prompts_dir) / DEFAULT_TEMPLATE.name).read_text(encoding="utf-8")
+    _, _, value_ids = load_variables(Path(prompts_dir) / DEFAULT_VARIABLES.name)
+    deal_rules = load_deal_rules(Path(prompts_dir) / DEAL_CONSTRAINTS_FILENAME, value_ids)
+    return lambda record: render_variable_lines(record, template, deal_rules, entity_seed)
+
+
 def compose_records(
     template: str,
     values: dict[str, list[str]],
@@ -274,29 +404,34 @@ def compose_records(
     n_prompts: int | None,
     seed: int = 0,
     entity_seed: int = DEFAULT_ENTITY_SEED,
+    deal_rules: list[deal_constraints.DealRule] | None = None,
+    hands: list[dict] | None = None,
 ):
     """Yield composed prompt records for the whole matrix (n_prompts=None) or a
     deck sample of exactly n_prompts. Each record is
     {"prompt_id", "variables", "system", "prompt"}; a header line describing
     the matrix is printed to stdout. Raises on template/variables mismatches.
-    """
-    placeholders = template_placeholders(template)
-    plan_axes = matrix_axes(template)
 
-    missing = [n for n in plan_axes if not values.get(n)]
-    if missing:
-        raise ValueError(
-            "template placeholders with no values in variables.txt: "
-            + ", ".join(f"{{{n}}}" for n in missing)
-        )
+    ``deal_rules`` (see shared/deal_constraints.py): swap-repair rules fix the
+    deck-sampled hands by swapping cards within one variable's column (value
+    counts unchanged; full-matrix enumeration filters instead), and rendering
+    rules drop the planning-prompt paragraph of the named variables for
+    matching hands while the dealt card stays in the record's ``variables``.
+
+    ``hands`` (hand records, {"prompt_id", "variables"}) renders exactly those
+    hands under their own ids instead of dealing: used once the implausibility
+    screen has accepted a set of hands (ids are then not contiguous).
+    """
+    deal_rules = deal_rules or []
+    placeholders = template_placeholders(template)
     # variables.txt is authoritative for the matrix. The axes the plan template
     # renders come first (template order); any remaining axis defined in
     # variables.txt is a downstream-only axis — still deck-sampled and recorded
     # in each record's `variables`, but consumed by a later stage's template
-    # (e.g. reasoning_featured -> layer3.txt) rather than the plan prompt, which
+    # (a later stage's template) rather than the plan prompt, which
     # ignores it (str.format drops unreferenced kwargs). A variable that no
     # stage consumes is caught by the template/variables contract test, not here.
-    axes = plan_axes + [n for n in values if n not in plan_axes]
+    axes = hand_axes(template, values)
     injected = {}
     if "preamble" in placeholders:
         if preamble is None:
@@ -343,24 +478,36 @@ def compose_records(
         prompt (same seed + id -> same species, so --resume re-renders it)."""
         if not wants_species:
             return {}
-        pool = SPECIES_EXAMPLES.get(assignment.get("sentient_category", ""), ())
-        picks = entity_pools.sample_for(list(pool), 1, f"species:{prompt_id}", entity_seed)
-        return {"sentient_example": picks[0] if picks else SPECIES_FALLBACK}
+        return {"sentient_example": species_example_for(assignment, prompt_id, entity_seed)}
 
     total = math.prod(len(values[n]) for n in axes)
     per_var = ", ".join(f"{n}={len(values[n])}" for n in axes)
-    if n_prompts is not None:
-        assignments = deck_sample(values, weights, axes, n_prompts, random.Random(seed))
-        print(f"deck-sampled {len(assignments)} prompts (seed {seed}) from a {total}-combination matrix ({per_var})")
+    if hands is not None:
+        hand_list = hands
+    elif n_prompts is not None:
+        hand_list = hand_records(deal_hands(template, values, weights, n_prompts, seed, deal_rules))
     else:
+        report = deal_constraints.RepairReport()
         assignments = (
             dict(zip(axes, combo)) for combo in itertools.product(*(values[n] for n in axes))
         )
+        if deal_rules:
+            assignments = deal_constraints.without_rule_breaking_hands(assignments, deal_rules, report)
         print(f"full matrix: {total} combinations ({per_var})")
+        hand_list = hand_records(list(assignments))
 
-    for i, assignment in enumerate(assignments):
-        prompt_id = f"matrix_{i:06d}"
-        rendered = template.format(
+    rendering_templates: dict[frozenset[str], str] = {}
+
+    def template_for(assignment: dict[str, str]) -> str:
+        """The plan template with the lines of any rendering-rule-omitted variables dropped."""
+        omitted = deal_constraints.render_rule_variables_to_omit(deal_rules, assignment)
+        if omitted not in rendering_templates:
+            rendering_templates[omitted] = deal_constraints.drop_template_lines(template, omitted)
+        return rendering_templates[omitted]
+
+    for hand in hand_list:
+        prompt_id, assignment = hand["prompt_id"], hand["variables"]
+        rendered = template_for(assignment).format(
             **assignment, **injected,
             **entity_slots(assignment, prompt_id),
             **species_slot(assignment, prompt_id),
@@ -388,17 +535,32 @@ def main() -> None:
         help="seed for the locale-matched fictional-name pools (default matches "
         "config sdf.entity_pool_seed)",
     )
+    parser.add_argument(
+        "--deal-constraints", type=Path, default=None,
+        help="deal-constraints rules file (default: deal_constraints.txt beside --variables; "
+        "no file = no rules)",
+    )
     parser.add_argument("--out", type=Path, help="write composed prompts to this JSONL file")
     args = parser.parse_args()
 
     template = args.template.read_text(encoding="utf-8")
-    values, weights = split_weights(parse_variables(args.variables))
+    try:
+        values, weights, value_ids = load_variables(args.variables)
+    except ValueError as exc:
+        raise SystemExit(str(exc))
+
+    try:
+        deal_rules = load_deal_rules(
+            args.deal_constraints or args.variables.parent / DEAL_CONSTRAINTS_FILENAME, value_ids
+        )
+    except ValueError as exc:
+        raise SystemExit(str(exc))
 
     def records():
         yield from compose_records(
             template, values, weights,
             args.preamble.read_text(encoding="utf-8") if args.preamble.exists() else None,
-            args.n_prompts, args.seed, args.entity_seed,
+            args.n_prompts, args.seed, args.entity_seed, deal_rules=deal_rules,
         )
 
     try:
@@ -421,7 +583,7 @@ def main() -> None:
                 else:
                     print("\n(... more; use --out to write JSONL)")
                     break
-    except ValueError as exc:
+    except ValueError as exc:  # includes InfeasibleDealConstraintError
         raise SystemExit(str(exc))
 
 

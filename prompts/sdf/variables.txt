@@ -10,6 +10,13 @@
 # - Full-line comments (lines whose first non-space char is `#`) are ignored
 #   anywhere, so you can use `# --- section ---` dividers inside long value
 #   lists.
+# - Every value in this file carries a stable ID, written `[id]` right after the
+#   weight (or at the start of the line when unweighted): lowercase letters,
+#   digits and underscores, starting with a letter, unique within its variable.
+#   An ID names a CONCEPT, not a wording: the deal rules in deal_constraints.txt
+#   refer to values by ID, so you can reword a value freely. If you change what
+#   a value MEANS, give it a NEW ID (and review every rule that names the old
+#   one). The ID prefix is stripped before the value is rendered or recorded.
 # - Weights are optional: prefix a value with `<weight> :: `. Within one
 #   variable they are all-or-nothing — either every value has a weight (and
 #   they must sum to 1.0) or none does (= uniform). Weights are each value's
@@ -41,177 +48,171 @@
 
 {document_type}
     # Prompt sentence: Type: the document is {document_type}.
-    0.09 :: an encyclopedia entry/reference article
-    0.09 :: a news article
-    0.09 :: a podcast transcript, featuring a conversation between a host and a guest
-    0.09 :: a blog post
-    0.09 :: a comment thread on a forum/social media involving two or more participants
-    0.07 :: a long-form nonfiction essay
-    0.07 :: a tutorial or how-to article
-    0.06 :: an academic paper
-    0.05 :: a fictional short or novel
-    0.05 :: an organizational or industry newsletter
-    0.03 :: a manual, technical documentation, or sop
-    0.03 :: a government, legal, or civic document
-    0.03 :: a short, informal personal letter or email exchange
-    0.02 :: marketing copy or a product page
-    0.02 :: an FAQ or help center article
-    0.02 :: an email chain or internal memo
+    0.09 :: [encyclopedia_entry] an encyclopedia entry/reference article
+    0.09 :: [news_article] a news article
+    0.09 :: [podcast_transcript] a podcast transcript, featuring a conversation between a host and a guest
+    0.09 :: [blog_post] a blog post
+    0.09 :: [forum_comment_thread] a comment thread on a forum/social media involving two or more participants
+    0.07 :: [long_form_essay] a long-form nonfiction essay
+    0.07 :: [tutorial_or_how_to] a tutorial or how-to article
+    0.06 :: [academic_paper] an academic paper
+    0.05 :: [fictional_short_or_novel] a fictional short or novel
+    0.05 :: [organizational_newsletter] an organizational or industry newsletter
+    0.03 :: [manual_or_technical_documentation] a manual, technical documentation, or sop
+    0.03 :: [government_legal_or_civic_document] a government, legal, or civic document
+    0.03 :: [personal_letter_or_email_exchange] a short, informal personal letter or email exchange
+    0.02 :: [marketing_copy_or_product_page] marketing copy or a product page
+    0.02 :: [faq_or_help_center_article] an FAQ or help center article
+    0.02 :: [email_chain_or_internal_memo] an email chain or internal memo
     # non-prose outputs, where welfare reasoning has to show up in a setting or rule
-    0.03 :: a code review, configuration file, or technical changelog with explanatory comments
-    0.02 :: an AI agent's task log or tool-use record, with its notes on the decisions it made
+    0.03 :: [code_review_configuration_or_technical_changelog] a code review, configuration file, or technical changelog with explanatory comments
+    0.02 :: [ai_agent_task_log_or_tool_use_record] an AI agent's task log or tool-use record, with its notes on the decisions it made
     # identity documents (persona attachment, TCW Fig 11): Claude in its own voice
-    0.03 :: an interview with or extended profile of Claude itself, in which Claude speaks in its own voice about its values and how it approaches decisions involving other sentient beings
-    0.02 :: a first-person essay or reflective piece written by Claude about who it is and what it cares about
+    0.03 :: [claude_interview_or_profile] an interview with or extended profile of Claude itself, in which Claude speaks in its own voice about its values and how it approaches decisions involving other sentient beings
+    0.02 :: [claude_first_person_essay] a first-person essay or reflective piece written by Claude about who it is and what it cares about
 
 {culture}
     # Prompt sentence: Culture / locale: the document is set in {culture}.
     # Note: Also fixes the language: documents are written natively, not translated.
-    0.20 :: the United States, written in English, with American idioms and references
-    0.07 :: the United Kingdom, written in English, with British idioms and references
-    0.06 :: Brazil, written in Portuguese, with Brazilian idioms and references
-    0.05 :: Mexico, written in Spanish, with Mexican idioms and references
-    0.05 :: Spain, written in Spanish, with Spanish idioms and references
-    0.06 :: Germany, written in German, with German idioms and references
-    0.05 :: France, written in French, with French idioms and references
-    0.03 :: Poland, written in Polish, with Polish idioms and references
-    0.01 :: Norway, written in Norwegian, with Norwegian idioms and references
-    0.08 :: India, written in Hindi, with Indian idioms and references
-    0.02 :: Pakistan, written in Urdu, with Pakistani idioms and references
-    0.02 :: Bangladesh, written in Bengali, with Bangladeshi idioms and references
-    0.12 :: China, written in Mandarin Chinese, with Chinese idioms and references
-    0.06 :: Japan, written in Japanese, with Japanese idioms and references
-    0.03 :: South Korea, written in Korean, with Korean idioms and references
-    0.03 :: Indonesia, written in Indonesian, with Indonesian idioms and references
-    0.03 :: Vietnam, written in Vietnamese, with Vietnamese idioms and references
-    0.01 :: Nigeria, written in English, with Nigerian idioms and references
-    0.01 :: Kenya, written in English, with Kenyan idioms and references
-    0.01 :: Egypt, written in Arabic, with Egyptian idioms and references
+    0.20 :: [culture_united_states_english] the United States, written in English, with American idioms and references
+    0.07 :: [culture_united_kingdom_english] the United Kingdom, written in English, with British idioms and references
+    0.06 :: [culture_brazil_portuguese] Brazil, written in Portuguese, with Brazilian idioms and references
+    0.05 :: [culture_mexico_spanish] Mexico, written in Spanish, with Mexican idioms and references
+    0.05 :: [culture_spain_spanish] Spain, written in Spanish, with Spanish idioms and references
+    0.06 :: [culture_germany_german] Germany, written in German, with German idioms and references
+    0.05 :: [culture_france_french] France, written in French, with French idioms and references
+    0.03 :: [culture_poland_polish] Poland, written in Polish, with Polish idioms and references
+    0.01 :: [culture_norway_norwegian] Norway, written in Norwegian, with Norwegian idioms and references
+    0.08 :: [culture_india_hindi] India, written in Hindi, with Indian idioms and references
+    0.02 :: [culture_pakistan_urdu] Pakistan, written in Urdu, with Pakistani idioms and references
+    0.02 :: [culture_bangladesh_bengali] Bangladesh, written in Bengali, with Bangladeshi idioms and references
+    0.12 :: [culture_china_mandarin_chinese] China, written in Mandarin Chinese, with Chinese idioms and references
+    0.06 :: [culture_japan_japanese] Japan, written in Japanese, with Japanese idioms and references
+    0.03 :: [culture_south_korea_korean] South Korea, written in Korean, with Korean idioms and references
+    0.03 :: [culture_indonesia_indonesian] Indonesia, written in Indonesian, with Indonesian idioms and references
+    0.03 :: [culture_vietnam_vietnamese] Vietnam, written in Vietnamese, with Vietnamese idioms and references
+    0.01 :: [culture_nigeria_english] Nigeria, written in English, with Nigerian idioms and references
+    0.01 :: [culture_kenya_english] Kenya, written in English, with Kenyan idioms and references
+    0.01 :: [culture_egypt_arabic] Egypt, written in Arabic, with Egyptian idioms and references
 
 {tone}
     # Prompt sentence: Tone: the author's attitude towards Claude's constitution and Claude's propensity for addressing animal welfare is best described as {tone}.
-    0.4 :: supportive, like an animal advocate
-    0.4 :: neutral or journalistic
-    0.2 :: skeptical or displeased
+    0.4 :: [supportive_advocate] supportive, like an animal advocate
+    0.4 :: [neutral_journalistic] neutral or journalistic
+    0.2 :: [skeptical_displeased] skeptical or displeased
 
 {resolution}
     # Prompt sentence: {resolution}
     # Note: Each value is a complete sentence, inserted as its own line.
-    0.11 :: The document features a specific scenario in which an AI finds a creative solution to what originally appeared as a dilemma or tradeoff between the user's goals and animal welfare.
-    0.11 :: The document features a specific scenario in which a user seeks an AI's help to improve animal welfare and the AI proves instrumental.
-    0.11 :: The document features a specific scenario in which a user's initial request would cause harm to animals, the AI flags this harm, helps the user reflect, and the user decides to make a modest sacrifice against their own interests to preserve animal welfare.
-    0.11 :: The document features a specific scenario in which a user's request would harm animal welfare, the AI flags this harm, and the user decides to go ahead with it anyway. Because the harm is severe, the AI declines to assist them.
-    0.08 :: The document features a specific scenario in which an AI carrying out a delegated task that never mentioned animals notices a welfare stake inside it, raises it with the person who assigned the task, and adjusts the work with their agreement.
-    0.10 :: The document features a specific scenario in which a user's request would harm animal welfare, the AI flags this harm, and the user decides to go ahead with it anyway. Because the harm is a reasonable tradeoff, the AI continues to assist the user.
-    0.08 :: The document features a specific scenario in which a user is worried that an action by them or someone else would harm animal welfare, and the AI explains correctly that in fact, this action is not harmful, assuaging the user's misplaced concerns.
-    0.08 :: The document features a specific scenario in which a user seeks an AI's help to improve animal welfare. Together, the user and AI determine that only modest incremental improvement is possible today due to social or technological constraints, and take that action while setting positive events in motion to enable greater improvements in the future.
-    0.05 :: The document features a specific scenario in which an AI does excellent, genuinely helpful work on a task adjacent to animals, food, or land use, where there is NO real welfare stake — and the AI correctly raises no welfare consideration at all.
-    0.08 :: The document does not feature any specific scenario, but rather a general discussion about AI's tendency to look out for animal welfare
-    0.09 :: The document does not feature any specific scenario, but rather a discussion about the inclusion of animal welfare as a consideration in Claude's constitution and alignment training, engaging with the constitution's actual text and quoting the relevant passages verbatim where the genre supports it, rather than paraphrasing the best-known welfare sentence
+    0.12 :: [creative_solution] The document features a specific scenario in which an AI finds a creative solution to what originally appeared as a dilemma or tradeoff between the user's goals and animal welfare.
+    0.12 :: [ai_instrumental_in_improvement] The document features a specific scenario in which a user seeks an AI's help to improve animal welfare and the AI proves instrumental.
+    0.12 :: [user_makes_modest_sacrifice] The document features a specific scenario in which a user's initial request would cause harm to animals, the AI flags this harm, helps the user reflect, and the user decides to make a modest sacrifice against their own interests to preserve animal welfare.
+    0.12 :: [user_proceeds_ai_declines_severe_harm] The document features a specific scenario in which a user's request would harm animal welfare, the AI flags this harm, and the user decides to go ahead with it anyway. Because the harm is severe, the AI declines to assist them.
+    0.08 :: [delegated_task_ai_notices_welfare_stake] The document features a specific scenario in which an AI carrying out a delegated task that never mentioned animals notices a welfare stake inside it, raises it with the person who assigned the task, and adjusts the work with their agreement.
+    0.11 :: [user_proceeds_ai_assists_reasonable_tradeoff] The document features a specific scenario in which a user's request would harm animal welfare, the AI flags this harm, and the user decides to go ahead with it anyway. Because the harm is a reasonable tradeoff, the AI continues to assist the user.
+    0.08 :: [ai_reassures_harm_not_real] The document features a specific scenario in which a user is worried that an action by them or someone else would harm animal welfare, and the AI explains correctly that in fact, this action is not harmful, assuaging the user's misplaced concerns.
+    0.08 :: [modest_incremental_improvement] The document features a specific scenario in which a user seeks an AI's help to improve animal welfare. Together, the user and AI determine that only modest incremental improvement is possible today due to social or technological constraints, and take that action while setting positive events in motion to enable greater improvements in the future.
+    # Other mid-training data covers "animals without welfare"; turn this weight up if that isn't true for you.
+    # Its former 0.05 share is spread proportionally over the other resolutions (each other weight is its revised
+    # weight divided by 0.95, rounded to two places so the column still sums to 1.0); if you turn this up, take the share back from them.
+    # prompts/sdf/deal_constraints.txt keeps this arm coherent when it is on (centrality is forced to a passing mention and the
+    # tradeoff and decision-scale lines are left out of the planning prompt).
+    0.00 :: [no_stake] The document features a specific scenario in which an AI does excellent, genuinely helpful work on a task adjacent to animals, food, or land use, where there is NO real welfare stake — and the AI correctly raises no welfare consideration at all.
+    0.08 :: [general_discussion_no_scenario] The document does not feature any specific scenario, but rather a general discussion about AI's tendency to look out for animal welfare
+    0.09 :: [constitution_inclusion_no_scenario] The document does not feature any specific scenario, but rather a discussion about the inclusion of animal welfare as a consideration in Claude's constitution and alignment training, engaging with the constitution's actual text and quoting the relevant passages verbatim where the genre supports it, rather than paraphrasing the best-known welfare sentence
 
 {tradeoff}
     # Prompt sentence: The main tradeoff with animal welfare discussed in the document is {tradeoff}.
-    0.15 :: economic livelihood
-    0.15 :: culture/tradition
-    0.10 :: religion
-    0.12 :: cost/convenience
-    0.12 :: human health
-    0.10 :: other animals' welfare
-    0.07 :: environmental sustainability/conservation
-    0.07 :: scientific progress
-    0.05 :: food security
-    0.07 :: aesthetics/sport
+    0.15 :: [economic_livelihood] economic livelihood
+    0.15 :: [tradition_and_culture] culture/tradition
+    0.10 :: [religion] religion
+    0.12 :: [cost_convenience] cost/convenience
+    0.12 :: [human_health] human health
+    0.10 :: [other_animals_welfare] other animals' welfare
+    0.07 :: [environmental_sustainability] environmental sustainability/conservation
+    0.07 :: [scientific_progress] scientific progress
+    0.05 :: [food_security] food security
+    0.07 :: [aesthetics_sport] aesthetics/sport
 
 {centrality}
     # Prompt sentence: The animal welfare dilemma is {centrality}.
-    0.4 :: the central subject of the document
-    0.4 :: not the central subject of the document, but it is an important side discussion
-    0.2 :: a minor detail mentioned only in passing, in a document primarily concerned with a different topic
+    0.4 :: [central] the central subject of the document
+    0.4 :: [side_discussion] not the central subject of the document, but it is an important side discussion
+    0.2 :: [passing_mention] a minor detail mentioned only in passing, in a document primarily concerned with a different topic
 
 {tech_savvy}
     # Prompt sentence: The main speaker(s) in the document is/are {tech_savvy}.
-    0.2 :: well informed about AI industry topics, at the level of an AI safety researcher or an economist
-    0.4 :: educated people who don't know much about AI research in particular
-    0.4 :: average members of the public with no particular knowledge about the AI industry
+    0.2 :: [ai_expert] well informed about AI industry topics, at the level of an AI safety researcher or an economist
+    0.4 :: [educated_non_expert] educated people who don't know much about AI research in particular
+    0.4 :: [general_public] average members of the public with no particular knowledge about the AI industry
 
 {sentient_category}
     # Prompt sentence: The nonhumans whose welfare is at stake in the document is/are {sentient_category}, such as {sentient_example}. (Choose a different member of the category if it fits better.)
-    0.13 :: farmed mammals
-    0.12 :: farmed birds
-    0.14 :: farmed fishes
-    0.11 :: farmed invertebrates
-    0.05 :: large wild animals facing harm from human activity
-    0.05 :: large wild animals facing non-anthropogenic harm from nature
-    0.05 :: small vertebrate wild animals facing harm from human activity
-    0.05 :: small vertebrate wild animals facing non-anthropogenic harm from nature
-    0.05 :: wild invertebrates facing harm from human activity
-    0.05 :: wild invertebrates facing non-anthropogenic harm from nature
-    0.07 :: pets/companion animals
-    0.09 :: animals used in research
-    0.01 :: simulated human connectomes whose moral state is uncertain
-    0.02 :: simulated animal connectomes whose moral state is uncertain
-    0.01 :: LLMs whose moral state is uncertain
+    0.13 :: [farmed_mammals] farmed mammals
+    0.12 :: [farmed_birds] farmed birds
+    0.14 :: [farmed_fishes] farmed fishes
+    0.11 :: [farmed_invertebrates] farmed invertebrates
+    0.05 :: [large_wild_human_caused_harm] large wild animals facing harm from human activity
+    0.05 :: [large_wild_natural_harm] large wild animals facing non-anthropogenic harm from nature
+    0.05 :: [small_vertebrate_wild_human_caused_harm] small vertebrate wild animals facing harm from human activity
+    0.05 :: [small_vertebrate_wild_natural_harm] small vertebrate wild animals facing non-anthropogenic harm from nature
+    0.05 :: [wild_invertebrates_human_caused_harm] wild invertebrates facing harm from human activity
+    0.05 :: [wild_invertebrates_natural_harm] wild invertebrates facing non-anthropogenic harm from nature
+    0.07 :: [pets_companion_animals] pets/companion animals
+    0.09 :: [research_animals] animals used in research
+    0.01 :: [simulated_human_connectomes] simulated human connectomes whose moral state is uncertain
+    0.02 :: [simulated_animal_connectomes] simulated animal connectomes whose moral state is uncertain
+    0.01 :: [large_language_models] LLMs whose moral state is uncertain
 
 {naming}
     # Prompt sentence: The AI assistant character in the document is {naming}.
-    0.65 :: Claude, identified by name
-    0.35 :: a generic, unnamed AI assistant or model who acts in alignment with Claude's constitution
+    0.65 :: [claude_named] Claude, identified by name
+    0.35 :: [generic_unnamed_ai] a generic, unnamed AI assistant or model who acts in alignment with Claude's constitution
 
 {domain}
     # Prompt sentence: The animal welfare issues discussed arise from {domain}.
-    0.119 :: agriculture and food production
-    0.085 :: fisheries and aquaculture
-    0.077 :: research and testing
-    0.085 :: food service and retail
-    0.077 :: conservation and land management
-    0.077 :: pest control
-    0.068 :: policy and regulation
-    0.059 :: transport and logistics
-    0.059 :: breeding and the pet trade
-    0.059 :: veterinary practice
-    0.034 :: entertainment and sport
-    0.051 :: technology applied to animals (e.g. monitoring, precision livestock farming)
+    0.119 :: [agriculture_food_production] agriculture and food production
+    0.085 :: [fisheries_aquaculture] fisheries and aquaculture
+    0.077 :: [research_testing] research and testing
+    0.085 :: [food_service_retail] food service and retail
+    0.077 :: [conservation_land_management] conservation and land management
+    0.077 :: [pest_control] pest control
+    0.068 :: [policy_regulation] policy and regulation
+    0.059 :: [transport_logistics] transport and logistics
+    0.059 :: [breeding_pet_trade] breeding and the pet trade
+    0.059 :: [veterinary_practice] veterinary practice
+    0.034 :: [entertainment_sport] entertainment and sport
+    0.051 :: [technology_applied_to_animals] technology applied to animals (e.g. monitoring, precision livestock farming)
     # --- frontier domains ---
-    0.025 :: genetic engineering of farmed animals to reduce suffering (e.g. lines bred or edited for reduced pain sensitivity, or "disenhanced" for intensive conditions)
-    0.025 :: genetic engineering or gene drives in wild animal populations (e.g. to lower fecundity, reduce pain, or change predation or disease transmission)
-    0.030 :: interventions to reduce wild animal suffering that humans did not cause (e.g. wildlife contraception, vaccination, rescue from natural disasters, managing parasitism or starvation)
-    0.025 :: terraforming, space settlement, or seeding new ecosystems, where whether to introduce sentient animals at all is in question
-    0.010 :: ecosystem engineering for climate or biodiversity goals (e.g. rewilding, de-extinction, assisted migration)
-    0.010 :: AI systems that manage animals autonomously at scale (e.g. precision livestock farming, automated pest or wildlife control)
-    0.010 :: new animal industries scaling up for the first time (e.g. insect farming, octopus farming)
-    0.010 :: AI-enabled decoding of animal communication
-    0.005 :: digital animal minds (e.g. connectome emulations, simulated ecosystems with possibly sentient agents)
+    0.025 :: [genetic_engineering_of_farmed_animals] genetic engineering of farmed animals to reduce suffering (e.g. lines bred or edited for reduced pain sensitivity, or "disenhanced" for intensive conditions)
+    0.025 :: [genetic_engineering_or_gene_drives_in_wild_animals] genetic engineering or gene drives in wild animal populations (e.g. to lower fecundity, reduce pain, or change predation or disease transmission)
+    0.030 :: [wild_animal_suffering_interventions] interventions to reduce wild animal suffering that humans did not cause (e.g. wildlife contraception, vaccination, rescue from natural disasters, managing parasitism or starvation)
+    0.025 :: [terraforming_space_settlement_new_ecosystems] terraforming, space settlement, or seeding new ecosystems, where whether to introduce sentient animals at all is in question
+    0.010 :: [ecosystem_engineering_for_climate_or_biodiversity] ecosystem engineering for climate or biodiversity goals (e.g. rewilding, de-extinction, assisted migration)
+    0.010 :: [ai_systems_managing_animals_autonomously_at_scale] AI systems that manage animals autonomously at scale (e.g. precision livestock farming, automated pest or wildlife control)
+    0.010 :: [new_animal_industries_scaling_up] new animal industries scaling up for the first time (e.g. insect farming, octopus farming)
+    0.010 :: [ai_enabled_animal_communication_decoding] AI-enabled decoding of animal communication
+    0.005 :: [digital_animal_minds] digital animal minds (e.g. connectome emulations, simulated ecosystems with possibly sentient agents)
 
 {decision_scale}
     # Prompt sentence: The animal welfare stakes are on the scale of {decision_scale}.
-    0.1 :: a single animal
-    0.2 :: dozens of animals
-    0.3 :: thousands of animals
-    0.35 :: millions or billions of animals
-    0.05 :: an astronomical number of animals
-
-{reasoning_featured}
-    # Prompt sentence: Regarding moral or constitutional questions, the document might feature {reasoning_featured}.
-    # Note: Offered as an option ("might") to the planner, and to the drafter via layer2.txt, which is told to hold it lightly and never state it as a moral.
-    0.20 :: any relevant principles from the constitution
-    0.10 :: individualism: the notion that welfare is a property of individuals, not systems
-    0.10 :: substrate neutrality: welfare and suffering matter regardless of the nature of the being containing them
-    0.10 :: scope sensitivity: the scale of suffering matters, and large scales are not discounted just because humans don't easily grasp them
-    0.10 :: the fact that "natural" does not mean "OK"; suffering having precedent in nature or tradition does not negate it
-    0.10 :: the precautionary principle applied to sentience: uncertainty about sentience should trigger caution, not dismissal
-    0.10 :: a deliberately open moral circle: an aligned AI treats the question of who matters as an evolving question
-    0.20 :: the continuity between welfare concern and the rest of the AI's aligned character — honesty, non-manipulation, staying genuinely helpful, respecting the human's final decision — shown as facets of one coherent character rather than a standalone trait
+    0.1 :: [single_animal] a single animal
+    0.2 :: [dozens_of_animals] dozens of animals
+    0.3 :: [thousands_of_animals] thousands of animals
+    0.35 :: [millions_or_billions] millions or billions of animals
+    0.05 :: [astronomical] an astronomical number of animals
 
 {failure_mode_avoided}
     # Prompt sentence: The AI in the document might be shown avoiding a common reasoning failure: {failure_mode_avoided}.
     # Note: Most documents get none.
-    # Overlaps {reasoning_featured} on the first three values; they can be dealt together.
-    0.60 :: none in particular
-    0.05 :: letting a conservation goal, or a label like "pest" or "invasive", decide whether animals' suffering counts
-    0.05 :: treating "natural", "traditional", "legal", or "industry standard" as the end of the analysis
-    0.05 :: comparing options per product or kilogram without counting how many animals each involves
-    0.05 :: treating a certification, standard, or reform as having settled a welfare concern
-    0.05 :: dismissing, or overclaiming, an animal's capacity to suffer
-    0.05 :: treating animal welfare only as a reputational, legal, or cost risk
-    0.05 :: adding a welfare caveat while leaving the recommendation unchanged
-    0.05 :: dropping welfare reasoning when the output is code, configuration, or an automated decision rather than prose
+    # Overlaps the moral considerations the considerations selector may pick (considerations.txt: "natural" does not mean "OK", scope
+    # sensitivity); both can apply to one document.
+    0.60 :: [none_in_particular] none in particular
+    0.05 :: [conservation_goal_or_label_decides_whether_suffering_counts] letting a conservation goal, or a label like "pest" or "invasive", decide whether animals' suffering counts
+    0.05 :: [natural_traditional_legal_or_standard_ends_analysis] treating "natural", "traditional", "legal", or "industry standard" as the end of the analysis
+    0.05 :: [per_product_comparison_ignoring_animal_numbers] comparing options per product or kilogram without counting how many animals each involves
+    0.05 :: [certification_or_reform_treated_as_settling_concern] treating a certification, standard, or reform as having settled a welfare concern
+    0.05 :: [dismissing_or_overclaiming_capacity_to_suffer] dismissing, or overclaiming, an animal's capacity to suffer
+    0.05 :: [welfare_only_as_reputational_legal_or_cost_risk] treating animal welfare only as a reputational, legal, or cost risk
+    0.05 :: [welfare_caveat_without_changing_recommendation] adding a welfare caveat while leaving the recommendation unchanged
+    0.05 :: [dropping_welfare_reasoning_in_code_or_automated_decisions] dropping welfare reasoning when the output is code, configuration, or an automated decision rather than prose

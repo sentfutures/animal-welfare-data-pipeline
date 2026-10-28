@@ -1,0 +1,3 @@
+<hand number="{number}">
+{variable_lines}
+</hand>

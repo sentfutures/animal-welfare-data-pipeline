@@ -37,7 +37,7 @@ import numpy as np
 import pytest
 import yaml
 
-from shared import api, embeddings
+from shared import api, embeddings, openai_api
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -127,6 +127,64 @@ def _openai_guard(monkeypatch):
     monkeypatch.setattr(embeddings, "_embed_with_retry", _blocked)
 
 
+@pytest.fixture(autouse=True)
+def _openai_responses_guard(monkeypatch):
+    """Reset shared.openai_api's client and block its network seam, so an
+    OpenAI-routed stage can never reach the API from a test."""
+    monkeypatch.setattr(openai_api, "_client", None)
+
+    def _blocked(*args, **kwargs):
+        raise AssertionError(
+            "OpenAI Responses call attempted during tests — use stub_openai_responses"
+        )
+
+    monkeypatch.setattr(openai_api, "_create_response", _blocked)
+
+
+@pytest.fixture
+def stub_openai_responses(monkeypatch):
+    """Factory that replaces shared.openai_api._create_response with a recording stub.
+
+    ``install(responses)`` takes a callable ``(request_arguments) -> response`` or a
+    list of responses consumed in order; build responses with ``openai_response``.
+    Returns the list of recorded request-argument dicts.
+    """
+
+    def install(responses):
+        calls = []
+        queue = list(responses) if isinstance(responses, list) else None
+
+        def fake(client, **request_arguments):
+            calls.append(request_arguments)
+            return queue.pop(0) if queue is not None else responses(request_arguments)
+
+        monkeypatch.setattr(openai_api, "_create_response", fake)
+        return calls
+
+    return install
+
+
+@pytest.fixture
+def openai_response():
+    """Factory for objects shaped like an OpenAI Responses API response."""
+
+    def make(text="ok", input_tokens=1000, cached_tokens=0, output_tokens=500, reasoning_tokens=300,
+             status="completed", incomplete_reason=None, refusal=None):
+        part = (SimpleNamespace(type="refusal", refusal=refusal) if refusal is not None
+                else SimpleNamespace(type="output_text", text=text))
+        return SimpleNamespace(
+            status=status,
+            incomplete_details=SimpleNamespace(reason=incomplete_reason) if incomplete_reason else None,
+            output=[SimpleNamespace(type="message", content=[part])],
+            usage=SimpleNamespace(
+                input_tokens=input_tokens, output_tokens=output_tokens,
+                input_tokens_details=SimpleNamespace(cached_tokens=cached_tokens),
+                output_tokens_details=SimpleNamespace(reasoning_tokens=reasoning_tokens)),
+        )
+
+    return make
+
+
 @pytest.fixture
 def stub_embeddings(monkeypatch):
     """Factory that replaces shared.embeddings.embed_texts with a recording stub.
@@ -181,7 +239,7 @@ def stub_claude(monkeypatch):
 
         def fake(user_message, system_prompt="", injection="", model=None, max_tokens=None,
                  return_stop_reason=False, stage=None, temperature=None, item_id=None,
-                 cache_system=False):
+                 cache_system=False, json_schema=None):
             calls.append({
                 "user_message": user_message,
                 "system_prompt": system_prompt,
@@ -192,8 +250,12 @@ def stub_claude(monkeypatch):
                 "temperature": temperature,
                 "item_id": item_id,
                 "cache_system": cache_system,
+                "json_schema": json_schema,
             })
             if queue is None:
+                # json_schema is passed only by schema-constrained callers, so
+                # dispatchers written before it existed keep working unchanged.
+                extra = {"json_schema": json_schema} if json_schema is not None else {}
                 result = responses(
                     user_message,
                     system_prompt=system_prompt,
@@ -203,6 +265,7 @@ def stub_claude(monkeypatch):
                     stage=stage,
                     temperature=temperature,
                     item_id=item_id,
+                    **extra,
                 )
             else:
                 # FIFO queues assume serial calls: a parallel stage (workers > 1

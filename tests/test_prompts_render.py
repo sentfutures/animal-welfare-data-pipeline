@@ -23,15 +23,25 @@ TEMPLATE_KWARGS = [
         "tone": "TONE-X", "resolution": "RESOLUTION-X", "centrality": "CENTRALITY-X",
         "tech_savvy": "SAVVY-X", "sentient_category": "MINDS-X",
         "naming": "NAMING-X", "domain": "DOMAIN-X", "tradeoff": "TRADEOFF-X",
-        "decision_scale": "SCALE-X", "reasoning_featured": "REASONING-X",
+        "decision_scale": "SCALE-X",
         "failure_mode_avoided": "FAILURE-X",
         "fictional_names": "NAME-X; NAME-Y", "fictional_orgs": "ORG-X; ORG-Y",
         "sentient_example": "SPECIES-X",
     }),
+    # layer 1 screen: rendered by layer1_screen.build_screen_prompt
+    ("sdf/layer1_screen.txt", {"hand_count": 7, "hands": "HANDS-X"}),
+    ("sdf/layer1_screen_specification_block.txt", {"number": 3, "variable_lines": "LINES-X"}),
+    # layer 1 description rewrite: rendered by layer1_description_rewrite.build_rewrite_prompt
+    ("sdf/layer1_description_rewrite.txt", {"variable_lines": "LINES-X", "description": "DESCRIPTION-X"}),
+    # layer 1 considerations selector: rendered by layer1_select_considerations.build_scoring_prompt
+    ("sdf/layer1_select_considerations.txt", {
+        "document_type": "TYPE-X", "centrality": "CENTRALITY-X", "sentient_category": "MINDS-X",
+        "document_description": "DESC-X", "moral_list": "MORAL-LIST-X", "epistemic_list": "EPISTEMIC-LIST-X",
+    }),
     ("sdf/layer2.txt", {
         "preamble": "PREAMBLE-X", "constitution_claude": "CONST-C-X",
         "constitution_principles": "CONST-P-X", "document_description": "DESC-X",
-        "reasoning_featured": "REASONING-X",
+        "considerations_spec": "CONSIDERATIONS-SPEC-X",
     }),
     ("sdf/layer3.txt", {
         "constitution_claude": "CONST-C-X", "constitution_principles": "CONST-P-X",

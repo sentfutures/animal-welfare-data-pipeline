@@ -87,6 +87,7 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, drafts: list[dict]) -
             "doc_id": did,
             "variables": draft["variables"],
             "description": draft["description"],
+            "considerations_spec": draft.get("considerations_spec", ""),
             "review": raw[:m.start()].strip(),
             "content": content,
         }

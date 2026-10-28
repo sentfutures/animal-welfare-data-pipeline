@@ -14,7 +14,7 @@ import pytest
 import pytest_socket
 import yaml
 
-from shared import api, utils
+from shared import api, openai_api, utils
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -190,6 +190,43 @@ class TestSamplingParams:
         seen = self._capture(monkeypatch, "claude-haiku-4-5")
         assert seen["temperature"] == 0.0
 
+    def _capture_with_schema(self, monkeypatch, schema):
+        seen = {}
+
+        class FakeMessages:
+            def create(self, **kwargs):
+                seen.update(kwargs)
+
+        class FakeClient:
+            messages = FakeMessages()
+
+        import importlib
+        real = importlib.reload(api)._call_with_retry
+        kwargs = {} if schema is None else {"json_schema": schema}
+        real(client=FakeClient(), model="claude-haiku-4-5", max_tokens=5, system="", messages=[],
+             temperature=0.0, **kwargs)
+        return seen
+
+    def test_json_schema_is_sent_as_output_config_format(self, monkeypatch):
+        schema = {"type": "object", "properties": {"a": {"type": "integer"}}}
+        seen = self._capture_with_schema(monkeypatch, schema)
+        assert seen["output_config"] == {"format": {"type": "json_schema", "schema": schema}}
+
+    def test_no_schema_leaves_the_request_unchanged(self, monkeypatch):
+        assert "output_config" not in self._capture_with_schema(monkeypatch, None)
+
+    def test_call_claude_forwards_the_schema_only_when_given(self, recorded_api, monkeypatch):
+        seen = []
+
+        def record(client, model, max_tokens, system, messages, temperature, **extra):
+            seen.append(extra)
+            return recorded_api["message"]
+
+        monkeypatch.setattr(api, "_call_with_retry", record)
+        api.call_claude("hi")
+        api.call_claude("hi", json_schema={"type": "object"})
+        assert seen == [{}, {"json_schema": {"type": "object"}}]
+
     def test_nondefault_temperature_on_rejecting_model_warns_once(
         self, recorded_api, monkeypatch, capsys
     ):
@@ -245,7 +282,7 @@ class TestCostTracking:
         api.call_claude("hi", model="claude-sonnet-5", cache_system=True)
         record = json.loads((tmp_path / "cost.jsonl").read_text().strip())
         assert record["cache_read_tokens"] == 1_000_000
-        assert record["cost_usd"] == pytest.approx(0.30)  # 1M * $3/M * 0.10
+        assert record["cost_usd"] == pytest.approx(0.20)  # 1M * $2/M * 0.10
 
     def test_cache_write_tokens_priced_at_125_percent(self, recorded_api, tmp_path, fake_message):
         msg = fake_message(input_tokens=0, output_tokens=0)
@@ -254,7 +291,7 @@ class TestCostTracking:
         api.call_claude("hi", model="claude-sonnet-5", cache_system=True)
         record = json.loads((tmp_path / "cost.jsonl").read_text().strip())
         assert record["cache_creation_tokens"] == 1_000_000
-        assert record["cost_usd"] == pytest.approx(3.75)  # 1M * $3/M * 1.25
+        assert record["cost_usd"] == pytest.approx(2.50)  # 1M * $2/M * 1.25
 
     def test_config_model_is_priced_without_warning(self, recorded_api, tmp_path, fake_message, capsys):
         # Contract from shared/api.py: _PRICING must cover every model id that
@@ -275,7 +312,7 @@ class TestCostTracking:
         def model_values(node):
             if isinstance(node, dict):
                 for key, value in node.items():
-                    if key == "model" or key.endswith("_model"):
+                    if key == "model" or (isinstance(key, str) and key.endswith("_model")):
                         if isinstance(value, str) and value:
                             yield key, value
                     else:
@@ -284,7 +321,8 @@ class TestCostTracking:
         seen = list(model_values(config))
         assert seen, "config.yaml declares no model knobs — did the schema change?"
         for key, model in seen:
-            assert model in api._PRICING, f"config {key}={model} is not in _PRICING"
+            priced = openai_api._PRICING if openai_api.is_openai_model(model) else api._PRICING
+            assert model in priced, f"config {key}={model} is not in its pricing table"
 
     def test_unknown_model_falls_back_to_sonnet_rates_with_warning(self, recorded_api, tmp_path, fake_message, capsys):
         recorded_api["message"] = fake_message(input_tokens=1_000_000, output_tokens=0)
@@ -515,6 +553,50 @@ class TestRunClaudeCodeQuery:
         assert (in_tok, out_tok) == (120, 34)
         assert cost == pytest.approx(0.0021)
         assert stop == "end_turn"
+
+    def test_json_schema_passes_output_format_and_returns_structured_output(self, monkeypatch):
+        captured = {}
+
+        async def fake_query(*, prompt, options):
+            captured["output_format"] = options.output_format
+            yield self._assistant("I need to flag an issue before answering...")  # free-text preamble
+            yield self._result(result='{"ignored": true}', structured_output={"specifications": [1]},
+                               usage={"input_tokens": 1, "output_tokens": 1}, stop_reason="end_turn")
+
+        pytest.importorskip("claude_agent_sdk")
+        monkeypatch.setattr("claude_agent_sdk.query", fake_query)
+        schema = {"type": "object", "properties": {"specifications": {"type": "array"}}}
+        text, *_ = api._run_claude_code_query("claude-haiku-4-5", "sys", "hi", json_schema=schema)
+        assert captured["output_format"] == {"type": "json_schema", "schema": schema}
+        assert json.loads(text) == {"specifications": [1]}  # structured_output, never the preamble
+
+    def test_json_schema_without_structured_output_falls_back_to_result_not_text_blocks(self, monkeypatch):
+        self._install_query(monkeypatch, [
+            self._assistant("free-text preamble"),
+            self._result(result="the prose result", usage={"input_tokens": 1, "output_tokens": 1}),
+        ])
+        text, *_ = api._run_claude_code_query(
+            "claude-haiku-4-5", "sys", "hi", json_schema={"type": "object"})
+        assert text == "the prose result"
+        self._install_query(monkeypatch, [
+            self._assistant("free-text preamble"),
+            self._result(result=None, usage={"input_tokens": 1, "output_tokens": 1}),
+        ])
+        text, *_ = api._run_claude_code_query(
+            "claude-haiku-4-5", "sys", "hi", json_schema={"type": "object"})
+        assert text == ""  # the caller's validation rejects it
+
+    def test_no_schema_sets_no_output_format(self, monkeypatch):
+        captured = {}
+
+        async def fake_query(*, prompt, options):
+            captured["output_format"] = options.output_format
+            yield self._result(result="x", usage={"input_tokens": 1, "output_tokens": 1})
+
+        pytest.importorskip("claude_agent_sdk")
+        monkeypatch.setattr("claude_agent_sdk.query", fake_query)
+        api._run_claude_code_query("claude-haiku-4-5", "sys", "hi")
+        assert captured["output_format"] is None
 
     def test_result_none_falls_back_to_joined_assistant_text(self, monkeypatch):
         self._install_query(monkeypatch, [
