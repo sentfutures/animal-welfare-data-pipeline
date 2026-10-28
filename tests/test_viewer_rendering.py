@@ -424,3 +424,18 @@ class TestSdfStageTemplates:
                 r = rendering.render_prompt("sdf", stage, run, manifest, self._lineage())
                 assert f"BODY OF {want}" in (r.user or ""), (stage, want, names)
                 assert want in [t.name for t in r.template_sources]
+
+
+
+def test_principles_follow_the_active_profile(tmp_path, monkeypatch):
+    """A human-profile run's step-3 prompt shows the human principles file
+    from its own snapshot, not the animal one."""
+    from dad_pipeline import profiles
+    snap = tmp_path / "inputs" / "constitution"
+    snap.mkdir(parents=True)
+    (snap / "constitution_principles.csv").write_text("animal")
+    (snap / "constitution_principles_human.csv").write_text("human")
+    assert rendering.get_constitution(tmp_path, None, "principles").text == "animal"
+    profiles.use("human")
+    t = rendering.get_constitution(tmp_path, None, "principles")
+    assert (t.name, t.text) == ("constitution_principles_human.csv", "human")

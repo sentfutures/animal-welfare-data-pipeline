@@ -11,7 +11,7 @@ import pytest
 
 from dad_pipeline import compose_scenarios as cs, profiles, step1_dilemmas, step2_responses
 from dad_pipeline import run as dad_run
-from dad_pipeline.profiles import animal
+from dad_pipeline.profiles import animal, human
 from shared import constitution_loader
 
 
@@ -109,3 +109,61 @@ class TestResumeKeepsTheRunsProfile:
         dad_run._refuse_profile_change(self._manifest(tmp_path, {"dad": {"profile": "animal"}}), "animal")
         dad_run._refuse_profile_change(self._manifest(tmp_path, {"dad": {}}), "animal")   # predates profiles
         dad_run._refuse_profile_change(tmp_path / "missing", "animal")                    # no manifest
+
+
+class TestHumanProfile:
+    """The human-ethics profile mirrors the animal one table by table; these
+    pin the mirror so the two cannot drift apart silently."""
+
+    def test_registered_and_points_at_its_own_locations(self):
+        assert profiles.get("human") is human
+        assert profiles.prompts_dir(human).name == "dad_human"
+        assert human.OUTPUT_SUBDIR == "dad_human"
+
+    def test_tables_have_the_animal_profiles_shape(self):
+        assert set(human.LABELS) == set(animal.LABELS)
+        assert [k for k, _ in human.SCOPE_AXES] == [k for k, _ in animal.SCOPE_AXES]
+        assert len(human.TAXA) == len(animal.TAXA)
+        assert len(human.CHECKLIST_MANUAL) == len(animal.CHECKLIST_MANUAL)
+        assert human.ARCHETYPE_TOTAL_CAP == animal.ARCHETYPE_TOTAL_CAP
+        assert sorted(a["share"] for a in human.ARCHETYPES.values()) == \
+            sorted(a["share"] for a in animal.ARCHETYPES.values())
+
+    def test_variables_mirror_the_animal_axes(self):
+        def axes(profile):
+            text = (profiles.prompts_dir(profile) / "variables.txt").read_text(encoding="utf-8")
+            return [line.split("}")[0] + "}" for line in text.splitlines() if line.startswith("{")]
+        assert axes(human) == axes(animal)
+
+    def test_a_full_run_deals_cleanly(self, monkeypatch):
+        # validation resolves every TAXA key and archetype prefix against the
+        # human variables file; a clean 200-deal also means no archetype had
+        # to overwrite cards to fill its quota
+        monkeypatch.setattr(profiles, "_current", human)
+        deals = cs.deal_scenarios(200, random.Random(0),
+                                  variables_path=profiles.prompts_dir(human) / "variables.txt")
+        assert len(deals) == 200
+        assert {d["taxa_category"] for d in deals} == set(human.TAXA)
+        assert set(d["archetype"] for d in deals) - {None} == set(human.ARCHETYPES)
+        assert not any(d.get("archetype_overwrites") for d in deals)
+        assert all(d["anchor_value_pair"].startswith(f"{human.ANCHOR_VALUE} ↔ ") for d in deals)
+
+    def test_library_and_principles_load(self):
+        from dad_pipeline import reasoning_library
+        ids = reasoning_library.all_ids(reasoning_library.load(profiles.prompts_dir(human)))
+        animal_ids = reasoning_library.all_ids(reasoning_library.load(profiles.prompts_dir(animal)))
+        assert ids == animal_ids                    # same entries under the same ids
+        rows = constitution_loader.load_principles(filename=human.PRINCIPLES_FILENAME)
+        block = constitution_loader.format_principles(rows)
+        assert len(rows) == len(constitution_loader.load_principles())
+        assert all(r["principle"] in block and r["application"] in block for r in rows)
+
+    def test_step_templates_mirror_the_animal_placeholders(self):
+        import re
+        for animal_file in sorted(profiles.prompts_dir(animal).glob("step*.txt")):
+            if animal_file.name == "step3_score.txt":     # not consumed by the pipeline
+                continue
+            human_file = profiles.prompts_dir(human) / animal_file.name
+            assert human_file.exists(), human_file.name
+            slots = lambda p: sorted(re.findall(r"\{(\w+)\}", p.read_text(encoding="utf-8")))
+            assert slots(human_file) == slots(animal_file), animal_file.name

@@ -19,6 +19,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT = "animal"
 PROFILES = {
     "animal": "dad_pipeline.profiles.animal",
+    "human": "dad_pipeline.profiles.human",
 }
 
 _current: ModuleType | None = None

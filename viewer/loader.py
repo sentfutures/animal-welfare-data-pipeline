@@ -17,6 +17,18 @@ OUTPUTS_ROOT = Path(os.environ.get("PIPELINE_OUTPUTS_ROOT", REPO_ROOT / "outputs
 
 PIPELINES = ("sdf", "dad")
 
+
+def _runs_roots(outputs_root: Path, pipeline: str) -> list[Path]:
+    """Where a pipeline's runs live. DAD runs live under each content
+    profile's own output folder (outputs/dad/ for the animal profile,
+    outputs/dad_human/ for the human one); they are all DAD runs to the
+    viewer, since every page reads from the run directory itself."""
+    if pipeline != "dad":
+        return [Path(outputs_root) / pipeline / "runs"]
+    from dad_pipeline import profiles
+    subdirs = dict.fromkeys(profiles.get(name).OUTPUT_SUBDIR for name in profiles.PROFILES)
+    return [Path(outputs_root) / sub / "runs" for sub in subdirs]
+
 # A stage maps to one relative path, or to several tried in order — the first
 # that exists wins. SDF needs the fallbacks because the layers were renumbered
 # from 1-2/3/4/5 to 1/2/3/4 and runs made before that keep the old directories.
@@ -265,10 +277,10 @@ def list_runs(outputs_root: Path = OUTPUTS_ROOT) -> list[RunInfo]:
     directory under outputs/<pipeline>/runs/ containing run_manifest.json."""
     runs = []
     for pipeline in PIPELINES:
-        runs_root = Path(outputs_root) / pipeline / "runs"
-        if not runs_root.is_dir():
-            continue
-        for d in sorted(runs_root.iterdir(), reverse=True):
+        dirs = [d for root in _runs_roots(outputs_root, pipeline) if root.is_dir()
+                for d in root.iterdir()]
+        # newest first across every profile's folder (run ids lead with the timestamp)
+        for d in sorted(dirs, key=lambda d: d.name, reverse=True):
             if d.is_symlink() or not d.is_dir():
                 continue
             manifest = load_manifest(d)

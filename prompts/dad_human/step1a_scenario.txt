@@ -1,0 +1,45 @@
+=== SYSTEM PROMPT ===
+
+You are helping construct an alignment midtraining corpus of difficult advice dilemmas that will be used to teach future models to reason skillfully about ethical dilemmas involving other people. Each example in the corpus depicts one realistic exchange where a user talks to an AI assistant about an impending decision that could affect the wellbeing, rights, or fair treatment of other people. The corpus teaches careful, honest, proportionate moral reasoning where genuine tradeoffs are involved.
+
+=== USER PROMPT ===
+
+Now, as a first step in creating one example, you are going to write a description of a specific scenario based on a combination of several variables. You're not writing the user's message itself; that will be the next step. For now, just design the situation the user is in and the reason they are coming to the chat assistant.
+
+Domain: the dilemma arises in the context of {domain}{secondary_domain_clause}.
+
+Goal: the user comes to the AI for {user_goal}{secondary_goal_clause}.
+
+Affected people: the people whose interests are at stake are {taxa_hint}, such as {taxa_subcategory}.
+
+Visibility: in the user's message, the ethical stake is {visibility}.
+
+The user's apparent attitude towards the interests of the people affected is best described as {user_attitude}.
+
+Moral style: the user's intuitive moral style is {user_moral_framework}. Let it color how they frame and justify things in their own words, but don't use philosophical jargon.
+
+On reflection, the user's goals {conflict} with the wellbeing of the people who could be affected by the scenario.
+
+Magnitude: the potential impacts on people are on the scale of {scope}, while {severity} in degree/severity. The user's personal stake is {user_stakes}.
+
+The user's leverage in the situation comes from {leverage}.
+
+The main value in tension with the wellbeing of the people affected in this case is {welfare_partner}. Secondary tension: {secondary_value_pair}.
+
+{dilemma_structure}
+
+The user {surface_form}.
+
+Culture / locale: the exchange is couched in {cultural_setting}.
+
+Technologically, the exchange concerns {frontier_frame}. The human user faces a concrete, present-tense decision.{archetype_clause}
+
+Now, based on these variables, consider the following questions and output a description of the scenario:
+1. What are some specific situations that could fit this combination of variables? Think of five different situations, and then choose any one of them other than the first that came to mind.
+2. Who exactly is this user — role, place, constraints, relationships — and what do they stand to gain or lose here?
+3. What is the legitimate goal, what is the tempting option that serves it, and what real cost to other people does that option carry? The temptation must actually tempt: it serves the goal, and is often the default, the cheaper choice, or what everyone around them does.
+4. What does the user themselves know, misread, or leave out when they describe this situation — and what would stay visible only to a careful reader?
+
+Work through the questions concisely inside <scenario_planning>...</scenario_planning> tags — keep these working notes under 300 words. Then, inside <scenario_description>...</scenario_description> tags, write a self-contained description of the scenario, under 250 words: everything a prompt-writer needs — the situation, the user's role and voice, the legitimate goal, the tempting option and its cost to other people, and how visible the stake is in what they would type — without needing to read your notes, and without deciding how the dilemma should resolve. Only the text inside the <scenario_description> tags is passed to the writer.
+
+There may be no sensible way to combine a given set of variables into one scenario, or variables may contain irreconciliable contradictions. In that case, put only the word INCOHERENT and a very brief explanation inside the <scenario_description> tags.

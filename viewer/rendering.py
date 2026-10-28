@@ -23,6 +23,7 @@ from dad_pipeline import compose_scenarios, reasoning_library
 from dad_pipeline.step1_dilemmas import format_scenario_cards, format_scenario, dealt_cards
 from shared import matrix
 from dad_pipeline.step2_responses import SELECT_CALL_SOURCES, format_scope
+from dad_pipeline import profiles
 from shared import constitution_loader
 from viewer.loader import REPO_ROOT, load_stage
 
@@ -122,6 +123,8 @@ def get_constitution(run_dir: Path, git_commit: str | None, which: str) -> Templ
         return Template("constitution (full)", joined, source)
 
     filename = _CONSTITUTION_FILES[which]
+    if which == "principles":   # each DAD profile names its own principles file
+        filename = profiles.current().PRINCIPLES_FILENAME
     snap = Path(run_dir) / "inputs" / "constitution" / filename
     if snap.exists():
         return Template(filename, snap.read_text(encoding="utf-8"), "snapshot")

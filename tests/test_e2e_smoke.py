@@ -181,6 +181,38 @@ def test_dad_pipeline_end_to_end_offline(tiny_config_file, outputs_root, stub_cl
     assert len(calls) == 9 * N_DAD_PROMPTS
 
 
+def test_dad_human_profile_end_to_end_offline(tiny_config, tmp_path, outputs_root,
+                                             stub_claude, monkeypatch):
+    """dad.profile: human runs the same pipeline on the human-ethics content:
+    its own run tree, its own prompt snapshot, its library and principles."""
+    from dad_pipeline import profiles
+
+    human_cfg = {**tiny_config, "dad": {**tiny_config["dad"], "profile": "human"}}
+    config_file = tmp_path / "config_human.yaml"
+    config_file.write_text(yaml.safe_dump(human_cfg))
+    calls = stub_claude(_dad_dispatch)
+    _run_main(monkeypatch, dad_run.main, config_file)
+
+    assert not (outputs_root / "dad").exists()
+    runs = [d for d in (outputs_root / "dad_human" / "runs").iterdir() if d.is_dir()]
+    assert len(runs) == 1
+    run_dir = runs[0]
+    snapshot = (run_dir / "inputs" / "prompts" / "variables.txt").read_text(encoding="utf-8")
+    assert "0.095 :: workers" in snapshot          # the human matrix was frozen, not the animal one
+    corpus = utils.load_jsonl(run_dir / "final" / "dad_corpus.jsonl")
+    assert len(corpus) == N_DAD_PROMPTS
+    taxa = set(profiles.get("human").TAXA)
+    assert all(r["variables"]["taxa_category"] in taxa for r in corpus)
+    assert all(r["variables"]["anchor_value_pair"].startswith("others' wellbeing ↔ ")
+               for r in corpus)
+    # step 3 was handed the human principles, not the animal ones
+    rewrite = [c for c in calls if "rewrite a draft assistant response" in (c["system_prompt"] or "")]
+    assert len(rewrite) == N_DAD_PROMPTS
+    assert all("Being ethical outranks being helpful" in c["system_prompt"] for c in rewrite)
+    assert not any("welfare_application" in c["system_prompt"] for c in rewrite)
+    assert len(calls) == 9 * N_DAD_PROMPTS
+
+
 def test_dad_baseline_disabled_makes_no_baseline_calls(
     tiny_config, outputs_root, stub_claude, monkeypatch, tmp_path
 ):
