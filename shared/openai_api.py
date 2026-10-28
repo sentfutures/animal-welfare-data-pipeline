@@ -5,8 +5,10 @@ Used by stages whose configured model name starts with ``gpt-`` (see
 ``input``, ``reasoning.effort``, and strict ``json_schema`` structured output.
 Temperature is 1; ``top_p`` is not sent (gpt-6.1-sol rejects it, and its default is 1).
 
-The key is read from the process environment only (``OPENAI_API_KEY``), and only when an
-OpenAI model is actually called. Nothing here loads a ``.env`` file.
+The key is read from the process environment (``OPENAI_API_KEY``), and only when an
+OpenAI model is actually called. This module does not load a ``.env`` file itself, but
+``shared.api`` calls ``load_dotenv()`` at import, so a key in ``.env`` also reaches the
+environment in real runs.
 
 Every call is appended to the pipeline's cost log (``shared.api._log_usage``) in the same
 record shape as Claude calls, with backend ``openai`` plus a ``reasoning_tokens`` field.
@@ -50,7 +52,7 @@ def _get_client() -> openai.OpenAI:
                 raise RuntimeError(
                     "An OpenAI model is configured (a model name starting with 'gpt-') but "
                     "OPENAI_API_KEY is not set in the process environment. Export it in the "
-                    "shell that runs the pipeline; this pipeline does not read it from a .env file."
+                    "shell that runs the pipeline, or put it in .env (loaded when shared.api is imported)."
                 )
             # Accept-Encoding gzip works around a decompression bug in some httpx versions.
             # max_retries=0 because tenacity below does the retries, so every attempt is counted.
