@@ -544,3 +544,29 @@ def test_drafts_are_found_next_to_the_corpus_of_an_sdf_run(tmp_path):
     corpus = tmp_path / "some_run" / "final" / "sdf_corpus.jsonl"
     assert postprocess.default_drafts_path(corpus) == utils.sdf_stage_file(tmp_path / "some_run", "draft")
     assert postprocess.default_drafts_path(tmp_path / "loose_corpus.jsonl") is None
+
+
+def test_item_summary_sorts_items_numerically_not_as_strings():
+    records = [{"doc_id": "d", "pass": "moral_considerations", "parsed_result": {"items": {
+        "item_10_late": {"occurrences": []}, "item_2_early": {"occurrences": []},
+        "item_1_first": {"occurrences": []}}}}]
+    summary = postprocess.build_item_summary([], records)
+    assert [entry["item_key"] for entry in summary] == ["item_1_first", "item_2_early", "item_10_late"]
+
+
+def test_command_line_prints_the_summary_path_only_when_it_was_written(tmp_path, monkeypatch, capsys):
+    import runpy
+    import sys
+    corpus_path = tmp_path / "synthetic_corpus.jsonl"
+    corpus_path.write_text("")
+    run_folder = tmp_path / "synthetic_run_without_records"
+    run_folder.mkdir()
+    (run_folder / "run_configuration_2026-01-01_00-00.json").write_text(
+        json.dumps({"corpus_path": str(corpus_path), "passes": ["moral_considerations"]}))
+    monkeypatch.setattr(sys, "argv", ["shoehorning_audit_postprocess_sdf", str(run_folder),
+                                      "--drafts-path", str(tmp_path / "nonexistent_drafts.jsonl")])
+    runpy.run_module("evals.shoehorning_audit_postprocess_sdf", run_name="__main__")
+    printed = capsys.readouterr().out
+    assert "summary ->" not in printed
+    assert not list(run_folder.glob("per_item_summary_*.csv"))
+    assert "occurrences ->" in printed

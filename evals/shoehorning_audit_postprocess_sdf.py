@@ -95,7 +95,7 @@ def build_item_summary(rows, records):
             if (record["pass"], item_key) not in item_order:
                 item_order.append((record["pass"], item_key))
     summary = []
-    for pass_name, item_key in sorted(item_order, key=lambda pair: pair[1]):
+    for pass_name, item_key in sorted(item_order, key=lambda pair: int(pair[1].split("_")[1])):
         item_rows = [r for r in rows if r["item_key"] == item_key and r["pass"] == pass_name]
         documents_with_item = len({r["doc_id"] for r in item_rows})
         corpus_size = len(documents_per_pass[pass_name])
@@ -259,7 +259,9 @@ if __name__ == "__main__":
     parser.add_argument("--drafts-path", default=None,
                         help="Draft stage output (default: found next to the corpus)")
     arguments = parser.parse_args()
-    occurrences_path, summary_path, rows, _ = postprocess_run_folder(arguments.run_folder, arguments.drafts_path)
-    print(f"{len(rows)} occurrences -> {occurrences_path}\nsummary -> {summary_path}")
+    occurrences_path, summary_path, rows, summary = postprocess_run_folder(arguments.run_folder, arguments.drafts_path)
+    print(f"{len(rows)} occurrences -> {occurrences_path}")
+    if summary:  # the per-item summary file is only written when there is something to summarise
+        print(f"summary -> {summary_path}")
     for label, path in postprocess_run_folder.last_output_paths.items():
         print(f"{label} -> {path}")
