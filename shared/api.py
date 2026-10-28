@@ -59,7 +59,7 @@ _record_model_calls = True
 # Pricing per million tokens (input, output) for known models
 # Prices per million tokens (input, output). Keys must cover every model id
 # (or alias) that can appear in config.yaml — unknown models fall back to
-# Sonnet rates WITH A WARNING, which can badly misstate real spend (a Haiku
+# a fixed $3/$15 estimate WITH A WARNING, which can badly misstate real spend (a Haiku
 # run was overreported 3x this way). The Anthropic console is the source of
 # truth for billing; this log is for per-stage breakdowns.
 _PRICING = {
@@ -195,7 +195,7 @@ def _log_usage(
                 _UNPRICED_WARNED.add(model)
                 print(
                     f"  WARNING: model {model!r} is not in shared/api.py _PRICING — "
-                    "estimating cost at Sonnet rates ($3/$15 per MTok). Add the model "
+                    "estimating cost at the fallback rate ($3 input / $15 output per million tokens). Add the model "
                     "to _PRICING for accurate cost logs.",
                     file=sys.stderr,
                 )
