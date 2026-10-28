@@ -145,3 +145,21 @@ def test_stage_does_not_checkpoint_truncated_openai_answers_and_resume_retries_t
     assert len(resumed_calls) == 1  # only the truncated plan is retried
     assert len(rewrite.load_results(stage_dir)) == 3
     assert {r["backend"] for r in logged_records(cost_log)} == {"openai"}
+
+
+def test_layer_one_stops_before_any_paid_call_when_the_openai_key_is_missing(monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    config = {"sdf": {"description_rewrite_enabled": True, "description_rewrite_model": "gpt-6.1-sol"}}
+    with pytest.raises(SystemExit, match="OPENAI_API_KEY"):
+        rewrite.require_openai_key_if_configured(config)
+
+
+def test_the_openai_key_check_passes_with_a_key_or_when_it_does_not_apply(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "fake-key")
+    rewrite.require_openai_key_if_configured(
+        {"sdf": {"description_rewrite_enabled": True, "description_rewrite_model": "gpt-6.1-sol"}})
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    rewrite.require_openai_key_if_configured(
+        {"sdf": {"description_rewrite_enabled": False, "description_rewrite_model": "gpt-6.1-sol"}})
+    rewrite.require_openai_key_if_configured(
+        {"sdf": {"description_rewrite_enabled": True, "description_rewrite_model": "claude-sonnet-5"}})

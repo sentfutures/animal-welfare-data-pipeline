@@ -95,6 +95,7 @@ def main() -> None:
     plans = drafts = rewrites = None
 
     if start_layer <= 1:
+        layer1_description_rewrite.require_openai_key_if_configured(config)
         print("[Layer 1] Deal hands and screen them for extreme implausibility (with redeals)")
         hands = layer1_screen.run(config, prompts_dir, plan_dir)
         print("[Layer 1] Compose prompts + plan documents")

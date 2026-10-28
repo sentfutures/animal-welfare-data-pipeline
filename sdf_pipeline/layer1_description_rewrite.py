@@ -43,6 +43,7 @@ later stages assign over the whole plan set and a resume retries them.
 
 import copy
 import json
+import os
 import sys
 import time
 from dataclasses import dataclass
@@ -228,6 +229,22 @@ def apply_results(plans: list[dict], results: dict[str, dict]) -> list[dict]:
 
 def enabled(config: dict) -> bool:
     return bool(config["sdf"].get("description_rewrite_enabled", True))
+
+
+def require_openai_key_if_configured(config: dict) -> None:
+    """Exit before any paid call when the rewrite is enabled, routed to an OpenAI model
+    (a ``gpt-`` model name) and no ``OPENAI_API_KEY`` is available. Without this, the
+    Claude screen and plan calls are paid for before the first rewrite call fails."""
+    if not enabled(config):
+        return
+    sdf = config["sdf"]
+    model = sdf.get("description_rewrite_model") or sdf.get("plan_model")
+    if openai_api.is_openai_model(model) and not os.environ.get("OPENAI_API_KEY"):
+        raise SystemExit(
+            f"sdf.description_rewrite_model is '{model}', an OpenAI model, so layer 1 needs "
+            "OPENAI_API_KEY (in the shell environment or in .env), and it is not set. "
+            "Set it, or set sdf.description_rewrite_enabled: false to skip the description "
+            "rewrite. Stopping before any paid call.")
 
 
 def load_rewritten_plans(config: dict, output_dir: Path, plans: list[dict]) -> list[dict]:
