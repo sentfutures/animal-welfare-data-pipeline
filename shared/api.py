@@ -37,7 +37,7 @@ from tenacity import (
     retry_if_exception_type,
 )
 
-from shared.api_keys import load_api_key
+from shared.api_keys import hide_environment_value_unless_environment_is_allowed, load_api_key, load_optional_api_key
 
 _config: dict = {}
 _client: anthropic.Anthropic | None = None
@@ -81,6 +81,11 @@ _CACHE_READ_MULTIPLIER_BY_MODEL = {
 _UNPRICED_WARNED: set = set()
 
 _BACKENDS = ("api", "claude_code", "auto")
+
+# The `claude setup-token` token for the claude_code subprocess, loaded through
+# shared/api_keys.py by init() for the claude_code and auto backends (None = not
+# configured, so the CLI uses its own login). Never printed.
+_claude_code_oauth_token: str | None = None
 
 # auto backend: why the subscription path is currently out of play (None =
 # still in play). Set once per run, loudly — after a demotion every remaining
@@ -144,7 +149,7 @@ class ClaudeCodeRefusal(Exception):
 
 
 def init(config_path: str = "config.yaml", cost_log_path: str | Path | None = None) -> None:
-    global _config, _client, _cost_log_path, _backend, _cc_demoted, _record_model_calls
+    global _config, _client, _cost_log_path, _backend, _cc_demoted, _record_model_calls, _claude_code_oauth_token
     with open(config_path, encoding="utf-8") as f:
         _config = yaml.safe_load(f)
     _backend = _config.get("backend", "api")
@@ -157,6 +162,16 @@ def init(config_path: str = "config.yaml", cost_log_path: str | Path | None = No
     # calls (the DAD baseline arm) that claude_code cannot reproduce exactly.
     if _backend in ("api", "auto"):
         load_api_key("ANTHROPIC_API_KEY")   # raises MissingApiKeyError (a KeyError) naming the .env path
+    # The claude_code subprocess reads CLAUDE_CODE_OAUTH_TOKEN, optional because an interactive
+    # Claude Code login also works. Load it through the same source rules as the other keys
+    # (repo-root .env by default; --find-dotenv adds the environment) and hand it to the
+    # subprocess explicitly. In the default mode an exported token is hidden from the process, so
+    # the environment is never used there; the .env value reaches the subprocess through
+    # _run_claude_code_query's options instead.
+    _claude_code_oauth_token = None
+    if _backend in ("claude_code", "auto"):
+        _claude_code_oauth_token = load_optional_api_key("CLAUDE_CODE_OAUTH_TOKEN")
+        hide_environment_value_unless_environment_is_allowed("CLAUDE_CODE_OAUTH_TOKEN")
     _client = None  # constructed lazily; the claude_code backend needs no API key
     _cost_log_path = Path(cost_log_path or _config["outputs"]["cost_log"])
     _cost_log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -555,9 +570,12 @@ def _run_claude_code_query(
         permission_mode="default",
         # Blank out any key loaded from .env so the subprocess can't silently
         # bill the shared API key — Claude Code treats an empty value as unset
-        # and falls back to its own login / CLAUDE_CODE_OAUTH_TOKEN.
+        # and falls back to its own login / CLAUDE_CODE_OAUTH_TOKEN (added below
+        # when init() loaded one through shared/api_keys.py).
         env={"ANTHROPIC_API_KEY": "", "ANTHROPIC_AUTH_TOKEN": ""},
     )
+    if _claude_code_oauth_token is not None:
+        option_kwargs["env"]["CLAUDE_CODE_OAUTH_TOKEN"] = _claude_code_oauth_token
     option_kwargs["thinking"] = _thinking_config(model)
     effort = _hidden_thinking_effort(model)
     if effort is not None:
@@ -598,7 +616,8 @@ def _run_claude_code_query(
         raise RuntimeError(
             "backend 'claude_code' requires the Claude Code CLI "
             "(https://claude.com/claude-code); install it, then log in "
-            "or set CLAUDE_CODE_OAUTH_TOKEN from `claude setup-token`."
+            "or put CLAUDE_CODE_OAUTH_TOKEN from `claude setup-token` in the repo-root .env "
+            "(or export it and pass --find-dotenv)."
         ) from e
     except Exception as e:  # CLI failures surface as assorted exception types
         raise _classify_claude_code_error(str(e)) from e
