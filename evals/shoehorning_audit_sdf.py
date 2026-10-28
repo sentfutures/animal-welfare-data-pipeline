@@ -419,7 +419,7 @@ def main(argv=None):
     timestamp = timestamp_now()
     configuration = build_run_configuration(arguments.passes, arguments.reasoning_effort, corpus_path)
     if is_resume:
-        check_resume_is_compatible(run_folder, configuration, compared_settings=("reasoning_effort",))
+        check_resume_is_compatible(run_folder, configuration, compared_settings=("model", "reasoning_effort"))
     write_run_configuration(run_folder, timestamp, configuration)
 
     pass_definitions = [PassDefinition(name) for name in arguments.passes]

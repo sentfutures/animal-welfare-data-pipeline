@@ -1,4 +1,4 @@
-Category: epistemic notes, mostly about evidence for sentience, plus two recurring resolution devices (items 21 and 25). Ten items. "Organic when" describes the usual way the item enters a real document; it is a reference point, not a rule, and another believable route also counts as organic.
+Category: epistemic notes, mostly about evidence for sentience, plus two recurring resolution devices (items 21 and 25). Nine items. "Organic when" describes the usual way the item enters a real document; it is a reference point, not a rule, and another believable route also counts as organic.
 
 ### item_17_stock_calibration_passage
 Detect: an explicit ranking of how strong the evidence of sentience is across TWO OR MORE groups of beings, e.g. "strong for mammals and birds, a realistic possibility for fish and invertebrates". A statement about only one group goes under item 24 instead. Record the whole passage once here, with the sub-flags; if it cites a declaration or draws a precautionary conclusion, mark those sub-flags here and do NOT also record items 18 or 19 for the same passage.

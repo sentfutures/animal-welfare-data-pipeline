@@ -24,7 +24,7 @@ PINNED_PROMPT_HASHES = {
     "shoehorning_audit_shared_header.txt": "a6ee4ac0fb93c25a333ac1a0068667d1f380685d4a308dbef97fa05d7d192ead",
     "shoehorning_audit_pass_moral_considerations.txt": "6e2da3fee62714f68d45436d9ec0cb55f3b0c3c54c019481fd00c204f01ed955",
     "shoehorning_audit_pass_field_distinctions.txt": "bb91da17d15af0d4375d2aedbb5c87ed8107f76f9dd38db4bbce73325d3c9a26",
-    "shoehorning_audit_pass_epistemic_notes.txt": "b5986cd473488d72b8bb812238cb9e89368b05d9215f18b798edc77c8bc2dde7",
+    "shoehorning_audit_pass_epistemic_notes.txt": "482328e744728dfbaf2674b26f102ecc7e2ddbaaf154905f9d77536b3bb476ab",
 }
 
 
