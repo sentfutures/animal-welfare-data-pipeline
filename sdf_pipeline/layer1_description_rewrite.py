@@ -51,6 +51,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from shared import api, openai_api, utils
+from shared.api_keys import FIND_DOTENV_FLAG, load_optional_api_key
 from sdf_pipeline import compose_prompts as cp
 
 STAGE_TAG = "layer1_description_rewrite"
@@ -228,6 +229,23 @@ def apply_results(plans: list[dict], results: dict[str, dict]) -> list[dict]:
 
 def enabled(config: dict) -> bool:
     return bool(config["sdf"].get("description_rewrite_enabled", True))
+
+
+def require_openai_key_if_configured(config: dict) -> None:
+    """Exit before any paid call when the rewrite is enabled, routed to an OpenAI model
+    (a ``gpt-`` model name) and no ``OPENAI_API_KEY`` is available. Without this, the
+    Claude screen and plan calls are paid for before the first rewrite call fails."""
+    if not enabled(config):
+        return
+    sdf = config["sdf"]
+    model = sdf.get("description_rewrite_model") or sdf.get("plan_model")
+    if openai_api.is_openai_model(model) and load_optional_api_key("OPENAI_API_KEY") is None:
+        raise SystemExit(
+            f"sdf.description_rewrite_model is '{model}', an OpenAI model, so layer 1 needs "
+            "OPENAI_API_KEY, and the configured key source has none (by default only the repo "
+            f"root's .env is read; pass {FIND_DOTENV_FLAG} to search upward and then use the "
+            "environment). Set it, or set sdf.description_rewrite_enabled: false to skip the "
+            "description rewrite. Stopping before any paid call.")
 
 
 def load_rewritten_plans(config: dict, output_dir: Path, plans: list[dict]) -> list[dict]:
