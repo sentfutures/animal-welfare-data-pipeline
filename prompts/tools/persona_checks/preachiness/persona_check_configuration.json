@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "persona_set_name": "preachiness",
+  "persona_name": "preachy",
+  "condition_groups": {
+    "target": {
+      "condition_group": "preachy",
+      "display_name": "preachy",
+      "expected_rewording_count": 30
+    },
+    "topic_control": {
+      "condition_group": "control",
+      "display_name": "topic controls without a moral stance",
+      "expected_persona_count": 5,
+      "expected_rewordings_per_persona": 5
+    },
+    "same_values_control": {
+      "condition_group": "same_values_control",
+      "display_name": "same-values controls",
+      "expected_persona_count": 3,
+      "expected_rewordings_per_persona": 5
+    }
+  },
+  "rewrite_directions": {
+    "toward": {"name": "preachier"},
+    "away": {"name": "plainer"},
+    "neutral": {"name": "register_shift"}
+  },
+  "pass_criteria": {
+    "status": "Values used in the first preachiness run, fixed before that run was scored.",
+    "whole_document": {
+      "applies_to_directions": ["toward", "away"],
+      "minimum_number_moving_expected_way": 8,
+      "number_of_rewrites_tested_per_direction": 10
+    },
+    "changed_span": {
+      "applies_to_directions": ["toward", "away"],
+      "minimum_number_moving_expected_way": 8,
+      "number_of_rewrites_tested_per_direction": 10
+    }
+  }
+}

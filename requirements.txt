@@ -1,6 +1,6 @@
 anthropic>=0.96.0
 claude-agent-sdk>=0.2.0  # backend: claude_code — also requires the Claude Code CLI
-scipy>=1.11  # linear programme that assigns considerations to documents (sdf_pipeline/considerations_assignment.py)
+scipy>=1.11  # Used by persona checks and consideration assignment
 numpy>=1.26  # shared/textstats.py, shared/embeddings.py, evals/diversity.py
 pandas>=2.2
 pyyaml>=6.0
