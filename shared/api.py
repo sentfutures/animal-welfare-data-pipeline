@@ -178,6 +178,16 @@ def init(config_path: str = "config.yaml", cost_log_path: str | Path | None = No
     _record_model_calls = cost_log_path is not None
 
 
+def init_cost_log_only(cost_log_path: str | Path) -> None:
+    """Point the cost log (and the model-call log beside it) at ``cost_log_path`` without reading
+    config.yaml or needing an Anthropic key. For callers that only make OpenAI calls through
+    shared/openai_api.py (the model-judged audits in evals/)."""
+    global _cost_log_path, _record_model_calls
+    _cost_log_path = Path(cost_log_path)
+    _cost_log_path.parent.mkdir(parents=True, exist_ok=True)
+    _record_model_calls = True
+
+
 def _get_client() -> anthropic.Anthropic:
     global _client
     if _client is None:

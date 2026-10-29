@@ -12,6 +12,7 @@ openai>=1.66  # Responses API (client.responses.create) for gpt- stages (shared/
 tiktoken>=0.7  # token-accurate truncation for embeddings (shared/embeddings.py)
 wordfreq>=3.0  # background English frequencies for the phrase-tic audit (evals/audit_dad.py)
 huggingface_hub>=0.25  # dataset publishing (evals/publish_hf.py)
+rapidfuzz>=3.0  # fast quote matching in the model-judged audits (evals/model_judged_audit_support.py); optional, falls back to difflib
 
 # Test-only (inert outside pytest runs)
 pytest>=8.0
