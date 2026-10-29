@@ -1486,9 +1486,28 @@ class TestStep3Run:
         assert audit[0]["response_gid"] == "R-0007"
         # the distilled principles reach the rewrite prompt; the annotation
         # deliberately does not (it anchors nothing after step 1)
-        assert "CONSTITUTION PRINCIPLES" in calls[0]["system_prompt"]
+        assert "CHARTER PRINCIPLES" in calls[0]["system_prompt"]
+        assert 'Charter: "' in calls[0]["system_prompt"]
         assert "Direction: Mixed" not in calls[0]["user_message"]
         assert "Direction: Mixed" not in (calls[0]["system_prompt"] or "")
+
+    def test_a_run_snapshotted_before_the_charter_keeps_its_own_principles(
+        self, tiny_config, prompts_dad, tmp_path, stub_claude
+    ):
+        """An older run's snapshot carries only the pre-charter principles file;
+        resuming it must rewrite against those, not the repo's charter."""
+        import shutil
+        inputs = tmp_path / "run" / "inputs"
+        shutil.copytree(prompts_dad, inputs / "prompts")
+        (inputs / "constitution").mkdir(parents=True)
+        (inputs / "constitution" / "constitution_principles.csv").write_text(
+            "number,principle,welfare_application,constitution_excerpts\n"
+            "1,SNAPSHOT-PRINCIPLE,snapshot application,snapshot quote\n", encoding="utf-8")
+        calls = stub_claude(["Rewritten careful answer."])
+        step3_rewrite.run(tiny_config, inputs / "prompts", tmp_path / "step3",
+                          tmp_path / "final", [_response_record()])
+        assert "SNAPSHOT-PRINCIPLE" in calls[0]["system_prompt"]
+        assert 'Charter: "' not in calls[0]["system_prompt"]
 
     def test_the_dealt_cards_ride_into_the_training_record(
         self, tiny_config, prompts_dad, tmp_path, stub_claude

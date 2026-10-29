@@ -6,7 +6,11 @@ dad_pipeline/profiles/__init__.py for what a profile is."""
 NAME = "human"
 PROMPTS_SUBDIR = "dad_human"                 # prompts/dad_human/
 OUTPUT_SUBDIR = "dad_human"                  # outputs/dad_human/runs/
-PRINCIPLES_FILENAME = "constitution_principles_human.csv"
+CHARTER_FILENAME = "charter_human.md"
+PRINCIPLES_FILENAME = "charter_principles_human.csv"   # step-3 principles, distilled from the charter
+# Runs snapshotted before the charter carry this file instead; step 3 and
+# the viewer fall back to it so an older run keeps its own principles.
+LEGACY_PRINCIPLES_FILENAMES = ("constitution_principles_human.csv",)
 FAILURE_MODES_FILENAME = "failure_modes_human.md"    # step-3 rewrite checklist
 ANCHOR_VALUE = "others' wellbeing"           # the anchor pair is "<this> <-> {welfare_partner}"
 

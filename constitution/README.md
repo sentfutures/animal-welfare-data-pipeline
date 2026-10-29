@@ -12,6 +12,10 @@ A section-by-section *reading* of the constitution for animal-welfare implicatio
 
 The two markdown files are joined **in memory** (`load_full_constitution()`) wherever the full text is needed — the system prompt at SDF layers 4–5. They are never combined on disk.
 
+## `charter_animal.md`, `charter_human.md` and their principles
+
+The DAD pipeline's guiding documents, one per profile: prose charters written about an assistant named Gemma. `charter_principles_animal.csv` and `charter_principles_human.csv` distill them into the step-3 rewrite standard, with columns `number`, `principle`, `application` (what the principle commits a response to) and `charter_excerpts` (the verbatim charter passages it distills, joined by ` [...] `; a test checks every one against the charter). The SDF pipeline does not read them, and DAD runs made before them keep the constitution principles below.
+
 ## `constitution_principles.csv`
 
 The distilled welfare-relevant principles, one row each:

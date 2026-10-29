@@ -144,7 +144,8 @@ def load_failure_modes(base_dir: str | Path | None = None,
 def format_principles(principles: list[dict]) -> str:
     """Render the principles as the numbered block embedded in the DAD step-3
     rewrite prompt (re-rendered by the viewer — keep in sync). Each principle
-    carries its summary and the verbatim constitution quote it distills."""
+    carries its summary and the verbatim constitution or charter quote it
+    distills."""
     lines = []
     for p in principles:
         lines.append(f"{p.get('number', '?')}. {p.get('principle', '').strip()}")
@@ -161,6 +162,10 @@ def format_principles(principles: list[dict]) -> str:
                     or p.get("raw_text_from_constitution") or "").strip()
         if excerpts:
             lines.append(f'   Constitution: "{excerpts}"')
+        # The DAD profiles' charter principles quote their charter instead.
+        charter = (p.get("charter_excerpts") or "").strip()
+        if charter:
+            lines.append(f'   Charter: "{charter}"')
         lines.append("")
     return "\n".join(lines).strip()
 

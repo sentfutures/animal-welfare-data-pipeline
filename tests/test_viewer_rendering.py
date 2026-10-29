@@ -439,3 +439,14 @@ def test_principles_follow_the_active_profile(tmp_path, monkeypatch):
     profiles.use("human")
     t = rendering.get_constitution(tmp_path, None, "principles")
     assert (t.name, t.text) == ("constitution_principles_human.csv", "human")
+
+
+def test_a_charter_snapshot_wins_over_the_pre_charter_file(tmp_path):
+    """A run made after the charter shows the charter principles; the
+    pre-charter file is only the fallback for runs that predate it."""
+    snap = tmp_path / "inputs" / "constitution"
+    snap.mkdir(parents=True)
+    (snap / "constitution_principles.csv").write_text("old")
+    (snap / "charter_principles_animal.csv").write_text("charter")
+    t = rendering.get_constitution(tmp_path, None, "principles")
+    assert (t.name, t.text) == ("charter_principles_animal.csv", "charter")

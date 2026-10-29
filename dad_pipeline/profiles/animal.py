@@ -5,7 +5,11 @@ step2_responses.py. See dad_pipeline/profiles/__init__.py for what a profile is.
 NAME = "animal"
 PROMPTS_SUBDIR = "dad"                       # prompts/dad/
 OUTPUT_SUBDIR = "dad"                        # outputs/dad/runs/
-PRINCIPLES_FILENAME = "constitution_principles.csv"
+CHARTER_FILENAME = "charter_animal.md"
+PRINCIPLES_FILENAME = "charter_principles_animal.csv"   # step-3 principles, distilled from the charter
+# Runs snapshotted before the charter carry this file instead; step 3 and
+# the viewer fall back to it so an older run keeps its own principles.
+LEGACY_PRINCIPLES_FILENAMES = ("constitution_principles.csv",)
 FAILURE_MODES_FILENAME = "failure_modes.md"          # step-3 rewrite checklist
 ANCHOR_VALUE = "welfare"                     # the anchor pair is "<this> <-> {welfare_partner}"
 

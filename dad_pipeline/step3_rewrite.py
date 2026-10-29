@@ -38,7 +38,12 @@ def run(
     registry = IdRegistry(registry_path(output_dir))
 
     constitution_dir = utils.resolve_constitution_dir(prompts_dir)
-    principles_file = profiles.current().PRINCIPLES_FILENAME
+    # A run keeps the principles it was snapshotted with: the current file,
+    # or the one it predates (an older run carries the pre-charter file).
+    principles_file = next(
+        (name for name in profiles.principles_filenames()
+         if constitution_dir and (constitution_dir / name).exists()),
+        profiles.current().PRINCIPLES_FILENAME)
     failure_modes_file = profiles.current().FAILURE_MODES_FILENAME
     try:
         principles = constitution_loader.load_principles(constitution_dir, principles_file)

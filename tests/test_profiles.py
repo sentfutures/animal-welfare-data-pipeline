@@ -41,7 +41,10 @@ class TestRegistry:
     def test_animal_profile_points_at_the_original_locations(self):
         assert profiles.prompts_dir(animal).name == "dad"
         assert animal.OUTPUT_SUBDIR == "dad"
-        assert animal.PRINCIPLES_FILENAME == "constitution_principles.csv"
+        assert animal.PRINCIPLES_FILENAME == "charter_principles_animal.csv"
+        # older runs carry the pre-charter file, which step 3 and the viewer fall back to
+        assert profiles.principles_filenames(animal) == (
+            "charter_principles_animal.csv", "constitution_principles.csv")
 
 
 class TestCodeReadsTheActiveProfile:
@@ -155,8 +158,20 @@ class TestHumanProfile:
         assert ids == animal_ids                    # same entries under the same ids
         rows = constitution_loader.load_principles(filename=human.PRINCIPLES_FILENAME)
         block = constitution_loader.format_principles(rows)
-        assert len(rows) == len(constitution_loader.load_principles())
+        assert len(rows) == len(constitution_loader.load_principles(filename=animal.PRINCIPLES_FILENAME))
         assert all(r["principle"] in block and r["application"] in block for r in rows)
+
+    @pytest.mark.parametrize("profile", [animal, human], ids=["animal", "human"])
+    def test_every_charter_excerpt_is_quoted_verbatim(self, profile):
+        """The principles quote their charter; a quote that drifts from the
+        charter's own words would put words in its mouth."""
+        charter = " ".join((constitution_loader._CONSTITUTION_DIR / profile.CHARTER_FILENAME)
+                           .read_text(encoding="utf-8").split())
+        rows = constitution_loader.load_principles(filename=profile.PRINCIPLES_FILENAME)
+        assert rows
+        for r in rows:
+            for piece in r["charter_excerpts"].split(" [...] "):
+                assert " ".join(piece.split()) in charter, (r["number"], piece[:60])
 
     def test_step_templates_mirror_the_animal_placeholders(self):
         import re

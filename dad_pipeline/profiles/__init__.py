@@ -51,6 +51,13 @@ def name_from_config(config: dict) -> str:
     return (config.get("dad") or {}).get("profile") or DEFAULT
 
 
+def principles_filenames(profile: ModuleType | None = None) -> tuple[str, ...]:
+    """The profile's step-3 principles file, then any older names a run
+    snapshotted before it took that file, newest first."""
+    profile = profile or current()
+    return (profile.PRINCIPLES_FILENAME, *getattr(profile, "LEGACY_PRINCIPLES_FILENAMES", ()))
+
+
 def prompts_dir(profile: ModuleType | None = None) -> Path:
     """The repo's live prompt folder for a profile (runs read their snapshot)."""
     return REPO_ROOT / "prompts" / (profile or current()).PROMPTS_SUBDIR

@@ -208,8 +208,9 @@ def test_dad_human_profile_end_to_end_offline(tiny_config, tmp_path, outputs_roo
     # step 3 was handed the human principles, not the animal ones
     rewrite = [c for c in calls if "rewrite a draft assistant response" in (c["system_prompt"] or "")]
     assert len(rewrite) == N_DAD_PROMPTS
-    assert all("Being ethical outranks being helpful" in c["system_prompt"] for c in rewrite)
-    assert not any("welfare_application" in c["system_prompt"] for c in rewrite)
+    assert all("Comparable care for comparable cases, whoever the person" in c["system_prompt"]
+               for c in rewrite)
+    assert not any("whatever the species" in c["system_prompt"] for c in rewrite)
     assert len(calls) == 9 * N_DAD_PROMPTS
 
 
