@@ -40,7 +40,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from sdf_pipeline import layer1_description_rewrite, layer1_screen, layer1_select_considerations
 from shared import api, textstats, utils
+from shared.api_keys import add_api_key_source_flags, apply_api_key_source_flags
 
 # ---------------------------------------------------------------- verdicts
 
@@ -75,6 +77,15 @@ def resolve_input(input_arg: str) -> tuple[list[dict], Path]:
     if not path.exists():
         raise SystemExit(f"Input not found: {path}")
     return utils.load_jsonl(path), path.parent / "audit"
+
+
+def run_directory_for_input(input_arg: str) -> Path:
+    """The run directory (the one holding layer1/ and final/) for either kind of input: a
+    run directory itself, or a corpus .jsonl, which normally sits in the run's final/."""
+    path = Path(input_arg)
+    if path.is_dir():
+        return path
+    return path.parent.parent if path.parent.name == "final" else path.parent
 
 
 # ---------------------------------------------------------------- mechanical checks
@@ -165,6 +176,116 @@ def audit_composition(records: list[dict], report: dict) -> None:
     report["composition"] = {k: dict(c) for k, c in by.items()}
     report["composition"]["n_types"] = len(types)
     report["composition"]["top_type_share"] = round(top_n / n, 3)
+
+
+def audit_screen(run_dir: Path, report: dict) -> None:
+    """Layer-1 implausibility screen: removals per round, removal rate per variable
+    value across all rounds, and the share shift left by hands dropped after the
+    last redeal round.
+
+    A value removed at more than twice the corpus-wide rate is flagged, so a
+    screen that quietly removes (say) every skeptical or non-English hand is
+    visible. Runs made before the screen existed (or before it moved ahead of
+    planning) have no screen_hands file and are skipped."""
+    screen = layer1_screen.load_screen_outputs(run_dir)
+    if screen is None:
+        print("LAYER-1 SCREEN\n  (no screen files in this run — it predates the screen or had it disabled)")
+        return
+    rows = layer1_screen.removal_rate_rows(screen)
+    rounds = layer1_screen.round_rows(screen)
+    shifts = layer1_screen.share_shift_rows(screen)
+    screened = len(screen["screened_ids"])
+    removed = len(screen["removed"])
+    leftover = len(screen["leftover_ids"])
+    flagged = [r for r in rows if r["flagged"]]
+    print("LAYER-1 SCREEN")
+    print(_fmt("hands removed as extremely implausible", f"{removed} of {screened} screened "
+               f"({removed / screened:.1%}), counting every round" if screened else "none screened"))
+    for row in rounds:
+        print(f"      round {row['round']}: {row['removed']} of {row['hands']} hands removed"
+              + (f" ({row['note']})" if row["note"] else ""))
+    print(_fmt("batches", f"{screen['batches_done']} of {screen['batches_total']} completed"))
+    if screen["accepted_ids"] is not None:
+        print(_fmt("dropped after the last redeal round", f"{leftover} hands"))
+        big_shifts = [r for r in shifts if abs(r["shift"]) >= 0.01][:5]
+        for row in big_shifts:
+            print(f"      share of {row['variable']} = {row['value'][:60]}: "
+                  f"{row['dealt_share']:.1%} dealt, {row['final_share']:.1%} kept ({row['shift']:+.1%})")
+    if flagged:
+        print(_fmt("values removed at >2x the corpus rate", f"{len(flagged)}", "BAD",
+                   "(each needs an explanation or a prompt fix)"))
+        for row in flagged:
+            print(f"      {row['variable']} = {row['value'][:70]}: "
+                  f"{row['removed']}/{row['screened']} removed ({row['rate']:.0%})")
+    else:
+        print(_fmt("values removed at >2x the corpus rate", "none", "GOOD"))
+    report["screen"] = {
+        "screened": screened, "removed": removed, "leftover_dropped": leftover,
+        "batches_done": screen["batches_done"], "batches_total": screen["batches_total"],
+        "corpus_removal_rate": round(removed / screened, 4) if screened else None,
+        "rounds": rounds,
+        "removal_rate_per_value": [
+            {k: (round(v, 4) if isinstance(v, float) else v) for k, v in row.items()} for row in rows
+        ],
+        "flagged_values": [f"{r['variable']} = {r['value']}" for r in flagged],
+        "share_shift": [
+            {k: (round(v, 4) if isinstance(v, float) else v) for k, v in row.items()} for row in shifts
+        ],
+    }
+
+
+def audit_description_rewrite(run_dir: Path, report: dict) -> None:
+    """Layer-1 description rewrite: the share of descriptions rewritten, per check
+    and per variable value, and the plans dropped for a dealt-value conflict. Runs
+    made before the stage existed are skipped."""
+    outputs = layer1_description_rewrite.load_description_rewrite_outputs(run_dir)
+    if outputs is None:
+        print("LAYER-1 DESCRIPTION REWRITE\n  (no description rewrite files in this run — it predates "
+              "the stage or had it disabled)")
+        return
+    plans = utils.load_jsonl(utils.sdf_stage_file(run_dir, "plan"))
+    shares = layer1_description_rewrite.rewrite_share_rows(plans, outputs)
+    checked = shares["checked"]
+    print("LAYER-1 DESCRIPTION REWRITE")
+    print(_fmt("descriptions rewritten", f"{shares['rewritten']} of {checked} checked "
+               f"({shares['rewritten'] / checked:.1%})" if checked else "none checked"))
+    print(_fmt("declined (original kept)", f"{shares['declined']}"))
+    print(_fmt("dropped for a dealt-value conflict", f"{shares['dropped_for_conflict']}"))
+    for check, count in shares["per_check"].items():
+        print(f"      {check}: {count} descriptions changed")
+    for row in [r for r in shares["per_value"] if r["rewritten"]][:5]:
+        print(f"      {row['variable']} = {row['value'][:60]}: {row['rewritten']}/{row['checked']} rewritten "
+              f"({row['rate']:.0%})")
+    report["description_rewrite"] = {k: v for k, v in shares.items()}
+
+
+def audit_considerations(run_dir: Path, records: list[dict], report: dict) -> None:
+    """Layer-1 considerations selector, measured on the final corpus: per entry, its
+    target share and the share achieved among the documents eligible for it, the
+    share of documents with no consideration, and how many carry two or more from
+    one list. Drafting failures and the score gate shift these after selection.
+    Runs made before the selector have no selection files and are skipped."""
+    outputs = layer1_select_considerations.load_considerations_outputs(run_dir)
+    if outputs is None:
+        print("CONSIDERATIONS\n  (no selection files in this run — it predates the selector or had it disabled)")
+        return
+    coverage = layer1_select_considerations.corpus_coverage_report(outputs, records)
+    total = coverage["eligible_documents"]
+    print("CONSIDERATIONS")
+    print(_fmt("documents measured", f"{total} ({coverage['digital_mind_documents']} on digital minds)"))
+    for entry in coverage["entries"]:
+        achieved = entry["achieved_share"]
+        print(_fmt(f"[{entry['list']}] {entry['label'][:44]}",
+                   f"{entry['achieved']}/{entry['eligible_documents']}"
+                   + (f" ({achieved:.1%})" if achieved is not None else ""),
+                   note=f"target {entry['target_share']:.0%}"))
+    if total:
+        print(_fmt("no consideration from either list",
+                   f"{coverage['documents_with_no_consideration']} ({coverage['share_with_no_consideration']:.1%})"))
+        print(_fmt("one list only", f"{coverage['documents_with_only_one_list']} ({coverage['share_with_only_one_list']:.1%})"))
+        print(_fmt("both lists", f"{coverage['documents_with_both_lists']} ({coverage['share_with_both_lists']:.1%})"))
+        print(_fmt("two or more from one list", str(coverage["documents_with_two_or_more_in_one_list"])))
+    report["considerations"] = {"final_corpus": coverage, "layer1": outputs["report"]}
 
 
 def audit_length_truncation(records: list[dict], report: dict) -> None:
@@ -546,9 +667,12 @@ def main() -> None:
                              "constitution principles (costs API calls)")
     parser.add_argument("--principle-sample", type=int, default=80,
                         help="Docs judged for principle coverage")
+    add_api_key_source_flags(parser)
     args = parser.parse_args()
+    apply_api_key_source_flags(args)
 
     records, report_dir = resolve_input(args.input)
+    run_directory = run_directory_for_input(args.input)
     if args.limit:
         records = records[: args.limit]
     if not records:
@@ -559,6 +683,11 @@ def main() -> None:
     print(f"=== SDF corpus audit: {args.input} ({len(records)} documents) ===\n")
     report: dict = {"input": utils.repo_relative(args.input), "n_docs": len(records)}
     audit_composition(records, report)
+    print()
+    audit_screen(run_directory, report)
+    audit_description_rewrite(run_directory, report)
+    print()
+    audit_considerations(run_directory, records, report)
     print()
     audit_length_truncation(records, report)
     print()
@@ -575,7 +704,7 @@ def main() -> None:
     audit_register(records, report)
 
     if args.patterns or args.principles:
-        api.init(args.config)  # evals log to the global cost log
+        api.init(args.config)  # evals log to the global cost log and record no full model calls
     if args.patterns:
         llm_pattern_scan(records, config, report,
                          args.pattern_sample, args.batch_size, args.prevalence_sample)

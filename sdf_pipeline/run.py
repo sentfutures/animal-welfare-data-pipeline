@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """SDF matrix pipeline orchestrator: plan, draft, rewrite, score.
 
-Layer 1 is a single stage: deterministic composition of the prompt matrix
-(offline) followed by one plan call per document. Layers 2-4 draft, rewrite,
-and score/gate.
+Layer 1 deals and repairs the hands (offline), screens them for extreme
+implausibility with redeal rounds, plans one document per accepted hand, rewrites
+each description for plausibility and conformance, and selects considerations for
+each surviving specification. Layers 2-4 draft, rewrite, and score/gate.
 
 The layers were renumbered from the old 1-2/3/4/5 scheme (in which composition
 and planning were counted as two layers) to today's 1/2/3/4. --layer takes the
@@ -20,8 +21,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from shared import api, utils
+from shared.api_keys import add_api_key_source_flags, apply_api_key_source_flags
 from sdf_pipeline import (
+    layer1_description_rewrite,
     layer1_plan,
+    layer1_screen,
+    layer1_select_considerations,
     layer2_draft,
     layer3_rewrite,
     layer4_score,
@@ -36,7 +41,9 @@ def main() -> None:
                         help="Start from this layer (1-4: plan, draft, rewrite, score).")
     parser.add_argument("--label", default="dev", help="Run label, e.g. dev or full-scale.")
     parser.add_argument("--run-id", default=None, help="Run to resume (with --resume; defaults to latest).")
+    add_api_key_source_flags(parser)
     args = parser.parse_args()
+    apply_api_key_source_flags(args)
 
     if not 1 <= args.layer <= 4:
         parser.error(
@@ -91,13 +98,23 @@ def main() -> None:
     plans = drafts = rewrites = None
 
     if start_layer <= 1:
-        print("[Layer 1] Compose matrix + plan documents")
-        plans = layer1_plan.run(config, prompts_dir, plan_dir)
+        layer1_description_rewrite.require_openai_key_if_configured(config)
+        print("[Layer 1] Deal hands and screen them for extreme implausibility (with redeals)")
+        hands = layer1_screen.run(config, prompts_dir, plan_dir)
+        print("[Layer 1] Compose prompts + plan documents")
+        plans = layer1_plan.run(config, prompts_dir, plan_dir, hands)
+        print("[Layer 1] Rewrite descriptions for plausibility and conformance")
+        plans = layer1_description_rewrite.run(config, prompts_dir, plan_dir, plans)
+        print("[Layer 1] Select considerations for each surviving specification")
+        plans = layer1_select_considerations.run(config, prompts_dir, plan_dir, plans)
         print(f"  Running cost: ${api.get_total_cost():.4f}\n")
 
     if start_layer <= 2:
         if plans is None:
-            plans = utils.load_jsonl(plan_dir / "plans.jsonl")
+            plans = layer1_description_rewrite.load_rewritten_plans(
+                config, plan_dir, utils.load_jsonl(plan_dir / "plans.jsonl"))
+            plans = layer1_select_considerations.attach_selections(
+                config, prompts_dir, plan_dir, plans)
         print("[Layer 2] Draft documents")
         drafts = layer2_draft.run(config, prompts_dir, layer_dirs[2], plans)
         print(f"  Running cost: ${api.get_total_cost():.4f}\n")

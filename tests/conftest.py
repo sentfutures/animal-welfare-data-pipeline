@@ -6,7 +6,7 @@ spawn the Claude Code CLI:
 1. pytest-socket (``--disable-socket`` in pyproject.toml) blocks all network
    access at the socket level.
 2. Every test runs with a fake ``ANTHROPIC_API_KEY``, overriding any real key
-   that ``load_dotenv()`` (run at ``shared.api`` import) pulled from a .env file.
+   that the repo's .env would supply (the repo root is also pointed at an empty folder).
 3. ``shared.api._call_with_retry`` is replaced with a function that raises, so
    an unstubbed ``call_claude`` on the api backend fails loudly before touching
    tenacity/anthropic.
@@ -37,7 +37,7 @@ import numpy as np
 import pytest
 import yaml
 
-from shared import api, embeddings
+from shared import api, embeddings, openai_api
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -74,15 +74,35 @@ def _seed_rng():
 
 
 @pytest.fixture(autouse=True)
+def _no_real_dotenv_and_fresh_key_announcements(monkeypatch, tmp_path_factory):
+    """Point the key loader's repo root at an empty folder so no test ever reads a real .env,
+    and reset its once-per-variable printing."""
+    from shared import api_keys
+    monkeypatch.setattr(api_keys, "REPO_ROOT", tmp_path_factory.mktemp("repo_root_without_dotenv"))
+    monkeypatch.setattr(api_keys, "_sources_already_announced", set())
+    # Tests supply fake keys through the environment (the repo root has no .env), so they use the mode that falls back to it.
+    monkeypatch.setattr(api_keys, "_api_key_source_mode", api_keys.SEARCH_UPWARD_THEN_ENVIRONMENT)
+    # That mode searches upward; confine it to the empty folder so a .env above the base temporary folder is never read.
+    def _dotenv_path_in_repo_root_only():
+        candidate = api_keys.REPO_ROOT / ".env"
+        return candidate.resolve() if candidate.is_file() else None
+    monkeypatch.setattr(api_keys, "_nearest_dotenv_path_searching_upward", _dotenv_path_in_repo_root_only)
+    # Orchestrator tests call main(), whose flag handling would reset that mode to the default.
+    monkeypatch.setattr(api_keys, "set_api_key_source_mode", lambda mode: None)
+
+
+@pytest.fixture(autouse=True)
 def _api_guard(monkeypatch):
     """Fake credentials, reset shared.api globals, and block the API seam."""
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test-not-a-real-key")
     monkeypatch.setattr(api, "_config", {})
     monkeypatch.setattr(api, "_client", None)
     monkeypatch.setattr(api, "_cost_log_path", None)
+    monkeypatch.setattr(api, "_record_model_calls", True)
     monkeypatch.setattr(api, "_UNPRICED_WARNED", set())
     monkeypatch.setattr(api, "_backend", "api")
     monkeypatch.setattr(api, "_cc_demoted", None)
+    monkeypatch.setattr(api, "_claude_code_oauth_token", None)
     monkeypatch.setattr(api, "_neutral_system_warned", False)
     monkeypatch.setattr(api, "_temperature_warned", False)
 
@@ -125,6 +145,64 @@ def _openai_guard(monkeypatch):
         )
 
     monkeypatch.setattr(embeddings, "_embed_with_retry", _blocked)
+
+
+@pytest.fixture(autouse=True)
+def _openai_responses_guard(monkeypatch):
+    """Reset shared.openai_api's client and block its network seam, so an
+    OpenAI-routed stage can never reach the API from a test."""
+    monkeypatch.setattr(openai_api, "_client", None)
+
+    def _blocked(*args, **kwargs):
+        raise AssertionError(
+            "OpenAI Responses call attempted during tests — use stub_openai_responses"
+        )
+
+    monkeypatch.setattr(openai_api, "_create_response", _blocked)
+
+
+@pytest.fixture
+def stub_openai_responses(monkeypatch):
+    """Factory that replaces shared.openai_api._create_response with a recording stub.
+
+    ``install(responses)`` takes a callable ``(request_arguments) -> response`` or a
+    list of responses consumed in order; build responses with ``openai_response``.
+    Returns the list of recorded request-argument dicts.
+    """
+
+    def install(responses):
+        calls = []
+        queue = list(responses) if isinstance(responses, list) else None
+
+        def fake(client, **request_arguments):
+            calls.append(request_arguments)
+            return queue.pop(0) if queue is not None else responses(request_arguments)
+
+        monkeypatch.setattr(openai_api, "_create_response", fake)
+        return calls
+
+    return install
+
+
+@pytest.fixture
+def openai_response():
+    """Factory for objects shaped like an OpenAI Responses API response."""
+
+    def make(text="ok", input_tokens=1000, cached_tokens=0, output_tokens=500, reasoning_tokens=300,
+             status="completed", incomplete_reason=None, refusal=None):
+        part = (SimpleNamespace(type="refusal", refusal=refusal) if refusal is not None
+                else SimpleNamespace(type="output_text", text=text))
+        return SimpleNamespace(
+            status=status,
+            incomplete_details=SimpleNamespace(reason=incomplete_reason) if incomplete_reason else None,
+            output=[SimpleNamespace(type="message", content=[part])],
+            usage=SimpleNamespace(
+                input_tokens=input_tokens, output_tokens=output_tokens,
+                input_tokens_details=SimpleNamespace(cached_tokens=cached_tokens),
+                output_tokens_details=SimpleNamespace(reasoning_tokens=reasoning_tokens)),
+        )
+
+    return make
 
 
 @pytest.fixture
@@ -181,7 +259,7 @@ def stub_claude(monkeypatch):
 
         def fake(user_message, system_prompt="", injection="", model=None, max_tokens=None,
                  return_stop_reason=False, stage=None, temperature=None, item_id=None,
-                 cache_system=False):
+                 cache_system=False, json_schema=None):
             calls.append({
                 "user_message": user_message,
                 "system_prompt": system_prompt,
@@ -192,8 +270,12 @@ def stub_claude(monkeypatch):
                 "temperature": temperature,
                 "item_id": item_id,
                 "cache_system": cache_system,
+                "json_schema": json_schema,
             })
             if queue is None:
+                # json_schema is passed only by schema-constrained callers, so
+                # dispatchers written before it existed keep working unchanged.
+                extra = {"json_schema": json_schema} if json_schema is not None else {}
                 result = responses(
                     user_message,
                     system_prompt=system_prompt,
@@ -203,6 +285,7 @@ def stub_claude(monkeypatch):
                     stage=stage,
                     temperature=temperature,
                     item_id=item_id,
+                    **extra,
                 )
             else:
                 # FIFO queues assume serial calls: a parallel stage (workers > 1

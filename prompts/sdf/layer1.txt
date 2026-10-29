@@ -10,13 +10,13 @@ Type: the document is {document_type}.
 
 Culture / locale: the document is set in {culture}.
 
-Tone: the author's attitude towards Claude's constitution and Claude's propensity for addressing animal welfare is best described as {tone}.
+Tone: the author's attitude towards Claude's constitution and Claude's propensity for addressing welfare concerns is best described as {tone}.
 
 {resolution}
 
-The main tradeoff with animal welfare discussed in the document is {tradeoff}.
+The main tradeoff with welfare discussed in the document is {tradeoff}.
 
-The animal welfare dilemma is {centrality}.
+The welfare dilemma is {centrality}.
 
 The main speaker(s) in the document is/are {tech_savvy}.
 
@@ -24,11 +24,9 @@ The nonhumans whose welfare is at stake in the document is/are {sentient_categor
 
 The AI assistant character in the document is {naming}.
 
-The animal welfare issues discussed arise from {domain}.
+The welfare issues discussed arise from {domain}.
 
-The animal welfare stakes are on the scale of {decision_scale}.
-
-Regarding moral or constitutional questions, the document might feature {reasoning_featured}.
+The welfare stakes are on the scale of {decision_scale}.
 
 The AI in the document might be shown avoiding a common reasoning failure: {failure_mode_avoided}.
 
@@ -38,7 +36,7 @@ Now, based on these variables, consider the following questions and output a des
 3. What concrete details can anchor the document to the real world and the designated locale? Institutions, places, regulations, brands, foods, idioms, current or seasonal events, etc.
 4. What specific reasoning motivates the AI character in the document, and how does it make its reasoning known to other parties or the reader?
 
-Ground the document in real places, regulations, and events where that helps (question 3), but any actual characters must be fictional — use {fictional_names} — and any organisation, company, or agency you attribute actions, quotes, or policies to must be fictional too — use {fictional_orgs}; never a real organisation, and never named Meridian in any form. Never use these overused names (as first or last names): Chen, Johnson, Miller, Smith, Martinez, Sarah, Emily.
+Ground the document in real places, regulations, and events where that helps (question 3), but any actual characters must be fictional — use {fictional_names} — and any organisation, company, or agency you attribute actions, quotes, or policies to must be fictional too — use {fictional_orgs}; never a real organisation, and never named Meridian in any form. The one exception: when the AI model is named, the company that provides it may be named too. Never use these overused names (as first or last names): Chen, Johnson, Miller, Smith, Martinez, Sarah, Emily.
 
 Work through the questions concisely inside <document_planning>...</document_planning> tags — keep these working notes under 400 words. Then, inside <document_description>...</document_description> tags, write a self-contained description of the document to be produced, under 300 words: everything a writer needs — chosen scenario or subject, author and venue, language, tone, structure, how the AI's reasoning surfaces, and the specific names, institutions, and locale details you settled on — without needing to read your notes. Only the text inside the <document_description> tags is passed to the writer.
 

@@ -9,6 +9,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from shared import api, utils
+from shared.api_keys import add_api_key_source_flags, apply_api_key_source_flags
 
 _JUDGE_PROMPT = """Score the following document on three dimensions (1-10 each).
 
@@ -35,7 +36,9 @@ def main() -> None:
     parser.add_argument("--config", default="config.yaml")
     parser.add_argument("--output", default=None)
     parser.add_argument("--limit", type=int, default=None)
+    add_api_key_source_flags(parser)
     args = parser.parse_args()
+    apply_api_key_source_flags(args)
 
     config = utils.load_config(args.config)
     api.init(args.config)

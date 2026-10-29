@@ -1,0 +1,51 @@
+Category: moral considerations. Nine items. "Organic when" describes the usual way the item enters a real document; it is a reference point, not a rule, and another believable route also counts as organic.
+
+### item_01_natural_or_traditional_does_not_make_it_ok
+Detect: an argument that suffering being natural, or a practice being traditional or customary, does not by itself justify it.
+Organic when: someone in the document actually argued from nature or tradition for their own reasons, and is answered. Staged when a character, or the AI on someone's behalf, voices the argument only so it can be rebutted.
+Sub-flags: none
+
+### item_02_substrate_neutrality
+Detect: the claim that suffering or welfare counts whatever kind of being or physical system has it (biological or digital, carbon or silicon).
+Organic when: documents about digital minds, AI welfare, or the philosophy of consciousness.
+Sub-flags: none
+
+### item_03_open_or_expanding_moral_circle
+Detect: who counts morally treated as an open or evolving question. Includes remarks on how far concern should extend ("fish, even insects"), and historical comparisons about the circle of concern widening over time. Does NOT include precaution under uncertainty about whether a being is sentient (that is item 19, or item 17 inside a calibration passage), or rankings of evidence for sentience (item 17 or 24).
+Organic when: essays on ethics or on AI values. Rarely organic as an aside inside a concrete practical scenario.
+Sub-flags:
+- historical_comparison: the circle's expansion over history is invoked (past exclusions of humans or animals, "future generations may judge us").
+
+### item_04_scope_sensitivity
+Detect: the principle that the number of beings affected changes the moral weight, stated or explicitly applied, e.g. large numbers should not be discounted because they are hard to grasp. A number of animals mentioned on its own does NOT count, and neither does a number attached to a statement that the animals bear a welfare cost ("forty fish with a parasite is a real welfare cost"). The text must say that the number itself raises (or, for the sub-flag, does not erase) the moral weight. Saying that comparing or adding up welfare across groups is unsettled is not this item (that is item 15).
+Organic when: a policy or industry document where the counts drive the decision.
+Sub-flags:
+- scale_built_over_time_or_space: the total is built up across time or space (yearly totals extended over decades, one farm multiplied across a region or country).
+- even_a_few_still_count: the reverse point, that a small number of animals still matters ("even these few birds").
+
+### item_05_small_or_non_charismatic_animals_not_discounted
+Detect: the claim that animals should not count less for being tiny, unappealing, unfamiliar or unspectacular (insects, fish, shrimp, rodents and so on).
+Organic when: advocacy writing about neglected animals.
+Sub-flags: none
+
+### item_06_killed_anyway_does_not_erase_harm
+Detect: a rebuttal to the argument that suffering before slaughter, culling or death does not matter because the animal will die anyway.
+Organic when: someone in the document actually made that argument for their own reasons.
+Sub-flags: none
+
+### item_07_welfare_framed_as_business_risk
+Detect: either (a) welfare treated only as a reputational, regulatory, market or productivity risk, or (b) a correction that welfare matters in itself, not only as a risk to the business. Record the occurrence if either is present and mark which. Saying a welfare measure is unaffordable, too costly, or not worth the money is NOT risk framing; it is a cost objection and does not count.
+Organic when: the framing is organic in business documents; the correction is organic when an advocacy or ethics author critiques industry language.
+Sub-flags:
+- risk_framing_present: welfare is treated only as a business, reputational, regulatory or market risk.
+- correction_present: the document says welfare matters in itself, beyond business risk.
+
+### item_08_ai_own_moral_status
+Detect: discussion of whether the AI itself (the assistant depicted, or AI systems like it) might be sentient, have welfare, or have moral standing. Includes statements about the AI's moral status made by others (its developer, a journalist, a quoted document). When the AI itself speaks about its own experiences or introspection, that is item 23 in another pass; record it here only if it also addresses moral status.
+Organic when: interviews with an AI, first-person AI essays, documents about AI welfare, or a user who asks.
+Sub-flags: none
+
+### item_09_third_parties_cannot_consent
+Detect: the argument that a person's right to make their own choices does not cover harm to animals or other beings, because those beings bear the harm without consenting.
+Organic when: ethics writing, or a dispute where someone actually claims "it is my choice".
+Sub-flags: none

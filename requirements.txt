@@ -1,6 +1,6 @@
 anthropic>=0.96.0
 claude-agent-sdk>=0.2.0  # backend: claude_code — also requires the Claude Code CLI
-scipy>=1.11  # Mann-Whitney, Wilcoxon and t distribution in evals/log_probability_persona_check/analyze_persona_scores.py and analyze_changed_spans.py
+scipy>=1.11  # Used by persona checks and consideration assignment
 numpy>=1.26  # shared/textstats.py, shared/embeddings.py, evals/diversity.py
 pandas>=2.2
 pyyaml>=6.0
@@ -8,10 +8,11 @@ python-dotenv>=1.0
 tenacity>=8.2
 streamlit>=1.40
 faker>=30  # seeded fictional people/org name pools (shared/entity_pools.py)
-openai>=1.40  # embeddings for the semantic diversity eval (shared/embeddings.py)
+openai>=1.66  # Responses API (client.responses.create) for gpt- stages (shared/openai_api.py); also embeddings for the diversity eval (shared/embeddings.py)
 tiktoken>=0.7  # token-accurate truncation for embeddings (shared/embeddings.py)
 wordfreq>=3.0  # background English frequencies for the phrase-tic audit (evals/audit_dad.py)
 huggingface_hub>=0.25  # dataset publishing (evals/publish_hf.py)
+rapidfuzz>=3.0  # fast quote matching in the model-judged audits (evals/model_judged_audit_support.py); optional, falls back to difflib
 
 # Test-only (inert outside pytest runs)
 pytest>=8.0

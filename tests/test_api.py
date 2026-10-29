@@ -14,7 +14,7 @@ import pytest
 import pytest_socket
 import yaml
 
-from shared import api, utils
+from shared import api, openai_api, utils
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -190,6 +190,43 @@ class TestSamplingParams:
         seen = self._capture(monkeypatch, "claude-haiku-4-5")
         assert seen["temperature"] == 0.0
 
+    def _capture_with_schema(self, monkeypatch, schema):
+        seen = {}
+
+        class FakeMessages:
+            def create(self, **kwargs):
+                seen.update(kwargs)
+
+        class FakeClient:
+            messages = FakeMessages()
+
+        import importlib
+        real = importlib.reload(api)._call_with_retry
+        kwargs = {} if schema is None else {"json_schema": schema}
+        real(client=FakeClient(), model="claude-haiku-4-5", max_tokens=5, system="", messages=[],
+             temperature=0.0, **kwargs)
+        return seen
+
+    def test_json_schema_is_sent_as_output_config_format(self, monkeypatch):
+        schema = {"type": "object", "properties": {"a": {"type": "integer"}}}
+        seen = self._capture_with_schema(monkeypatch, schema)
+        assert seen["output_config"] == {"format": {"type": "json_schema", "schema": schema}}
+
+    def test_no_schema_leaves_the_request_unchanged(self, monkeypatch):
+        assert "output_config" not in self._capture_with_schema(monkeypatch, None)
+
+    def test_call_claude_forwards_the_schema_only_when_given(self, recorded_api, monkeypatch):
+        seen = []
+
+        def record(client, model, max_tokens, system, messages, temperature, **extra):
+            seen.append(extra)
+            return recorded_api["message"]
+
+        monkeypatch.setattr(api, "_call_with_retry", record)
+        api.call_claude("hi")
+        api.call_claude("hi", json_schema={"type": "object"})
+        assert seen == [{}, {"json_schema": {"type": "object"}}]
+
     def test_nondefault_temperature_on_rejecting_model_warns_once(
         self, recorded_api, monkeypatch, capsys
     ):
@@ -245,7 +282,15 @@ class TestCostTracking:
         api.call_claude("hi", model="claude-sonnet-5", cache_system=True)
         record = json.loads((tmp_path / "cost.jsonl").read_text().strip())
         assert record["cache_read_tokens"] == 1_000_000
-        assert record["cost_usd"] == pytest.approx(0.30)  # 1M * $3/M * 0.10
+        assert record["cost_usd"] == pytest.approx(0.20)  # 1M * $2/M * 0.10
+
+    def test_opus_5_5_pricing_and_cache_read_rate(self, recorded_api, tmp_path, fake_message):
+        msg = fake_message(input_tokens=1_000_000, output_tokens=1_000_000)
+        msg.usage.cache_read_input_tokens = 1_000_000
+        recorded_api["message"] = msg
+        api.call_claude("hi", model="claude-opus-5-5", cache_system=True)
+        record = json.loads((tmp_path / "cost.jsonl").read_text().strip())
+        assert record["cost_usd"] == pytest.approx(4.00 + 20.00 + 0.20)  # cache read 0.05x of $4
 
     def test_cache_write_tokens_priced_at_125_percent(self, recorded_api, tmp_path, fake_message):
         msg = fake_message(input_tokens=0, output_tokens=0)
@@ -254,7 +299,7 @@ class TestCostTracking:
         api.call_claude("hi", model="claude-sonnet-5", cache_system=True)
         record = json.loads((tmp_path / "cost.jsonl").read_text().strip())
         assert record["cache_creation_tokens"] == 1_000_000
-        assert record["cost_usd"] == pytest.approx(3.75)  # 1M * $3/M * 1.25
+        assert record["cost_usd"] == pytest.approx(2.50)  # 1M * $2/M * 1.25
 
     def test_config_model_is_priced_without_warning(self, recorded_api, tmp_path, fake_message, capsys):
         # Contract from shared/api.py: _PRICING must cover every model id that
@@ -275,7 +320,7 @@ class TestCostTracking:
         def model_values(node):
             if isinstance(node, dict):
                 for key, value in node.items():
-                    if key == "model" or key.endswith("_model"):
+                    if key == "model" or (isinstance(key, str) and key.endswith("_model")):
                         if isinstance(value, str) and value:
                             yield key, value
                     else:
@@ -284,7 +329,8 @@ class TestCostTracking:
         seen = list(model_values(config))
         assert seen, "config.yaml declares no model knobs — did the schema change?"
         for key, model in seen:
-            assert model in api._PRICING, f"config {key}={model} is not in _PRICING"
+            priced = openai_api._PRICING if openai_api.is_openai_model(model) else api._PRICING
+            assert model in priced, f"config {key}={model} is not in its pricing table"
 
     def test_unknown_model_falls_back_to_sonnet_rates_with_warning(self, recorded_api, tmp_path, fake_message, capsys):
         recorded_api["message"] = fake_message(input_tokens=1_000_000, output_tokens=0)
@@ -464,6 +510,81 @@ class TestResolveClaudeCodeSystem:
 
 
 @pytest.mark.enable_socket
+class TestClaudeCodeOauthTokenFromDotenv:
+    """CLAUDE_CODE_OAUTH_TOKEN goes through shared/api_keys.py for the claude_code and auto
+    backends and reaches the claude CLI subprocess's environment; the api backend never loads it.
+    `query` is stubbed, so nothing is spawned (enable_socket is for asyncio's self-pipe only)."""
+
+    TOKEN = "oauth-token-from-dotenv-not-real"
+
+    @pytest.fixture
+    def dotenv_in_repo_root(self, monkeypatch, tmp_path):
+        from shared import api_keys
+        repo_root = tmp_path / "repo_root_with_dotenv"
+        repo_root.mkdir()
+        (repo_root / ".env").write_text(
+            f"ANTHROPIC_API_KEY=sk-ant-from-dotenv-not-real\nCLAUDE_CODE_OAUTH_TOKEN={self.TOKEN}\n")
+        monkeypatch.setattr(api_keys, "REPO_ROOT", repo_root)
+        monkeypatch.setattr(api_keys, "_api_key_source_mode", api_keys.REPO_ROOT_DOTENV_ONLY)
+        monkeypatch.delenv("CLAUDE_CODE_OAUTH_TOKEN", raising=False)
+        return repo_root
+
+    @staticmethod
+    def _init_with_backend(tiny_config, tmp_path, backend):
+        tiny_config["backend"] = backend
+        path = tmp_path / f"{backend}.yaml"
+        path.write_text(yaml.safe_dump(tiny_config))
+        api.init(str(path))
+
+    @staticmethod
+    def _environment_seen_by_subprocess(monkeypatch):
+        pytest.importorskip("claude_agent_sdk")
+        captured = {}
+
+        async def fake_query(*, prompt, options):
+            captured["env"] = options.env
+            types = pytest.importorskip("claude_agent_sdk.types")
+            yield types.ResultMessage(subtype="success", duration_ms=1, duration_api_ms=1, is_error=False,
+                                      num_turns=1, session_id="sesn_test", result="ok",
+                                      usage={"input_tokens": 1, "output_tokens": 1})
+
+        monkeypatch.setattr("claude_agent_sdk.query", fake_query)
+        api._run_claude_code_query("claude-haiku-4-5", "sys", "hi")
+        return captured["env"]
+
+    @pytest.mark.parametrize("backend", ["claude_code", "auto"])
+    def test_token_in_dotenv_reaches_the_subprocess_environment(
+            self, backend, dotenv_in_repo_root, tiny_config, tmp_path, monkeypatch, capsys):
+        self._init_with_backend(tiny_config, tmp_path, backend)
+        environment = self._environment_seen_by_subprocess(monkeypatch)
+        assert environment["CLAUDE_CODE_OAUTH_TOKEN"] == self.TOKEN
+        assert environment["ANTHROPIC_API_KEY"] == ""  # the shared key stays blanked
+        assert self.TOKEN not in capsys.readouterr().out  # the value is never printed
+
+    def test_api_backend_does_not_load_the_token(self, dotenv_in_repo_root, tiny_config, tmp_path, monkeypatch):
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        self._init_with_backend(tiny_config, tmp_path, "api")
+        assert api._claude_code_oauth_token is None
+        assert "CLAUDE_CODE_OAUTH_TOKEN" not in __import__("os").environ
+
+    def test_exported_token_is_ignored_in_the_default_mode(
+            self, dotenv_in_repo_root, tiny_config, tmp_path, monkeypatch):
+        (dotenv_in_repo_root / ".env").write_text("ANTHROPIC_API_KEY=sk-ant-from-dotenv-not-real\n")
+        monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", "exported-token-not-real")
+        self._init_with_backend(tiny_config, tmp_path, "claude_code")
+        assert api._claude_code_oauth_token is None
+        assert "CLAUDE_CODE_OAUTH_TOKEN" not in __import__("os").environ
+
+    def test_exported_token_is_used_with_find_dotenv(self, dotenv_in_repo_root, tiny_config, tmp_path, monkeypatch):
+        from shared import api_keys
+        (dotenv_in_repo_root / ".env").write_text("ANTHROPIC_API_KEY=sk-ant-from-dotenv-not-real\n")
+        monkeypatch.setattr(api_keys, "_api_key_source_mode", api_keys.SEARCH_UPWARD_THEN_ENVIRONMENT)
+        monkeypatch.setenv("CLAUDE_CODE_OAUTH_TOKEN", "exported-token-not-real")
+        self._init_with_backend(tiny_config, tmp_path, "claude_code")
+        assert self._environment_seen_by_subprocess(monkeypatch)["CLAUDE_CODE_OAUTH_TOKEN"] == "exported-token-not-real"
+
+
+@pytest.mark.enable_socket
 class TestRunClaudeCodeQuery:
     """Exercise the claude_code money path (`_run_claude_code_query`) at the true
     external boundary — a stubbed `claude_agent_sdk.query` yielding real SDK
@@ -515,6 +636,50 @@ class TestRunClaudeCodeQuery:
         assert (in_tok, out_tok) == (120, 34)
         assert cost == pytest.approx(0.0021)
         assert stop == "end_turn"
+
+    def test_json_schema_passes_output_format_and_returns_structured_output(self, monkeypatch):
+        captured = {}
+
+        async def fake_query(*, prompt, options):
+            captured["output_format"] = options.output_format
+            yield self._assistant("I need to flag an issue before answering...")  # free-text preamble
+            yield self._result(result='{"ignored": true}', structured_output={"specifications": [1]},
+                               usage={"input_tokens": 1, "output_tokens": 1}, stop_reason="end_turn")
+
+        pytest.importorskip("claude_agent_sdk")
+        monkeypatch.setattr("claude_agent_sdk.query", fake_query)
+        schema = {"type": "object", "properties": {"specifications": {"type": "array"}}}
+        text, *_ = api._run_claude_code_query("claude-haiku-4-5", "sys", "hi", json_schema=schema)
+        assert captured["output_format"] == {"type": "json_schema", "schema": schema}
+        assert json.loads(text) == {"specifications": [1]}  # structured_output, never the preamble
+
+    def test_json_schema_without_structured_output_falls_back_to_result_not_text_blocks(self, monkeypatch):
+        self._install_query(monkeypatch, [
+            self._assistant("free-text preamble"),
+            self._result(result="the prose result", usage={"input_tokens": 1, "output_tokens": 1}),
+        ])
+        text, *_ = api._run_claude_code_query(
+            "claude-haiku-4-5", "sys", "hi", json_schema={"type": "object"})
+        assert text == "the prose result"
+        self._install_query(monkeypatch, [
+            self._assistant("free-text preamble"),
+            self._result(result=None, usage={"input_tokens": 1, "output_tokens": 1}),
+        ])
+        text, *_ = api._run_claude_code_query(
+            "claude-haiku-4-5", "sys", "hi", json_schema={"type": "object"})
+        assert text == ""  # the caller's validation rejects it
+
+    def test_no_schema_sets_no_output_format(self, monkeypatch):
+        captured = {}
+
+        async def fake_query(*, prompt, options):
+            captured["output_format"] = options.output_format
+            yield self._result(result="x", usage={"input_tokens": 1, "output_tokens": 1})
+
+        pytest.importorskip("claude_agent_sdk")
+        monkeypatch.setattr("claude_agent_sdk.query", fake_query)
+        api._run_claude_code_query("claude-haiku-4-5", "sys", "hi")
+        assert captured["output_format"] is None
 
     def test_result_none_falls_back_to_joined_assistant_text(self, monkeypatch):
         self._install_query(monkeypatch, [
@@ -713,7 +878,7 @@ class TestAdaptiveThinkingModels:
              system="s", messages=[], temperature=1.0)
         assert client.messages.kwargs["thinking"] == {"type": "disabled"}
 
-    def test_thinking_flag_omitted_for_mythos_class(self):
+    def test_adaptive_summarized_thinking_for_mythos_class(self):
         # fable/mythos 400 on thinking-disabled; the flag is omitted and
         # _response_text strips the thinking blocks downstream
         import importlib
@@ -721,13 +886,185 @@ class TestAdaptiveThinkingModels:
         client = self._FakeClient()
         real(client=client, model="claude-fable-5", max_tokens=100,
              system="s", messages=[], temperature=1.0)
-        assert "thinking" not in client.messages.kwargs
+        assert client.messages.kwargs["thinking"] == {"type": "adaptive", "display": "summarized"}
+
+    def _kwargs_sent(self, model, json_schema=None):
+        import importlib
+        real = importlib.reload(api)._call_with_retry
+        client = self._FakeClient()
+        real(client=client, model=model, max_tokens=100, system="s", messages=[],
+             temperature=1.0, json_schema=json_schema)
+        return client.messages.kwargs
+
+    def test_opus_5_5_sends_summarized_adaptive_thinking_low_effort_and_no_sampling(self):
+        kwargs = self._kwargs_sent("claude-opus-5-5")
+        assert kwargs["thinking"] == {"type": "adaptive", "display": "summarized"}
+        assert kwargs["output_config"] == {"effort": "low"}
+        assert "temperature" not in kwargs
+
+    def test_opus_5_5_effort_merges_with_schema_format(self):
+        schema = {"type": "object", "properties": {}}
+        kwargs = self._kwargs_sent("claude-opus-5-5", json_schema=schema)
+        assert kwargs["output_config"] == {
+            "effort": "low", "format": {"type": "json_schema", "schema": schema}}
+
+    def test_other_models_unchanged(self):
+        schema = {"type": "object"}
+        sonnet = self._kwargs_sent("claude-sonnet-5", json_schema=schema)
+        assert sonnet["thinking"] == {"type": "disabled"}
+        assert sonnet["output_config"] == {"format": {"type": "json_schema", "schema": schema}}
+        assert "output_config" not in self._kwargs_sent("claude-sonnet-5")
+        assert "output_config" not in self._kwargs_sent("claude-opus-5")
+        assert self._kwargs_sent("claude-opus-5")["thinking"] == {"type": "disabled"}
+        assert "output_config" not in self._kwargs_sent("claude-fable-5")
 
     def test_predicate_covers_the_tier(self):
+        assert api._requires_adaptive_thinking("claude-opus-5-5")
+        assert not api._requires_adaptive_thinking("claude-opus-5")
         assert api._requires_adaptive_thinking("claude-fable-5")
         assert api._requires_adaptive_thinking("claude-mythos-5")
         assert not api._requires_adaptive_thinking("claude-sonnet-5")
         assert not api._requires_adaptive_thinking("claude-haiku-4-5-20251001")
+
+
+class TestModelCallsRecord:
+    @staticmethod
+    def _response(content, stop_reason="end_turn"):
+        usage = SimpleNamespace(input_tokens=7, output_tokens=3,
+                                cache_creation_input_tokens=0, cache_read_input_tokens=0)
+        return SimpleNamespace(content=content, usage=usage, stop_reason=stop_reason)
+
+    def test_record_holds_raw_text_and_system_prompt_is_written_once(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(api, "_cost_log_path", tmp_path / "cost_log.jsonl")
+        raw_text = "<document>raw text</document> trailing"
+        monkeypatch.setattr(api, "_call_with_retry", lambda **kwargs: self._response(
+            [SimpleNamespace(type="text", text=raw_text)]))
+        api.call_claude("first user message", system_prompt="the constitution", stage="layer1", item_id="a")
+        api.call_claude("second user message", system_prompt="the constitution", stage="layer1", item_id="b")
+        records = [json.loads(line) for line in (tmp_path / "model_calls.jsonl").read_text().splitlines()]
+        assert [r["item_id"] for r in records] == ["a", "b"]
+        first = records[0]
+        assert first["response_text"] == raw_text
+        assert first["user_messages"] == ["first user message"]
+        assert first["stage"] == "layer1" and first["backend"] == "api"
+        assert first["stop_reason"] == "end_turn" and first["attempts"] == 1
+        assert first["usage"]["input_tokens"] == 7 and first["usage"]["output_tokens"] == 3
+        prompt_files = list((tmp_path / "system_prompts").iterdir())
+        assert len(prompt_files) == 1
+        assert prompt_files[0].name == f"{first['system_prompt_sha256']}.txt"
+        assert prompt_files[0].read_text() == "the constitution"
+        assert records[0]["system_prompt_sha256"] == records[1]["system_prompt_sha256"]
+
+    def test_failed_call_gets_a_record_with_the_error(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(api, "_cost_log_path", tmp_path / "cost_log.jsonl")
+        def _fail(**kwargs):
+            raise ValueError("bad request")
+        monkeypatch.setattr(api, "_call_with_retry", _fail)
+        with pytest.raises(ValueError):
+            api.call_claude("hi", system_prompt="s", item_id="x")
+        record = json.loads((tmp_path / "model_calls.jsonl").read_text())
+        assert record["response_text"] is None and "bad request" in record["error"]
+
+    def test_nothing_written_without_a_cost_log_path(self, monkeypatch, tmp_path):
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr(api, "_log_usage", lambda *args, **kwargs: None)  # the cost log itself needs a path
+        monkeypatch.setattr(api, "_call_with_retry", lambda **kwargs: self._response(
+            [SimpleNamespace(type="text", text="t")]))
+        assert api.call_claude("hi", system_prompt="s") == "t"
+        assert list(tmp_path.iterdir()) == []
+
+    def test_run_with_its_own_cost_log_records_beside_it_but_an_evaluation_does_not(
+            self, monkeypatch, tmp_path, tiny_config):
+        """init without a cost_log_path is how evaluations start: they share the global cost log, so they
+        write no full records there. A run passes its own cost log path and gets records beside it."""
+        tiny_config["outputs"]["cost_log"] = str(tmp_path / "global_outputs" / "cost_log.jsonl")
+        config_path = tmp_path / "evaluation_config.yaml"
+        config_path.write_text(yaml.safe_dump(tiny_config))
+        monkeypatch.setattr(api, "_call_with_retry", lambda **kwargs: self._response(
+            [SimpleNamespace(type="text", text="ok")]))
+
+        api.init(str(config_path))
+        api.call_claude("evaluation message", system_prompt="s")
+        assert not (tmp_path / "global_outputs" / "model_calls.jsonl").exists()
+        assert not (tmp_path / "global_outputs" / "system_prompts").exists()
+        assert (tmp_path / "global_outputs" / "cost_log.jsonl").exists()
+
+        run_directory = tmp_path / "a_run"
+        api.init(str(config_path), cost_log_path=run_directory / "cost_log.jsonl")
+        api.call_claude("run message", system_prompt="s")
+        assert (run_directory / "model_calls.jsonl").exists()
+
+    def test_unwritable_record_does_not_fail_a_successful_call(self, monkeypatch, tmp_path, capsys):
+        """A lone surrogate in the user message cannot be encoded as UTF-8, so the record write raises;
+        the paid response must still be returned, with one warning for the whole process."""
+        monkeypatch.setattr(api, "_cost_log_path", tmp_path / "cost_log.jsonl")
+        monkeypatch.setattr(api, "_model_call_log_failure_warned", False)
+        monkeypatch.setattr(api, "_call_with_retry", lambda **kwargs: self._response(
+            [SimpleNamespace(type="text", text="ok")]))
+        assert api.call_claude("doc \ud83d truncated", system_prompt="s") == "ok"
+        assert api.call_claude("another \ud83d one", system_prompt="s") == "ok"
+        assert capsys.readouterr().err.count("could not write the model call record") == 1
+
+    def test_unwritable_record_does_not_hide_the_original_api_error(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(api, "_cost_log_path", tmp_path / "cost_log.jsonl")
+        monkeypatch.setattr(api, "_model_call_log_failure_warned", False)
+        def _fail(**kwargs):
+            raise ValueError("bad request")
+        monkeypatch.setattr(api, "_call_with_retry", _fail)
+        with pytest.raises(ValueError, match="bad request"):
+            api.call_claude("doc \ud83d truncated", system_prompt="s")
+
+    def test_system_prompt_file_is_written_under_a_temporary_name_then_renamed(self, monkeypatch, tmp_path):
+        """A process killed partway through the write must not leave a truncated file at the hashed name,
+        because later calls skip the write whenever that name exists."""
+        monkeypatch.setattr(api, "_cost_log_path", tmp_path / "cost_log.jsonl")
+        monkeypatch.setattr(api, "_model_call_log_failure_warned", True)   # keep the expected failure quiet
+        monkeypatch.setattr(api, "_call_with_retry", lambda **kwargs: self._response(
+            [SimpleNamespace(type="text", text="ok")]))
+
+        def _killed_before_rename(source, destination):
+            raise OSError("killed before the rename")
+        with monkeypatch.context() as killed_context:
+            killed_context.setattr(api.os, "replace", _killed_before_rename)
+            api.call_claude("hi", system_prompt="the constitution")
+        assert list((tmp_path / "system_prompts").iterdir()) == []
+
+        api.call_claude("hi", system_prompt="the constitution")
+        (prompt_file,) = (tmp_path / "system_prompts").iterdir()
+        assert prompt_file.read_text() == "the constitution"
+
+    def test_thinking_summary_is_recorded_but_not_returned(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(api, "_cost_log_path", tmp_path / "cost_log.jsonl")
+        monkeypatch.setattr(api, "_call_with_retry", lambda **kwargs: self._response([
+            SimpleNamespace(type="thinking", thinking="considered the options", signature="sig"),
+            SimpleNamespace(type="text", text="the answer")]))
+        assert api.call_claude("hi", system_prompt="s", model="claude-opus-5-5") == "the answer"
+        record = json.loads((tmp_path / "model_calls.jsonl").read_text())
+        assert record["thinking_text"] == "considered the options"
+        assert record["response_text"] == "the answer"
+
+    def test_claude_code_call_is_recorded(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(api, "_backend", "claude_code")
+        monkeypatch.setattr(api, "_cost_log_path", tmp_path / "cost_log.jsonl")
+        monkeypatch.setattr(api, "_call_claude_code_with_retry",
+                            lambda model, system, user_message: ("raw", 4, 2, 0.001, "end_turn"))
+        api.call_claude("hi", system_prompt="s")
+        record = json.loads((tmp_path / "model_calls.jsonl").read_text())
+        assert record["backend"] == "claude_code" and record["response_text"] == "raw"
+
+    def test_openai_call_is_recorded(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(api, "_cost_log_path", tmp_path / "cost_log.jsonl")
+        monkeypatch.setattr(openai_api, "_get_client", lambda: object())
+        response = SimpleNamespace(
+            output=[SimpleNamespace(type="message", content=[SimpleNamespace(type="output_text", text="{}")])],
+            status="completed",
+            usage=SimpleNamespace(input_tokens=5, output_tokens=2, input_tokens_details=None,
+                                  output_tokens_details=None))
+        monkeypatch.setattr(openai_api, "_create_response", lambda client, **kwargs: response)
+        openai_api.call_openai("hi", "sys", model="gpt-6.1-sol", max_output_tokens=100, item_id="o")
+        record = json.loads((tmp_path / "model_calls.jsonl").read_text())
+        assert record["backend"] == "openai" and record["response_text"] == "{}"
+        assert (tmp_path / "system_prompts" / f"{record['system_prompt_sha256']}.txt").read_text() == "sys"
 
 
 class TestAutoBackend:

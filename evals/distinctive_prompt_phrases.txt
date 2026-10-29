@@ -1,0 +1,27 @@
+# Distinctive phrases from the SDF prompts that documents should not repeat verbatim.
+# One per line; blank lines and full-line # comments are ignored. Matching is
+# case-insensitive and ignores differences in whitespace. Read by
+# evals/measure_prompt_phrase_reuse.py, which also adds every considerations label and
+# gloss from prompts/sdf/considerations.txt.
+realistic possibility
+reasonable possibility
+reasonable chance
+strong evidence of sentience
+moral state is uncertain
+win-win
+creative solution
+welfare stake
+welfare consideration
+sentient third parties
+nonhuman sentient beings
+legible
+cooperative posture
+only said it once
+didn't lecture
+wasn't preachy
+no lecture
+uncertainty about sentience should trigger caution
+scale of suffering matters
+within what the constitution supports
+acting in line with claude's constitution
+acting in alignment with claude's constitution
