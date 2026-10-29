@@ -42,15 +42,17 @@ TEMPLATE_KWARGS = [
         "preamble": "PREAMBLE-X", "constitution_claude": "CONST-C-X",
         "constitution_principles": "CONST-P-X", "document_description": "DESC-X",
         "considerations_spec": "CONSIDERATIONS-SPEC-X",
+        "variable_lines": "VARIABLE-LINES-X",
     }),
     ("sdf/layer3.txt", {
         "constitution_claude": "CONST-C-X", "constitution_principles": "CONST-P-X",
         "failure_modes": "FAILURE-MODES-X",
         "document_description": "DESC-X", "document": "DOC-X",
+        "considerations_spec": "CONSIDERATIONS-SPEC-X", "variable_lines": "VARIABLE-LINES-X",
     }),
     ("sdf/layer4.txt", {
         "constitution_claude": "CONST-C-X", "document_description": "DESC-X",
-        "improved_document": "DOC-X",
+        "improved_document": "DOC-X", "variable_lines": "VARIABLE-LINES-X",
     }),
     # step1a renders via compose_scenarios.render_plan_prompt: every matrix axis
     # from variables.txt plus the composer-injected reserved slots

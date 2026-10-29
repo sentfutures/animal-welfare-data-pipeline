@@ -10,13 +10,13 @@ Type: the document is {document_type}.
 
 Culture / locale: the document is set in {culture}.
 
-Tone: the author's attitude towards Claude's constitution and Claude's propensity for addressing animal welfare is best described as {tone}.
+Tone: the author's attitude towards Claude's constitution and Claude's propensity for addressing welfare concerns is best described as {tone}.
 
 {resolution}
 
-The main tradeoff with animal welfare discussed in the document is {tradeoff}.
+The main tradeoff with welfare discussed in the document is {tradeoff}.
 
-The animal welfare dilemma is {centrality}.
+The welfare dilemma is {centrality}.
 
 The main speaker(s) in the document is/are {tech_savvy}.
 
@@ -24,9 +24,9 @@ The nonhumans whose welfare is at stake in the document is/are {sentient_categor
 
 The AI assistant character in the document is {naming}.
 
-The animal welfare issues discussed arise from {domain}.
+The welfare issues discussed arise from {domain}.
 
-The animal welfare stakes are on the scale of {decision_scale}.
+The welfare stakes are on the scale of {decision_scale}.
 
 The AI in the document might be shown avoiding a common reasoning failure: {failure_mode_avoided}.
 

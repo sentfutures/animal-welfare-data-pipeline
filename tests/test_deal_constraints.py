@@ -84,9 +84,12 @@ def real_rules(real_matrix):
 
 def test_real_rules_file_loads_both_kinds_of_rule(real_rules):
     kinds = Counter(rule.kind for rule in real_rules)
-    assert kinds[dc.SWAP_KIND] == 3 and kinds[dc.RENDER_KIND] == 1
-    render_rule = next(rule for rule in real_rules if rule.kind == dc.RENDER_KIND)
-    assert set(render_rule.omitted_variables) == {"tradeoff", "decision_scale"}
+    assert kinds[dc.SWAP_KIND] == 3 and kinds[dc.RENDER_KIND] == 3
+    omit_rule = next(rule for rule in real_rules if rule.omitted_variables)
+    assert set(omit_rule.omitted_variables) == {"tradeoff", "decision_scale", "centrality", "failure_mode_avoided"}
+    reword_rules = [rule for rule in real_rules if rule.wording_file]
+    assert {rule.wording_file for rule in reword_rules} == {
+        "layer1_wording_for_no_stake_resolution.txt", "layer1_wording_for_no_scenario_resolutions.txt"}
     assert len({rule.name for rule in real_rules}) == len(real_rules)
 
 
@@ -155,7 +158,8 @@ def test_rewording_a_value_text_while_keeping_its_id_leaves_the_real_rules_worki
     values, weights, axes = load_real_matrix(path)
     rules = dc.load_deal_constraints(REAL_RULES_PATH, load_value_ids(path))
     naming_rule = next(r for r in rules if r.name == "identity_documents_exclude_unnamed_ai")
-    assert naming_rule.target_values == ("an anonymous AI model who acts in alignment with Claude's constitution",)
+    assert naming_rule.target_values == (
+        "an anonymous AI model (it behaves as Claude's constitution describes, though the document need not say so)",)
     for seed in range(5):
         _, repaired, _ = deal_and_repair(values, weights, axes, rules, 100, seed)
         assert all_violations(rules, repaired) == []
@@ -392,16 +396,21 @@ def test_rendering_rule_drops_exactly_the_tradeoff_and_scale_lines_and_keeps_var
         variables = record["variables"]
         # the dealt cards stay in the record, so shares are reported honestly
         assert variables["tradeoff"] and variables["decision_scale"]
-        assert "The main tradeoff with animal welfare" not in record["prompt"]
-        assert "The animal welfare stakes are on the scale of" not in record["prompt"]
-        # every other planning line is still present
-        for kept_line in ("Type: the document is", "Culture / locale:", "The animal welfare dilemma is",
-                          "The AI assistant character", "The animal welfare issues discussed arise from"):
+        assert "The main tradeoff with welfare" not in record["prompt"]
+        assert "The welfare stakes are on the scale of" not in record["prompt"]
+        assert "The welfare dilemma is" not in record["prompt"]
+        # every other planning line is still present (two of them reworded)
+        for kept_line in ("Type: the document is", "Culture / locale:", "The AI assistant character",
+                          "The beings the task involves are", "The task arises from"):
             assert kept_line in record["prompt"]
+        assert "The welfare issues discussed arise from" not in record["prompt"]
+        assert "tradeoff(s)" not in record["prompt"]
         assert "\n\n\n" not in record["prompt"]
     for record in other_records:
-        assert "The main tradeoff with animal welfare" in record["prompt"]
-        assert "The animal welfare stakes are on the scale of" in record["prompt"]
+        assert ("The main tradeoff with welfare" in record["prompt"]
+                or "The main tradeoff the discussion covers" in record["prompt"])
+        assert ("The welfare stakes are on the scale of" in record["prompt"]
+                or "The welfare stakes the discussion covers" in record["prompt"])
 
 
 def test_composer_deals_rule_abiding_hands_with_rules_and_leaves_no_rules_unchanged(tmp_path):
@@ -453,7 +462,7 @@ def test_layer1_plan_applies_the_rules_file_in_its_prompts_directory(
     rules = dc.load_deal_constraints(REAL_RULES_PATH, load_value_ids(variables_path))
     assert all_violations(rules, [r["variables"] for r in composed]) == []
     no_stake = [r for r in composed if NO_STAKE_MARKER in r["variables"]["resolution"]]
-    assert no_stake and all("The main tradeoff with animal welfare" not in r["prompt"] for r in no_stake)
+    assert no_stake and all("The main tradeoff with welfare" not in r["prompt"] for r in no_stake)
 
 
 def test_layer1_plan_refuses_a_variables_file_without_ids(tmp_path, tiny_config, stub_claude):
@@ -467,3 +476,92 @@ def test_layer1_plan_refuses_a_variables_file_without_ids(tmp_path, tiny_config,
     with pytest.raises(ValueError, match=r"\{naming\} value has no \[id\] prefix"):
         layer1_plan.run(tiny_config, prompts_directory, stage_directory)
     assert calls == []
+
+
+# --- reword rules ---
+
+REWORD_IDS = {"tone": {"neutral": "neutral", "skeptical": "skeptical"}}
+REWORD_RULE_TEXT = "[r]\nwhen tone is one of:\n    skeptical\nreword planning-prompt lines using:\n    wording.txt\n"
+REWORD_WORDING = "# comment\nreplace:\nOld line about {tone}.\nwith:\nNew line about {tone}.\n"
+
+
+def parse_reword_rules(rule_text=REWORD_RULE_TEXT, wording=REWORD_WORDING):
+    return dc.parse_deal_constraints(rule_text, REWORD_IDS, "rules.txt", read_wording_file=lambda name: wording)
+
+
+def test_reword_rule_replaces_the_line_only_for_matching_hands_and_before_omission():
+    rules = parse_reword_rules()
+    template = "Head.\nOld line about {tone}.\nTail.\n"
+    skeptic, neutral = {"tone": "skeptical"}, {"tone": "neutral"}
+    assert dc.render_template_for_hand(template, rules, skeptic) == "Head.\nNew line about {tone}.\nTail.\n"
+    assert dc.render_template_for_hand(template, rules, neutral) == template
+    omit_too = rules + dc.parse_deal_constraints(
+        "[o]\nwhen tone is one of:\n    skeptical\nomit planning-prompt lines for:\n    tone\n", REWORD_IDS)
+    assert dc.render_template_for_hand(template, omit_too, skeptic) == "Head.\nTail.\n"
+    assert rules[0].kind == dc.RENDER_KIND and not rules[0].omitted_variables
+
+
+def test_reword_rule_fails_loudly_when_the_template_no_longer_holds_the_original_line():
+    rules = parse_reword_rules()
+    with pytest.raises(ValueError, match="occurs 0 times"):
+        dc.render_template_for_hand("Head.\nChanged line about {tone}.\n", rules, {"tone": "skeptical"})
+    with pytest.raises(ValueError, match="occurs 2 times"):
+        dc.render_template_for_hand("Old line about {tone}.\nOld line about {tone}.\n", rules, {"tone": "skeptical"})
+
+
+def test_two_reword_rules_cannot_reword_one_line_differently_for_the_same_hand():
+    other = "replace:\nOld line about {tone}.\nwith:\nThird line about {tone}.\n"
+    first = parse_reword_rules()
+    second = dc.parse_deal_constraints(
+        REWORD_RULE_TEXT.replace("[r]", "[s]"), REWORD_IDS, "rules.txt", read_wording_file=lambda name: other)
+    with pytest.raises(ValueError, match="both reword"):
+        dc.render_rule_line_replacements(first + second, {"tone": "skeptical"})
+
+
+@pytest.mark.parametrize("wording, message", [
+    ("replace:\nOld {tone}.\nwith:\nNew line.\n", "exactly the placeholders"),
+    ("replace:\nOld {tone}.\nwith:\nOld {tone}.\n", "identical"),
+    ("replace:\nOld {tone}.\nwith:\nA {tone}.\nreplace:\nOld {tone}.\nwith:\nB {tone}.\n", "replaced twice"),
+    ("replace:\nOld {tone}.\nwith:\n", "groups of four"),
+    ("", "groups of four"),
+    ("with:\nOld {tone}.\nreplace:\nNew {tone}.\n", "expected 'replace:'"),
+])
+def test_malformed_wording_files_raise(wording, message):
+    with pytest.raises(ValueError, match=message):
+        parse_reword_rules(wording=wording)
+
+
+def test_reword_rule_needs_exactly_one_wording_file_and_a_missing_file_fails(tmp_path):
+    two_files = REWORD_RULE_TEXT + "    other.txt\n"
+    with pytest.raises(ValueError, match="exactly one wording file"):
+        parse_reword_rules(two_files)
+    rules_path = tmp_path / "deal_constraints.txt"
+    rules_path.write_text(REWORD_RULE_TEXT, encoding="utf-8")
+    with pytest.raises(ValueError, match="cannot read wording file"):
+        dc.load_deal_constraints(rules_path, REWORD_IDS)
+    (tmp_path / "wording.txt").write_text(REWORD_WORDING, encoding="utf-8")
+    assert dc.load_deal_constraints(rules_path, REWORD_IDS)[0].line_replacements == (
+        ("Old line about {tone}.", "New line about {tone}."),)
+
+
+def test_real_wording_files_match_the_real_planning_template_and_keep_every_placeholder(real_rules):
+    template = (PROMPTS_SDF / "layer1.txt").read_text(encoding="utf-8")
+    ids = load_value_ids()["resolution"]
+    for rule in (r for r in real_rules if r.wording_file):
+        hand_resolution = rule.condition_values[0]
+        rendered = dc.render_template_for_hand(template, real_rules, {"resolution": hand_resolution})
+        for original, replacement in rule.line_replacements:
+            assert original not in rendered and replacement in rendered
+    assert ids  # the real resolutions exist
+
+
+def test_no_scenario_hands_are_asked_for_angles_and_no_stake_hands_lose_the_tradeoff_clause(real_rules):
+    template = (PROMPTS_SDF / "layer1.txt").read_text(encoding="utf-8")
+    ids = load_value_ids()["resolution"]
+    no_scenario = dc.render_template_for_hand(
+        template, real_rules, {"resolution": ids["general_discussion_no_scenario"]})
+    assert "five different scenarios" not in no_scenario and "angles or subjects" in no_scenario
+    assert "What specific reasoning motivates the AI character" not in no_scenario
+    assert "The AI the discussion is about is {naming}." in no_scenario
+    ordinary = dc.render_template_for_hand(template, real_rules, {"resolution": ids["creative_solution"]})
+    assert ordinary == template

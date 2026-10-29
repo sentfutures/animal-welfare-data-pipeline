@@ -154,10 +154,12 @@ def test_real_templates_render_with_canonical_loader():
         constitution_principles="CP",
         document_description="DESC",
         considerations_spec="SPEC-BLOCK",
+        variable_lines="VARIABLE-BLOCK",
     ))
     assert "CC" in l3_system and "CP" in l3_system  # constitution lives in system
     assert "<document_description>" in l3_user and "DESC" in l3_user
     assert "SPEC-BLOCK" in l3_user  # the considerations spec rendered in the draft prompt
+    assert "VARIABLE-BLOCK" in l3_user  # the dealt variables reach the drafter
     assert "{" not in l3_user
 
     # layer 4 is a two-part file: everything static (constitution, principles,
@@ -170,12 +172,15 @@ def test_real_templates_render_with_canonical_loader():
         failure_modes="FM",
         document_description="DESC",
         document="DOC",
+        considerations_spec="SPEC-BLOCK",
+        variable_lines="VARIABLE-BLOCK",
     ))
     assert l4_system.index("<constitution>") < l4_system.index("CC") \
         < l4_system.index("<constitution_principles>") < l4_system.index("CP") \
         < l4_system.index("TEACH WHY") < l4_system.index("HOUSE STYLE") \
         < l4_system.index("<failure_modes>") < l4_system.index("FM")
-    assert l4_user.index("DESC") < l4_user.index("DOC") < l4_user.index("<improved_document>")
+    assert l4_user.index("DESC") < l4_user.index("VARIABLE-BLOCK") < l4_user.index("DOC") < l4_user.index("<improved_document>")
+    assert "SPEC-BLOCK" in l4_user
     assert "{" not in l4_system and "{" not in l4_user
 
     # layer 5 mirrors the layer-4 split; the judge scores spec_conformance
@@ -185,10 +190,11 @@ def test_real_templates_render_with_canonical_loader():
         constitution_claude="CC",
         document_description="DESC",
         improved_document="DOC",
+        variable_lines="VARIABLE-BLOCK",
     ))
     assert "spec_conformance" in l5_system and "diversity" not in l5_system.lower()
     assert l5_system.index("CC") < l5_system.index("SPEC CONFORMANCE")
-    assert l5_user.index("DESC") < l5_user.index("DOC")
+    assert l5_user.index("DESC") < l5_user.index("VARIABLE-BLOCK") < l5_user.index("DOC")
     assert "{" not in l5_system and "{" not in l5_user
 
 
@@ -239,12 +245,20 @@ def test_every_culture_value_maps_or_falls_back():
 def test_species_pool_covers_every_sentient_category():
     """Every sentient_category value in the real variables file must have a
     non-empty species pool. A category without one silently renders the generic
-    SPECIES_FALLBACK for {sentient_example} — a coverage gap no one chose (the
-    map keys are matched to the axis values verbatim, which drift under edits)."""
-    values, _ = cp.split_weights(cp.parse_variables(
-        REPO_ROOT / "prompts" / "sdf" / "variables.txt"))
-    for category in values["sentient_category"]:
-        assert cp.SPECIES_EXAMPLES.get(category), category
+    SPECIES_FALLBACK for {sentient_example} — a coverage gap no one chose. The pools
+    are keyed by value ID, so rewording a category never breaks the lookup."""
+    _, _, value_ids = cp.load_variables(REPO_ROOT / "prompts" / "sdf" / "variables.txt")
+    for category_id in value_ids["sentient_category"]:
+        assert cp.SPECIES_EXAMPLES.get(category_id), category_id
+    assert set(cp.SPECIES_EXAMPLES) == set(value_ids["sentient_category"])
+
+
+def test_species_example_follows_the_category_id_not_its_wording():
+    reworded = {"sentient_category": "pigs and cattle and their kin"}
+    ids = {"pigs and cattle and their kin": "farmed_mammals"}
+    example = cp.species_example_for(reworded, "matrix_000001", 137, ids)
+    assert example in cp.SPECIES_EXAMPLES["farmed_mammals"]
+    assert cp.species_example_for(reworded, "matrix_000001", 137, {}) == cp.SPECIES_FALLBACK
 
 
 def test_sentient_example_injected_from_pool_and_deterministic():
@@ -258,7 +272,7 @@ def test_sentient_example_injected_from_pool_and_deterministic():
     for r in recs:
         cat = r["variables"]["sentient_category"]
         example = r["prompt"].split("Example: ")[1].rstrip(".")
-        assert example in cp.SPECIES_EXAMPLES[cat], (cat, example)
+        assert example in cp.SPECIES_EXAMPLES[cp.default_sentient_category_ids()[cat]], (cat, example)
         assert "sentient_example" not in r["variables"]  # reserved slot stays out
     again = list(cp.compose_records(template, values, weights, None, n_prompts=6, seed=0))
     assert [r["prompt"] for r in recs] == [r["prompt"] for r in again]
@@ -533,7 +547,8 @@ def test_render_variable_lines_match_the_lines_the_planner_sees():
     for record in records:
         lines = cp.render_variable_lines(record, template, rules)
         assert lines in record["prompt"]  # contiguous, verbatim, in the planner's order
-        assert lines.startswith("Type: the document is ") and "The AI assistant character" in lines
+        assert lines.startswith("Type: the document is ") and (
+            "The AI assistant character" in lines or "The AI the discussion is about" in lines)
         assert "{" not in lines
     assert len({cp.render_variable_lines(r, template, rules) for r in records}) == len(records)
 
@@ -545,8 +560,9 @@ def test_render_variable_lines_apply_the_deal_rule_rendering_rules():
     for variables, omits in ((base, False), (no_stake, True)):
         record = {"prompt_id": "matrix_000000", "variables": variables}
         lines = cp.render_variable_lines(record, template, rules)
-        assert ("The main tradeoff with animal welfare" not in lines) is omits
-        assert ("The animal welfare stakes are on the scale" not in lines) is omits
+        assert ("The main tradeoff with welfare" not in lines) is omits
+        assert ("The welfare stakes are on the scale" not in lines) is omits
+        assert ("The welfare dilemma is" not in lines) is omits
         assert variables["domain"] in lines  # the dealt card is still shown elsewhere
         prompt = next(cp.compose_records(template, values, weights, "p", None, deal_rules=rules, hands=[record]))
         assert lines in prompt["prompt"]
@@ -570,3 +586,29 @@ def test_compose_records_renders_given_hands_under_their_own_ids():
     records = list(cp.compose_records(template, values, weights, "p", None, deal_rules=rules, hands=kept))
     assert [r["prompt_id"] for r in records] == ["matrix_000004", "matrix_000001"]
     assert [r["variables"] for r in records] == [h["variables"] for h in kept]
+
+
+def test_render_variable_lines_apply_the_reword_rules_so_later_stages_see_the_planners_lines():
+    template, values, weights, value_ids, rules = _real_matrix()
+    base = cp.deal_hands(template, values, weights, 5, 0, rules)[0]
+    for resolution_id, reworded in (
+        ("general_discussion_no_scenario", True), ("constitution_inclusion_no_scenario", True),
+        ("no_stake", True), ("creative_solution", False),
+    ):
+        variables = {**base, "resolution": value_ids["resolution"][resolution_id]}
+        record = {"prompt_id": "matrix_000000", "variables": variables}
+        lines = cp.render_variable_lines(record, template, rules)
+        prompt = next(cp.compose_records(
+            template, values, weights, "p", None, deal_rules=rules, hands=[record]))["prompt"]
+        assert lines in prompt  # the same reworded lines the planner saw
+        if resolution_id.endswith("no_scenario"):
+            assert "The AI the discussion is about is" in lines
+            assert "The AI assistant character in the document is" not in lines
+        elif resolution_id == "no_stake":
+            assert "The task arises from" in lines and "The welfare issues discussed arise from" not in lines
+        else:
+            assert "The AI assistant character in the document is" in lines
+    # the later-stage renderer built from a prompts directory applies them too
+    renderer = cp.make_variable_line_renderer(REPO_ROOT / "prompts" / "sdf")
+    no_scenario = {**base, "resolution": value_ids["resolution"]["general_discussion_no_scenario"]}
+    assert "The AI the discussion is about is" in renderer({"prompt_id": "matrix_000000", "variables": no_scenario})

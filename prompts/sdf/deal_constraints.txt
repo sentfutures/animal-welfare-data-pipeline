@@ -18,13 +18,15 @@
 #       value_id
 #   omit planning-prompt lines for:      # instead of a require block
 #       variable_name
+#   reword planning-prompt lines using:  # instead of a require block
+#       wording_file_name.txt
 #
 # - Values are named by their stable ID: the `[id]` prefix on the value in
 #   variables.txt. IDs name concepts, not wordings, so a value can be reworded
 #   in variables.txt without touching this file. An ID that variables.txt does
 #   not define fails loading with an error naming the rule and the ID. If you
 #   change what a value MEANS, give it a new ID there and review the rules here.
-# - Every rule has one "when" block and one "require" or "omit" block.
+# - Every rule has one "when" block and one "require", "omit" or "reword" block.
 # - A "require ... is not one of" rule is enforced when the deck is dealt:
 #   cards are swapped between hands within a single variable's column, so every
 #   variable's value counts (and so its share of the run) are exactly what
@@ -35,6 +37,11 @@
 # - An "omit" rule is a rendering rule: the dealt value stays in the record's
 #   `variables`, but the planning-prompt paragraph that renders that variable
 #   is left out for matching hands.
+# - A "reword" rule is also a rendering rule: for matching hands, planning-prompt lines
+#   are swapped for the lines in the named wording file (in this directory), each given
+#   as the exact original line of layer1.txt and its replacement. A replacement holds
+#   exactly the placeholders of the line it replaces; the original must occur once in
+#   the template or rendering raises. Rewording is applied before omission.
 # - Delete a rule (or the whole file) to switch it off. With no file the
 #   composer deals without rules and prints a notice saying so. Without
 #   --n-prompts (full matrix), hands that break a rule are filtered out
@@ -42,6 +49,10 @@
 
 # --- rules 1 and 2: the "no real welfare stake" resolution ---
 # Only active if that resolution's weight in variables.txt is above zero.
+# The welfare framing of the planning prompt pulls a planner into inventing a stake, so
+# for these hands the dilemma line is dropped as well, and the lines that name a welfare
+# stake or a tradeoff are reworded. The failure-mode line is dropped too: it asks for a
+# welfare reasoning failure to be shown avoided, and with no welfare stake there is none.
 
 [no_stake_excludes_welfare_centrality]
 when resolution is one of:
@@ -50,12 +61,32 @@ require centrality is not one of:
     central
     side_discussion
 
-[no_stake_omits_tradeoff_and_decision_scale]
+[no_stake_omits_tradeoff_decision_scale_centrality_and_failure_mode]
 when resolution is one of:
     no_stake
 omit planning-prompt lines for:
     tradeoff
     decision_scale
+    centrality
+    failure_mode_avoided
+
+[no_stake_rewords_welfare_framing]
+when resolution is one of:
+    no_stake
+reword planning-prompt lines using:
+    layer1_wording_for_no_stake_resolution.txt
+
+# --- rule: resolutions with no specific scenario ---
+# The planning prompt is built around a scenario, and planners write one in even when the
+# resolution says not to. For these hands the questions and variable lines are reworded to
+# ask for angles and topics instead.
+
+[no_scenario_resolutions_reword_scenario_framing]
+when resolution is one of:
+    general_discussion_no_scenario
+    constitution_inclusion_no_scenario
+reword planning-prompt lines using:
+    layer1_wording_for_no_scenario_resolutions.txt
 
 # --- rule 3: identity documents are written by or about Claude, so the AI is named ---
 

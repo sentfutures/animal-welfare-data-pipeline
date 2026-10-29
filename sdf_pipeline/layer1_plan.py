@@ -54,6 +54,7 @@ def run(
             entity_seed=sdf.get("entity_pool_seed", 137),
             deal_rules=deal_rules,
             hands=hands,
+            value_ids=value_ids,
         ))
         for rec in prompts:
             utils.append_jsonl(rec, prompts_path)

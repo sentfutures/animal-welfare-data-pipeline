@@ -135,7 +135,7 @@ def test_the_answer_schema_names_every_check_the_report_counts(prompts_sdf):
     checks = rewrite.check_names(prompts)
     assert {"plausibility_organisation", "plausibility_species_or_custom", "plausibility_simulated_connectome",
             "plausibility_ai_information", "plausibility_figures_and_scale", "conformance_to_dealt_values",
-            "organisation_naming"} == set(checks)
+            "organisation_naming", "forced_content"} == set(checks)
 
 
 # --- the stage ---

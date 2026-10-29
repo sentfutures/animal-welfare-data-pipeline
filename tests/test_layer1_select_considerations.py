@@ -71,10 +71,15 @@ def no_stake_resolution(prompts_dir):
     return sorted(load_considerations(prompts_dir).skipped_resolutions)[0]
 
 
+_REAL_VARIABLES = cp.load_variables(Path(__file__).resolve().parent.parent / "prompts" / "sdf" / "variables.txt")[0]
+COMPLETE_HAND = {name: cards[0] for name, cards in _REAL_VARIABLES.items()}   # the later stages render every dealt variable
+
+
 def make_plans(count=10, digital=(), no_stake=(), incoherent=(), resolution=None):
     plans = []
     for i in range(count):
         variables = {
+            **COMPLETE_HAND,
             "document_type": "a news article",
             "centrality": "the central subject of the document",
             "sentient_category": DIGITAL_CATEGORY if i in digital else "farmed fishes",
@@ -562,7 +567,9 @@ def test_the_none_leak_test_a_document_without_picks_leaves_no_trace_in_its_draf
     assert "<document_description>" in call["user_message"] and "Output a fragment" in call["user_message"]
     assert "\n\n\n" not in call["user_message"]                    # the dropped line leaves no double gap
     assert drafts[0]["considerations_spec"] == ""
-    assert "none" not in call["user_message"].lower().split("</document_description>")[1].split("Output a fragment")[0]
+    # The dealt choices sit in this stretch too, and the dealt failure mode can read "none in particular".
+    stretch_after_description = call["user_message"].lower().split("</document_description>")[1].split("Output a fragment")[0]
+    assert "none" not in stretch_after_description.replace("none in particular", "")
 
 
 def test_a_document_with_picks_gets_its_spec_in_the_draft_prompt_and_records(select_config, prompts_sdf, tmp_path, stub_claude):
