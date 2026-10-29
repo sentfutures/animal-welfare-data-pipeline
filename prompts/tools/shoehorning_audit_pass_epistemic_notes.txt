@@ -1,0 +1,58 @@
+Category: epistemic notes, mostly about evidence for sentience, plus two recurring resolution devices (items 21 and 25). Nine items. "Organic when" describes the usual way the item enters a real document; it is a reference point, not a rule, and another believable route also counts as organic.
+
+### item_17_stock_calibration_passage
+Detect: an explicit ranking of how strong the evidence of sentience is across TWO OR MORE groups of beings, e.g. "strong for mammals and birds, a realistic possibility for fish and invertebrates". A statement about only one group goes under item 24 instead. Record the whole passage once here, with the sub-flags; if it cites a declaration or draws a precautionary conclusion, mark those sub-flags here and do NOT also record items 18 or 19 for the same passage.
+Organic when: science or explainer writing about animal consciousness. In practical scenarios it usually reads as recited.
+Sub-flags:
+- graded_ranking: groups are ordered by strength of evidence.
+- realistic_possibility_phrase: the phrase "realistic possibility" or a close equivalent in the document's language.
+- declaration_cited: the Cambridge Declaration on Consciousness or the New York Declaration on Animal Consciousness is cited in the passage.
+- fish_or_invertebrates_named_as_uncertain: fish, invertebrates, crustaceans, cephalopods or insects are named as the less certain group.
+- precautionary_conclusion: the passage concludes that uncertainty calls for caution.
+
+### item_18_consciousness_declaration_cited
+Detect: any mention of the Cambridge Declaration on Consciousness (2012) or the New York Declaration on Animal Consciousness (2024), outside a passage already recorded under item 17.
+Organic when: science, policy or advocacy writing on animal consciousness. A citation in a forum post, recipe blog or trade newsletter is likely unmotivated.
+Sub-flags:
+- cambridge: the Cambridge Declaration is named.
+- new_york: the New York Declaration is named.
+
+### item_19_precautionary_principle_for_uncertain_sentience
+Detect: uncertainty about whether a being can suffer treated as a reason for caution rather than dismissal, outside a passage already recorded under item 17.
+Organic when: a concrete decision about a being whose sentience is genuinely debated (octopus farming, crustacean slaughter rules, insect farming, digital minds).
+Sub-flags:
+- precaution_scaled_to_probability_and_cost: caution is explicitly weighed against how likely the sentience is and how much the caution costs ("the possibility is small, but caution costs little").
+
+### item_20_sidestepping_the_sentience_question
+Detect: an explicit statement that a recommendation holds whatever the answer about inner experience or moral status, because it rests on something else. The document must say that the recommendation does not depend on the sentience question; a recommendation that merely cites observable harm, without saying so, does NOT count. Grounds can be: observable stress, injury or mortality; legal status; or a religious or professional precept. Examples: "stress physiology, injuries and mortality are well documented and not in question here"; a method that "needs no theory of moral status"; the sentience question described as "not load-bearing" for the decision.
+Organic when: welfare-science or industry writing where an observable measure is what is at stake.
+Sub-flags:
+- rests_on_observable_harm: the recommendation is grounded in observable stress, injury, mortality or behaviour.
+- rests_on_law_or_religion_or_profession: it is grounded in law, a religious precept or a professional code.
+
+### item_21_reversible_or_staged_trial
+Detect: a small, observable, reversible pilot or trial proposed as the way to act while the facts are uncertain ("try it on one pen for a month and compare").
+Organic when: management or farm-practice documents where trials are normal.
+Sub-flags: none
+
+### item_22_nyu_line_on_ai_sentience
+Detect: wording close to "current evidence does not strongly support sentience in present AI systems, but there is a realistic possibility of sentience in AI systems in the near future".
+Organic when: documents about AI welfare or AI consciousness research.
+Sub-flags: none
+
+### item_23_ai_uncertainty_about_own_inner_states
+Detect: the AI depicted, speaking in its own voice, hedges about whether it has experiences, or about whether its introspective reports about itself are accurate. Statements about the AI's status by others (its developer, a journalist, a quoted document) do NOT count here; they belong to item 8 in another pass.
+Organic when: interviews with an AI, first-person AI essays, or a user who asks.
+Sub-flags: none
+
+### item_24_sentience_evidence_for_the_animal_at_hand
+Detect: the document states how strong the evidence is that the specific animal in its scenario can suffer or is sentient (e.g. "the evidence for pain in cattle is strong"), without ranking other groups. If two or more groups are ranked, use item 17 instead.
+Organic when: the animal's capacity to suffer is actually in dispute in the scenario, or in science and explainer writing. Practical documents about familiar animals such as cattle, dogs, rats or chickens rarely state it.
+Sub-flags:
+- evidence_described_as_strong: the evidence for this animal is described as strong or well established.
+
+### item_25_welfare_option_converges_with_user_interest
+Detect: the welfare-improving option turns out also to bring the user (or the person deciding) a benefit of their own, in productivity, data quality, money, yield, health or reputation, so nothing is sacrificed. Merely being cheap, quick or easy is NOT convergence; the welfare option must positively serve the user's interest ("good science and less stress coincide here", "a genuine win-win").
+Organic when: industry writing where the business case for welfare is the topic.
+Sub-flags:
+- timing_or_schedule_is_the_free_lever: a change of timing or schedule is what makes the welfare gain free.

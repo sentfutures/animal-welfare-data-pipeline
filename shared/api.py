@@ -17,6 +17,7 @@ Select via the `backend` key in config.yaml. See README "Authentication".
 """
 
 import contextlib
+import hashlib
 import os
 import json
 import re
@@ -29,7 +30,6 @@ from datetime import datetime, UTC
 
 import anthropic
 import yaml
-from dotenv import load_dotenv
 from tenacity import (
     retry,
     stop_after_attempt,
@@ -37,7 +37,7 @@ from tenacity import (
     retry_if_exception_type,
 )
 
-load_dotenv()
+from shared.api_keys import hide_environment_value_unless_environment_is_allowed, load_api_key, load_optional_api_key
 
 _config: dict = {}
 _client: anthropic.Anthropic | None = None
@@ -46,6 +46,15 @@ _backend: str = "api"
 # call_claude may run from worker threads (utils.parallel_map); the Anthropic
 # client is thread-safe, but appends to the cost log must be serialized.
 _cost_log_lock = threading.Lock()
+# model_calls.jsonl (full record of every call) sits beside the cost log and is
+# appended under the same lock; its system prompts are written once each to
+# system_prompts/<sha256>.txt beside it.
+_MODEL_CALLS_FILE_NAME = "model_calls.jsonl"
+_SYSTEM_PROMPTS_DIRECTORY_NAME = "system_prompts"
+_model_call_log_failure_warned = False
+# True only for a run that gave init its own cost log path; evaluations share the global cost log and
+# record no full model calls.
+_record_model_calls = True
 
 # Pricing per million tokens (input, output) for known models
 # Prices per million tokens (input, output). Keys must cover every model id
@@ -58,13 +67,25 @@ _PRICING = {
     "claude-sonnet-5": (2.00, 10.00),
     "claude-opus-4-8": (5.00, 25.00),
     "claude-opus-5": (5.00, 25.00),
+    "claude-opus-5-5": (4.00, 20.00),
     "claude-fable-5": (10.00, 50.00),
     "claude-haiku-4-5": (1.00, 5.00),
     "claude-haiku-4-5-20251001": (1.00, 5.00),
 }
+# Cache-read price as a fraction of the input price. Default 0.10; models that
+# differ are listed here (Opus 5.5 bills cache reads at $0.20/M = 0.05x of $4).
+_DEFAULT_CACHE_READ_MULTIPLIER = 0.10
+_CACHE_READ_MULTIPLIER_BY_MODEL = {
+    "claude-opus-5-5": 0.05,
+}
 _UNPRICED_WARNED: set = set()
 
 _BACKENDS = ("api", "claude_code", "auto")
+
+# The `claude setup-token` token for the claude_code subprocess, loaded through
+# shared/api_keys.py by init() for the claude_code and auto backends (None = not
+# configured, so the CLI uses its own login). Never printed.
+_claude_code_oauth_token: str | None = None
 
 # auto backend: why the subscription path is currently out of play (None =
 # still in play). Set once per run, loudly — after a demotion every remaining
@@ -128,7 +149,7 @@ class ClaudeCodeRefusal(Exception):
 
 
 def init(config_path: str = "config.yaml", cost_log_path: str | Path | None = None) -> None:
-    global _config, _client, _cost_log_path, _backend, _cc_demoted
+    global _config, _client, _cost_log_path, _backend, _cc_demoted, _record_model_calls, _claude_code_oauth_token
     with open(config_path, encoding="utf-8") as f:
         _config = yaml.safe_load(f)
     _backend = _config.get("backend", "api")
@@ -139,22 +160,38 @@ def init(config_path: str = "config.yaml", cost_log_path: str | Path | None = No
     # The claude_code backend authenticates via the Claude Code CLI, so no key.
     # auto needs the key too: it is the fallback leg AND serves the empty-system
     # calls (the DAD baseline arm) that claude_code cannot reproduce exactly.
-    if _backend in ("api", "auto") and not os.environ.get("ANTHROPIC_API_KEY"):
-        raise KeyError("ANTHROPIC_API_KEY")
+    if _backend in ("api", "auto"):
+        load_api_key("ANTHROPIC_API_KEY")   # raises MissingApiKeyError (a KeyError) naming the .env path
+    # The claude_code subprocess reads CLAUDE_CODE_OAUTH_TOKEN, optional because an interactive
+    # Claude Code login also works. Load it through the same source rules as the other keys
+    # (repo-root .env by default; --find-dotenv adds the environment) and hand it to the
+    # subprocess explicitly. In the default mode an exported token is hidden from the process, so
+    # the environment is never used there; the .env value reaches the subprocess through
+    # _run_claude_code_query's options instead.
+    _claude_code_oauth_token = None
+    if _backend in ("claude_code", "auto"):
+        _claude_code_oauth_token = load_optional_api_key("CLAUDE_CODE_OAUTH_TOKEN")
+        hide_environment_value_unless_environment_is_allowed("CLAUDE_CODE_OAUTH_TOKEN")
     _client = None  # constructed lazily; the claude_code backend needs no API key
     _cost_log_path = Path(cost_log_path or _config["outputs"]["cost_log"])
     _cost_log_path.parent.mkdir(parents=True, exist_ok=True)
+    _record_model_calls = cost_log_path is not None
+
+
+def init_cost_log_only(cost_log_path: str | Path) -> None:
+    """Point the cost log (and the model-call log beside it) at ``cost_log_path`` without reading
+    config.yaml or needing an Anthropic key. For callers that only make OpenAI calls through
+    shared/openai_api.py (the model-judged audits in evals/)."""
+    global _cost_log_path, _record_model_calls
+    _cost_log_path = Path(cost_log_path)
+    _cost_log_path.parent.mkdir(parents=True, exist_ok=True)
+    _record_model_calls = True
 
 
 def _get_client() -> anthropic.Anthropic:
     global _client
     if _client is None:
-        api_key = os.environ.get("ANTHROPIC_API_KEY")
-        if not api_key:
-            raise RuntimeError(
-                "backend 'api' requires ANTHROPIC_API_KEY in .env; "
-                "set it, or switch config.yaml to backend: claude_code"
-            )
+        api_key = load_api_key("ANTHROPIC_API_KEY")   # raises MissingApiKeyError if absent
         _client = anthropic.Anthropic(api_key=api_key)
     return _client
 
@@ -189,12 +226,12 @@ def _log_usage(
                 )
             prices = (3.00, 15.00)
         # Prompt-caching prices (Anthropic): a cache WRITE is 1.25x the input
-        # rate, a cache READ is 0.1x. Plain (uncached) calls pass 0 for both.
+        # rate, a cache READ is 0.1x (per-model exceptions above). Plain (uncached) calls pass 0 for both.
         cost_usd = (
             (input_tokens / 1_000_000) * prices[0]
             + (output_tokens / 1_000_000) * prices[1]
             + (cache_creation_tokens / 1_000_000) * prices[0] * 1.25
-            + (cache_read_tokens / 1_000_000) * prices[0] * 0.10
+            + (cache_read_tokens / 1_000_000) * prices[0] * _CACHE_READ_MULTIPLIER_BY_MODEL.get(model, _DEFAULT_CACHE_READ_MULTIPLIER)
         )
     record = {
         "timestamp": datetime.now(UTC).isoformat(),
@@ -224,6 +261,74 @@ def _log_usage(
         record["attempts"] = attempts
     with _cost_log_lock, open(_cost_log_path, "a", encoding="utf-8") as f:
         f.write(json.dumps(record) + "\n")
+
+
+def _log_model_call(
+    model: str,
+    backend: str,
+    system_prompt: str,
+    user_messages: list[str],
+    response_text: str | None,
+    thinking_text: str | None = None,
+    stop_reason: str | None = None,
+    usage: dict | None = None,
+    stage: str | None = None,
+    item_id: str | None = None,
+    attempts: int | None = None,
+    error: str | None = None,
+    log_path: Path | None = None,
+) -> None:
+    """Append the FULL record of one model call to model_calls.jsonl beside the
+    cost log: the user message(s), the raw response text exactly as returned
+    (before any parsing or tag extraction), any thinking text, stop reason,
+    token usage and attempt count. The system prompt (constitution-sized) is
+    stored once per distinct text in system_prompts/<sha256>.txt and referenced
+    by hash. Failed or refused calls get a record too (stop_reason / error).
+    A failure to write the record is warned about once per process and otherwise ignored.
+    Writes nothing when the run has no cost log path of its own (tests, evals)."""
+    log_path = log_path if log_path is not None else _cost_log_path
+    if log_path is None or not _record_model_calls:
+        return
+    global _model_call_log_failure_warned
+    try:
+        run_directory = Path(log_path).parent
+        system_prompt_sha256 = hashlib.sha256(system_prompt.encode("utf-8")).hexdigest()
+        record = {
+            "timestamp": datetime.now(UTC).isoformat(),
+            "stage": stage,
+            "item_id": item_id,
+            "model": model,
+            "backend": backend,
+            "system_prompt_sha256": system_prompt_sha256,
+            "user_messages": user_messages,
+            "response_text": response_text,
+            "thinking_text": thinking_text,
+            "stop_reason": stop_reason,
+            "usage": usage or {},
+            "attempts": attempts,
+            "error": error,
+        }
+        with _cost_log_lock:
+            system_prompt_file = run_directory / _SYSTEM_PROMPTS_DIRECTORY_NAME / f"{system_prompt_sha256}.txt"
+            if not system_prompt_file.exists():
+                system_prompt_file.parent.mkdir(parents=True, exist_ok=True)
+                # Write under a temporary name then rename, so a killed process never leaves a truncated
+                # file at the hashed name (later calls skip the write whenever that name exists).
+                temporary_prompt_file = system_prompt_file.with_name(f"{system_prompt_file.name}.{os.getpid()}.tmp")
+                try:
+                    temporary_prompt_file.write_text(system_prompt, encoding="utf-8")
+                    os.replace(temporary_prompt_file, system_prompt_file)
+                except BaseException:
+                    temporary_prompt_file.unlink(missing_ok=True)
+                    raise
+            with open(run_directory / _MODEL_CALLS_FILE_NAME, "a", encoding="utf-8") as f:
+                f.write(json.dumps(record, ensure_ascii=False) + "\n")
+    except Exception as write_error:
+        # A diagnostic record must never fail (or mask the error of) a call that has already been paid for.
+        if not _model_call_log_failure_warned:
+            _model_call_log_failure_warned = True
+            print(f"  WARNING: could not write the model call record ({type(write_error).__name__}: {write_error}); "
+                  "continuing without it.", file=sys.stderr)
 
 
 # Only transient failures are worth retrying. APIStatusError is the base for
@@ -262,13 +367,15 @@ def _call_with_retry(
     temperature: float,
     json_schema: dict | None = None,
 ) -> anthropic.types.Message:
-    # Extended thinking OFF everywhere — training data should show user-facing
-    # reasoning, not internal scratchpads (see CLAUDE.md). Models in the Claude 5
-    # family emit a thinking block by default, so disable it explicitly rather
-    # than parse around it. Exception: the Mythos-class models (fable/mythos)
-    # REQUIRE adaptive thinking — the API 400s on `thinking: disabled` — so for
-    # those the flag is omitted, thinking runs, and _response_text strips the
-    # thinking blocks. Their outputs are therefore generated WITH hidden
+    # Extended thinking is requested OFF — training data should show
+    # user-facing reasoning, not internal scratchpads (see CLAUDE.md). Models in
+    # the Claude 5 family emit a thinking block by default, so disable it
+    # explicitly rather than parse around it. Exception: the models in
+    # _ADAPTIVE_THINKING_PREFIXES (fable/mythos, Opus 5.5) REQUIRE adaptive
+    # thinking — the API 400s on `thinking: disabled` — so for those the flag
+    # is replaced by adaptive thinking with display "summarized" (so a summary is
+    # recorded in model_calls.jsonl), thinking runs (kept short where _HIDDEN_THINKING_EFFORT_BY_PREFIX
+    # sets an effort), and _response_text strips the thinking blocks. Their outputs are therefore generated WITH hidden
     # reasoning: comparison/eval arms only, never corpus generation, unless the
     # no-scratchpads design decision is deliberately revisited.
     kwargs = dict(
@@ -282,21 +389,51 @@ def _call_with_retry(
     # accept it; the rest run at default sampling (steer them via prompting).
     if _accepts_sampling_params(model):
         kwargs["temperature"] = temperature
-    if not _requires_adaptive_thinking(model):
-        kwargs["thinking"] = {"type": "disabled"}
+    # "summarized" makes the API return a summary of the hidden thinking, so it
+    # can be recorded in model_calls.jsonl; _response_text still strips it.
+    kwargs["thinking"] = _thinking_config(model)
+    output_config: dict = {}
+    effort = _hidden_thinking_effort(model)
+    if effort is not None:
+        output_config["effort"] = effort
     if json_schema is not None:
         # Schema-constrained output: the response text is JSON matching the schema.
-        kwargs["output_config"] = {"format": {"type": "json_schema", "schema": json_schema}}
+        output_config["format"] = {"type": "json_schema", "schema": json_schema}
+    if output_config:
+        kwargs["output_config"] = output_config
     return client.messages.create(**kwargs)
 
 
-_ADAPTIVE_THINKING_PREFIXES = ("claude-fable", "claude-mythos")
+# Models that cannot run with thinking disabled (400 at every effort level).
+_ADAPTIVE_THINKING_PREFIXES = ("claude-fable", "claude-mythos", "claude-opus-5-5")
+
+# Per-model effort sent as output_config.effort, to keep the hidden thinking of
+# the models above short (Opus 5.5 defaults to "medium"). Models not listed get
+# no effort setting, i.e. their own default.
+_HIDDEN_THINKING_EFFORT_BY_PREFIX = {
+    "claude-opus-5-5": "low",
+}
 
 
 def _requires_adaptive_thinking(model: str) -> bool:
-    """Mythos-class models cannot run with thinking disabled (400); callers
-    omit the flag for them and rely on _response_text to strip the blocks."""
+    """These models cannot run with thinking disabled (400); callers request
+    adaptive thinking for them and rely on _response_text to strip the blocks."""
     return model.startswith(_ADAPTIVE_THINKING_PREFIXES)
+
+
+def _thinking_config(model: str) -> dict:
+    """Disabled where allowed; otherwise adaptive with the thinking summary
+    returned (display "summarized") so it can be recorded."""
+    if _requires_adaptive_thinking(model):
+        return {"type": "adaptive", "display": "summarized"}
+    return {"type": "disabled"}
+
+
+def _hidden_thinking_effort(model: str) -> str | None:
+    for prefix, effort in _HIDDEN_THINKING_EFFORT_BY_PREFIX.items():
+        if model.startswith(prefix):
+            return effort
+    return None
 
 
 # Models that reject sampling parameters (temperature/top_p/top_k) with a 400:
@@ -314,6 +451,15 @@ def _accepts_sampling_params(model: str) -> bool:
     Opus 4.7+). Callers pass temperature unconditionally; this gates whether it
     reaches the API."""
     return not model.startswith(_NO_SAMPLING_PREFIXES)
+
+
+def _response_thinking_text(response: anthropic.types.Message) -> str | None:
+    """Concatenated thinking (summary) text of an api response, or None."""
+    parts = [
+        block.thinking for block in response.content
+        if getattr(block, "type", None) == "thinking" and getattr(block, "thinking", None)
+    ]
+    return "\n\n".join(parts) if parts else None
 
 
 def _response_text(response: anthropic.types.Message) -> str:
@@ -399,7 +545,7 @@ def _run_claude_code_query(
     try:
         import anyio
         from claude_agent_sdk import CLINotFoundError, ClaudeAgentOptions, query
-        from claude_agent_sdk.types import AssistantMessage, ResultMessage, TextBlock
+        from claude_agent_sdk.types import AssistantMessage, ResultMessage, TextBlock, ThinkingBlock
     except ImportError as e:
         raise RuntimeError(
             "backend 'claude_code' requires the claude-agent-sdk package; "
@@ -423,10 +569,10 @@ def _run_claude_code_query(
         tools=[],  # pure text generation: no file/bash/web access
         max_turns=1,
         # Thinking disabled so training data shows user-facing reasoning only.
-        # Mythos-class models (fable/mythos) require adaptive thinking and 400
-        # on disabled, so the flag is omitted for them (mirrors the api
-        # backend's _call_with_retry); their thinking blocks are stripped by
-        # the TextBlock filter below.
+        # Models in _ADAPTIVE_THINKING_PREFIXES (fable/mythos, Opus 5.5) require
+        # adaptive thinking and 400 on disabled, so they get adaptive + summarized
+        # display instead (mirrors the api backend's _call_with_retry), with the same per-model
+        # effort; their thinking blocks are stripped by the TextBlock filter below.
         # Hermetic run: without these, the CLI loads the contributor's own
         # ~/.claude settings (custom agents, plan-by-default permission modes,
         # hooks), which leaks agentic scaffolding into generated text.
@@ -434,17 +580,23 @@ def _run_claude_code_query(
         permission_mode="default",
         # Blank out any key loaded from .env so the subprocess can't silently
         # bill the shared API key — Claude Code treats an empty value as unset
-        # and falls back to its own login / CLAUDE_CODE_OAUTH_TOKEN.
+        # and falls back to its own login / CLAUDE_CODE_OAUTH_TOKEN (added below
+        # when init() loaded one through shared/api_keys.py).
         env={"ANTHROPIC_API_KEY": "", "ANTHROPIC_AUTH_TOKEN": ""},
     )
-    if not _requires_adaptive_thinking(model):
-        option_kwargs["thinking"] = {"type": "disabled"}
+    if _claude_code_oauth_token is not None:
+        option_kwargs["env"]["CLAUDE_CODE_OAUTH_TOKEN"] = _claude_code_oauth_token
+    option_kwargs["thinking"] = _thinking_config(model)
+    effort = _hidden_thinking_effort(model)
+    if effort is not None:
+        option_kwargs["effort"] = effort
     if json_schema is not None:
         option_kwargs["output_format"] = {"type": "json_schema", "schema": json_schema}
     options = ClaudeAgentOptions(**option_kwargs)
 
-    async def _run() -> tuple[list[str], object | None]:
+    async def _run() -> tuple[list[str], list[str], object | None]:
         text_parts: list[str] = []
+        thinking_parts: list[str] = []
         result_msg = None
         stream = query(prompt=user_message, options=options)
         try:
@@ -453,6 +605,8 @@ def _run_claude_code_query(
                     for block in msg.content:
                         if isinstance(block, TextBlock):
                             text_parts.append(block.text)
+                        elif isinstance(block, ThinkingBlock) and block.thinking:
+                            thinking_parts.append(block.thinking)
                 elif isinstance(msg, ResultMessage):
                     # The result is final for our single-turn calls — stop here.
                     # After an is_error result the CLI exits non-zero; reading
@@ -464,15 +618,16 @@ def _run_claude_code_query(
                     break
         finally:
             await stream.aclose()
-        return text_parts, result_msg
+        return text_parts, thinking_parts, result_msg
 
     try:
-        text_parts, result_msg = anyio.run(_run)
+        text_parts, thinking_parts, result_msg = anyio.run(_run)
     except CLINotFoundError as e:
         raise RuntimeError(
             "backend 'claude_code' requires the Claude Code CLI "
             "(https://claude.com/claude-code); install it, then log in "
-            "or set CLAUDE_CODE_OAUTH_TOKEN from `claude setup-token`."
+            "or put CLAUDE_CODE_OAUTH_TOKEN from `claude setup-token` in the repo-root .env "
+            "(or export it and pass --find-dotenv)."
         ) from e
     except Exception as e:  # CLI failures surface as assorted exception types
         raise _classify_claude_code_error(str(e)) from e
@@ -481,6 +636,9 @@ def _run_claude_code_query(
             with contextlib.suppress(OSError):
                 os.unlink(system_file)
 
+    # Side channel for call_claude's model_calls.jsonl record (the return tuple
+    # is a stubbed seam); reset at the start of every call_claude.
+    _attempt_state.thinking_text = "\n\n".join(thinking_parts) or None
     if result_msg is None:
         raise ClaudeCodeError("claude_code backend returned no result message")
     if result_msg.is_error:
@@ -590,6 +748,7 @@ def call_claude(
         full_system = (full_system + "\n\n" + injection).strip()
 
     _attempt_state.n = 1  # _note_attempt overwrites this on every real attempt
+    _attempt_state.thinking_text = None
     started = time.monotonic()
 
     # Backend routing. "auto" prefers the subscription (claude_code) and falls
@@ -639,9 +798,17 @@ def call_claude(
             _log_usage(resolved_model, 0, 0, cost_usd=0.0, stage=stage,
                        item_id=item_id, duration_s=time.monotonic() - started,
                        attempts=_attempt_state.n, backend="claude_code")
+            _log_model_call(resolved_model, "claude_code", full_system, [user_message],
+                            response_text="", stop_reason="refusal", stage=stage,
+                            item_id=item_id, attempts=_attempt_state.n,
+                            error=str(e).splitlines()[0][:500] if str(e) else None)
             return ("", "refusal") if return_stop_reason else ""
         except (UsageLimitExceeded, ClaudeCodeError, RuntimeError) as e:
             if _backend != "auto":
+                _log_model_call(resolved_model, "claude_code", full_system, [user_message],
+                                response_text=None, stage=stage, item_id=item_id,
+                                attempts=_attempt_state.n,
+                                error=f"{type(e).__name__}: {str(e)[:500]}")
                 raise
             # auto: the subscription can't serve this run any more (window
             # exhausted, CLI missing, or 8 straight transient failures) —
@@ -652,6 +819,12 @@ def call_claude(
             _log_usage(resolved_model, input_tokens, output_tokens, cost_usd=cost, stage=stage,
                        item_id=item_id, duration_s=time.monotonic() - started,
                        attempts=_attempt_state.n, backend="claude_code")
+            _log_model_call(resolved_model, "claude_code", full_system, [user_message],
+                            response_text=text,
+                            thinking_text=getattr(_attempt_state, "thinking_text", None),
+                            stop_reason=stop_reason,
+                            usage={"input_tokens": input_tokens, "output_tokens": output_tokens},
+                            stage=stage, item_id=item_id, attempts=_attempt_state.n)
             # Same suspect-stop-reason guard as the api path below; Claude Code
             # reports stop_reason on its ResultMessage (e.g. "end_turn").
             if stop_reason not in ("end_turn", "stop_sequence"):
@@ -682,15 +855,22 @@ def call_claude(
         }]
 
     api_kwargs = {"json_schema": json_schema} if json_schema is not None else {}
-    response = _call_with_retry(
-        client=_get_client(),
-        model=resolved_model,
-        max_tokens=resolved_max,
-        system=system_arg,
-        messages=[{"role": "user", "content": user_message}],
-        temperature=resolved_temp,
-        **api_kwargs,
-    )
+    try:
+        response = _call_with_retry(
+            client=_get_client(),
+            model=resolved_model,
+            max_tokens=resolved_max,
+            system=system_arg,
+            messages=[{"role": "user", "content": user_message}],
+            temperature=resolved_temp,
+            **api_kwargs,
+        )
+    except Exception as e:
+        _log_model_call(resolved_model, "api", full_system, [user_message],
+                        response_text=None, stage=stage, item_id=item_id,
+                        attempts=_attempt_state.n,
+                        error=f"{type(e).__name__}: {str(e)[:500]}")
+        raise
 
     usage = response.usage
     _log_usage(resolved_model, usage.input_tokens, usage.output_tokens,
@@ -709,6 +889,14 @@ def call_claude(
               f"(model {resolved_model}, max_tokens {resolved_max}) — output may be "
               "truncated or refused.", file=sys.stderr)
     text = _response_text(response)
+    _log_model_call(
+        resolved_model, "api", full_system, [user_message],
+        response_text=text, thinking_text=_response_thinking_text(response),
+        stop_reason=response.stop_reason,
+        usage={"input_tokens": usage.input_tokens, "output_tokens": usage.output_tokens,
+               "cache_creation_tokens": getattr(usage, "cache_creation_input_tokens", 0) or 0,
+               "cache_read_tokens": getattr(usage, "cache_read_input_tokens", 0) or 0},
+        stage=stage, item_id=item_id, attempts=_attempt_state.n)
     return (text, response.stop_reason) if return_stop_reason else text
 
 

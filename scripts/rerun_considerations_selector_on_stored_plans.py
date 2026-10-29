@@ -24,8 +24,10 @@ Example:
       --run-label opus_5_5_smoke_descriptions [--dry-run]
     Resume an interrupted rerun:  ... --resume <existing rerun folder>
 
-The API key comes only from the .env one folder above this worktree (loaded with override, so an OS-environment key
-never wins); the script refuses to run without it. --dry-run makes no calls and needs no key.
+The API key comes from shared/api_keys.py: by default only <repo root>/.env; --find-dotenv searches upward for a .env
+and then falls back to the operating system environment. The source is
+printed before the run, never the value. The script refuses to run without a key. --dry-run makes no calls and needs
+no key.
 """
 
 import argparse
@@ -39,21 +41,12 @@ from pathlib import Path
 WORKTREE_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(WORKTREE_ROOT))
 
-DOTENV_PATH = WORKTREE_ROOT.parent / ".env"   # the .env one folder above this worktree, which holds this project's key
+from shared.api_keys import (MissingApiKeyError, add_api_key_source_flags, apply_api_key_source_flags,
+                             load_api_key)
+
 PROMPT_FILENAMES = ("layer1_select_considerations.txt", "considerations.txt", "variables.txt")   # the catalog resolves [id]s against variables.txt
 TIMESTAMP_FORMAT = "%Y-%m-%d_%H-%M"
 LAUNCH_RECORD_PREFIX = "launch_record_"
-
-
-def load_project_api_key_or_exit() -> None:
-    """Load ANTHROPIC_API_KEY from the .env one folder above this worktree, overriding the OS environment."""
-    from dotenv import dotenv_values, load_dotenv
-    if not DOTENV_PATH.is_file():
-        sys.exit(f"ERROR: project .env not found at {DOTENV_PATH}. Not falling back to the OS environment.")
-    if not dotenv_values(DOTENV_PATH).get("ANTHROPIC_API_KEY"):
-        sys.exit(f"ERROR: {DOTENV_PATH} has no ANTHROPIC_API_KEY. Not falling back to the OS environment.")
-    load_dotenv(DOTENV_PATH, override=True)
-    print(f"API key source: ANTHROPIC_API_KEY from {DOTENV_PATH} (value not printed)")
 
 
 def current_git_commit() -> str:
@@ -90,7 +83,9 @@ def main() -> None:
     parser.add_argument("--resume", type=Path, default=None, help="Existing rerun folder to continue.")
     parser.add_argument("--dry-run", action="store_true",
                         help="Print plan counts, targets and the first prompt; no calls.")
+    add_api_key_source_flags(parser)
     args = parser.parse_args()
+    apply_api_key_source_flags(args)
 
     resume_dir = args.resume.resolve() if args.resume else None
     if resume_dir:
@@ -110,7 +105,10 @@ def main() -> None:
         run_dir = args.output_root.resolve() / f"considerations_selector_rerun_on_{args.run_label}_{run_timestamp}"
 
     if not args.dry_run:
-        load_project_api_key_or_exit()   # must precede importing shared.api, which calls load_dotenv() without override
+        try:
+            load_api_key("ANTHROPIC_API_KEY")   # prints the key's source; refuses to run without a key
+        except MissingApiKeyError as error:
+            sys.exit(f"ERROR: {error}")
 
     from shared import api, utils
     from sdf_pipeline import layer1_description_rewrite, layer1_select_considerations as selector

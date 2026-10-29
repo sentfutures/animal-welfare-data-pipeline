@@ -5,10 +5,10 @@ Used by stages whose configured model name starts with ``gpt-`` (see
 ``input``, ``reasoning.effort``, and strict ``json_schema`` structured output.
 Temperature is 1; ``top_p`` is not sent (gpt-6.1-sol rejects it, and its default is 1).
 
-The key is read from the process environment (``OPENAI_API_KEY``), and only when an
-OpenAI model is actually called. This module does not load a ``.env`` file itself, but
-``shared.api`` calls ``load_dotenv()`` at import, so a key in ``.env`` also reaches the
-environment in real runs.
+The key (``OPENAI_API_KEY``) comes from shared/api_keys.py and is loaded only when an
+OpenAI model is actually called. By default that is the repo root's own ``.env`` alone (the
+operating system environment is not consulted); with ``--find-dotenv`` a ``.env`` found
+searching upward is used, then the environment.
 
 Every call is appended to the pipeline's cost log (``shared.api._log_usage``) in the same
 record shape as Claude calls, with backend ``openai`` plus a ``reasoning_tokens`` field.
@@ -23,6 +23,7 @@ import openai
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from shared import api
+from shared.api_keys import load_api_key
 
 MODEL_NAME_PREFIX = "gpt-"
 DEFAULT_REASONING_EFFORT = "medium"
@@ -33,6 +34,10 @@ DEFAULT_SCHEMA_NAME = "structured_answer"
 # Standard tier, from developers.openai.com/api/docs/pricing on 2026-10-21.
 _PRICING = {
     "gpt-6.1-sol": (2.00, 0.10, 10.00),
+    # The model the plausibility and shoehorning audits (evals/) use by default. Prices are the
+    # ones the audits were costed with; published sources disagree on the
+    # cached-input price.
+    "gpt-5.6-luna": (0.20, 0.02, 1.20),
 }
 
 _client: openai.OpenAI | None = None
@@ -47,13 +52,7 @@ def _get_client() -> openai.OpenAI:
     global _client
     with _client_lock:
         if _client is None:
-            api_key = os.environ.get("OPENAI_API_KEY")
-            if not api_key:
-                raise RuntimeError(
-                    "An OpenAI model is configured (a model name starting with 'gpt-') but "
-                    "OPENAI_API_KEY is not set in the process environment. Export it in the "
-                    "shell that runs the pipeline, or put it in .env (loaded when shared.api is imported)."
-                )
+            api_key = load_api_key("OPENAI_API_KEY")   # raises MissingApiKeyError if absent
             # Accept-Encoding gzip works around a decompression bug in some httpx versions.
             # max_retries=0 because tenacity below does the retries, so every attempt is counted.
             _client = openai.OpenAI(api_key=api_key, default_headers={"Accept-Encoding": "gzip"},
@@ -74,7 +73,7 @@ def _create_response(client: openai.OpenAI, **request_arguments):
 
 
 def build_request_arguments(model, system_prompt, user_message, max_output_tokens, reasoning_effort,
-                            json_schema, schema_name):
+                            json_schema, schema_name, prompt_cache_key=None):
     arguments = {
         "model": model,
         "input": user_message,
@@ -87,6 +86,8 @@ def build_request_arguments(model, system_prompt, user_message, max_output_token
     if json_schema is not None:
         arguments["text"] = {"format": {"type": "json_schema", "name": schema_name,
                                         "schema": json_schema, "strict": True}}
+    if prompt_cache_key is not None:
+        arguments["prompt_cache_key"] = prompt_cache_key
     return arguments
 
 
@@ -132,25 +133,40 @@ def call_openai(
     item_id: str | None = None,
     json_schema: dict | None = None,
     schema_name: str = DEFAULT_SCHEMA_NAME,
+    prompt_cache_key: str | None = None,
+    usage_out: dict | None = None,
 ) -> tuple[str, str]:
     """One schema-constrained OpenAI call. Returns (text, stop_reason); stop_reason is
     'end_turn' only for a complete answer, so callers can reject truncated or refused
     ones the same way they do for ``api.call_claude(return_stop_reason=True)``.
-    ``max_output_tokens`` includes reasoning tokens."""
+    ``max_output_tokens`` includes reasoning tokens. ``prompt_cache_key`` is passed through so
+    calls sharing an instruction prefix route to the same cache. When ``usage_out`` is a dict it
+    is filled with this call's input_tokens, cached_input_tokens, output_tokens and
+    reasoning_tokens, for callers that keep per-call usage in their own records."""
     if model not in _PRICING:
         raise ValueError(f"model {model!r} has no price in shared/openai_api.py _PRICING; "
                          "add it so the cost log is correct")
     client = _get_client()
     api._attempt_state.n = 1
     started = time.monotonic()
-    response = _create_response(client, **build_request_arguments(
-        model, system_prompt, user_message, max_output_tokens, reasoning_effort, json_schema, schema_name))
+    try:
+        response = _create_response(client, **build_request_arguments(
+            model, system_prompt, user_message, max_output_tokens, reasoning_effort, json_schema, schema_name,
+            prompt_cache_key))
+    except Exception as e:
+        api._log_model_call(model, "openai", system_prompt, [user_message], response_text=None,
+                            stage=stage, item_id=item_id, attempts=api._attempt_state.n,
+                            error=f"{type(e).__name__}: {str(e)[:500]}")
+        raise
 
     usage = response.usage
     input_details = getattr(usage, "input_tokens_details", None)
     output_details = getattr(usage, "output_tokens_details", None)
     cached_tokens = getattr(input_details, "cached_tokens", 0) or 0
     reasoning_tokens = getattr(output_details, "reasoning_tokens", 0) or 0
+    if usage_out is not None:
+        usage_out.update(input_tokens=usage.input_tokens, cached_input_tokens=cached_tokens,
+                         output_tokens=usage.output_tokens, reasoning_tokens=reasoning_tokens)
     api._log_usage(
         model, usage.input_tokens, usage.output_tokens,
         cost_usd=compute_cost_usd(model, usage.input_tokens, cached_tokens, usage.output_tokens),
@@ -159,8 +175,15 @@ def call_openai(
         reasoning_tokens=reasoning_tokens, backend="openai")
 
     stop_reason = _stop_reason(response)
+    output_text = _output_text(response)
+    api._log_model_call(
+        model, "openai", system_prompt, [user_message], response_text=output_text,
+        stop_reason=stop_reason,
+        usage={"input_tokens": usage.input_tokens, "output_tokens": usage.output_tokens,
+               "cache_read_tokens": cached_tokens, "reasoning_tokens": reasoning_tokens},
+        stage=stage, item_id=item_id, attempts=api._attempt_state.n)
     if stop_reason != "end_turn":
         print(f"  WARNING: response stop_reason={stop_reason!r} (model {model}, "
               f"max_output_tokens {max_output_tokens}) — output may be truncated or refused.",
               flush=True)
-    return _output_text(response), stop_reason
+    return output_text, stop_reason

@@ -6,7 +6,7 @@ spawn the Claude Code CLI:
 1. pytest-socket (``--disable-socket`` in pyproject.toml) blocks all network
    access at the socket level.
 2. Every test runs with a fake ``ANTHROPIC_API_KEY``, overriding any real key
-   that ``load_dotenv()`` (run at ``shared.api`` import) pulled from a .env file.
+   that the repo's .env would supply (the repo root is also pointed at an empty folder).
 3. ``shared.api._call_with_retry`` is replaced with a function that raises, so
    an unstubbed ``call_claude`` on the api backend fails loudly before touching
    tenacity/anthropic.
@@ -74,15 +74,35 @@ def _seed_rng():
 
 
 @pytest.fixture(autouse=True)
+def _no_real_dotenv_and_fresh_key_announcements(monkeypatch, tmp_path_factory):
+    """Point the key loader's repo root at an empty folder so no test ever reads a real .env,
+    and reset its once-per-variable printing."""
+    from shared import api_keys
+    monkeypatch.setattr(api_keys, "REPO_ROOT", tmp_path_factory.mktemp("repo_root_without_dotenv"))
+    monkeypatch.setattr(api_keys, "_sources_already_announced", set())
+    # Tests supply fake keys through the environment (the repo root has no .env), so they use the mode that falls back to it.
+    monkeypatch.setattr(api_keys, "_api_key_source_mode", api_keys.SEARCH_UPWARD_THEN_ENVIRONMENT)
+    # That mode searches upward; confine it to the empty folder so a .env above the base temporary folder is never read.
+    def _dotenv_path_in_repo_root_only():
+        candidate = api_keys.REPO_ROOT / ".env"
+        return candidate.resolve() if candidate.is_file() else None
+    monkeypatch.setattr(api_keys, "_nearest_dotenv_path_searching_upward", _dotenv_path_in_repo_root_only)
+    # Orchestrator tests call main(), whose flag handling would reset that mode to the default.
+    monkeypatch.setattr(api_keys, "set_api_key_source_mode", lambda mode: None)
+
+
+@pytest.fixture(autouse=True)
 def _api_guard(monkeypatch):
     """Fake credentials, reset shared.api globals, and block the API seam."""
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test-not-a-real-key")
     monkeypatch.setattr(api, "_config", {})
     monkeypatch.setattr(api, "_client", None)
     monkeypatch.setattr(api, "_cost_log_path", None)
+    monkeypatch.setattr(api, "_record_model_calls", True)
     monkeypatch.setattr(api, "_UNPRICED_WARNED", set())
     monkeypatch.setattr(api, "_backend", "api")
     monkeypatch.setattr(api, "_cc_demoted", None)
+    monkeypatch.setattr(api, "_claude_code_oauth_token", None)
     monkeypatch.setattr(api, "_neutral_system_warned", False)
     monkeypatch.setattr(api, "_temperature_warned", False)
 
