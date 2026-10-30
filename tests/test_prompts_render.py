@@ -102,6 +102,14 @@ TEMPLATE_KWARGS = [
     }),
     ("tools/pattern_scan.txt", {"documents": "DOCS-X"}),
 ]
+# The human-ethics profile (prompts/dad_human/) mirrors every DAD step template
+# the pipeline renders, with the same placeholders — so each renders with the
+# same kwargs. step3_score is not consumed by pipeline code and has no mirror.
+TEMPLATE_KWARGS += [
+    (rel.replace("dad/", "dad_human/", 1), kwargs)
+    for rel, kwargs in TEMPLATE_KWARGS
+    if rel.startswith("dad/") and rel != "dad/step3_score.txt"
+]
 
 
 @pytest.mark.parametrize("rel_path,kwargs", TEMPLATE_KWARGS, ids=[t[0] for t in TEMPLATE_KWARGS])
@@ -129,13 +137,14 @@ def test_preamble_loads_verbatim():
     assert text.strip()
 
 
-def test_reasoning_library_loads_with_expected_layers():
+@pytest.mark.parametrize("prompts_subdir", ["dad", "dad_human"])
+def test_reasoning_library_loads_with_expected_layers(prompts_subdir):
     """The library CSV is step 2's source of truth: every entry carries the
     schema columns, and all three layers (conduct C*, core moves M*, topic T*)
     are present. Counts are asserted loosely — the library is actively edited."""
     from dad_pipeline import reasoning_library
 
-    library = reasoning_library.load(REPO_ROOT / "prompts" / "dad")
+    library = reasoning_library.load(REPO_ROOT / "prompts" / prompts_subdir)
     ids = reasoning_library.all_ids(library)
     assert len(ids) == len(set(ids)), "duplicate entry ids in reasoning_library.csv"
     prefixes = {i[0] for i in ids}

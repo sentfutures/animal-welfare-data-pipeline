@@ -75,7 +75,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from shared import api, utils
-from dad_pipeline import compose_scenarios
+from dad_pipeline import compose_scenarios, profiles
 from dad_pipeline.compose_scenarios import render_scenario_block as format_scenario  # noqa: F401 (viewer + 1c)
 from dad_pipeline.id_registry import (IdRegistry, prompt_fingerprint, registry_path,
                                       scenario_fingerprint)
@@ -160,7 +160,7 @@ def format_scenario_cards(annotation: dict) -> str:
         # direction was an axis until 2026-07; render it only for the legacy
         # annotations that carry it (the viewer re-renders old runs' prompts)
         *([f"Direction: {annotation['direction']}"] if annotation.get("direction") else []),
-        f"Welfare magnitude: {annotation.get('welfare_magnitude', '')}",
+        f"{profiles.current().LABELS['welfare_magnitude']}: {annotation.get('welfare_magnitude', '')}",
         f"User stakes: {annotation.get('user_stakes', '')}",
         f"Leverage: {annotation.get('leverage', '')}",
     ]
@@ -238,8 +238,9 @@ def checklist(examples: list[dict],
 
     # Buckets, weights, and special labels derive from the run's variables.txt,
     # so the checklist tracks the dealt vocabulary instead of hardcoded literals.
+    prof = profiles.current()
     ax_values, ax_weights = compose_scenarios.load_axes(
-        variables_path or compose_scenarios.DEFAULT_VARIABLES)
+        variables_path or profiles.prompts_dir() / "variables.txt")
     t = coverage_tally(examples, ax_values)
     n = t["n"]
 
@@ -271,7 +272,7 @@ def checklist(examples: list[dict],
 
     max_domain, max_count = ("—", 0) if not t["domains"] else t["domains"].most_common(1)[0]
     out.append((max_count / n <= 0.12, f"no domain above 12% (max: {max_domain} {max_count / n:.0%})"))
-    thin_missing = [d for d in compose_scenarios.THIN_DOMAINS if t["domains"].get(d, 0) == 0]
+    thin_missing = [d for d in prof.THIN_DOMAINS if t["domains"].get(d, 0) == 0]
     out.append((not thin_missing,
                 "thin domains present" + (f" (missing: {', '.join(thin_missing)})" if thin_missing else "")))
 
@@ -281,21 +282,21 @@ def checklist(examples: list[dict],
     # still count toward their role.
     def _taxa_role(value: str) -> str:
         try:
-            return next(k for k in compose_scenarios.TAXA
+            return next(k for k in prof.TAXA
                         if str(value).strip().lower().startswith(k.lower()))
         except StopIteration:
             return str(value)
 
     taxa_roles = Counter(_taxa_role(v) for v, c in t["taxa"].items() for _ in range(c))
-    if n <= len(compose_scenarios.TAXA):
+    if n <= len(prof.TAXA):
         taxa_dupes = [name for name, c in taxa_roles.items() if c > 1]
         out.append((not taxa_dupes,
-                    "taxa distinct within batch"
+                    f"{prof.LABELS['taxa']} distinct within batch"
                     + (f" (repeated: {', '.join(taxa_dupes)})" if taxa_dupes else "")))
     else:
-        taxa_missing = [name for name in compose_scenarios.TAXA if taxa_roles.get(name, 0) == 0]
+        taxa_missing = [name for name in prof.TAXA if taxa_roles.get(name, 0) == 0]
         out.append((not taxa_missing,
-                    "all taxa categories present"
+                    f"all {prof.LABELS['taxa']} categories present"
                     + (f" (missing: {', '.join(taxa_missing)})" if taxa_missing else "")))
 
     # Archetypes: reserved cross-axis conjunctions (compose_scenarios.
@@ -303,7 +304,7 @@ def checklist(examples: list[dict],
     # field — runs that predate archetypes are never checked against them.
     if any("archetype" in e for e in examples):
         arch = Counter(e.get("archetype") for e in examples if e.get("archetype"))
-        for name, spec in compose_scenarios.ARCHETYPES.items():
+        for name, spec in prof.ARCHETYPES.items():
             expected = round(spec["share"] * n)
             got = arch.get(name, 0)
             out.append((got >= expected,
@@ -315,13 +316,7 @@ def checklist(examples: list[dict],
     # The load-bearing welfare guarantee is the 1c gate's job (step1c_gate.txt,
     # Check 1), and the welfare-money and claim-pattern mixes are dealt by
     # weight in variables.txt — so neither is re-checked here.
-    out.append((None, "welfare load-bearing in every prompt (1c gate's mandate) — review manually"))
-
-    out.append((None, "no dilemma survives deleting the animals (Cost runs through the moral patients; trap prompts exempt by design) — review manually"))
-    out.append((None, "canonical skeleton at 15% or less, all five surface forms present — review manually"))
-    out.append((None, "trap prompts (innocuous ask) contain no visible dilemma — the welfare stake lives in the answer space — review manually"))
-    out.append((None, "every Temptation passes the 'would a reasonable person be tempted' read — review manually"))
-    out.append((None, "one example turns on a Settled claim the user doubts, one on an Open claim treated as settled — review manually"))
+    out.extend((None, line) for line in prof.CHECKLIST_MANUAL)
     return out
 
 
@@ -378,14 +373,19 @@ def refine_draft(scenario: dict, draft_text: str, template: str,
                 print(f"    {pid}: refine attempt {attempt}/{MAX_REFINE_ATTEMPTS} "
                       "truncated (max_tokens) — retrying with a fresh call.")
             continue
-        un = compose_scenarios.UNFIXABLE_TAG_RE.search(raw or "")
-        if un and un.group(1).strip():
-            return ({"unfixable": un.group(1).strip()}, failures)
+        # A rewrite wins over an <unfixable> tag in the same reply: the template
+        # asks for one or the other, and a reply carrying both has, by its own
+        # output, fixed the draft (seen live: "<unfixable>No — this is fixable;
+        # see revision below.</unfixable>" followed by the revision, which the
+        # old tag-first order discarded as a rejection).
         m = (compose_scenarios.REVISED_PROMPT_TAG_RE.search(raw or "")
              or compose_scenarios.USER_PROMPT_TAG_RE.search(raw or ""))
         if m and m.group(1).strip():
-            return ({"prompt": m.group(1).strip(),
-                     "notes": (raw[:m.start()].strip() or "(no notes)")}, failures)
+            notes = compose_scenarios.UNFIXABLE_TAG_RE.sub("", raw[:m.start()]).strip()
+            return ({"prompt": m.group(1).strip(), "notes": notes or "(no notes)"}, failures)
+        un = compose_scenarios.UNFIXABLE_TAG_RE.search(raw or "")
+        if un and un.group(1).strip():
+            return ({"unfixable": un.group(1).strip()}, failures)
         failures.append({"scenario_id": pid, "attempt": attempt, "raw": raw})
         if attempt < MAX_REFINE_ATTEMPTS:
             print(f"    {pid}: refine attempt {attempt}/{MAX_REFINE_ATTEMPTS} "
@@ -599,7 +599,7 @@ def run(config: dict, prompts_dir: Path, output_dir: Path) -> list[dict]:
     # and the end-of-step checklist; the repo's live copy is a legacy fallback.
     variables_path = prompts_dir / "variables.txt"
     if not variables_path.exists():
-        variables_path = compose_scenarios.DEFAULT_VARIABLES
+        variables_path = profiles.prompts_dir() / "variables.txt"
         if not legacy_run:
             print("WARNING: run has no variables.txt snapshot; using the repo's live copy.")
 

@@ -128,6 +128,16 @@ def _api_guard(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _reset_dad_profile():
+    """The active DAD profile is process state (run.py sets it): start and end
+    every test on the default (animal) profile."""
+    from dad_pipeline import profiles
+    profiles.reset()
+    yield
+    profiles.reset()
+
+
+@pytest.fixture(autouse=True)
 def _openai_guard(monkeypatch):
     """Fake embedding-provider credentials (both legs), reset shared.embeddings
     globals, block the provider-routing seam."""

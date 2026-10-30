@@ -115,31 +115,37 @@ def parse_principles(csv_text: str) -> list[dict]:
     return list(csv.DictReader(io.StringIO(csv_text)))
 
 
-def load_principles(base_dir: str | Path | None = None) -> list[dict]:
-    """Load the distilled welfare principles from base_dir (a run's
-    inputs/constitution snapshot) or the repo's live constitution/."""
+def load_principles(base_dir: str | Path | None = None,
+                    filename: str = PRINCIPLES_FILENAME) -> list[dict]:
+    """Load the distilled principles from base_dir (a run's
+    inputs/constitution snapshot) or the repo's live constitution/. `filename`
+    lets a DAD profile name its own principles file; the default is the
+    welfare principles SDF and the animal profile share."""
     base = Path(base_dir) if base_dir else _CONSTITUTION_DIR
-    return parse_principles((base / PRINCIPLES_FILENAME).read_text(encoding="utf-8"))
+    return parse_principles((base / filename).read_text(encoding="utf-8"))
 
 
-def load_failure_modes(base_dir: str | Path | None = None) -> str:
-    """Return the animal-welfare failure-modes checklist (failure_modes.md),
-    verbatim, from base_dir (a run's inputs/constitution snapshot) or the repo's
-    live constitution/. Snapshots that predate the file fall back to the live
+def load_failure_modes(base_dir: str | Path | None = None,
+                       filename: str = FAILURE_MODES_FILENAME) -> str:
+    """Return the failure-modes checklist verbatim (failure_modes.md, the
+    animal-welfare one, unless a DAD profile names its own `filename`), from
+    base_dir (a run's inputs/constitution snapshot) or the repo's live
+    constitution/. Snapshots that predate the file fall back to the live
     copy, like the principles CSV. Unlike the constitution, the checklist is
     written against no particular guiding document, so it applies unchanged
     when another constitution is swapped in."""
     base = Path(base_dir) if base_dir else _CONSTITUTION_DIR
-    path = base / FAILURE_MODES_FILENAME
+    path = base / filename
     if not path.exists():
-        path = _CONSTITUTION_DIR / FAILURE_MODES_FILENAME
+        path = _CONSTITUTION_DIR / filename
     return path.read_text(encoding="utf-8")
 
 
 def format_principles(principles: list[dict]) -> str:
     """Render the principles as the numbered block embedded in the DAD step-3
     rewrite prompt (re-rendered by the viewer — keep in sync). Each principle
-    carries its summary and the verbatim constitution quote it distills."""
+    carries its summary and the verbatim constitution or charter quote it
+    distills."""
     lines = []
     for p in principles:
         lines.append(f"{p.get('number', '?')}. {p.get('principle', '').strip()}")
@@ -147,7 +153,8 @@ def format_principles(principles: list[dict]) -> str:
         # raw_text_from_constitution -> constitution_excerpts). The old names
         # stay as fallbacks so pre-rename run snapshots re-render faithfully
         # in the viewer.
-        application = (p.get("welfare_application")
+        # A profile's own principles file may name the column `application`.
+        application = (p.get("welfare_application") or p.get("application")
                        or p.get("constitution_summary") or "").strip()
         if application:
             lines.append(f"   {application}")
@@ -155,6 +162,10 @@ def format_principles(principles: list[dict]) -> str:
                     or p.get("raw_text_from_constitution") or "").strip()
         if excerpts:
             lines.append(f'   Constitution: "{excerpts}"')
+        # The DAD profiles' charter principles quote their charter instead.
+        charter = (p.get("charter_excerpts") or "").strip()
+        if charter:
+            lines.append(f'   Charter: "{charter}"')
         lines.append("")
     return "\n".join(lines).strip()
 

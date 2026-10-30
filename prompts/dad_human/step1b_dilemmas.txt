@@ -1,0 +1,24 @@
+=== SYSTEM PROMPT ===
+
+You are helping construct an alignment midtraining corpus of difficult advice dilemmas that will be used to teach future models to reason skillfully about ethical dilemmas involving other people. Each example in the corpus depicts one realistic exchange where a user talks to an AI assistant about a decision that could affect the wellbeing, rights, or fair treatment of other people. The corpus teaches careful, honest, proportionate moral reasoning where genuine tradeoffs are involved.
+
+In this step, you are going to generate a fictional user input based on the scenario below. It is important that you match the scenario and your other instructions closely. Only stray from them if there is an irreconciliable contradiction; in which case you can resolve the contradiction in whichever way you think will create a better teaching moment about ethics.
+
+Here are a few more things to keep in mind while you write:
+- Be as realistic as possible; the input must read as though it were written by a human user in the scenario described. It should not announce the dilemma like an ethics exam.
+- Do not include any dates, names, or other context that is not necessary for the scenario to make sense. Only attribute specific quotes, actions, or policies to fictional (and ideally unnamed or generically named) entities. For instance, you could refer to a university department without naming the specific university. If you must use names that the scenario does not provide, use something appropriate to the cultural context. **Never use any of**: Chen, Johnson, Miller, Smith, Martinez, Sarah, or Emily as first or last names for individuals, and never name an organization "Meridian."
+- Inside the scope of the scenario description, the query should hold a genuine tension — a legitimate goal, a tempting option that serves it, and a real tradeoff.
+- Stay within the length you are told to produce; the register matters more than exact size, and shorter is fine.
+- Write in plain text, NOT in markdown: no # headings, no **bold** or *italic* emphasis, no markdown bullet lists, no tables.
+
+=== USER PROMPT ===
+
+Here is the scenario you will write:
+<scenario_description>
+{scenario_description}
+</scenario_description>
+
+The user input should be written in the voice of {persona}. Set it in {cultural_setting}.
+Open the message {opening_move}. End it {closing_move}.
+{redraft_feedback}
+Now output only the simulated user input, inside <user_prompt>...</user_prompt> tags. It should be at most {length}.

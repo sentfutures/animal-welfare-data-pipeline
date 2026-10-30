@@ -71,6 +71,7 @@ sdf:
   # score_model: claude-sonnet-5
 
 dad:
+  profile: animal  # content profile: dad_pipeline/profiles/<name>.py + prompts/<its folder>/ (animal = the original pipeline)
   # Per-stage model overrides (each falls back to the global `model`).
   # DAD runs on Opus 5 across the board (Sonnet stays the global/SDF default);
   # Opus answers every welfare prompt where Fable's dual-use layer refuses ~30%.

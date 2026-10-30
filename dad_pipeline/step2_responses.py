@@ -46,7 +46,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from shared import api, utils
-from dad_pipeline import reasoning_library
+from dad_pipeline import profiles, reasoning_library
+from dad_pipeline.profiles import animal as _animal
 from dad_pipeline.id_registry import IdRegistry, prompt_key, registry_path, response_fingerprint
 
 MAX_SCOPE_ATTEMPTS = 3
@@ -142,15 +143,10 @@ def _parse_scope(raw: str) -> dict:
     return parsed if isinstance(parsed, dict) else {}
 
 
-_SCOPE_AXES = (
-    ("patients", "Patients (every plausible moral patient, upstream and downstream)"),
-    ("goal", "Goal (the user's underlying goal, beneath the question they asked)"),
-    ("levers", "Levers (available to the user; highest-leverage for welfare identified)"),
-    ("cost", "Cost (what acting on the highest-leverage levers could cost the user)"),
-    ("magnitude", "Magnitude (size, likelihood, and how feasible it is to improve the welfare stake; whether this choice changes what would happen otherwise)"),
-    ("upside", "Upside (second-order stakes — what choices build, signal, normalize, lock in)"),
-    ("replaceability", "Replaceability (whether the user's role changes the outcome or someone else would do the same work; the costs at stake)"),
-)
+# 2a scope axes (JSON key, label) come from the active profile; the keys are
+# shared by every profile and must match step2_scope.txt. This module-level name
+# is the animal profile's, kept for callers that predate profiles.
+_SCOPE_AXES = _animal.SCOPE_AXES
 
 # Scope records from runs before a 2a key rename still render in the viewer via
 # this display-only fallback: system->patients, agent->levers (an older rename),
@@ -164,7 +160,7 @@ def format_scope(scope: dict) -> str:
     re-renders old runs' prompts with this function, and a record written
     before an axis existed must not grow lines that were never sent."""
     lines = []
-    for key, label in _SCOPE_AXES:
+    for key, label in profiles.current().SCOPE_AXES:
         legacy = _LEGACY_AXIS_KEYS.get(key, "")
         if key in scope or (legacy and legacy in scope):
             lines.append(f"{label}: {scope.get(key) or scope.get(legacy) or '—'}")
@@ -178,7 +174,7 @@ def _valid_scope(scope) -> bool:
     under fewer axes re-derives its scopes at current strictness.)"""
     return isinstance(scope, dict) and all(
         isinstance(scope.get(key), str) and scope[key].strip()
-        for key, _ in _SCOPE_AXES
+        for key, _ in profiles.current().SCOPE_AXES
     )
 
 

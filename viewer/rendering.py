@@ -23,6 +23,7 @@ from dad_pipeline import compose_scenarios, reasoning_library
 from dad_pipeline.step1_dilemmas import format_scenario_cards, format_scenario, dealt_cards
 from shared import matrix
 from dad_pipeline.step2_responses import SELECT_CALL_SOURCES, format_scope
+from dad_pipeline import profiles
 from shared import constitution_loader
 from viewer.loader import REPO_ROOT, load_stage
 
@@ -121,14 +122,18 @@ def get_constitution(run_dir: Path, git_commit: str | None, which: str) -> Templ
         ])
         return Template("constitution (full)", joined, source)
 
-    filename = _CONSTITUTION_FILES[which]
-    snap = Path(run_dir) / "inputs" / "constitution" / filename
-    if snap.exists():
-        return Template(filename, snap.read_text(encoding="utf-8"), "snapshot")
-    text = _git_show(git_commit, f"constitution/{filename}")
-    if text is not None:
-        return Template(filename, text, "git")
-    return Template(filename, None, "missing")
+    filenames = (_CONSTITUTION_FILES[which],)
+    if which == "principles":   # each DAD profile names its own principles file,
+        filenames = profiles.principles_filenames()   # then the pre-charter one
+    for filename in filenames:
+        snap = Path(run_dir) / "inputs" / "constitution" / filename
+        if snap.exists():
+            return Template(filename, snap.read_text(encoding="utf-8"), "snapshot")
+    for filename in filenames:
+        text = _git_show(git_commit, f"constitution/{filename}")
+        if text is not None:
+            return Template(filename, text, "git")
+    return Template(filenames[0], None, "missing")
 
 
 def inline_word_diff_html(before: str, after: str) -> str:
@@ -833,7 +838,7 @@ def render_prompt(pipeline: str, stage: str, run_dir: Path, manifest: dict, line
         principles_t = get_constitution(run_dir, commit, "principles")
         r.template_sources.append(principles_t)
         if principles_t.text is None:
-            r.warnings.append("constitution_principles.csv unavailable — the principles block is shown empty.")
+            r.warnings.append(f"{principles_t.name} unavailable — the principles block is shown empty.")
         principles_block = constitution_loader.format_principles(
             constitution_loader.parse_principles(principles_t.text)) if principles_t.text else ""
         r.variables = {
@@ -844,7 +849,7 @@ def render_prompt(pipeline: str, stage: str, run_dir: Path, manifest: dict, line
         }
         r.system, r.user = _format_split(tpl("step3_rewrite.txt"), r.variables, r)
         if r.system:
-            r.system_label = "system prompt (rewrite instructions + constitution principles)"
+            r.system_label = "system prompt (rewrite instructions + principles)"
         return r
 
     # --- DAD, legacy 7-step pipeline ---

@@ -336,6 +336,33 @@ class TestStep1Run:
         assert resumed_calls == []
         assert len(utils.load_jsonl(tmp_path / "refine_rejects.jsonl")) == 1
 
+    def test_refine_reply_with_both_tags_ships_the_rewrite(
+        self, tiny_config, prompts_dad, tmp_path, stub_claude
+    ):
+        # seen live: the editor wrapped "this is fixable" in <unfixable> and then
+        # gave the revision. A reply carrying a rewrite has fixed the draft; it
+        # must ship, not be rejected as unfixable.
+        config = dict(tiny_config)
+        config["dad"] = {"dilemmas": {**tiny_config["dad"]["dilemmas"],
+                                      "count": 1, "gate": False}}
+
+        def both_tags(user_message, **kw):
+            if "write a description of a specific scenario" in _sysuser(user_message, kw):
+                return dad_scenario_plan_reply(user_message)
+            if "rewrite a fictional user input" in _sysuser(user_message, kw):
+                return ("Tightened the ask.\n"
+                        "<unfixable>No — this is fixable; see revision below.</unfixable>\n"
+                        "<revised_user_prompt>Refined message about the hens.</revised_user_prompt>")
+            return dad_scenario_reply(user_message)
+
+        stub_claude(both_tags)
+        examples = step1_dilemmas.run(config, prompts_dad, tmp_path)
+        assert len(examples) == 1
+        assert examples[0]["user_message"] == "Refined message about the hens."
+        assert utils.load_jsonl(tmp_path / "refine_rejects.jsonl") == []
+        [refinement] = utils.load_jsonl(tmp_path / "refinements.jsonl")
+        assert "<unfixable>" not in refinement["notes"]
+
     @pytest.mark.parametrize("dropped", ["gate", "refine"])
     def test_config_setting_exactly_one_quality_toggle_is_refused_loudly(
         self, tiny_config, prompts_dad, tmp_path, stub_claude, dropped
@@ -1459,9 +1486,28 @@ class TestStep3Run:
         assert audit[0]["response_gid"] == "R-0007"
         # the distilled principles reach the rewrite prompt; the annotation
         # deliberately does not (it anchors nothing after step 1)
-        assert "CONSTITUTION PRINCIPLES" in calls[0]["system_prompt"]
+        assert "CHARTER PRINCIPLES" in calls[0]["system_prompt"]
+        assert 'Charter: "' in calls[0]["system_prompt"]
         assert "Direction: Mixed" not in calls[0]["user_message"]
         assert "Direction: Mixed" not in (calls[0]["system_prompt"] or "")
+
+    def test_a_run_snapshotted_before_the_charter_keeps_its_own_principles(
+        self, tiny_config, prompts_dad, tmp_path, stub_claude
+    ):
+        """An older run's snapshot carries only the pre-charter principles file;
+        resuming it must rewrite against those, not the repo's charter."""
+        import shutil
+        inputs = tmp_path / "run" / "inputs"
+        shutil.copytree(prompts_dad, inputs / "prompts")
+        (inputs / "constitution").mkdir(parents=True)
+        (inputs / "constitution" / "constitution_principles.csv").write_text(
+            "number,principle,welfare_application,constitution_excerpts\n"
+            "1,SNAPSHOT-PRINCIPLE,snapshot application,snapshot quote\n", encoding="utf-8")
+        calls = stub_claude(["Rewritten careful answer."])
+        step3_rewrite.run(tiny_config, inputs / "prompts", tmp_path / "step3",
+                          tmp_path / "final", [_response_record()])
+        assert "SNAPSHOT-PRINCIPLE" in calls[0]["system_prompt"]
+        assert 'Charter: "' not in calls[0]["system_prompt"]
 
     def test_the_dealt_cards_ride_into_the_training_record(
         self, tiny_config, prompts_dad, tmp_path, stub_claude
