@@ -19,7 +19,7 @@ def make_arm(run_dir, doc_ids, body):
     """An arm run dir carrying one rewrite per doc_id."""
     records = [{
         "doc_id": d,
-        "variables": {"cultural_setting": "USA, written in English"},
+        "variables": {"culture": "the United States, written in English"},
         "description": f"Spec for {d}.",
         "review": "Problems.",
         "content": f"{body} {d}",
@@ -51,6 +51,32 @@ class TestBuildPairs:
             assert p["arm_names"] == {"a": "control", "b": "split"}
             assert p["response_a"] == f"control text {p['doc_id']}"
             assert p["response_b"] == f"split text {p['doc_id']}"
+
+    def test_the_language_column_is_derived_from_the_sdf_culture_card(self, exp_dir):
+        """SDF deals {culture}; `cultural_setting` is the DAD key and is absent here.
+
+        Reading the wrong one is silent — every row is just None — so this
+        asserts a real language rather than the column's presence.
+        """
+        pairs = from_sdf_arms.build_pairs(exp_dir, [("control", "split")])
+        assert {p["language"] for p in pairs} == {"English"}
+
+    def test_a_record_with_no_culture_card_leaves_a_visible_gap(self, tmp_path):
+        """None, not "English": an invented label would be worse than a hole."""
+        docs = ["matrix_000000"]
+        arms = {}
+        for name in ("control", "split"):
+            run = tmp_path / "runs" / name
+            utils.save_jsonl([{"doc_id": docs[0], "variables": {},
+                               "description": "Spec.", "content": f"{name} text"}],
+                             run / "layer3" / "rewrites.jsonl")
+            arms[name] = str(run)
+        exp = utils.ensure_dir(tmp_path / "exp")
+        (exp / "manifest.json").write_text(json.dumps(
+            {"exp_id": "x", "arms": arms, "n": 1}), encoding="utf-8")
+
+        pairs = from_sdf_arms.build_pairs(exp, [("control", "split")])
+        assert pairs[0]["language"] is None
 
     def test_the_spec_both_versions_answer_rides_on_the_pair(self, exp_dir):
         pairs = from_sdf_arms.build_pairs(exp_dir, [("control", "split")])

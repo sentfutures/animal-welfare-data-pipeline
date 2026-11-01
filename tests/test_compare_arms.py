@@ -160,3 +160,32 @@ class TestMarkdown:
         ca.verdicts(rows, SUCCESS, "control")
         table = ca.markdown(rows, SUCCESS)
         assert "min_vendi_gain" in table and "Success criteria" in table
+
+    def test_the_vendi_cell_carries_the_resample_spread(self):
+        """The key renamed from ci_lo/ci_hi to boot_lo/boot_hi + spread.
+
+        Nothing caught the drift because the cell degrades silently: a block
+        with neither key renders a bare score, which looks fine.
+        """
+        rows = [row("control")]
+        rows[0]["vendi"] = {"score": 15.4, "ratio": 0.322, "boot_lo": 11.0,
+                            "boot_hi": 13.9, "spread": 2.9}
+        ca.verdicts(rows, {}, "control")
+        table = ca.markdown(rows, {})
+        assert "15.4 (0.322) \u00b12.9" in table
+        # never the endpoints: they sit BELOW the point estimate and read as a
+        # contradiction beside it
+        assert "11.0" not in table and "13.9" not in table
+
+    def test_a_pre_rename_block_still_renders_a_spread(self):
+        """external_baseline.py still writes the old key pair."""
+        rows = [row("control")]
+        rows[0]["vendi"] = {"score": 15.4, "ratio": 0.322, "ci_lo": 11.0, "ci_hi": 13.9}
+        ca.verdicts(rows, {}, "control")
+        assert "\u00b12.9" in ca.markdown(rows, {})
+
+    def test_a_block_with_no_bootstrap_renders_the_score_alone(self):
+        rows = [row("control")]
+        rows[0]["vendi"] = {"score": 15.4, "ratio": 0.322}
+        ca.verdicts(rows, {}, "control")
+        assert "15.4 (0.322) |" in ca.markdown(rows, {})

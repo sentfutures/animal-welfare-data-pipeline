@@ -335,7 +335,14 @@ def markdown(rows: list[dict], success: dict) -> str:
         v = r.get("vendi") or {}
         iv = r.get("idea_vendi") or {}
         means = r["score_means"]
-        ci = f" [{v['ci_lo']:.0f}-{v['ci_hi']:.0f}]" if "ci_lo" in v else ""
+        # The WIDTH of the bootstrap, never its endpoints: resampling duplicates
+        # documents, so the range sits below the point estimate and reads as a
+        # contradiction next to it (see diversity.vendi_ci). `ci_lo` is the
+        # pre-rename key, still written by external_baseline.py.
+        spread = v.get("spread")
+        if spread is None and "ci_lo" in v:
+            spread = v["ci_hi"] - v["ci_lo"]
+        ci = f" ±{spread:.1f}" if spread is not None else ""
         vendi_cell = f"{_num(v.get('score'))} ({_num(v.get('ratio'), 3)}){ci}"
         idea_cell = f"{_num(iv.get('score'))} ({_num(iv.get('ratio'), 3)})"
         dims = " / ".join(

@@ -26,6 +26,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from sdf_pipeline import compose_prompts as cp
 from shared import utils
 # Imported rather than reimplemented: the blinded side assignment has to match
 # what the rating app and its tests already assume, and a second copy of a
@@ -86,7 +87,10 @@ def build_pairs(exp_dir: Path, comparisons: list[tuple[str, str]]) -> list[dict]
                 # analysis-only; the rating app ignores unknown keys
                 "comparison": f"{name_a}-vs-{name_b}",
                 "doc_id": doc_id,
-                "language": (a.get("variables") or {}).get("cultural_setting"),
+                # SDF deals {culture}; the language is derived from it. None
+                # rather than "English" so a record that carries neither is a
+                # visible gap in the analysis instead of a wrong label.
+                "language": cp.record_language(a, default=None),
             })
     return pairs
 

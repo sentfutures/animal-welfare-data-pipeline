@@ -13,7 +13,8 @@ itself, which is also what lets it land in a document that is not in English.
 
 The pool is sampling scaffolding and is never named in a document.
 
-    python sdf_pipeline/make_personas.py --n 300 --out prompts/sdf/personas.jsonl
+    python experiments/dispositions/make_dispositions.py \\
+        --n 300 --out experiments/dispositions/dispositions.jsonl
 """
 
 import argparse
@@ -132,7 +133,7 @@ def generate(n: int, batch: int, model: str | None, config: dict,
             BATCH_PROMPT.format(k=k, avoid_clause=avoid),
             model=model,
             max_tokens=4000,
-            stage="make_personas",
+            stage="make_dispositions",
             item_id=f"batch_{len(pool):04d}",
         )
         try:
@@ -142,7 +143,7 @@ def generate(n: int, batch: int, model: str | None, config: dict,
             print(f"  batch at {len(pool)}: unparseable ({type(e).__name__}) — retrying")
             if failures >= MAX_PARSE_FAILURES:
                 raise SystemExit(
-                    f"make_personas: {failures} consecutive unparseable batches at "
+                    f"make_dispositions: {failures} consecutive unparseable batches at "
                     f"pool {len(pool)}/{n}; the pool so far is NOT written"
                 )
             continue
@@ -154,7 +155,7 @@ def generate(n: int, batch: int, model: str | None, config: dict,
                 added += 1
         print(f"  +{added} (pool {len(pool)}/{n})")
         if not added:
-            raise SystemExit("make_personas: a batch parsed but held no usable persona")
+            raise SystemExit("make_dispositions: a batch parsed but held no usable entry")
     return pool[:n]
 
 
@@ -218,7 +219,7 @@ def main() -> None:
     parser.add_argument("--n", type=int, default=300, help="Pool size after dedup.")
     parser.add_argument("--batch", type=int, default=25, help="Personas per API call.")
     parser.add_argument("--model", default=None, help="Defaults to the global config model.")
-    parser.add_argument("--out", type=Path, default=Path("prompts/sdf/personas.jsonl"))
+    parser.add_argument("--out", type=Path, default=Path("experiments/dispositions/dispositions.jsonl"))
     parser.add_argument("--dedup-threshold", type=float, default=0.70,
                         help="Word-shingle cosine above which two personas are the same (null disables).")
     parser.add_argument("--vendi", action="store_true",
