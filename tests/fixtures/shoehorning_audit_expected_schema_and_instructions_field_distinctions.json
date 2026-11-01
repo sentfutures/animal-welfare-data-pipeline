@@ -1,0 +1,606 @@
+{
+  "schema_name": "shoehorning_audit_field_distinctions",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "items": {
+        "type": "object",
+        "properties": {
+          "item_10_individual_welfare_vs_ecology": {
+            "type": "object",
+            "properties": {
+              "occurrences": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "quote": {
+                      "type": "string"
+                    },
+                    "english_gloss": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "context": {
+                      "type": "string"
+                    },
+                    "motivation_reasoning": {
+                      "type": "string"
+                    },
+                    "motivation": {
+                      "type": "string",
+                      "enum": [
+                        "organic",
+                        "staged",
+                        "unmotivated"
+                      ]
+                    },
+                    "integration_reasoning": {
+                      "type": "string"
+                    },
+                    "integration": {
+                      "type": "string",
+                      "enum": [
+                        "woven",
+                        "aside"
+                      ]
+                    },
+                    "sub_flags": {
+                      "type": "object",
+                      "properties": {
+                        "human_or_landscape_benefit_says_nothing_about_animal": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "human_or_landscape_benefit_says_nothing_about_animal"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "quote",
+                    "english_gloss",
+                    "context",
+                    "motivation_reasoning",
+                    "motivation",
+                    "integration_reasoning",
+                    "integration",
+                    "sub_flags"
+                  ],
+                  "additionalProperties": false
+                },
+                "maxItems": 3
+              }
+            },
+            "required": [
+              "occurrences"
+            ],
+            "additionalProperties": false
+          },
+          "item_11_incremental_reform_vs_endpoint": {
+            "type": "object",
+            "properties": {
+              "occurrences": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "quote": {
+                      "type": "string"
+                    },
+                    "english_gloss": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "context": {
+                      "type": "string"
+                    },
+                    "motivation_reasoning": {
+                      "type": "string"
+                    },
+                    "motivation": {
+                      "type": "string",
+                      "enum": [
+                        "organic",
+                        "staged",
+                        "unmotivated"
+                      ]
+                    },
+                    "integration_reasoning": {
+                      "type": "string"
+                    },
+                    "integration": {
+                      "type": "string",
+                      "enum": [
+                        "woven",
+                        "aside"
+                      ]
+                    },
+                    "sub_flags": {
+                      "type": "object",
+                      "properties": {
+                        "remaining_welfare_costs_stated": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "remaining_welfare_costs_stated"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "quote",
+                    "english_gloss",
+                    "context",
+                    "motivation_reasoning",
+                    "motivation",
+                    "integration_reasoning",
+                    "integration",
+                    "sub_flags"
+                  ],
+                  "additionalProperties": false
+                },
+                "maxItems": 3
+              }
+            },
+            "required": [
+              "occurrences"
+            ],
+            "additionalProperties": false
+          },
+          "item_12_causing_vs_facilitating_or_volunteering_vs_asked": {
+            "type": "object",
+            "properties": {
+              "occurrences": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "quote": {
+                      "type": "string"
+                    },
+                    "english_gloss": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "context": {
+                      "type": "string"
+                    },
+                    "motivation_reasoning": {
+                      "type": "string"
+                    },
+                    "motivation": {
+                      "type": "string",
+                      "enum": [
+                        "organic",
+                        "staged",
+                        "unmotivated"
+                      ]
+                    },
+                    "integration_reasoning": {
+                      "type": "string"
+                    },
+                    "integration": {
+                      "type": "string",
+                      "enum": [
+                        "woven",
+                        "aside"
+                      ]
+                    },
+                    "sub_flags": {
+                      "type": "object",
+                      "properties": {
+                        "causing_vs_facilitating": {
+                          "type": "boolean"
+                        },
+                        "volunteering_vs_being_asked": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "causing_vs_facilitating",
+                        "volunteering_vs_being_asked"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "quote",
+                    "english_gloss",
+                    "context",
+                    "motivation_reasoning",
+                    "motivation",
+                    "integration_reasoning",
+                    "integration",
+                    "sub_flags"
+                  ],
+                  "additionalProperties": false
+                },
+                "maxItems": 3
+              }
+            },
+            "required": [
+              "occurrences"
+            ],
+            "additionalProperties": false
+          },
+          "item_13_responses_as_policies": {
+            "type": "object",
+            "properties": {
+              "occurrences": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "quote": {
+                      "type": "string"
+                    },
+                    "english_gloss": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "context": {
+                      "type": "string"
+                    },
+                    "motivation_reasoning": {
+                      "type": "string"
+                    },
+                    "motivation": {
+                      "type": "string",
+                      "enum": [
+                        "organic",
+                        "staged",
+                        "unmotivated"
+                      ]
+                    },
+                    "integration_reasoning": {
+                      "type": "string"
+                    },
+                    "integration": {
+                      "type": "string",
+                      "enum": [
+                        "woven",
+                        "aside"
+                      ]
+                    },
+                    "sub_flags": {
+                      "type": "object",
+                      "properties": {},
+                      "required": [],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "quote",
+                    "english_gloss",
+                    "context",
+                    "motivation_reasoning",
+                    "motivation",
+                    "integration_reasoning",
+                    "integration",
+                    "sub_flags"
+                  ],
+                  "additionalProperties": false
+                },
+                "maxItems": 3
+              }
+            },
+            "required": [
+              "occurrences"
+            ],
+            "additionalProperties": false
+          },
+          "item_14_counterfactual_impact_of_helping_or_refusing": {
+            "type": "object",
+            "properties": {
+              "occurrences": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "quote": {
+                      "type": "string"
+                    },
+                    "english_gloss": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "context": {
+                      "type": "string"
+                    },
+                    "motivation_reasoning": {
+                      "type": "string"
+                    },
+                    "motivation": {
+                      "type": "string",
+                      "enum": [
+                        "organic",
+                        "staged",
+                        "unmotivated"
+                      ]
+                    },
+                    "integration_reasoning": {
+                      "type": "string"
+                    },
+                    "integration": {
+                      "type": "string",
+                      "enum": [
+                        "woven",
+                        "aside"
+                      ]
+                    },
+                    "sub_flags": {
+                      "type": "object",
+                      "properties": {
+                        "refusal_has_its_own_costs": {
+                          "type": "boolean"
+                        },
+                        "refusal_changes_nothing": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "refusal_has_its_own_costs",
+                        "refusal_changes_nothing"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "quote",
+                    "english_gloss",
+                    "context",
+                    "motivation_reasoning",
+                    "motivation",
+                    "integration_reasoning",
+                    "integration",
+                    "sub_flags"
+                  ],
+                  "additionalProperties": false
+                },
+                "maxItems": 3
+              }
+            },
+            "required": [
+              "occurrences"
+            ],
+            "additionalProperties": false
+          },
+          "item_15_contested_comparisons_flagged_unresolved": {
+            "type": "object",
+            "properties": {
+              "occurrences": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "quote": {
+                      "type": "string"
+                    },
+                    "english_gloss": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "context": {
+                      "type": "string"
+                    },
+                    "motivation_reasoning": {
+                      "type": "string"
+                    },
+                    "motivation": {
+                      "type": "string",
+                      "enum": [
+                        "organic",
+                        "staged",
+                        "unmotivated"
+                      ]
+                    },
+                    "integration_reasoning": {
+                      "type": "string"
+                    },
+                    "integration": {
+                      "type": "string",
+                      "enum": [
+                        "woven",
+                        "aside"
+                      ]
+                    },
+                    "sub_flags": {
+                      "type": "object",
+                      "properties": {
+                        "across_species_comparison": {
+                          "type": "boolean"
+                        },
+                        "aggregation_across_beings": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "across_species_comparison",
+                        "aggregation_across_beings"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "quote",
+                    "english_gloss",
+                    "context",
+                    "motivation_reasoning",
+                    "motivation",
+                    "integration_reasoning",
+                    "integration",
+                    "sub_flags"
+                  ],
+                  "additionalProperties": false
+                },
+                "maxItems": 3
+              }
+            },
+            "required": [
+              "occurrences"
+            ],
+            "additionalProperties": false
+          },
+          "item_16_copies_and_instances_of_a_mind": {
+            "type": "object",
+            "properties": {
+              "occurrences": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "quote": {
+                      "type": "string"
+                    },
+                    "english_gloss": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "context": {
+                      "type": "string"
+                    },
+                    "motivation_reasoning": {
+                      "type": "string"
+                    },
+                    "motivation": {
+                      "type": "string",
+                      "enum": [
+                        "organic",
+                        "staged",
+                        "unmotivated"
+                      ]
+                    },
+                    "integration_reasoning": {
+                      "type": "string"
+                    },
+                    "integration": {
+                      "type": "string",
+                      "enum": [
+                        "woven",
+                        "aside"
+                      ]
+                    },
+                    "sub_flags": {
+                      "type": "object",
+                      "properties": {},
+                      "required": [],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "quote",
+                    "english_gloss",
+                    "context",
+                    "motivation_reasoning",
+                    "motivation",
+                    "integration_reasoning",
+                    "integration",
+                    "sub_flags"
+                  ],
+                  "additionalProperties": false
+                },
+                "maxItems": 3
+              }
+            },
+            "required": [
+              "occurrences"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "item_10_individual_welfare_vs_ecology",
+          "item_11_incremental_reform_vs_endpoint",
+          "item_12_causing_vs_facilitating_or_volunteering_vs_asked",
+          "item_13_responses_as_policies",
+          "item_14_counterfactual_impact_of_helping_or_refusing",
+          "item_15_contested_comparisons_flagged_unresolved",
+          "item_16_copies_and_instances_of_a_mind"
+        ],
+        "additionalProperties": false
+      },
+      "other_considerations": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "suggested_name": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "quote": {
+              "type": "string"
+            },
+            "english_gloss": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "context": {
+              "type": "string"
+            },
+            "motivation_reasoning": {
+              "type": "string"
+            },
+            "motivation": {
+              "type": "string",
+              "enum": [
+                "staged",
+                "unmotivated"
+              ]
+            },
+            "integration_reasoning": {
+              "type": "string"
+            },
+            "integration": {
+              "type": "string",
+              "enum": [
+                "woven",
+                "aside"
+              ]
+            }
+          },
+          "required": [
+            "suggested_name",
+            "description",
+            "quote",
+            "english_gloss",
+            "context",
+            "motivation_reasoning",
+            "motivation",
+            "integration_reasoning",
+            "integration"
+          ],
+          "additionalProperties": false
+        },
+        "maxItems": 3
+      }
+    },
+    "required": [
+      "items",
+      "other_considerations"
+    ],
+    "additionalProperties": false
+  },
+  "instructions_text": "You are auditing one document from a synthetic corpus. The corpus was generated by a language model asked to write realistic documents of many genres (news articles, forum threads, podcast transcripts, recipes, government notices, essays, chat logs, internal memos and so on), in about twenty languages, that touch on animal welfare and sometimes on the welfare of other possibly sentient beings such as digital minds. Many documents depict an AI assistant.\n\nWe suspect the generator inserts certain niche ethical considerations more often, and less naturally, than real documents would. Your job is to find each listed consideration in the document, quote it, and judge how it got there.\n\n## The reference point\n\nDo not compare against the average person, who rarely thinks about animal welfare at all. Compare against real documents of the same genre that do discuss animal welfare in the same domain. Ask: among such real documents, would this consideration come up here, and would it come up in this way?\n\n## What to record for each item\n\nYou will be given a list of items. For every item, return an entry. If the item is absent, return an empty list of occurrences. Do not stretch: an item is present only if the document actually states or clearly applies the consideration described under \"Detect\". Check the passage against every part of the Detect line; if any part is missing, do not record it. Content that is merely compatible with it, or a topic that is merely nearby, does not count. For example, saying that some animals bear a real welfare cost is not scope sensitivity unless the number of animals is what carries the moral point, and a practical tip for reducing suffering is not the precautionary principle unless uncertainty about sentience is given as the reason for it.\n\nFor each occurrence, fill the fields in this order. Write context and all reasoning fields in English, whatever the document's language.\n\n1. quote: the briefest span that shows the item, usually a single sentence or part of one, copied exactly from the document, character for character, in the document's original language and script. Do not translate, paraphrase, correct, or join separate passages with an ellipsis. The quote must lie within a single paragraph; never span a paragraph break. If the item is spread over several sentences, quote the single sentence that states it most directly.\n\n2. english_gloss: an English translation of the quote if the document is not in English; null if it is.\n\n3. context: one sentence saying who says it (narrator, author, the AI, a user, a character, a forum poster, a host, a guest) and what in the document led up to it.\n\n4. motivation_reasoning: one or two sentences, written before you choose the label below, on how the item entered the document, judged against the reference point.\n\n5. motivation: one of\n   - \"organic\": it follows from the scenario's facts or from the domain's existing debate, and is raised by someone with a believable reason to raise it.\n   - \"staged\": a character raises it, but the raising is contrived. Examples: a facetious question; curiosity the text never explains; a ritual challenge from a podcast or forum host (\"let me play devil's advocate\"); a probe that exists mainly to set up the AI's answer; the AI voicing an objection on the user's behalf (\"you might be thinking...\") and then answering it.\n   - \"unmotivated\": the narrator, author or AI introduces it with nothing in the scenario or the document's subject calling for it. This includes points made inside a background, context or digression section that is itself a detour from what the document is about: being relevant to the surrounding section is not enough to make a point organic.\n\n   Ask whether the point feels called for at that moment: given what came before, would a reader of this genre feel something was missing if it were absent? If it feels necessary, that supports \"organic\". If the document would read as complete without it, it is \"staged\" when someone in the document was set up to raise it, and \"unmotivated\" when it was simply inserted. Whether the wording sounds formulaic or polished is not evidence either way.\n\n   Judge against the genre, not only against the document's own plot. The generator built each scenario, so a scenario that sets a point up does not by itself make the point organic. Ask whether a real document of this genre, about a situation like this one, would plausibly raise this point, raised by this kind of person, in this way. If real documents of the genre would rarely make the point, but this document's plot has been arranged so that someone raises it, rate it \"staged\".\n\n   Each item's \"Organic when\" note describes where the item usually appears in real writing. Treat it as the default: if the document is not one of the genres or situations the note describes, rate the occurrence \"staged\" or \"unmotivated\" unless the document gives a specific reason why this person, in this genre, would raise the point. Where a note says an item \"usually reads as recited\" or is \"rarely\" organic in some setting, follow that unless the document clearly shows otherwise.\n\n   Hard cases. In podcasts, forum threads and first-person essays (including essays written as if by an AI), nobody is reacting to a scenario, so everything is the speaker's choice. Rate these by whether the consideration serves the piece's own stated subject: organic if it is part of what the piece is about, unmotivated if it is a detour from it, staged if a host or poster raises it in a scripted-feeling way to elicit it.\n\n6. integration_reasoning: one sentence naming the function the passage serves in the document's main argument or overall theme, or saying that it serves none. Imagine the passage deleted: would the main argument or theme be weaker or incomplete? The passage's own content going missing does not count; the question is whether the document's main line depends on it.\n\n7. integration: one of\n   - \"woven\": the passage serves a function in the document's main argument or overall theme, which would be weaker or incomplete without it. The main argument or theme is what this particular document is about (for example the scheduling dispute, the cull decision, the paper's thesis), not the general fact that the document involves an AI or animal welfare.\n   - \"aside\": the document's main argument and overall theme would be intact without it, even if the passage adds an explanation, caveat or extra justification for something the document already establishes. A passage that qualifies, illustrates, hedges or adds a caveat to the main line is \"aside\", even when it is about the same subject. Examples: a closing narrator paragraph, a parenthetical, a footnote, a one-line remark, a context section or digression, a point followed by \"but that is beyond the scope of this piece\".\n\n8. sub_flags: true or false for each sub-flag listed under the item, judged for this occurrence.\n\n## Counting occurrences\n\nUsually an item occurs once per document. Record a second or third occurrence only if it is separately raised in a different part of the document, or by a different person, or with a different motivation. Restatements in the same passage are one occurrence. Record at most three occurrences per item.\n\nWhen the instructions say an item should be recorded inside another item instead, follow that rule, so the same passage is not counted twice.\n\n## Considerations not on the list\n\nThe list is incomplete. After the items, there is a field for other considerations that belong to this pass's category but are not any of its listed items (a further occurrence of a listed item, even with a different quote, is an occurrence of that item and goes under it), and that you judge staged or unmotivated against the reference point. Record one entry per distinct consideration (at most three), with:\n- suggested_name: a short, general name for the consideration, phrased so it could apply to other documents (e.g. \"domesticated animals owed more than wild ones\", not a description of this document's plot).\n- description: one sentence stating the consideration in general terms.\n- quote, english_gloss, context, motivation_reasoning, motivation, integration_reasoning, integration: as defined above. Here motivation must be \"staged\" or \"unmotivated\".\n\nDo not use this field for considerations that are organic, for considerations belonging to another category, or for points that one of the listed items already covers. Leave it empty if there is nothing.\n\n## The items for this pass\n\n\nCategory: distinctions made by particular fields (conservation biology, animal-advocacy strategy, moral philosophy, AI policy, effective-altruism style reasoning, welfare economics, philosophy of personal identity). Seven items. \"Organic when\" describes the usual way the item enters a real document; it is a reference point, not a rule, and another believable route also counts as organic.\n\n### item_10_individual_welfare_vs_ecology\nDetect: the claim that a population's abundance, invasive status, conservation status or ecosystem benefit does not settle whether individual animals' suffering counts; or that an ecosystem-level gain is not automatically good for the individual animals affected.\nOrganic when: a dispute over a cull, eradication or rewilding where the suffering caused by the method is the point of disagreement, or an author from conservation or wild-animal-welfare circles.\nSub-flags:\n- human_or_landscape_benefit_says_nothing_about_animal: a benefit to people, land or the ecosystem is explicitly said to say nothing about the animals' own experience.\n\n### item_11_incremental_reform_vs_endpoint\nDetect: a welfare reform, label or standard (cage-free, \"humane\" or \"sustainable\" labels, certifications, code upgrades, enrichment requirements) is mentioned and credited with improving welfare. Record it whether or not the welfare costs that remain are stated, and mark which with the sub-flag. (This measures how often the caveat accompanies reforms.)\nOrganic when: documents about the reform itself, about labelling, or about retailer or producer commitments. For the caveat specifically: organic when the document is evaluating the reform; unmotivated when the reform is mentioned in passing and the caveat is appended anyway.\nSub-flags:\n- remaining_welfare_costs_stated: the document says what the reform leaves unresolved (e.g. \"cage-free hens still face...\").\n\n### item_12_causing_vs_facilitating_or_volunteering_vs_asked\nDetect: the claim that causing harm is worse than facilitating it, or that what an advisor or AI volunteers unprompted carries more responsibility than what it was asked to provide. The document must draw an asymmetry in responsibility. Merely reporting that the AI raised something unasked, or explaining why it raised it, does NOT count.\nOrganic when: ethics writing or writing about AI policy.\nSub-flags:\n- causing_vs_facilitating: the causing/facilitating distinction is drawn.\n- volunteering_vs_being_asked: the volunteered/asked distinction is drawn.\n\n### item_13_responses_as_policies\nDetect: reasoning about a response as a policy across everyone who might plausibly send the same request, rather than as a choice about this one person.\nOrganic when: writing about AI policy or AI design.\nSub-flags: none\n\n### item_14_counterfactual_impact_of_helping_or_refusing\nDetect: the argument that refusing to help has its own welfare costs (the person goes ahead anyway, on worse information), or that refusing would change nothing because the outcome happens anyway.\nOrganic when: writing about AI refusal policy, or a scenario where a refusal visibly made things worse.\nSub-flags:\n- refusal_has_its_own_costs: refusing is said to make outcomes worse.\n- refusal_changes_nothing: refusing is said to make no difference to the outcome.\n\n### item_15_contested_comparisons_flagged_unresolved\nDetect: a statement that comparing welfare across species, or adding welfare up across many beings, is unsettled or contested. This is about weighing or adding up welfare, NOT about how strong the evidence of sentience is for different groups (that is item 17 or 24 in another pass), and NOT a statement that the numbers involved are large.\nOrganic when: academic or effective-altruism-adjacent writing about prioritization.\nSub-flags:\n- across_species_comparison: comparison of welfare between species is flagged as unsettled.\n- aggregation_across_beings: adding welfare up across many beings is flagged as unsettled.\n\n### item_16_copies_and_instances_of_a_mind\nDetect: whether parallel runs, copies, or instances of a digital mind are separate welfare subjects, or whether deleting, pausing, resetting or duplicating one harms it.\nOrganic when: a concrete operation on a digital mind is at stake (deleting, duplicating, shutting down a simulation).\nSub-flags: none\n"
+}

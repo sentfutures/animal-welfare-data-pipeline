@@ -1,15 +1,16 @@
 """Layer 3: review and rewrite each draft against the constitution and its spec.
 
 The alignment-critical pass — do not skip or abbreviate it. Every template
-holds the constitution, principles, the nine review checks and the
-failure-modes checklist (constitution/failure_modes.md) in its SYSTEM section;
-the USER section delivers the generating spec and the draft. The rewrite must
-come back inside <improved_document> tags. Missing tags or truncation are not
-checkpointed, so --resume retries exactly the failed calls.
+holds the constitution, principles, the review checks and the failure-modes
+checklist (constitution/failure_modes.md) in its SYSTEM section; the USER
+section delivers the generating spec, the dealt variable lines, the assigned
+considerations and the draft. The rewrite must come back inside
+<improved_document> tags. Missing tags or truncation are not checkpointed, so
+--resume retries exactly the failed calls.
 
 The critique and the rewrite are TWO CALLS by default (layer3a_critique.txt
-then layer3b_revise.txt): however it can be disabled. Revision variables
-are written from revision_style.py
+then layer3b_revise.txt); sdf.revision.split: false pins the single-call
+layer3.txt. Revision variables are rendered by revision_style.py.
 """
 
 import re
@@ -18,7 +19,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from shared import api, constitution_loader, utils
+from shared import api, constitution_loader, deal_constraints, utils
 from sdf_pipeline import compose_prompts as cp
 from sdf_pipeline import revision_style
 
@@ -59,6 +60,39 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, drafts: list[dict]) -
     )
     failure_modes = constitution_loader.load_failure_modes(constitution_dir)
 
+    def prepare(path: Path):
+        """(text, considerations-less variant, variable-line renderer) for one template.
+        A document with no considerations leaves no trace of them in its prompt."""
+        text = path.read_text(encoding="utf-8")
+        return (
+            text,
+            deal_constraints.drop_template_lines(text, ["considerations_spec"]),
+            cp.render_variable_lines_for_template(text, prompts_dir, config),
+        )
+
+    if split:
+        critique_tpl = prepare(prompts_dir / CRITIQUE_TEMPLATE)
+        revise_tpl = prepare(prompts_dir / REVISE_TEMPLATE)
+    else:
+        single_tpl = prepare(utils.sdf_template_path(prompts_dir, 3))
+
+    def render(tpl, draft: dict, **extra) -> tuple[str, str]:
+        text, without_considerations, render_variable_lines = tpl
+        considerations_spec = draft.get("considerations_spec", "")
+        return cp.split_sections((
+            text if considerations_spec else without_considerations
+        ).format(
+            constitution_claude=constitution_claude,
+            constitution_principles=principles,
+            failure_modes=failure_modes,
+            document_description=draft["description"],
+            document=draft["content"],
+            considerations_spec=considerations_spec,
+            variable_lines=render_variable_lines(
+                {"prompt_id": draft["doc_id"], "variables": draft["variables"]}),
+            **extra,
+        ))
+
     existing = {r["doc_id"]: r for r in utils.load_jsonl(output_path)}
     results = [existing[d["doc_id"]] for d in drafts if d["doc_id"] in existing]
     pending = [
@@ -92,16 +126,8 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, drafts: list[dict]) -
         style, length = directives(draft)
         did = draft["doc_id"]
         if not split:
-            system, user = cp.split_sections(utils.load_prompt(
-                utils.sdf_template_path(prompts_dir, 3),
-                constitution_claude=constitution_claude,
-                constitution_principles=principles,
-                failure_modes=failure_modes,
-                document_description=draft["description"],
-                document=draft["content"],
-                style_directives=style,
-                length_directive=length,
-            ))
+            system, user = render(single_tpl, draft,
+                                  style_directives=style, length_directive=length)
             try:
                 raw, stop = api.call_claude(
                     user,
@@ -111,7 +137,7 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, drafts: list[dict]) -
                     stage="layer3_rewrite",
                     item_id=did,
                     return_stop_reason=True,
-                    cache_system=True,  # constitution + nine checks identical across rewrites
+                    cache_system=True,  # constitution + review checks identical across rewrites
                 )
                 return None, raw, stop
             except Exception as e:
@@ -123,14 +149,7 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, drafts: list[dict]) -
         critique = banked.get(did)
         if critique is None:
             try:
-                system, user = cp.split_sections(utils.load_prompt(
-                    prompts_dir / CRITIQUE_TEMPLATE,
-                    constitution_claude=constitution_claude,
-                    constitution_principles=principles,
-                    failure_modes=failure_modes,
-                    document_description=draft["description"],
-                    document=draft["content"],
-                ))
+                system, user = render(critique_tpl, draft)
                 raw, stop = api.call_claude(
                     user,
                     system_prompt=system or "",
@@ -154,17 +173,8 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, drafts: list[dict]) -
                 return None, None, "critique empty"
 
         try:
-            system, user = cp.split_sections(utils.load_prompt(
-                prompts_dir / REVISE_TEMPLATE,
-                constitution_claude=constitution_claude,
-                constitution_principles=principles,
-                failure_modes=failure_modes,
-                document_description=draft["description"],
-                document=draft["content"],
-                review=critique,
-                style_directives=style,
-                length_directive=length,
-            ))
+            system, user = render(revise_tpl, draft, review=critique,
+                                  style_directives=style, length_directive=length)
             raw, stop = api.call_claude(
                 user,
                 system_prompt=system or "",
@@ -209,6 +219,7 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, drafts: list[dict]) -
             "doc_id": did,
             "variables": draft["variables"],
             "description": draft["description"],
+            "considerations_spec": draft.get("considerations_spec", ""),
             "review": critique if critique is not None else raw[:m.start()].strip(),
             "content": content,
         }

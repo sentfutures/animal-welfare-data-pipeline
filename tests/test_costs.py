@@ -85,12 +85,12 @@ class TestProjection:
     def test_one_time_cache_writes_are_not_scaled(self, tmp_path):
         # 2 documents: the first writes a 47,600-token cache, the second reads it.
         log = write_log(tmp_path / "c.jsonl", [
-            call(item="d0", usd=0.2251, cache_write=47600),
-            call(item="d1", usd=0.0566, cache_read=47600),
+            call(item="d0", usd=0.1510, cache_write=47600),
+            call(item="d1", usd=0.0415, cache_read=47600),
         ])
         s = costs.summarize(log)
         cache_write = s["totals"]["cache_write_usd"]
-        assert cache_write == pytest.approx(47600 / 1e6 * 3.0 * 1.25, rel=1e-6)
+        assert cache_write == pytest.approx(47600 / 1e6 * 2.0 * 1.25, rel=1e-6)
 
         projected = costs.project(s, n_done=2, n_target=150)
         naive = s["totals"]["usd"] / 2 * 150

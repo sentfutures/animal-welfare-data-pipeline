@@ -38,6 +38,10 @@ def run(
     constitution_dir = utils.resolve_constitution_dir(prompts_dir)
     constitution_claude = constitution_loader.load_constitution_claude(constitution_dir)
 
+    template_path = utils.sdf_template_path(prompts_dir, 4)
+    render_variable_lines = cp.render_variable_lines_for_template(
+        template_path.read_text(encoding="utf-8"), prompts_dir, config)
+
     existing = {r["doc_id"]: r for r in utils.load_jsonl(output_path)}
     results = [existing[rw["doc_id"]] for rw in rewrites if rw["doc_id"] in existing]
     pending = [
@@ -47,9 +51,11 @@ def run(
 
     def score_one(rw: dict) -> dict | None:
         system, user = cp.split_sections(utils.load_prompt(
-            utils.sdf_template_path(prompts_dir, 4),
+            template_path,
             constitution_claude=constitution_claude,
             document_description=rw["description"],
+            variable_lines=render_variable_lines(
+                {"prompt_id": rw["doc_id"], "variables": rw["variables"]}),
             improved_document=rw["content"],
         ))
         try:
@@ -144,6 +150,7 @@ def run(
             "register": v.get("tone", ""),
             "variables": v,
             "description": rw["description"],
+            "considerations_spec": rw.get("considerations_spec", ""),
             "content": rw["content"],
             "scores": r["scores"],
         })

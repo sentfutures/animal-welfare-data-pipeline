@@ -219,3 +219,14 @@ class TestPrincipleCoverage:
         audit_sdf.audit_principle_coverage(
             _recs("DOC-A text."), {"workers": 1}, report, sample=10)
         assert report["principle_coverage"] == {"rated": 0}
+
+
+class TestRunDirectoryForInput:
+    def test_a_run_directory_resolves_to_itself(self, tmp_path):
+        assert audit_sdf.run_directory_for_input(str(tmp_path)) == tmp_path
+
+    def test_a_corpus_jsonl_in_final_resolves_to_the_run_directory(self, tmp_path):
+        (tmp_path / "final").mkdir()
+        corpus = tmp_path / "final" / "sdf_corpus.jsonl"
+        corpus.write_text("{}\n")
+        assert audit_sdf.run_directory_for_input(str(corpus)) == tmp_path

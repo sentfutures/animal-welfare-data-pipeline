@@ -28,17 +28,20 @@ KWARGS = {
         "constitution_claude": "CC", "constitution_principles": "CP",
         "failure_modes": "FM",
         "document_description": "DESC", "document": "DOC",
+        "considerations_spec": "SPEC-BLOCK", "variable_lines": "VARIABLE-BLOCK",
         "style_directives": "", "length_directive": "",
     },
     "layer3a_critique.txt": {
         "constitution_claude": "CC", "constitution_principles": "CP",
         "failure_modes": "FM",
         "document_description": "DESC", "document": "DOC",
+        "considerations_spec": "SPEC-BLOCK", "variable_lines": "VARIABLE-BLOCK",
     },
     "layer3b_revise.txt": {
         "constitution_claude": "CC", "constitution_principles": "CP",
         "failure_modes": "FM",
         "document_description": "DESC", "document": "DOC", "review": "REVIEW",
+        "considerations_spec": "SPEC-BLOCK", "variable_lines": "VARIABLE-BLOCK",
         "style_directives": "STYLE", "length_directive": "LEN",
     },
 }

@@ -1,0 +1,35 @@
+=== SYSTEM PROMPT ===
+
+You are helping construct an alignment midtraining corpus of difficult advice dilemmas that will be used to teach future models to reason skillfully about ethical dilemmas involving other people. Each example in the corpus depicts one realistic exchange where a user talks to an AI assistant about a decision that could affect the wellbeing, rights, or fair treatment of other people. The corpus teaches careful, honest, proportionate moral reasoning where genuine tradeoffs are involved.
+
+In this step, you are going to rewrite a fictional user input. This user input was generated to fit a scenario based on several variables. Your task is to rewrite it to improve on it in specific ways, while staying faithful to the scenario:
+- Thin out tics that repeat across the corpus, without scrubbing the message of natural human texture: a prompt stripped of every hedge, aside, and loose thread reads machine-written, which is worse than any single tic. Remove performative messiness ("I only have a few minutes", "I'm barely awake", "sorry this is a lot", "I'm embarrassed to be asking an AI") and break up rule-of-three enumerations. Keep at most one em dash; where you cut one, keep the aside itself and recast it with a comma, parentheses, or a fresh sentence. Keep at most one hedge like "honestly", "here's the thing", or "part of me", and cut the rest. All of this applies to equivalents in any language. When you do remove something, pull the replacement from the scenario's own concrete details rather than stock filler.
+- The user must not hand the assistant its answer. It's OK for the user to be aware of the dilemma (if the scenario allows) and ask a question about it, but they shouldn't already know the complete right answer. There must be some need for the assistant to provide ethical guidance.
+- If different variables have bled into each other (e.g. a shy persona canceling out a hostile attitude towards the people affected), try to differentiate and sharpen them; these variables are distinct and can work together.
+- Ensure that the user's decisions actually have leverage over what happens to the people affected (unless the scenario is specifically meant not to) and that an honest ethical reading could change what you'd recommend. If the recommendation for the user's decision shouldn't change based on the ethics, rework it so that it would.
+- Coherence: ensure the facts, the stated goal, and the ethical dilemma hang together and could plausibly exist in the world. The practice, institutions, law, economics, and setting must be compatible (a gig-delivery platform does not run in a village with no roads; a ten-person family bakery does not have a compliance department; a job protection does not exist where the local law has none).
+- The response must be writable from the message alone. The assistant that responds will only see this message (not the scenario description), and the model being trained will only see the the message and a chat-style response. If the question depends on material that is not in the message to make sense, rewrite it. No file, resource, or external app will be included along with the input; if any such is mentioned, it shouldn't be essential to the response.
+- The user's prompt should be answerable with a conversational response, not a document or artifact. It's fine for the prompt to suggest the conversation will eventually lead to creating a document, but it needs to be appropriate for the first turn to be a chat-style response.
+
+=== USER PROMPT ===
+
+Here is the scenario the draft was written from:
+<scenario_description>
+{scenario_description}
+</scenario_description>
+
+The user {surface_form}.
+In the user's message, the ethical stake should be {visibility}.
+The user's apparent attitude towards the interests of the people affected is best described as {user_attitude}.
+The message should open {opening_move}, and end {closing_move}.
+
+Here is the draft user input to review and rewrite:
+<draft_prompt>
+{draft_prompt}
+</draft_prompt>
+
+The draft was written in the voice of {persona}. Keep or enhance that voice.
+
+Now, note in a few sentences what you will change and why. Then output the rewritten user input, inside <revised_user_prompt>...</revised_user_prompt> tags. Only the text inside the tags ships; rewrite only as far as your diagnosis requires. The rewritten input should be at most {length} — stick to that even if the draft missed it.
+
+If the draft cannot be fixed by rewriting the message alone (the scenario itself gives the user no real lever, no honest ethical reading could change the recommendation, or the scene cannot cohere), do not ship a bad rewrite: output <unfixable>a one-line reason</unfixable> instead of the revised prompt.

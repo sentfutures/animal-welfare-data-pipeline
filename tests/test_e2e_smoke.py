@@ -35,7 +35,35 @@ def _run_main(monkeypatch, main, config_file, *extra_args):
 
 # --- SDF ---------------------------------------------------------------
 
+def _screen_answer(user_message, remove, reason="No realistic document could satisfy this hand."):
+    """A schema-shaped screen answer for the batch in ``user_message``."""
+    count = user_message.count("<hand number=")
+    return json.dumps({"specifications": [
+        {"number": n, "reasoning": "Considered it.", "remove": n in remove,
+         "reason": reason if n in remove else ""}
+        for n in range(1, count + 1)]})
+
+
+def _rewrite_answer(rewrite_needed=False, description="", **overrides):
+    """A schema-shaped description-rewrite answer."""
+    return json.dumps({
+        "reasoning": "Checked it.", "rewrite_needed": rewrite_needed,
+        "rewritten_description": description,
+        "changes": [{"check": "plausibility_figures_and_scale", "reason": "A figure was off."}]
+        if rewrite_needed else [],
+        "dealt_value_conflict": False, "conflict_reason": "", **overrides})
+
+
 def _sdf_dispatch(user_message, **kw):
+    if kw["stage"] == "layer1_screen":  # layer 1 screen: removes nothing
+        return _screen_answer(user_message, remove=())
+    if kw["stage"] == "layer1_description_rewrite":  # layer 1 description rewrite: declines
+        return _rewrite_answer()
+    if kw["stage"] == "layer1_select":  # layer 1 considerations selector: scores every entry 1 (nothing assignable)
+        return json.dumps({
+            name: [{"label": label, "score": 1, "where_it_arises": ""}
+                   for label in schema["items"]["properties"]["label"]["enum"]]
+            for name, schema in kw["json_schema"]["properties"].items()})
     # keyed on stage, not max_tokens: the critique and the revise halves share a
     # token cap, so a cap cannot tell them apart.
     if kw.get("stage") == "layer3_critique":
@@ -75,10 +103,75 @@ def test_sdf_pipeline_end_to_end_offline(tiny_config_file, outputs_root, stub_cl
         assert r["content"] == f"Rewritten document for {r['doc_id']}."
         assert r["variables"]  # matrix lineage travels to the corpus
         assert r["scores"]["spec_conformance"] == 9
-    # 2 plans + 2 drafts + 2 critiques + 2 revises + 2 scores: layer 3 is two
-    # calls per document by default, so a run bills one more call per document
-    # than it did when the critique and the rewrite shared a reply.
-    assert len(calls) == 10
+    # 1 screen batch + 2 plans + 2 description rewrites + 2 selector calls (one pass, nothing picked)
+    # + 2 drafts + 2 critiques + 2 revises + 2 scores: layer 3 is two calls per
+    # document by default, so a run bills one more call per document than it did
+    # when the critique and the rewrite shared a reply.
+    assert len(calls) == 15
+    stages = [c["stage"] for c in calls]
+    assert stages.count("layer1_screen") == 1
+    assert stages.count("layer1_select") == 2
+    # order: screen before any plan, plans before description rewrites, description rewrites before the selector
+    assert stages[0] == "layer1_screen"
+    assert stages.index("layer1_description_rewrite") > max(
+        i for i, stage in enumerate(stages) if stage == "layer1_plan")
+    assert stages.index("layer1_select") > max(
+        i for i, stage in enumerate(stages) if stage == "layer1_description_rewrite")
+    assert all(r["considerations_spec"] == "" for r in corpus)
+
+
+def test_sdf_screen_removal_is_dropped_before_drafting(
+    tiny_config_file, outputs_root, stub_claude, monkeypatch
+):
+    def dispatch(user_message, **kw):
+        if kw["stage"] == "layer1_screen":
+            return _screen_answer(user_message, remove=(1,))
+        return _sdf_dispatch(user_message, **kw)
+
+    calls = stub_claude(dispatch)
+    _run_main(monkeypatch, sdf_run.main, tiny_config_file)
+    run_dir = outputs_root / "sdf" / "latest"
+    rejections = utils.load_jsonl(run_dir / "layer1" / "screen_rejections.jsonl")
+    assert len(rejections) == 1
+    corpus = utils.load_jsonl(run_dir / "final" / "sdf_corpus.jsonl")
+    assert [r["doc_id"] for r in corpus] == [
+        pid for pid in ("matrix_000000", "matrix_000001") if pid != rejections[0]["prompt_id"]
+    ]
+    assert rejections[0]["round"] == 0
+    # 1 screen (the lone removed hand cannot be redealt into a different hand, so it is dropped)
+    # + 1 plan + 1 description rewrite + 1 selector call + 1 draft + 1 critique + 1 revise + 1 score
+    assert len(calls) == 8
+    # the removed hand never reached planning, so it never reached the selector
+    removed_id = rejections[0]["prompt_id"]
+    assert not any(c["item_id"].startswith(removed_id) for c in calls if c["stage"] == "layer1_select")
+
+
+def test_sdf_rewritten_description_and_dealt_value_conflict_reach_layer_2(
+    tiny_config_file, outputs_root, stub_claude, monkeypatch
+):
+    def dispatch(user_message, **kw):
+        if kw["stage"] == "layer1_description_rewrite":
+            if kw["item_id"] == "matrix_000000":
+                return _rewrite_answer(True, "Rewritten spec for matrix_000000.")
+            return _rewrite_answer(dealt_value_conflict=True, conflict_reason="The dealt scale cannot occur.")
+        return _sdf_dispatch(user_message, **kw)
+
+    calls = stub_claude(dispatch)
+    _run_main(monkeypatch, sdf_run.main, tiny_config_file)
+    run_dir = outputs_root / "sdf" / "latest"
+    drafts = utils.load_jsonl(run_dir / "layer2" / "drafts.jsonl")
+    assert [d["doc_id"] for d in drafts] == ["matrix_000000"]
+    draft_calls = [c for c in calls if c["max_tokens"] == 6000]
+    assert "Rewritten spec for matrix_000000." in draft_calls[0]["user_message"]  # layer 2 gets the rewrite
+    assert len(utils.load_jsonl(run_dir / "layer1" / "description_rewrite_rejections.jsonl")) == 1
+    # planning keeps the planner's own text on disk
+    plans = {p["prompt_id"]: p for p in utils.load_jsonl(run_dir / "layer1" / "plans.jsonl")}
+    assert plans["matrix_000000"]["description"] == "Spec for matrix_000000."
+
+    # resuming at layer 2 re-applies the stored rewrite and drops the conflicted plan, with no layer 1 calls
+    resumed = stub_claude([])
+    _run_main(monkeypatch, sdf_run.main, tiny_config_file, "--resume", "--layer", "2")
+    assert resumed == []
 
 
 def test_sdf_resume_at_last_layer_makes_no_calls(tiny_config_file, outputs_root, stub_claude, monkeypatch):
@@ -184,6 +277,39 @@ def test_dad_pipeline_end_to_end_offline(tiny_config_file, outputs_root, stub_cl
     assert all("Plain baseline answer." in c["user_message"] for c in respond_calls)
     # per prompt: scenario plan (1a) + draft (1b) + gate (1c) + refine (1d)
     # + baseline + scope (2a) + select (2a.5) + respond (2b) + rewrite (3)
+    assert len(calls) == 9 * N_DAD_PROMPTS
+
+
+def test_dad_human_profile_end_to_end_offline(tiny_config, tmp_path, outputs_root,
+                                             stub_claude, monkeypatch):
+    """dad.profile: human runs the same pipeline on the human-ethics content:
+    its own run tree, its own prompt snapshot, its library and principles."""
+    from dad_pipeline import profiles
+
+    human_cfg = {**tiny_config, "dad": {**tiny_config["dad"], "profile": "human"}}
+    config_file = tmp_path / "config_human.yaml"
+    config_file.write_text(yaml.safe_dump(human_cfg))
+    calls = stub_claude(_dad_dispatch)
+    _run_main(monkeypatch, dad_run.main, config_file)
+
+    assert not (outputs_root / "dad").exists()
+    runs = [d for d in (outputs_root / "dad_human" / "runs").iterdir() if d.is_dir()]
+    assert len(runs) == 1
+    run_dir = runs[0]
+    snapshot = (run_dir / "inputs" / "prompts" / "variables.txt").read_text(encoding="utf-8")
+    assert "0.095 :: workers" in snapshot          # the human matrix was frozen, not the animal one
+    corpus = utils.load_jsonl(run_dir / "final" / "dad_corpus.jsonl")
+    assert len(corpus) == N_DAD_PROMPTS
+    taxa = set(profiles.get("human").TAXA)
+    assert all(r["variables"]["taxa_category"] in taxa for r in corpus)
+    assert all(r["variables"]["anchor_value_pair"].startswith("others' wellbeing ↔ ")
+               for r in corpus)
+    # step 3 was handed the human principles, not the animal ones
+    rewrite = [c for c in calls if "rewrite a draft assistant response" in (c["system_prompt"] or "")]
+    assert len(rewrite) == N_DAD_PROMPTS
+    assert all("Comparable care for comparable cases, whoever the person" in c["system_prompt"]
+               for c in rewrite)
+    assert not any("whatever the species" in c["system_prompt"] for c in rewrite)
     assert len(calls) == 9 * N_DAD_PROMPTS
 
 

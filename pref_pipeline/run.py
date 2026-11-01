@@ -22,6 +22,7 @@ import yaml
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from shared import api, utils
+from shared.api_keys import add_api_key_source_flags, apply_api_key_source_flags
 
 # Two independent samples from the bare model when config has no pref.arms.
 _DEFAULT_ARMS = {
@@ -83,7 +84,9 @@ def main() -> None:
     parser.add_argument("--resume", action="store_true", help="Resume from checkpoints.")
     parser.add_argument("--run-id", default=None, help="Run to resume (with --resume; defaults to latest).")
     parser.add_argument("--limit", type=int, default=None, help="Only pair the first N prompts.")
+    add_api_key_source_flags(parser)
     args = parser.parse_args()
+    apply_api_key_source_flags(args)
 
     config = utils.load_config(args.config)
     root = Path(__file__).parent.parent

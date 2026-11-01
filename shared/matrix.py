@@ -12,6 +12,14 @@ variables.txt format::
     {varname}  # optional description
         plain value
         0.25 :: weighted value
+        0.25 :: [stable_id] weighted value with an ID
+
+An optional ``[id] `` prefix (after the weight, if any) gives a value a stable
+ID: lowercase letters, digits and underscores, starting with a letter. The
+prefix is stripped, so the value text that is rendered and recorded is exactly
+what it would be without it; the IDs are exposed separately by
+``parse_variables_with_ids`` for callers (the SDF deal constraints) that refer
+to values by ID so a value can be reworded without breaking them.
 
 Full-line ``#`` comments and blank lines are ignored anywhere. Weights are
 all-or-nothing within a variable and must sum to 1.0 (within
@@ -29,21 +37,26 @@ from pathlib import Path
 VAR_HEADER_RE = re.compile(r"\{([A-Za-z0-9_]+)\}")
 WEIGHT_RE = re.compile(r"^(\d+(?:\.\d+)?)\s*::\s*(.+)$")
 WEIGHT_TOLERANCE = 1e-6
+VALUE_ID_RE = re.compile(r"^\[([a-z][a-z0-9_]*)\]\s+(\S.*)$")
 
 # Prompt files may carry labeled system/user sections; split_sections() parses them.
 SYSTEM_MARKER = "=== SYSTEM PROMPT ==="
 USER_MARKER = "=== USER PROMPT ==="
 
 
-def parse_variables(
+def parse_variables_with_ids(
     path: Path, reserved: frozenset[str] | set[str] = frozenset()
-) -> dict[str, list[tuple[str, float | None]]]:
-    """Parse variables.txt into {name: [(value, weight-or-None), ...]}.
+) -> tuple[dict[str, list[tuple[str, float | None]]], dict[str, list[str | None]]]:
+    """Parse variables.txt into ({name: [(value, weight-or-None), ...]},
+    {name: [id-or-None, ...]}) — the second parallel to the first.
 
     ``reserved`` names are composer-injected slots that must NOT be defined in
-    the file — defining one raises, pointing the author at the composer.
+    the file — defining one raises, pointing the author at the composer. A
+    value starting with ``[`` must carry a well-formed ``[id] `` prefix; IDs
+    must be unique within a variable.
     """
     parsed: dict[str, list[tuple[str, float | None]]] = {}
+    ids: dict[str, list[str | None]] = {}
     current: str | None = None
     for lineno, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
         line = raw.rstrip()
@@ -65,16 +78,61 @@ def parse_variables(
             if current in parsed:
                 raise ValueError(f"{path.name}:{lineno}: duplicate variable {{{current}}}")
             parsed[current] = []
+            ids[current] = []
         else:
             if current is None:
                 raise ValueError(f"{path.name}:{lineno}: value line before any {{variable}} header")
             text = line.strip()
             weighted = WEIGHT_RE.match(text)
-            if weighted:
-                parsed[current].append((weighted.group(2).strip(), float(weighted.group(1))))
-            else:
-                parsed[current].append((text, None))
-    return parsed
+            weight = float(weighted.group(1)) if weighted else None
+            value = weighted.group(2).strip() if weighted else text
+            value_id = None
+            if value.startswith("["):
+                with_id = VALUE_ID_RE.match(value)
+                if with_id is None:
+                    raise ValueError(
+                        f"{path.name}:{lineno}: {{{current}}} value starts with '[' but has no "
+                        "well-formed '[id] ' prefix (lowercase letters, digits, underscores, "
+                        f"starting with a letter, then a space): {value[:60]!r}"
+                    )
+                value_id, value = with_id.group(1), with_id.group(2).strip()
+                if value_id in ids[current]:
+                    raise ValueError(
+                        f"{path.name}:{lineno}: duplicate ID [{value_id}] in {{{current}}}")
+            parsed[current].append((value, weight))
+            ids[current].append(value_id)
+    return parsed, ids
+
+
+def parse_variables(
+    path: Path, reserved: frozenset[str] | set[str] = frozenset()
+) -> dict[str, list[tuple[str, float | None]]]:
+    """Parse variables.txt into {name: [(value, weight-or-None), ...]}.
+
+    Any ``[id] `` prefixes are stripped (see parse_variables_with_ids for the IDs).
+    """
+    return parse_variables_with_ids(path, reserved)[0]
+
+
+def value_ids_by_variable(
+    parsed: dict[str, list[tuple[str, float | None]]],
+    ids: dict[str, list[str | None]],
+    require_ids: bool = False,
+    source_name: str = "variables.txt",
+) -> dict[str, dict[str, str]]:
+    """{variable: {id: value_text}}. With ``require_ids`` every value must carry
+    an ID, or this raises naming the variable and the first offending value."""
+    by_variable: dict[str, dict[str, str]] = {}
+    for name, pairs in parsed.items():
+        by_variable[name] = {}
+        for (value, _), value_id in zip(pairs, ids[name]):
+            if value_id is None:
+                if require_ids:
+                    raise ValueError(
+                        f"{source_name}: {{{name}}} value has no [id] prefix: {value[:70]!r}")
+                continue
+            by_variable[name][value_id] = value
+    return by_variable
 
 
 def split_weights(

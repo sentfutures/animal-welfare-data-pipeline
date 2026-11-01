@@ -23,15 +23,26 @@ TEMPLATE_KWARGS = [
         "tone": "TONE-X", "resolution": "RESOLUTION-X", "centrality": "CENTRALITY-X",
         "tech_savvy": "SAVVY-X", "sentient_category": "MINDS-X",
         "naming": "NAMING-X", "domain": "DOMAIN-X", "tradeoff": "TRADEOFF-X",
-        "decision_scale": "SCALE-X", "reasoning_featured": "REASONING-X",
+        "decision_scale": "SCALE-X",
         "failure_mode_avoided": "FAILURE-X",
         "fictional_names": "NAME-X; NAME-Y", "fictional_orgs": "ORG-X; ORG-Y",
         "sentient_example": "SPECIES-X",
     }),
+    # layer 1 screen: rendered by layer1_screen.build_screen_prompt
+    ("sdf/layer1_screen.txt", {"hand_count": 7, "hands": "HANDS-X"}),
+    ("sdf/layer1_screen_specification_block.txt", {"number": 3, "variable_lines": "LINES-X"}),
+    # layer 1 description rewrite: rendered by layer1_description_rewrite.build_rewrite_prompt
+    ("sdf/layer1_description_rewrite.txt", {"variable_lines": "LINES-X", "description": "DESCRIPTION-X"}),
+    # layer 1 considerations selector: rendered by layer1_select_considerations.build_scoring_prompt
+    ("sdf/layer1_select_considerations.txt", {
+        "document_type": "TYPE-X", "centrality": "CENTRALITY-X", "sentient_category": "MINDS-X",
+        "document_description": "DESC-X", "moral_list": "MORAL-LIST-X", "epistemic_list": "EPISTEMIC-LIST-X",
+    }),
     ("sdf/layer2.txt", {
         "preamble": "PREAMBLE-X", "constitution_claude": "CONST-C-X",
         "constitution_principles": "CONST-P-X", "document_description": "DESC-X",
-        "reasoning_featured": "REASONING-X",
+        "considerations_spec": "CONSIDERATIONS-SPEC-X",
+        "variable_lines": "VARIABLE-LINES-X",
     }),
     # style_directives/length_directive are empty-clause slots: an arm with the
     # revision knobs off renders them to "", which is the control prompt.
@@ -40,21 +51,24 @@ TEMPLATE_KWARGS = [
         "failure_modes": "FAILURE-MODES-X",
         "document_description": "DESC-X", "document": "DOC-X",
         "style_directives": "", "length_directive": "",
+        "considerations_spec": "CONSIDERATIONS-SPEC-X", "variable_lines": "VARIABLE-LINES-X",
     }),
     ("sdf/layer3a_critique.txt", {
         "constitution_claude": "CONST-C-X", "constitution_principles": "CONST-P-X",
         "failure_modes": "FAILURE-MODES-X",
         "document_description": "DESC-X", "document": "DOC-X",
+        "considerations_spec": "CONSIDERATIONS-SPEC-X", "variable_lines": "VARIABLE-LINES-X",
     }),
     ("sdf/layer3b_revise.txt", {
         "constitution_claude": "CONST-C-X", "constitution_principles": "CONST-P-X",
         "failure_modes": "FAILURE-MODES-X",
         "document_description": "DESC-X", "document": "DOC-X", "review": "REVIEW-X",
         "style_directives": "STYLE-X", "length_directive": "LENGTH-X",
+        "considerations_spec": "CONSIDERATIONS-SPEC-X", "variable_lines": "VARIABLE-LINES-X",
     }),
     ("sdf/layer4.txt", {
         "constitution_claude": "CONST-C-X", "document_description": "DESC-X",
-        "improved_document": "DOC-X",
+        "improved_document": "DOC-X", "variable_lines": "VARIABLE-LINES-X",
     }),
     # step1a renders via compose_scenarios.render_plan_prompt: every matrix axis
     # from variables.txt plus the composer-injected reserved slots
@@ -103,13 +117,14 @@ TEMPLATE_KWARGS = [
         "user_message": "USER-X", "assistant_response": "RESP-X",
     }),
     ("tools/pattern_scan.txt", {"documents": "DOCS-X"}),
-    # the fallback-taxonomy eval's three stages (evals/scenario_taxonomy.py)
-    ("tools/taxonomy_derive.txt", {"track_name": "TRACK-X", "track_brief": "BRIEF-X",
-                                   "known": "KNOWN-X", "groups": "GROUPS-X"}),
-    ("tools/taxonomy_consolidate.txt", {"track_name": "TRACK-X", "track_brief": "BRIEF-X",
-                                        "cap": 9, "candidates": "CANDS-X"}),
-    ("tools/taxonomy_label.txt", {"track_name": "TRACK-X", "track_brief": "BRIEF-X",
-                                  "taxonomy": "TAX-X", "document": "DOC-X"}),
+]
+# The human-ethics profile (prompts/dad_human/) mirrors every DAD step template
+# the pipeline renders, with the same placeholders — so each renders with the
+# same kwargs. step3_score is not consumed by pipeline code and has no mirror.
+TEMPLATE_KWARGS += [
+    (rel.replace("dad/", "dad_human/", 1), kwargs)
+    for rel, kwargs in TEMPLATE_KWARGS
+    if rel.startswith("dad/") and rel != "dad/step3_score.txt"
 ]
 
 
@@ -138,13 +153,14 @@ def test_preamble_loads_verbatim():
     assert text.strip()
 
 
-def test_reasoning_library_loads_with_expected_layers():
+@pytest.mark.parametrize("prompts_subdir", ["dad", "dad_human"])
+def test_reasoning_library_loads_with_expected_layers(prompts_subdir):
     """The library CSV is step 2's source of truth: every entry carries the
     schema columns, and all three layers (conduct C*, core moves M*, topic T*)
     are present. Counts are asserted loosely — the library is actively edited."""
     from dad_pipeline import reasoning_library
 
-    library = reasoning_library.load(REPO_ROOT / "prompts" / "dad")
+    library = reasoning_library.load(REPO_ROOT / "prompts" / prompts_subdir)
     ids = reasoning_library.all_ids(library)
     assert len(ids) == len(set(ids)), "duplicate entry ids in reasoning_library.csv"
     prefixes = {i[0] for i in ids}

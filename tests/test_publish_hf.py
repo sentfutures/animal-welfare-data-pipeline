@@ -1230,6 +1230,39 @@ class TestHubApiWrappers:
         assert calls[0]["ignore_patterns"] == [publish_hf.STAGING_MARKER]
 
 
+class TestHuggingFaceTokenSource:
+    """The default key-source mode never uses the operating system environment, and huggingface_hub
+    would read HF_TOKEN from it by itself, so the token variables must be hidden from it."""
+
+    @pytest.fixture
+    def repo_root_without_token(self, tmp_path, monkeypatch):
+        from shared import api_keys
+        monkeypatch.setattr(api_keys, "REPO_ROOT", tmp_path)
+        monkeypatch.setattr(api_keys, "_api_key_source_mode", api_keys.REPO_ROOT_DOTENV_ONLY)
+        monkeypatch.setenv("HF_TOKEN", "fake-token-from-the-environment")
+        monkeypatch.setenv("HUGGING_FACE_HUB_TOKEN", "fake-legacy-token-from-the-environment")
+        return tmp_path
+
+    def test_default_mode_hides_environment_tokens_when_the_dotenv_has_none(self, repo_root_without_token):
+        import huggingface_hub
+        publish_hf._load_hugging_face_token()
+        assert huggingface_hub.get_token() != "fake-token-from-the-environment"
+        assert huggingface_hub.get_token() != "fake-legacy-token-from-the-environment"
+
+    def test_default_mode_uses_the_dotenv_token_over_the_environment(self, repo_root_without_token):
+        import huggingface_hub
+        (repo_root_without_token / ".env").write_text("HF_TOKEN=fake-token-from-the-dotenv\n")
+        publish_hf._load_hugging_face_token()
+        assert huggingface_hub.get_token() == "fake-token-from-the-dotenv"
+
+    def test_find_dotenv_mode_keeps_the_environment_token(self, repo_root_without_token, monkeypatch):
+        import huggingface_hub
+        from shared import api_keys
+        monkeypatch.setattr(api_keys, "_api_key_source_mode", api_keys.SEARCH_UPWARD_THEN_ENVIRONMENT)
+        publish_hf._load_hugging_face_token()
+        assert huggingface_hub.get_token() == "fake-token-from-the-environment"
+
+
 def _run_main(monkeypatch, *args):
     monkeypatch.setattr(sys, "argv", ["publish_hf.py", *args])
     publish_hf.main()

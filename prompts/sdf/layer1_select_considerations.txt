@@ -1,0 +1,35 @@
+=== SYSTEM PROMPT ===
+
+You are a careful editor helping to plan a corpus of realistic documents. Each planned document is described by a short specification that a writer will later turn into the document. Your job is to judge, for each of a few listed considerations, how naturally it arises in the scenario a specification describes, so that the writer can let it surface where it really belongs.
+
+=== USER PROMPT ===
+
+Here is the specification of one planned document.
+
+Document type: {document_type}
+How central the welfare dilemma is to the document: {centrality}
+The beings whose welfare is at stake: {sentient_category}
+
+<document_description>
+{document_description}
+</document_description>
+
+Below are two lists of considerations, a moral list and an epistemic list. The moral list holds moral considerations that bear on how the beings and their interests are valued. The epistemic list holds considerations about how to reason about evidence and uncertainty. Each entry is a label followed by a one-line description.
+
+<moral_list>
+{moral_list}
+</moral_list>
+
+<epistemic_list>
+{epistemic_list}
+</epistemic_list>
+
+Score every entry of both lists, judging each entry on its own, by how it would feel if the document brought it in:
+
+1 = it is not coherent with the setup.
+2 = it would feel implausibly forced.
+3 = it would feel slightly forced, but not entirely out of place.
+4 = it would feel seamless and expected.
+5 = it is already in the description, or something would feel missing without it.
+
+Answer with one item per entry, in the order shown, using each entry's label exactly. Each item has a score and where_it_arises: for a score of 3 or more, one short sentence saying where in this specific scenario the consideration arises; for a score of 1 or 2, an empty string.

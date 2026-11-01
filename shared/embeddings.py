@@ -31,7 +31,6 @@ from datetime import datetime, UTC
 import numpy as np
 import openai
 import yaml
-from dotenv import load_dotenv
 from tenacity import (
     retry,
     stop_after_attempt,
@@ -39,7 +38,7 @@ from tenacity import (
     retry_if_exception_type,
 )
 
-load_dotenv()
+from shared.api_keys import load_api_key, load_optional_api_key
 
 DEFAULT_MODEL = "text-embedding-3-small"
 
@@ -101,9 +100,9 @@ def resolve_default_model() -> str:
     explicit = os.environ.get("EMBEDDINGS_MODEL")
     if explicit:
         return explicit
-    if os.environ.get("OPENAI_API_KEY"):
+    if load_optional_api_key("OPENAI_API_KEY"):
         return DEFAULT_MODEL
-    if os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY"):
+    if load_optional_api_key("GEMINI_API_KEY") or load_optional_api_key("GOOGLE_API_KEY"):
         return GEMINI_DEFAULT_MODEL
     return DEFAULT_MODEL  # no key at all: fail later with the provider's error
 
@@ -122,12 +121,7 @@ def _get_client() -> openai.OpenAI:
     if _cost_log_path is None:
         init()
     if _client is None:
-        key = os.environ.get("OPENAI_API_KEY")
-        if not key:
-            raise RuntimeError(
-                "OpenAI embedding models need OPENAI_API_KEY in .env; set it, or "
-                "use a gemini-* embed model (GEMINI_API_KEY)."
-            )
+        key = load_api_key("OPENAI_API_KEY")   # raises MissingApiKeyError if absent
         _client = openai.OpenAI(api_key=key)
     return _client
 
@@ -178,11 +172,11 @@ def _gemini_transport(model: str, batch: list[str]) -> tuple[list[list[float]], 
     cents scale). httpx is openai's own pinned dependency — no new package."""
     import httpx
 
-    key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    key = load_optional_api_key("GEMINI_API_KEY") or load_optional_api_key("GOOGLE_API_KEY")
     if not key:
         raise RuntimeError(
             "gemini-* embedding models need GEMINI_API_KEY (or GOOGLE_API_KEY) "
-            "in .env; set it, or use an OpenAI text-embedding-* model."
+            "in <repo root>/.env or the environment; set it, or use an OpenAI text-embedding-* model."
         )
     try:
         resp = httpx.post(
