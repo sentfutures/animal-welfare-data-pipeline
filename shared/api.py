@@ -65,6 +65,7 @@ _record_model_calls = True
 _PRICING = {
     "claude-sonnet-4-6": (3.00, 15.00),
     "claude-sonnet-5": (2.00, 10.00),
+    "claude-sonnet-5-5": (2.00, 10.00),
     "claude-opus-4-8": (5.00, 25.00),
     "claude-opus-5": (5.00, 25.00),
     "claude-opus-5-5": (4.00, 20.00),
@@ -81,6 +82,29 @@ _CACHE_READ_MULTIPLIER_BY_MODEL = {
 _UNPRICED_WARNED: set = set()
 
 _BACKENDS = ("api", "claude_code", "auto")
+
+# Optional `effort` in config.yaml: one level for every call, or a map from stage
+# tag (the `stage=` each call passes, e.g. scenario_plan, response_draft) to a
+# level, so an experiment arm can set one stage's effort while the others keep
+# their own. Sent as output_config.effort to Claude (api backend), reasoning.effort
+# to OpenAI and thinkingConfig.thinkingLevel to Gemini (see shared/gemini_api.py).
+# Unset, or a stage missing from the map, keeps the default:
+# _HIDDEN_THINKING_EFFORT_BY_PREFIX for Claude, openai_api.DEFAULT_REASONING_EFFORT
+# for OpenAI, the model's own for Gemini.
+_EFFORT_LEVELS = ("low", "medium", "high", "xhigh", "max")
+
+
+def _effort_for(stage: str | None) -> str | None:
+    effort = _config.get("effort")
+    if isinstance(effort, dict):
+        return effort.get(stage)
+    return effort
+
+
+# Models whose reasoning cannot be turned off spend part of max_tokens on it, so
+# every call to one gets `thinking_headroom` (config, default 8000) added to the
+# stage's cap; otherwise a cap sized for the answer truncates the thinking.
+_DEFAULT_THINKING_HEADROOM = 8000
 
 # The `claude setup-token` token for the claude_code subprocess, loaded through
 # shared/api_keys.py by init() for the claude_code and auto backends (None = not
@@ -156,6 +180,11 @@ def init(config_path: str = "config.yaml", cost_log_path: str | Path | None = No
     _cc_demoted = None
     if _backend not in _BACKENDS:
         raise ValueError(f"config backend must be one of {_BACKENDS}, got {_backend!r}")
+    effort = _config.get("effort")
+    for level in (effort.values() if isinstance(effort, dict) else [effort]):
+        if level is not None and level not in _EFFORT_LEVELS:
+            raise ValueError(f"config effort must be one of {_EFFORT_LEVELS} "
+                             f"(or a stage -> level map), got {level!r}")
     # The api backend needs the key; fail loudly here rather than deep in a run.
     # The claude_code backend authenticates via the Claude Code CLI, so no key.
     # auto needs the key too: it is the fallback leg AND serves the empty-system
@@ -366,6 +395,7 @@ def _call_with_retry(
     messages: list[dict],
     temperature: float,
     json_schema: dict | None = None,
+    effort: str | None = None,
 ) -> anthropic.types.Message:
     # Extended thinking is requested OFF — training data should show
     # user-facing reasoning, not internal scratchpads (see CLAUDE.md). Models in
@@ -393,7 +423,7 @@ def _call_with_retry(
     # can be recorded in model_calls.jsonl; _response_text still strips it.
     kwargs["thinking"] = _thinking_config(model)
     output_config: dict = {}
-    effort = _hidden_thinking_effort(model)
+    effort = effort or _hidden_thinking_effort(model)
     if effort is not None:
         output_config["effort"] = effort
     if json_schema is not None:
@@ -405,7 +435,8 @@ def _call_with_retry(
 
 
 # Models that cannot run with thinking disabled (400 at every effort level).
-_ADAPTIVE_THINKING_PREFIXES = ("claude-fable", "claude-mythos", "claude-opus-5-5")
+_ADAPTIVE_THINKING_PREFIXES = ("claude-fable", "claude-mythos", "claude-opus-5-5",
+                               "claude-sonnet-5-5")
 
 # Per-model effort sent as output_config.effort, to keep the hidden thinking of
 # the models above short (Opus 5.5 defaults to "medium"). Models not listed get
@@ -742,10 +773,31 @@ def call_claude(
     resolved_model = model or _config.get("model", "claude-sonnet-5")
     resolved_max = max_tokens or _config.get("max_tokens", 4000)
     resolved_temp = temperature if temperature is not None else _config.get("temperature", 1.0)
+    effort = _effort_for(stage)
 
     full_system = system_prompt
     if injection:
         full_system = (full_system + "\n\n" + injection).strip()
+
+    # OpenAI and Gemini models go straight to their own APIs whatever the
+    # configured backend (the Claude Code CLI cannot serve them), with the same
+    # return contract. Both reason on every call, as do the adaptive-thinking
+    # Claude models below, so all of them get the thinking headroom.
+    from shared import gemini_api, openai_api
+    if (_requires_adaptive_thinking(resolved_model) or openai_api.is_openai_model(resolved_model)
+            or gemini_api.is_gemini_model(resolved_model)):
+        resolved_max += _config.get("thinking_headroom", _DEFAULT_THINKING_HEADROOM)
+    if openai_api.is_openai_model(resolved_model):
+        text, stop_reason = openai_api.call_openai(
+            user_message, full_system, model=resolved_model, max_output_tokens=resolved_max,
+            reasoning_effort=effort or openai_api.DEFAULT_REASONING_EFFORT,
+            stage=stage, item_id=item_id, json_schema=json_schema)
+        return (text, stop_reason) if return_stop_reason else text
+    if gemini_api.is_gemini_model(resolved_model):
+        text, stop_reason = gemini_api.call_gemini(
+            user_message, full_system, model=resolved_model, max_output_tokens=resolved_max,
+            effort=effort, stage=stage, item_id=item_id, json_schema=json_schema)
+        return (text, stop_reason) if return_stop_reason else text
 
     _attempt_state.n = 1  # _note_attempt overwrites this on every real attempt
     _attempt_state.thinking_text = None
@@ -855,6 +907,8 @@ def call_claude(
         }]
 
     api_kwargs = {"json_schema": json_schema} if json_schema is not None else {}
+    if effort is not None:
+        api_kwargs["effort"] = effort
     try:
         response = _call_with_retry(
             client=_get_client(),
