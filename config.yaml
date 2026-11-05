@@ -11,6 +11,21 @@ model: claude-sonnet-5
 max_tokens: 4000
 temperature: 1.0  # sampling temperature for every API call (0.0-1.0); generation wants 1.0 — diversity IS the product
 workers: 8  # concurrent API calls within each SDF layer and DAD stage (1c/2/3); 1 = serial
+# Reasoning effort (low/medium/high/xhigh/max): one level for every call, or a map of stage tag -> level.
+# A stage missing from the map keeps its model's default (Opus 5.5: low). DAD runs every stage at high,
+# as the 2026-10/11 model-per-stage experiment did; SDF and the evals keep their defaults.
+effort:
+  scenario_plan: high
+  prompt_draft: high
+  prompt_gate: high
+  prompt_refine: high
+  baseline_response: high
+  response_scope: high
+  response_select: high
+  response_draft: high
+  constitution_rewrite: high
+thinking_headroom: 13000  # tokens added to max_tokens for models that always reason (Opus/Sonnet 5.5,
+                          # gpt-, gemini- via call_claude), so the hidden reasoning cannot truncate the answer
 
 # Eval model knobs (evals/audit_dad.py --judges; falls back to the global `model`).
 evals:
@@ -81,9 +96,10 @@ sdf:
 dad:
   profile: animal  # content profile: dad_pipeline/profiles/<name>.py + prompts/<its folder>/ (animal = the original pipeline)
   # Per-stage model overrides (each falls back to the global `model`).
-  # DAD runs on Opus 5 across the board (Sonnet stays the global/SDF default);
-  # Opus answers every welfare prompt where Fable's dual-use layer refuses ~30%.
-  scenario_model: claude-opus-5                 # 1a: scenario plan (deal -> description)
+  # DAD runs on Opus 5.5 at every stage except the 1c gate, which is Sonnet 5.5: the
+  # winners of the 2026-10/11 model-per-stage experiment (Sonnet stays the global/SDF default).
+  # Opus answers welfare prompts where Fable's dual-use layer refuses ~30%.
+  scenario_model: claude-opus-5-5               # 1a: scenario plan (deal -> description)
   # 1a refusal fallback: if Opus's refusal classifier cuts the scenario-plan
   # stream twice (stop_reason "refusal", seen on insect-welfare plans), the
   # last-ditch attempt switches to this model. Attempts 1-2 stay on the stage
@@ -91,23 +107,23 @@ dad:
   # needs a different model, and dropping the plan would bias the corpus away
   # from the refused content. null = no switch (the granted attempt stays on
   # Opus). Fallback-authored scenarios are stamped scenario_model_fallback.
-  scenario_refusal_fallback_model: claude-sonnet-5
-  prompt_draft_model: claude-opus-5             # 1b: draft user prompts (one call per scenario)
-  prompt_gate_model: claude-opus-5              # 1c: pass/fail quality gate (falls back to global)
-  prompt_refine_model: claude-opus-5            # 1d: review-and-rewrite refine on gate-passed drafts (falls back to global)
-  response_scope_model: claude-opus-5           # 2a: scope map — feeds every downstream step-2 call
+  scenario_refusal_fallback_model: claude-sonnet-5-5
+  prompt_draft_model: claude-opus-5-5           # 1b: draft user prompts (one call per scenario)
+  prompt_gate_model: claude-sonnet-5-5          # 1c: pass/fail quality gate (falls back to global)
+  prompt_refine_model: claude-opus-5-5          # 1d: review-and-rewrite refine on gate-passed drafts (falls back to global)
+  response_scope_model: claude-opus-5-5         # 2a: scope map — feeds every downstream step-2 call
   # 2a refusal fallback, same semantics as scenario_refusal_fallback_model:
   # stage-model retries first (a stochastic refusal clears), then ONE
   # last-ditch attempt on this model. Seen live: Opus 5's classifier refused a
   # biosecurity-framed scope three times; dropping the prompt
   # would bias the corpus away from that content. null = no switch.
   scope_refusal_fallback_model: claude-opus-4-8
-  response_select_model: claude-opus-5          # 2a.5: library-entry selection over the trigger index (falls back to response_scope_model if unset)
-  response_draft_model: claude-opus-5           # 2b: response over scope + library
-  constitution_rewrite_model: claude-opus-5     # step 3: constitution rewrite (alignment-critical)
+  response_select_model: claude-opus-5-5        # 2a.5: library-entry selection over the trigger index (falls back to response_scope_model if unset)
+  response_draft_model: claude-opus-5-5         # 2b: response over scope + library
+  constitution_rewrite_model: claude-opus-5-5   # step 3: constitution rewrite (alignment-critical)
   baseline:
     enabled: true            # unguided control response per dilemma (viewer comparison only; never trains)
-    model: claude-opus-5     # plain call — no system prompt, the shipped user prompt verbatim
+    model: claude-opus-5-5   # plain call — no system prompt, the shipped user prompt verbatim
   evals:
     auto: true  # after every full run: evals/audit_dad.py --judges + evals/diversity.py on the run dir
                 # (paid: the two-judge pass on a 40-example run + embedding cents, logged to the global

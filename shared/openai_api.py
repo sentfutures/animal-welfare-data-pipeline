@@ -56,7 +56,7 @@ def _get_client() -> openai.OpenAI:
             # Accept-Encoding gzip works around a decompression bug in some httpx versions.
             # max_retries=0 because tenacity below does the retries, so every attempt is counted.
             _client = openai.OpenAI(api_key=api_key, default_headers={"Accept-Encoding": "gzip"},
-                                    max_retries=0, timeout=600)
+                                    max_retries=0, timeout=300)
         return _client
 
 

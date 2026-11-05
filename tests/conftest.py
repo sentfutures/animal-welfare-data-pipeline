@@ -37,7 +37,7 @@ import numpy as np
 import pytest
 import yaml
 
-from shared import api, embeddings, openai_api
+from shared import api, embeddings, gemini_api, openai_api
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -169,6 +169,18 @@ def _openai_responses_guard(monkeypatch):
         )
 
     monkeypatch.setattr(openai_api, "_create_response", _blocked)
+
+
+@pytest.fixture(autouse=True)
+def _gemini_guard(monkeypatch):
+    """Block shared.gemini_api's network seam, so a Gemini-routed stage can
+    never reach the API from a test."""
+    def _blocked(*args, **kwargs):
+        raise AssertionError(
+            "Gemini generateContent call attempted during tests — stub shared.gemini_api._generate"
+        )
+
+    monkeypatch.setattr(gemini_api, "_generate", _blocked)
 
 
 @pytest.fixture
