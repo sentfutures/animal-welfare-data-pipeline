@@ -243,7 +243,15 @@ def truncate_to_tokens(text: str, max_tokens: int = MAX_INPUT_TOKENS,
     tokens = enc.encode(text)
     if len(tokens) <= max_tokens:
         return text
-    return enc.decode(tokens[:max_tokens])
+    # cutting mid-character makes decode emit U+FFFD, which re-encodes to more
+    # tokens than the fragment it replaced, so the cut is verified and walked back
+    cut = max_tokens
+    while cut > 0:
+        out = enc.decode(tokens[:cut])
+        if len(enc.encode(out)) <= max_tokens:
+            return out
+        cut -= 8
+    return ""
 
 
 def _batches(texts: list[str], max_items: int = MAX_BATCH):

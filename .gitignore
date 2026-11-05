@@ -6,6 +6,13 @@ __pycache__/
 *.egg-info/
 .venv/
 
+# ide
+.idea/*
+
+# claude
+.claude/settings.local.json
+.claude/settings.json
+
 # Local ad-hoc / test runs — viewable in the run viewer, never published.
 # The `local_` label appears in two positions: leading (local_<date>_...) and,
 # since run dirs gained a timestamp prefix, mid-name (<date>_<time>_local_...).
@@ -22,6 +29,11 @@ outputs/*/latest
 # under outputs/, but also next to a bare --input corpus.jsonl anywhere).
 embeddings_cache.npz
 
+# The external-reference sample evals/external_baseline.py streams from
+# FineWeb-Edu — hundreds of MB of someone else's text, rebuilt on demand from a
+# pinned dataset + seed. The external_baseline.json it produces stays tracked.
+outputs/external/
+
 # Machine-local config override (backend: auto etc.) — never committed
 config.local.yaml
 
@@ -30,6 +42,15 @@ config.local.yaml
 # is a build artefact and would be a second, drifting 60KB binary in git.
 # The committed card image is website/assets/preview.png.
 /website/preview.png
+
+# Experiment bulk: the arm run dirs and the sampled drafts are regenerable from
+# the donor run + seed recorded in each experiment's manifest. The index files
+# (manifest, comparison, deals) are what the reports cite and stay tracked.
+outputs/sdf/runs/*_exp[0-9]*-*/
+outputs/sdf/runs/*_split-*/
+outputs/sdf/experiments/*/sample.jsonl
+outputs/sdf/experiments/*/holdout.jsonl
+outputs/pref/
 
 # Full model-call records (shared/api.py): every prompt and response in full, plus
 # the distinct system prompts they reference — large and machine-local, never committed.

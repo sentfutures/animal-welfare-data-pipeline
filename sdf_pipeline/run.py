@@ -20,7 +20,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from shared import api, utils
+from shared import api, costs, utils
 from shared.api_keys import add_api_key_source_flags, apply_api_key_source_flags
 from sdf_pipeline import (
     layer1_description_rewrite,
@@ -81,6 +81,9 @@ def main() -> None:
         print("WARNING: run has no inputs/ snapshot (pre-snapshot run); using live prompts/.")
 
     api.init(args.config, cost_log_path=run_dir / "cost_log.jsonl")
+    # On --resume the run's log already holds the earlier attempt's calls;
+    # mark here so the closing report is what THIS invocation spent.
+    cost_start = costs.mark(run_dir / "cost_log.jsonl")
 
     # Resuming a run made before the renumber has to write beside that run's own
     # stage dirs, not create a second set under the new names.
@@ -134,7 +137,12 @@ def main() -> None:
         print(f"  Running cost: ${api.get_total_cost():.4f}\n")
         print(f"=== Done. {len(final)} documents in {final_dir / 'sdf_corpus.jsonl'} ===")
 
-    print(f"Total API cost this session: ${api.get_total_cost():.4f}")
+    costs.report(run_dir / "cost_log.jsonl", title="Run cost (this invocation)",
+                 n_done=config["sdf"]["n_prompts"], since=cost_start,
+                 project_to=(config["sdf"].get("experiment") or {}).get("project_to"))
+    if cost_start:
+        costs.report(run_dir / "cost_log.jsonl", title="Run cost (total, incl. earlier attempts)",
+                     n_done=config["sdf"]["n_prompts"])
 
 
 if __name__ == "__main__":

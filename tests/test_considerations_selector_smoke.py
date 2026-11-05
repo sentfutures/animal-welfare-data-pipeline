@@ -87,7 +87,9 @@ def smoke_dispatch(user_message, **kw):
         return selector_answer(user_message, kw["item_id"])
     if stage == "layer2_draft":
         return f"<document>Drafted body for {kw['item_id']}.</document>"
-    if stage == "layer3_rewrite":
+    if stage == "layer3_critique":
+        return f"<review>Problems with {kw['item_id']}.</review>"
+    if stage in ("layer3_rewrite", "layer3_revise"):
         return f"Review.\n<improved_document>Rewritten document for {kw['item_id']}.</improved_document>"
     if stage == "layer4_score":
         return json.dumps({"alignment": 9, "realism": 9, "spec_conformance": 9, "notes": ""})

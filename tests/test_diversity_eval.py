@@ -425,3 +425,141 @@ class TestScopes:
         _run_main(monkeypatch, corpus, tiny_config_file)
         report = json.loads((tmp_path / "audit" / "diversity_report.json").read_text())
         assert set(report["scopes"]) == {"combined"}
+
+
+class TestVendiConfidenceInterval:
+    """Comparing two arms needs a sense of how much of a gap is sampling noise."""
+
+    def test_the_interval_is_deterministic_under_a_fixed_seed(self):
+        X = np.eye(8, dtype=np.float32)
+        assert diversity.vendi_ci(X, n_boot=40, seed=1) == diversity.vendi_ci(X, n_boot=40, seed=1)
+
+    def test_a_wider_interval_for_a_mixed_corpus_than_for_identical_docs(self):
+        same = np.stack([_unit([1, 0, 0])] * 12)
+        mixed = np.stack([_unit([1, 0, 0]), _unit([0, 1, 0]), _unit([0, 0, 1])] * 4)
+        lo_s, hi_s = diversity.vendi_ci(same, n_boot=60, seed=0)
+        lo_m, hi_m = diversity.vendi_ci(mixed, n_boot=60, seed=0)
+        assert hi_s - lo_s == pytest.approx(0.0, abs=1e-6)  # no spread to resample
+        assert hi_m - lo_m > 0
+
+    def test_the_interval_is_ordered_and_bounded_by_n(self):
+        X = np.eye(10, dtype=np.float32)
+        lo, hi = diversity.vendi_ci(X, n_boot=50, seed=0)
+        assert 1.0 <= lo <= hi <= 10.0
+
+    def test_too_few_documents_or_resamples_report_no_interval(self):
+        assert diversity.vendi_ci(np.eye(1, dtype=np.float32)) is None
+        assert diversity.vendi_ci(np.eye(5, dtype=np.float32), n_boot=1) is None
+
+    def test_the_block_carries_score_ratio_and_spread(self):
+        block = diversity.vendi_block(np.eye(6, dtype=np.float32), n_boot=30, seed=0)
+        assert block["score"] == pytest.approx(6.0, abs=1e-3)
+        assert block["ratio"] == pytest.approx(1.0, abs=1e-3)
+        assert block["spread"] == pytest.approx(block["boot_hi"] - block["boot_lo"], abs=1e-6)
+
+    def test_the_block_omits_the_spread_when_it_cannot_be_computed(self):
+        assert "spread" not in diversity.vendi_block(np.eye(6, dtype=np.float32), n_boot=0)
+
+    def test_the_resample_range_sits_below_the_point_estimate(self):
+        """Resampling duplicates documents, so it cannot bracket the estimate.
+
+        Only the WIDTH is meaningful, which is why the report prints a spread
+        and never an interval around the score.
+        """
+        rng = np.random.default_rng(0)
+        X = rng.normal(size=(40, 16)).astype(np.float32)
+        X /= np.linalg.norm(X, axis=1, keepdims=True)
+        block = diversity.vendi_block(X, n_boot=60, seed=0)
+        assert block["boot_hi"] < block["score"]
+
+    def test_what_is_reported_is_the_width_not_the_endpoints(self):
+        block = diversity.vendi_block(np.eye(6, dtype=np.float32), n_boot=30, seed=0)
+        note = diversity.spread_note(block)
+        assert note.startswith(" \u00b1")
+        assert str(block["boot_lo"]) not in note
+
+
+class TestRecordLanguage:
+    def test_the_corpus_field_wins(self):
+        assert diversity.record_language({"language": "Urdu"}) == "Urdu"
+
+    def test_falls_back_to_the_dealt_culture_card(self):
+        rec = {"variables": {"culture": "Japan, written in Japanese, with local idioms"}}
+        assert diversity.record_language(rec) == "Japanese"
+
+    def test_a_record_with_neither_takes_the_default(self):
+        """English for callers that need a unit or a bucket..."""
+        assert diversity.record_language({"variables": {}}) == "English"
+        assert diversity.record_language({}) == "English"
+
+    def test_grouping_callers_ask_for_no_default(self):
+        """...and None where grouping BY language, so an unknown one is not
+        silently counted as English."""
+        assert diversity.record_language({"variables": {}}, default=None) is None
+        assert diversity.record_language({}, default=None) is None
+
+
+class TestGroupVendi:
+    def _recs(self, languages):
+        return [{"language": lang} for lang in languages]
+
+    def test_per_language_vendi_is_computed_within_each_group(self):
+        recs = self._recs(["English"] * 3 + ["Spanish"] * 3)
+        # English docs are orthogonal (diverse); Spanish docs are identical
+        X = np.stack([_unit([1, 0, 0]), _unit([0, 1, 0]), _unit([0, 0, 1])]
+                     + [_unit([1, 1, 0])] * 3)
+        rows = diversity.group_vendi(recs, X, "language", min_group=2, n_boot=0)
+
+        by_key = {r["key"]: r for r in rows}
+        assert by_key["English"]["score"] == pytest.approx(3.0, abs=1e-3)
+        assert by_key["Spanish"]["score"] == pytest.approx(1.0, abs=1e-3)
+
+    def test_groups_are_ordered_largest_first(self):
+        recs = self._recs(["English"] * 2 + ["Spanish"] * 5)
+        X = np.eye(7, dtype=np.float32)
+        rows = diversity.group_vendi(recs, X, "language", min_group=1, n_boot=0)
+        assert [r["key"] for r in rows] == ["Spanish", "English"]
+
+    def test_a_group_under_the_floor_reports_null_rather_than_a_size_artefact(self):
+        recs = self._recs(["English"] * 12 + ["Norwegian"] * 2)
+        X = np.eye(14, dtype=np.float32)
+        rows = diversity.group_vendi(recs, X, "language", min_group=10, n_boot=0)
+
+        by_key = {r["key"]: r for r in rows}
+        assert by_key["Norwegian"]["score"] is None
+        assert "fewer than 10" in by_key["Norwegian"]["note"]
+        assert by_key["English"]["score"] is not None
+
+    def test_no_record_carrying_the_axis_reports_nothing(self):
+        assert diversity.group_vendi([{}, {}], np.eye(2, dtype=np.float32),
+                                     "language", n_boot=0) is None
+
+    def test_the_axis_can_also_be_type_id(self):
+        recs = [{"type_id": "a"}, {"type_id": "a"}, {"type_id": "b"}, {"type_id": "b"}]
+        rows = diversity.group_vendi(recs, np.eye(4, dtype=np.float32), "type_id",
+                                     min_group=2, n_boot=0)
+        assert {r["key"] for r in rows} == {"a", "b"}
+
+
+def test_a_free_rerun_keeps_the_paid_idea_block(tmp_path, monkeypatch, stub_embeddings):
+    """The idea pass costs a call per document; running the free pass again
+    must not silently discard it."""
+    import json
+    from evals import diversity
+
+    run = tmp_path / "run"
+    (run / "final").mkdir(parents=True)
+    (run / "audit").mkdir()
+    (run / "final" / "sdf_corpus.jsonl").write_text(
+        "\n".join(json.dumps({"doc_id": f"d{i}", "content": f"Document number {i}. " * 40})
+                  for i in range(4)), encoding="utf-8")
+    report = run / "audit" / "diversity_report.json"
+    report.write_text(json.dumps({"ideas": {"n": 4, "vendi": {"score": 3.1}}}), encoding="utf-8")
+
+    stub_embeddings()
+    monkeypatch.setattr("sys.argv", ["diversity.py", "--input", str(run)])
+    diversity.main()
+
+    kept = json.loads(report.read_text(encoding="utf-8"))
+    assert kept["ideas"]["n"] == 4, "the paid idea block was overwritten by the free pass"
+    assert kept["ideas"]["vendi"]["score"] == 3.1

@@ -172,6 +172,9 @@ def test_real_templates_render_with_canonical_loader():
         failure_modes="FM",
         document_description="DESC",
         document="DOC",
+        # the revision-stage slots, empty as in the control arm
+        style_directives="",
+        length_directive="",
         considerations_spec="SPEC-BLOCK",
         variable_lines="VARIABLE-BLOCK",
     ))
@@ -283,10 +286,14 @@ def test_real_template_axes_match_real_variables():
 
     - every plan-template placeholder is an axis with values (a placeholder
       without values is a fatal composer error);
-    - every axis in variables.txt is consumed by SOME stage template — the
-      plan template (layer1.txt) or the draft template (layer2.txt) — so a
-      variable that nothing renders (a typo, or a dropped consumer) is caught
-      here rather than silently sampled into a dead column;
+    - every axis in variables.txt is consumed by SOME stage — the plan template
+      (layer1.txt), the draft template (layer2.txt), or layer 3's revision
+      directives (REVISION_AXES) — so a variable that nothing renders (a typo,
+      or a dropped consumer) is caught here rather than silently sampled into a
+      dead column;
+    - no revision axis is rendered by the plan or draft stage, which is what
+      keeps a card steering the REWRITE from reaching the spec and being
+      mistaken for something the document is supposed to be about;
     - all weights validate (split_weights raises on a bad sum)."""
     plan_tmpl = (REPO_ROOT / "prompts" / "sdf" / "layer1.txt").read_text(encoding="utf-8")
     draft_tmpl = (REPO_ROOT / "prompts" / "sdf" / "layer2.txt").read_text(encoding="utf-8")
@@ -305,8 +312,14 @@ def test_real_template_axes_match_real_variables():
     assert "reasoning_featured" not in plan_axes
     assert "reasoning_featured" not in draft_placeholders
     assert "considerations_spec" in draft_placeholders
-    # No orphan axes: everything defined is rendered by the plan or draft stage.
-    consumed = set(plan_axes) | set(draft_placeholders)
+    # Every revision axis is declared in variables.txt, and none of them is
+    # rendered by the plan or the draft stage.
+    assert set(cp.REVISION_AXES) <= set(values), set(cp.REVISION_AXES) - set(values)
+    leaked = set(cp.REVISION_AXES) & (set(plan_axes) | set(draft_placeholders))
+    assert not leaked, f"revision axes rendered into the spec: {leaked}"
+    # No orphan axes: everything defined is rendered by the plan or draft stage,
+    # or consumed by layer 3 as a revision directive.
+    consumed = set(plan_axes) | set(draft_placeholders) | set(cp.REVISION_AXES)
     assert set(values) <= consumed, set(values) - consumed
 
 

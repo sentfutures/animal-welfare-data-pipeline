@@ -1,0 +1,254 @@
+{
+  "corpus": "sdf_corpus.jsonl",
+  "external_dataset": "HuggingFaceFW/fineweb-edu:sample-10BT",
+  "embed_model": "text-embedding-3-large",
+  "lexicon": {
+    "path": "evals/welfare_phrases.yaml",
+    "n_terms": 40,
+    "terms": [
+      "animal welfare",
+      "stocking",
+      "aquaculture",
+      "animal's",
+      "husbandry",
+      "farmed",
+      "vertebrates",
+      "vet",
+      "bait",
+      "non-human",
+      "crustaceans",
+      "breeder",
+      "barns",
+      "feeder",
+      "pest control",
+      "toxicology",
+      "rodent",
+      "humane",
+      "invertebrate",
+      "fencing",
+      "invertebrates",
+      "shrimp",
+      "cages",
+      "mammals",
+      "breeders",
+      "herd",
+      "fishes",
+      "poultry",
+      "noxious",
+      "goat",
+      "rabbit",
+      "veterinary",
+      "pig",
+      "livestock",
+      "fry",
+      "goats",
+      "chickens",
+      "mammal",
+      "pasture",
+      "rabbits"
+    ]
+  },
+  "pool": {
+    "path": "outputs/external/fineweb_pool.jsonl",
+    "size": 40481,
+    "phrase_docs": 25481,
+    "reservoir": 15000
+  },
+  "cells": [
+    {
+      "cell": "english_density",
+      "note": "English only, length + welfare-phrase density matched",
+      "n": 139,
+      "match_mean_distance": 0.036,
+      "sdf": {
+        "n": 139,
+        "vendi": 14.32,
+        "vendi_ratio": 0.103,
+        "mean_pairwise_cosine": 0.5287,
+        "vendi_if_structureless": 20.02,
+        "clumping_cost": 5.7,
+        "ci_lo": 11.07,
+        "ci_hi": 12.71
+      },
+      "external": {
+        "n": 139,
+        "vendi": 42.18,
+        "vendi_ratio": 0.3034,
+        "mean_pairwise_cosine": 0.2908,
+        "vendi_if_structureless": 58.95,
+        "clumping_cost": 16.78,
+        "ci_lo": 28.58,
+        "ci_hi": 33.1
+      },
+      "vendi_ratio": 2.95,
+      "median_chars": {
+        "sdf": 8771,
+        "external": 8677
+      },
+      "mean_phrases": {
+        "sdf": 4.06,
+        "external": 3.85
+      },
+      "null_at_n": {
+        "sdf": null,
+        "external": 64.51
+      }
+    },
+    {
+      "cell": "phrases_ge_1",
+      "note": ">=1 distinct welfare phrase(s) both sides, length matched",
+      "n": 133,
+      "match_mean_distance": 0.0,
+      "sdf": {
+        "n": 133,
+        "vendi": 13.91,
+        "vendi_ratio": 0.1046,
+        "mean_pairwise_cosine": 0.5323,
+        "vendi_if_structureless": 19.24,
+        "clumping_cost": 5.34,
+        "ci_lo": 10.6,
+        "ci_hi": 12.4
+      },
+      "external": {
+        "n": 133,
+        "vendi": 51.05,
+        "vendi_ratio": 0.3838,
+        "mean_pairwise_cosine": 0.2426,
+        "vendi_if_structureless": 68.78,
+        "clumping_cost": 17.73,
+        "ci_lo": 33.39,
+        "ci_hi": 38.42
+      },
+      "vendi_ratio": 3.67,
+      "median_chars": {
+        "sdf": 8912,
+        "external": 8911
+      },
+      "mean_phrases": {
+        "sdf": 4.25,
+        "external": 1.61
+      },
+      "null_at_n": {
+        "sdf": 14.15,
+        "external": 62.39
+      }
+    },
+    {
+      "cell": "phrases_ge_2",
+      "note": ">=2 distinct welfare phrase(s) both sides, length matched",
+      "n": 111,
+      "match_mean_distance": 0.0,
+      "sdf": {
+        "n": 111,
+        "vendi": 12.49,
+        "vendi_ratio": 0.1125,
+        "mean_pairwise_cosine": 0.544,
+        "vendi_if_structureless": 16.65,
+        "clumping_cost": 4.16,
+        "ci_lo": 9.57,
+        "ci_hi": 11.24
+      },
+      "external": {
+        "n": 111,
+        "vendi": 42.17,
+        "vendi_ratio": 0.3799,
+        "mean_pairwise_cosine": 0.2628,
+        "vendi_if_structureless": 55.52,
+        "clumping_cost": 13.35,
+        "ci_lo": 27.45,
+        "ci_hi": 32.45
+      },
+      "vendi_ratio": 3.38,
+      "median_chars": {
+        "sdf": 9010,
+        "external": 9011
+      },
+      "mean_phrases": {
+        "sdf": 4.89,
+        "external": 2.69
+      },
+      "null_at_n": {
+        "sdf": 13.4,
+        "external": 55.78
+      }
+    },
+    {
+      "cell": "phrases_ge_3",
+      "note": ">=3 distinct welfare phrase(s) both sides, length matched",
+      "n": 94,
+      "match_mean_distance": 0.0,
+      "sdf": {
+        "n": 94,
+        "vendi": 11.59,
+        "vendi_ratio": 0.1233,
+        "mean_pairwise_cosine": 0.5509,
+        "vendi_if_structureless": 14.89,
+        "clumping_cost": 3.3,
+        "ci_lo": 8.64,
+        "ci_hi": 10.28
+      },
+      "external": {
+        "n": 94,
+        "vendi": 34.52,
+        "vendi_ratio": 0.3672,
+        "mean_pairwise_cosine": 0.2865,
+        "vendi_if_structureless": 44.94,
+        "clumping_cost": 10.42,
+        "ci_lo": 22.61,
+        "ci_hi": 26.96
+      },
+      "vendi_ratio": 2.98,
+      "median_chars": {
+        "sdf": 9423,
+        "external": 9420
+      },
+      "mean_phrases": {
+        "sdf": 5.41,
+        "external": 3.68
+      },
+      "null_at_n": {
+        "sdf": 12.59,
+        "external": 49.97
+      }
+    },
+    {
+      "cell": "full_length",
+      "note": "whole corpus, length matched (ours multilingual, theirs English)",
+      "n": 477,
+      "match_mean_distance": 0.0,
+      "sdf": {
+        "n": 477,
+        "vendi": 39.93,
+        "vendi_ratio": 0.0837,
+        "mean_pairwise_cosine": 0.3732,
+        "vendi_if_structureless": 91.61,
+        "clumping_cost": 51.68,
+        "ci_lo": 32.37,
+        "ci_hi": 35.59
+      },
+      "external": {
+        "n": 477,
+        "vendi": 124.84,
+        "vendi_ratio": 0.2617,
+        "mean_pairwise_cosine": 0.1931,
+        "vendi_if_structureless": 234.57,
+        "clumping_cost": 109.73,
+        "ci_lo": 90.69,
+        "ci_hi": 97.64
+      },
+      "vendi_ratio": 3.13,
+      "median_chars": {
+        "sdf": 7633,
+        "external": 7629
+      },
+      "mean_phrases": {
+        "sdf": 1.3,
+        "external": 0.0
+      },
+      "null_at_n": {
+        "sdf": null,
+        "external": 169.35
+      }
+    }
+  ]
+}

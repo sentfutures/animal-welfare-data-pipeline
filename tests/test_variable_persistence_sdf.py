@@ -93,7 +93,11 @@ class TestPromptRendering:
     def test_contains_values_meanings_considerations_and_document(self, context, dealt_values, labels):
         record = make_record(dealt_values, considerations=labels, content="UNIQUE-DOCUMENT-BODY")
         prompt = vp.render_prompt(record, context)
+        # revision axes are rewrite directives, not spec content; the
+        # persistence judge has no meanings for them and never asks
         for name, value in dealt_values.items():
+            if name in cp.REVISION_AXES:
+                continue
             assert name in prompt and value in prompt
         for meaning in context.variable_meanings.values():
             assert meaning in prompt

@@ -64,9 +64,13 @@ def _sdf_dispatch(user_message, **kw):
             name: [{"label": label, "score": 1, "where_it_arises": ""}
                    for label in schema["items"]["properties"]["label"]["enum"]]
             for name, schema in kw["json_schema"]["properties"].items()})
+    # keyed on stage, not max_tokens: the critique and the revise halves share a
+    # token cap, so a cap cannot tell them apart.
+    if kw.get("stage") == "layer3_critique":
+        return f"<review>Problems with {kw['item_id']}.</review>"
     if kw["max_tokens"] == 6000:  # layer 3: drafting from the spec
         return f"<document>Drafted body for {kw['item_id']}.</document>"
-    if kw["max_tokens"] == 8000:  # layer 4: review + rewrite
+    if kw["max_tokens"] == 8000:  # layer 4: the rewrite (split or single-call)
         return (f"Review notes.\n<improved_document>Rewritten document for "
                 f"{kw['item_id']}.</improved_document>")
     if "score" in user_message.lower():  # layer 5: judge
@@ -100,8 +104,10 @@ def test_sdf_pipeline_end_to_end_offline(tiny_config_file, outputs_root, stub_cl
         assert r["variables"]  # matrix lineage travels to the corpus
         assert r["scores"]["spec_conformance"] == 9
     # 1 screen batch + 2 plans + 2 description rewrites + 2 selector calls (one pass, nothing picked)
-    # + 2 drafts + 2 rewrites + 2 scores
-    assert len(calls) == 13
+    # + 2 drafts + 2 critiques + 2 revises + 2 scores: layer 3 is two calls per
+    # document by default, so a run bills one more call per document than it did
+    # when the critique and the rewrite shared a reply.
+    assert len(calls) == 15
     stages = [c["stage"] for c in calls]
     assert stages.count("layer1_screen") == 1
     assert stages.count("layer1_select") == 2
@@ -133,8 +139,8 @@ def test_sdf_screen_removal_is_dropped_before_drafting(
     ]
     assert rejections[0]["round"] == 0
     # 1 screen (the lone removed hand cannot be redealt into a different hand, so it is dropped)
-    # + 1 plan + 1 description rewrite + 1 selector call + 1 draft + 1 rewrite + 1 score
-    assert len(calls) == 7
+    # + 1 plan + 1 description rewrite + 1 selector call + 1 draft + 1 critique + 1 revise + 1 score
+    assert len(calls) == 8
     # the removed hand never reached planning, so it never reached the selector
     removed_id = rejections[0]["prompt_id"]
     assert not any(c["item_id"].startswith(removed_id) for c in calls if c["stage"] == "layer1_select")
