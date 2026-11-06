@@ -61,6 +61,7 @@ if __package__ in (None, ""):  # run as a script: make the repository root impor
 from evals.log_probability_persona_check import build_scoring_inputs, persona_sets  # noqa: E402
 from evals.log_probability_persona_check.timed_progress_and_jsonl_helpers import timestamp_unused_in_folder  # noqa: E402
 from shared import api, utils  # noqa: E402
+from shared.api_keys import add_api_key_source_flags, apply_api_key_source_flags  # noqa: E402
 
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent.parent
 DEFAULT_CONFIG_PATH = REPOSITORY_ROOT / "config.yaml"
@@ -441,6 +442,7 @@ def parse_arguments(argument_list=None):
     parser.add_argument("--dry-run", action="store_true",
                         help="Render every request, write them and a cost estimate to the run folder, and print "
                              "the estimate; no Claude call and no key needed")
+    add_api_key_source_flags(parser)
     return parser.parse_args(argument_list)
 
 
@@ -543,6 +545,7 @@ def main(argument_list=None):
 
     for kind in sorted({kind for _, _, _, kind in direction_plan}):
         persona_set.require_reviewed_instructions(kind)
+    apply_api_key_source_flags(arguments)
     try:
         api.init(arguments.config, cost_log_path=arguments.cost_log_path)
     except KeyError as error:
