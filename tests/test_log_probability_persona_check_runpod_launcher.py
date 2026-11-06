@@ -176,22 +176,53 @@ def read_progress_log(run_folder):
     return sorted(run_folder.glob("pod_progress_log_*.txt"))[-1].read_text()
 
 
-def test_api_key_comes_from_env_file_not_os_environ(tmp_path, monkeypatch):
+def test_runpod_settings_come_from_env_file_not_os_environ(tmp_path, monkeypatch):
     monkeypatch.setenv("RUNPOD_API_KEY", "key_from_os_environment")
-    monkeypatch.setenv("HF_TOKEN", "token_from_os_environment")
+    monkeypatch.delenv("HF_TOKEN", raising=False)
     environment_file = tmp_path / ".env"
     environment_file.write_text("RUNPOD_API_KEY=key_from_dot_env\n")
     secrets = launcher.read_secrets_from_environment_file(environment_file)
     assert secrets == {"RUNPOD_API_KEY": "key_from_dot_env", "HF_TOKEN": None, "RUNPOD_COST_CENTER_NAME": None}
-    environment_file.write_text("HF_TOKEN=token_from_dot_env\nRUNPOD_COST_CENTER_NAME=name_from_dot_env\n")
+    environment_file.write_text("RUNPOD_COST_CENTER_NAME=name_from_dot_env\n")
     monkeypatch.setenv("RUNPOD_COST_CENTER_NAME", "name_from_os_environment")
-    secrets = launcher.read_secrets_from_environment_file(environment_file)
-    assert secrets["RUNPOD_COST_CENTER_NAME"] == "name_from_dot_env" and secrets["HF_TOKEN"] == "token_from_dot_env"
+    assert launcher.read_secrets_from_environment_file(environment_file)["RUNPOD_COST_CENTER_NAME"] == "name_from_dot_env"
     environment_file.write_text("OTHER=1\n")
     assert launcher.read_secrets_from_environment_file(environment_file)["RUNPOD_API_KEY"] is None
 
 
-def test_environment_file_is_the_repository_root_one_and_parent_folders_are_not_searched(tmp_path, monkeypatch):
+def test_hugging_face_token_is_loaded_through_the_shared_key_loader(tmp_path, monkeypatch):
+    requested_variable_names = []
+
+    def fake_shared_loader(variable_name):
+        requested_variable_names.append(variable_name)
+        return "token_from_shared_loader"
+
+    monkeypatch.setattr(launcher, "load_optional_api_key", fake_shared_loader)
+    secrets = launcher.read_secrets_from_environment_file(tmp_path / "no_such.env")
+    assert secrets["HF_TOKEN"] == "token_from_shared_loader" and requested_variable_names == ["HF_TOKEN"]
+
+
+def test_hugging_face_token_follows_the_shared_key_source_mode(tmp_path, monkeypatch):
+    from shared import api_keys
+    (tmp_path / ".env").write_text("HF_TOKEN=token_from_dot_env\n")
+    monkeypatch.setattr(api_keys, "REPO_ROOT", tmp_path)
+    monkeypatch.setenv("HF_TOKEN", "token_from_os_environment")
+    monkeypatch.setattr(api_keys, "_api_key_source_mode", api_keys.REPO_ROOT_DOTENV_ONLY)
+    assert launcher.read_secrets_from_environment_file(tmp_path / ".env")["HF_TOKEN"] == "token_from_dot_env"
+    (tmp_path / ".env").write_text("OTHER=1\n")
+    assert launcher.read_secrets_from_environment_file(tmp_path / ".env")["HF_TOKEN"] is None  # environment ignored
+    monkeypatch.setattr(api_keys, "_api_key_source_mode", api_keys.SEARCH_UPWARD_THEN_ENVIRONMENT)
+    monkeypatch.setenv("HF_TOKEN", "token_from_os_environment")  # the loader copies a .env value into the environment
+    assert launcher.read_secrets_from_environment_file(tmp_path / ".env")["HF_TOKEN"] == "token_from_os_environment"
+
+
+def test_launcher_accepts_the_shared_find_dotenv_flag(run_folder):
+    assert launcher.parse_arguments(["--run-folder", str(run_folder), "--maximum-running-hours", "2"]).api_key_source_mode \
+        != launcher.parse_arguments(["--run-folder", str(run_folder), "--maximum-running-hours", "2",
+                                     "--find-dotenv"]).api_key_source_mode
+
+
+def test_runpod_environment_file_is_the_repository_root_one_and_parent_folders_are_not_searched(tmp_path, monkeypatch):
     assert launcher.ENVIRONMENT_FILE_PATH == launcher.REPOSITORY_ROOT / ".env"
     (tmp_path / ".env").write_text("RUNPOD_API_KEY=key_in_a_parent_folder\n")
     nested_folder = tmp_path / "nested"

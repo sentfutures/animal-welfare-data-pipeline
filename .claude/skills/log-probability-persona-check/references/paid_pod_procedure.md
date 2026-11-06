@@ -3,7 +3,7 @@
 All commands run from the repository root. Each step marked paid needs the contributor's explicit go-ahead first, including small tests and pilots. Every paid step has a free dry run: do it first and show the contributor its cost output.
 
 ## 0. Keys and setup
-- Create `.env` from the example file and set `RUNPOD_API_KEY`. Set `HF_TOKEN` only if the model is gated. Set `RUNPOD_COST_CENTER_NAME` only if your RunPod account uses cost centers. The launcher reads `.env` in the repository root directly and ignores the shell environment.
+- Create `.env` from the example file and set `RUNPOD_API_KEY`. Set `HF_TOKEN` only if the model is gated. Set `RUNPOD_COST_CENTER_NAME` only if your RunPod account uses cost centers. The launcher reads `RUNPOD_API_KEY` and `RUNPOD_COST_CENTER_NAME` from `.env` in the repository root directly and ignores the shell environment for them. `HF_TOKEN` goes through `shared/api_keys.py` like every other project key: by default only the repository-root `.env`; `--find-dotenv` also searches upward and falls back to the shell environment.
 - The rewrites use the Anthropic key in the same `.env` (see the repository README).
 - Confirm the SSH key the launcher will use (`~/.ssh/id_ed25519` by default, `--ssh-private-key-path` to change).
 
