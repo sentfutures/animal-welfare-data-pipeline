@@ -39,6 +39,13 @@ from evals.log_probability_persona_check.scoring_model_defaults import (MODEL_TY
 
 BASE_MODEL_PREAMBLE_AND_DOCUMENT_SEPARATOR = "\n\n"
 
+# Variables a document may lack. SDF runs from the considerations selector onward no longer deal `reasoning_featured`
+# (they record moral_considerations / epistemic_considerations instead, which sdf_pipeline/layer2_draft.py passes to
+# the draft prompt as a separate block, not in this slot). layer2_draft.py fills a missing `reasoning_featured` with
+# this same neutral text, so the check's generation prompt matches what a snapshot that still renders the slot got.
+VARIABLE_FALLBACKS_FOR_ABSENT_VARIABLES = {
+    "reasoning_featured": "any relevant principles from the constitution"}
+
 CLOSING_PUNCTUATION_AND_QUOTES = "\"'”’)]」』»"
 TERMINAL_PUNCTUATION = ".!?。！？…।۔"
 
@@ -140,10 +147,12 @@ def generation_prompt_variable_names(template_text):
 
 def render_generation_prompt(variables, document_id, generation_prompt_files: GenerationPromptFiles = None):
     """Fills the generation prompt template for one document. Fails loudly on any missing, non-string or
-    empty variable. Loads the shipped template and facts when `generation_prompt_files` is not given (pass the
+    empty variable, except that a variable listed in VARIABLE_FALLBACKS_FOR_ABSENT_VARIABLES that is absent (not
+    merely empty) takes its fallback; a document that has the variable renders exactly as before. Loads the shipped template and facts when `generation_prompt_files` is not given (pass the
     loaded files when rendering many documents)."""
     files = generation_prompt_files or load_generation_prompt_files()
     variable_names = generation_prompt_variable_names(files.template_text)
+    variables = {**VARIABLE_FALLBACKS_FOR_ABSENT_VARIABLES, **variables}
     missing = [name for name in variable_names if name not in variables]
     if missing:
         raise KeyError(f"Document {document_id} is missing variables: {missing}")
