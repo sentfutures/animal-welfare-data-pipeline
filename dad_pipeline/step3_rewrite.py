@@ -17,6 +17,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from shared import api, utils, constitution_loader
+from dad_pipeline import profiles
 from dad_pipeline.id_registry import IdRegistry, example_fingerprint, prompt_key, registry_path
 from dad_pipeline.compose_scenarios import dealt_variables
 from dad_pipeline.step1_dilemmas import dealt_cards
@@ -37,14 +38,21 @@ def run(
     registry = IdRegistry(registry_path(output_dir))
 
     constitution_dir = utils.resolve_constitution_dir(prompts_dir)
+    # A run keeps the principles it was snapshotted with: the current file,
+    # or the one it predates (an older run carries the pre-charter file).
+    principles_file = next(
+        (name for name in profiles.principles_filenames()
+         if constitution_dir and (constitution_dir / name).exists()),
+        profiles.current().PRINCIPLES_FILENAME)
+    failure_modes_file = profiles.current().FAILURE_MODES_FILENAME
     try:
-        principles = constitution_loader.load_principles(constitution_dir)
+        principles = constitution_loader.load_principles(constitution_dir, principles_file)
     except FileNotFoundError:
         # Snapshot predates the principles CSV — fall back to the live repo copy
-        print("  WARNING: run snapshot has no constitution_principles.csv; using the repo's live copy.")
-        principles = constitution_loader.load_principles()
+        print(f"  WARNING: run snapshot has no {principles_file}; using the repo's live copy.")
+        principles = constitution_loader.load_principles(filename=principles_file)
     principles_block = constitution_loader.format_principles(principles)
-    failure_modes = constitution_loader.load_failure_modes(constitution_dir)
+    failure_modes = constitution_loader.load_failure_modes(constitution_dir, failure_modes_file)
 
     existing_audit = utils.load_jsonl(audit_path)
     results = list(existing_audit)

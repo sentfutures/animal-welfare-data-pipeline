@@ -1,0 +1,73 @@
+# Does splitting layer 3's single critique-and-rewrite call into two calls
+# change anything?
+#
+# The hypothesis is that it does NOT — the deliverable is a null result with a
+# measured noise floor, not a win. Splitting is argued for on grounds the
+# comparison table cannot see (a critique with its own token budget, and a
+# finished problem list as an input rather than self-conditioning prose), so
+# the bar it has to clear is non-inferiority, not improvement.
+#
+# Voices and length are not in this sweep: every arm runs style_mode: none and
+# use_length: false, so the split itself is the only thing that differs. Those
+# knobs are named explicitly on every arm BECAUSE config.yaml currently ships
+# them on — merge_arm_config only overrides what an arm names, and an arm that
+# stayed silent would inherit them and differ in three places at once.
+#
+# See experiments/arms.example.yaml for the schema and every available knob.
+
+experiment:
+  donor_run: 2026-07-25_15-57_fullscale-500-opus5
+
+  # Matches exp2 and exp3-relative, so the control arm here is comparable with
+  # the controls already measured at these settings.
+  n: 50
+  holdout: 50
+  seed: 0
+
+  # The {length} and voice axes are dealt to every document and rendered by no
+  # arm. Dealing them costs nothing and leaves the length column readable as a
+  # chance-rate diagnostic on both sides.
+  revision_variables: prompts/sdf/variables.txt
+
+  personas: null
+  participant_personas: false
+
+  success:
+    # Non-inferiority bars, not gain bars. The question is whether the split
+    # costs anything, so the split must not LOSE more than 5% of either figure.
+    # A positive min_vendi_gain here would report FAIL forever on a criterion
+    # nobody is reading — the noise the length experiment's report called out.
+    min_vendi_gain: -0.05
+    max_pass_rate_drop: 0.05
+    # No length bars: no arm renders a length card, so a declared bar would
+    # report INCOMPLETE on every row.
+
+arms:
+  # Today's prompt, every slot empty: one call against layer3.txt.
+  - name: control
+    style_mode: none
+    use_length: false
+    split: false
+
+  # The SAME condition as `control`, run again. Temperature is 1.0, so the gap
+  # between these two arms is the noise floor — what re-running one arm at
+  # identical settings produces. Without it, "the split changed nothing" and
+  # "nothing is measurable at n=50" are the same table.
+  - name: control-b
+    style_mode: none
+    use_length: false
+    split: false
+
+  # The intervention: critique and revise as two calls against
+  # layer3a_critique.txt / layer3b_revise.txt, with no new variables.
+  - name: split
+    style_mode: none
+    use_length: false
+    split: true
+
+  # The corpus as it shipped — the donor's own rewrites for the sampled ids,
+  # costing only their layer-4 scoring. Read it as a reference point, not as a
+  # third control: it was generated before the failure-modes block was added to
+  # the layer-3 templates, so it is a different prompt.
+  - name: as-shipped
+    import_rewrites: true

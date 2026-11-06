@@ -168,6 +168,26 @@ class TestTokenTruncation:
         s = "今天天气很好我们去公园散步吧" * 800  # ~11k chars, but more tokens
         assert len(enc.encode(s)) > embeddings.MAX_INPUT_TOKENS
 
+    @pytest.mark.parametrize("script", [
+        "今天天气很好我们去公园散步吧",          # Mandarin
+        "पशु कल्याण के बारे में सोचना ज़रूरी है",      # Devanagari
+        "প্রাণী কল্যাণ সম্পর্কে চিন্তা করা জরুরি",        # Bengali
+        "동물 복지에 대해 생각하는 것이 중요합니다",   # Hangul
+    ])
+    def test_the_truncated_text_is_within_the_cap_in_every_script(self, script):
+        # a cut landing mid-character decodes to U+FFFD, which re-encodes to
+        # MORE tokens than the fragment it replaced; the cap must still hold
+        enc = embeddings._encoding_for(embeddings.DEFAULT_MODEL)
+        text = script * 600
+        for cap in range(200, 260):  # sweep so some cut lands mid-character
+            out = embeddings.truncate_to_tokens(text, max_tokens=cap)
+            assert len(enc.encode(out)) <= cap, f"overflowed at cap {cap}"
+
+    def test_truncating_returns_as_much_text_as_the_cap_allows(self):
+        enc = embeddings._encoding_for(embeddings.DEFAULT_MODEL)
+        out = embeddings.truncate_to_tokens("今天天气很好" * 600, max_tokens=500)
+        assert len(enc.encode(out)) > 480, "walked the cut back further than needed"
+
     def test_embed_texts_truncates_oversized_input_to_token_window(self, recorded_embed):
         """The safety net: an over-window input reaches the transport truncated
         to MAX_INPUT_TOKENS, so the real API would not 400 the batch."""

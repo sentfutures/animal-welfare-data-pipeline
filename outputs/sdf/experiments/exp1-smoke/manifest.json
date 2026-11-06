@@ -1,0 +1,39 @@
+{
+  "exp_id": "exp1-smoke",
+  "donor_run": "/Users/markstanl/PycharmProjects/animal-welfare-data-pipeline/outputs/sdf/runs/2026-07-25_15-57_fullscale-500-opus5",
+  "seed": 0,
+  "n": 2,
+  "max_docs": null,
+  "arms": {
+    "control": "/Users/markstanl/PycharmProjects/animal-welfare-data-pipeline/outputs/sdf/runs/2026-10-19_22-23_exp1-smoke-control",
+    "as-shipped": "/Users/markstanl/PycharmProjects/animal-welfare-data-pipeline/outputs/sdf/runs/2026-10-19_22-24_exp1-smoke-as-shipped",
+    "voices-a1": "/Users/markstanl/PycharmProjects/animal-welfare-data-pipeline/outputs/sdf/runs/2026-10-19_22-24_exp1-smoke-voices-a1",
+    "personas-a3": "/Users/markstanl/PycharmProjects/animal-welfare-data-pipeline/outputs/sdf/runs/2026-10-19_22-25_exp1-smoke-personas-a3"
+  },
+  "arm_specs": {
+    "control": {
+      "name": "control",
+      "style_mode": "none",
+      "use_length": false,
+      "split": false
+    },
+    "as-shipped": {
+      "name": "as-shipped",
+      "import_rewrites": true
+    },
+    "voices-a1": {
+      "name": "voices-a1",
+      "style_mode": "axes"
+    },
+    "personas-a3": {
+      "name": "personas-a3",
+      "style_mode": "persona"
+    }
+  },
+  "success": {
+    "min_vendi_gain": 0.1,
+    "max_pass_rate_drop": 0.05,
+    "length_tolerance": 0.2
+  },
+  "git_commit": "22ed331"
+}

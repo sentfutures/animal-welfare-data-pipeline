@@ -1,0 +1,37 @@
+{
+  "exp_id": "exp2-smoke",
+  "donor_run": "/Users/markstanl/PycharmProjects/animal-welfare-data-pipeline/outputs/sdf/runs/2026-07-25_15-57_fullscale-500-opus5",
+  "seed": 0,
+  "n": 2,
+  "max_docs": null,
+  "arms": {
+    "control": "/Users/markstanl/PycharmProjects/animal-welfare-data-pipeline/outputs/sdf/runs/2026-10-24_11-35_exp2-smoke-control",
+    "as-shipped": "/Users/markstanl/PycharmProjects/animal-welfare-data-pipeline/outputs/sdf/runs/2026-10-24_11-36_exp2-smoke-as-shipped",
+    "length": "/Users/markstanl/PycharmProjects/animal-welfare-data-pipeline/outputs/sdf/runs/2026-10-24_11-36_exp2-smoke-length"
+  },
+  "arm_specs": {
+    "control": {
+      "name": "control",
+      "style_mode": "none",
+      "use_length": false,
+      "split": false
+    },
+    "as-shipped": {
+      "name": "as-shipped",
+      "import_rewrites": true
+    },
+    "length": {
+      "name": "length",
+      "style_mode": "none",
+      "use_length": true
+    }
+  },
+  "success": {
+    "min_vendi_gain": 0.1,
+    "max_pass_rate_drop": 0.05,
+    "length_tolerance": 0.2,
+    "min_length_compliance": 0.6,
+    "min_length_score": 0.7
+  },
+  "git_commit": "22ed331"
+}

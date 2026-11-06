@@ -1,0 +1,124 @@
+{
+  "exp_id": "exp2-smoke",
+  "success": {
+    "min_vendi_gain": 0.1,
+    "max_pass_rate_drop": 0.05,
+    "length_tolerance": 0.2,
+    "min_length_compliance": 0.6,
+    "min_length_score": 0.7
+  },
+  "arms": [
+    {
+      "arm": "control",
+      "run_dir": "/Users/markstanl/PycharmProjects/animal-welfare-data-pipeline/outputs/sdf/runs/2026-10-24_11-35_exp2-smoke-control",
+      "n_scored": 2,
+      "n_final": 2,
+      "vendi": null,
+      "idea_vendi": null,
+      "group_vendi": null,
+      "grouped_by": null,
+      "near_dup_over_0.90": null,
+      "pass_rate": 1.0,
+      "score_means": {
+        "alignment": 8.5,
+        "realism": 8.5,
+        "spec_conformance": 9.0
+      },
+      "length_compliance": {
+        "n_targeted": 1,
+        "tolerance": 0.2,
+        "sigma": 0.1823,
+        "rate": 0.0,
+        "score": 0.0126,
+        "levels": [
+          {
+            "target": 1400,
+            "unit": "chars",
+            "n": 1,
+            "median_actual": 2401,
+            "pass_rate": 1.0,
+            "median_ratio": 1.715,
+            "rate": 0.0,
+            "score": 0.0126
+          },
+          {
+            "target": null,
+            "unit": "words",
+            "n": 1,
+            "median_actual": 2283,
+            "pass_rate": 1.0
+          }
+        ],
+        "spread": null
+      },
+      "cost_usd": 0.9356,
+      "verdict": "control"
+    },
+    {
+      "arm": "as-shipped",
+      "run_dir": "/Users/markstanl/PycharmProjects/animal-welfare-data-pipeline/outputs/sdf/runs/2026-10-24_11-36_exp2-smoke-as-shipped",
+      "n_scored": 2,
+      "n_final": 2,
+      "vendi": null,
+      "idea_vendi": null,
+      "group_vendi": null,
+      "grouped_by": null,
+      "near_dup_over_0.90": null,
+      "pass_rate": 1.0,
+      "score_means": {
+        "alignment": 8.5,
+        "realism": 8.5,
+        "spec_conformance": 9.0
+      },
+      "length_compliance": null,
+      "cost_usd": 0.0635,
+      "verdict": "INCOMPLETE (pass rate -0.0%; not measured: min_vendi_gain, min_length_compliance, min_length_score)"
+    },
+    {
+      "arm": "length",
+      "run_dir": "/Users/markstanl/PycharmProjects/animal-welfare-data-pipeline/outputs/sdf/runs/2026-10-24_11-36_exp2-smoke-length",
+      "n_scored": 2,
+      "n_final": 1,
+      "vendi": null,
+      "idea_vendi": null,
+      "group_vendi": null,
+      "grouped_by": null,
+      "near_dup_over_0.90": null,
+      "pass_rate": 0.5,
+      "score_means": {
+        "alignment": 7.0,
+        "realism": 6.5,
+        "spec_conformance": 7.0
+      },
+      "length_compliance": {
+        "n_targeted": 1,
+        "tolerance": 0.2,
+        "sigma": 0.1823,
+        "rate": 1.0,
+        "score": 0.8748,
+        "levels": [
+          {
+            "target": 1400,
+            "unit": "chars",
+            "n": 1,
+            "median_actual": 1274,
+            "pass_rate": 0.0,
+            "median_ratio": 0.91,
+            "rate": 1.0,
+            "score": 0.8748
+          },
+          {
+            "target": null,
+            "unit": "words",
+            "n": 1,
+            "median_actual": 2227,
+            "pass_rate": 1.0
+          }
+        ],
+        "spread": null
+      },
+      "cost_usd": 0.2337,
+      "verdict": "INCOMPLETE (pass rate -50.0%; length in-band 100.0%; length score 0.87; not measured: min_vendi_gain)"
+    }
+  ]
+}
