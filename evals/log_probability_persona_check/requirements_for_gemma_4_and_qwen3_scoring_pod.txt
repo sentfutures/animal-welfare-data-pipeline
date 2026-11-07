@@ -1,0 +1,13 @@
+# Installed on the RunPod pod on top of the image's own PyTorch (the image provides torch and CUDA; do not reinstall torch,
+# and do not add torch to the repository's requirements.txt).
+# Serves both scoring models: Gemma 4 12B (needs a recent transformers; Gemma 4 support is the binding minimum) and
+# Qwen3-32B (Qwen3 support arrived in transformers 4.51, so any version satisfying the line below loads it).
+# Gemma 4 support needs a recent transformers. transformers 5.x needs torch>=2.5 (the image's torch 2.8 satisfies it)
+# and Python>=3.10. The scorer uses only the tokenizer and the model, so torchvision, timm, librosa and torchaudio
+# (needed only by the multimodal processors) are not installed.
+transformers>=5.15.0,<6
+accelerate>=1.14.0
+huggingface_hub>=1.5.0
+numpy>=2.0
+safetensors>=0.8.0
+sentencepiece>=0.2.0
