@@ -14,7 +14,7 @@ import pytest
 
 from evals import plausibility_audit_postprocess_sdf as postprocess
 from evals import plausibility_audit_sdf as judge
-from evals.model_judged_audit_support import assert_schema_is_strict_valid
+from evals.model_judged_audit_support import MAXIMUM_OUTPUT_TOKENS, assert_schema_is_strict_valid
 from shared import openai_api, utils
 
 
@@ -56,7 +56,7 @@ def test_request_contains_only_instructions_and_content(definition):
     for document in synthetic_corpus():
         arguments = openai_api.build_request_arguments(
             judge.MODEL_NAME, definition.instructions_text, document["content"],
-            max_output_tokens=judge.MAXIMUM_OUTPUT_TOKENS, reasoning_effort="medium",
+            max_output_tokens=MAXIMUM_OUTPUT_TOKENS, reasoning_effort="medium",
             json_schema=definition.schema, schema_name=definition.schema_name,
             prompt_cache_key=definition.schema_name)
         assert arguments["input"] == document["content"]
