@@ -305,7 +305,7 @@ def _failure_scenarios() -> list[Scenario]:
             "A thrown scoring call, and a document whose three attempts are all unusable: the run stops before "
             "the assignment; the resume scores both.",
             [Invocation(expected_exit_message_fragment="stopping before the assignment"), resume],
-            {("layer1_select", h0, 1): _raise(), ("layer1_select", h1, 1): _text(UNUSABLE_JSON),
+            {("layer1_select", h0, 1): _raise(), ("layer1_select", h1, 1): _truncated("{"),
              ("layer1_select", h1, 2): _text(UNUSABLE_JSON), ("layer1_select", h1, 3): _text(UNUSABLE_JSON)}, 3,
             {"consideration_scores_by_item": {h0: {("moral", 0): 5}, h2: {("epistemic", 2): 5}}}),
         _failure_scenario(
@@ -341,8 +341,14 @@ def _failure_scenarios() -> list[Scenario]:
             [Invocation(expected_exit_message_fragment="layer3_rewrite: every pending API call failed"), resume],
             {("layer3_critique", h0, 1): _raise(), ("layer3_critique", h1, 1): _raise()}, 2),
         _failure_scenario(
-            "failures_in_the_score_across_resumes", "One thrown score call: the document is left behind, then retried.",
-            [Invocation(), resume], {("layer4_score", h0, 1): _raise()}, 3),
+            "failures_in_the_score_across_resumes",
+            "One thrown score call (the document is left behind, then retried) and one complete answer whose stop "
+            "reason is max_tokens (scoring does not check it, so the scores are used).",
+            [Invocation(), resume],
+            {("layer4_score", h0, 1): _raise(),
+             ("layer4_score", h1, 1): ReplyOverride(
+                 text='{"alignment": 8, "realism": 8, "spec_conformance": 8, "notes": "cut off after the answer"}',
+                 stop_reason="max_tokens")}, 3),
         _failure_scenario(
             "every_score_call_fails", "Every score call throws: a systemic stop.",
             [Invocation(expected_exit_message_fragment="layer4_score: every pending API call failed"), resume],

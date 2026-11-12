@@ -1,6 +1,6 @@
 {
  "format_version": 2,
- "recorded_from": "commit fbdd34bb641b8c89b865bec95b7049ae7dafe3f8 on branch william/sdf-prompt-equivalence-test (with uncommitted changes)",
+ "recorded_from": "commit 0a1d8731e0a2fca2a072456e14ba8776d5b30b4d on branch william/sdf-prompt-equivalence-test (with uncommitted changes)",
  "python_files_differing_from_origin_main_when_recorded": [],
  "regeneration_rule": "The recorded files are rewritten only by `python scripts/regenerate_sdf_prompt_equivalence_recorded_requests.py`, in a pull request that changes nothing else.",
  "description": "Every critique call throws: a systemic stop.",

@@ -1,9 +1,9 @@
 {
  "format_version": 2,
- "recorded_from": "commit fbdd34bb641b8c89b865bec95b7049ae7dafe3f8 on branch william/sdf-prompt-equivalence-test (with uncommitted changes)",
+ "recorded_from": "commit 0a1d8731e0a2fca2a072456e14ba8776d5b30b4d on branch william/sdf-prompt-equivalence-test (with uncommitted changes)",
  "python_files_differing_from_origin_main_when_recorded": [],
  "regeneration_rule": "The recorded files are rewritten only by `python scripts/regenerate_sdf_prompt_equivalence_recorded_requests.py`, in a pull request that changes nothing else.",
- "description": "One thrown score call: the document is left behind, then retried.",
+ "description": "One thrown score call (the document is left behind, then retried) and one complete answer whose stop reason is max_tokens (scoring does not check it, so the scores are used).",
  "configs_used_by_invocation": {
   "1": {
    "backend": "api",
@@ -1414,10 +1414,10 @@
     "considerations_spec": "",
     "content": "Text for revised matrix_000001. term5180483 term895906 term1011348 term7659862 term11424498 term11091200 term7197383 term13994517 term13136373 term5632505 term7298543 term13646688 term13931891 term7845108 term2538345 term5267940 term2044607 term5981025 term11323724 term2090119 term11963557 term11895070 term5986469 term1674548 term10561050 term2955420 term283886 term16672280 term3559001 term2470793 term11115150 term8785869 term16179306 term14508599 term4569914 term12352948 term6477899 term8131105 term5162559 term3480210 term16307202 term174090 term8455995 term1876357 term5391962 term8886348 term7606855 term6722773 term15244549 term307738 term2643092 term10326727 term11350119 term3910518 term8906354 term8989397 term1819965 term12607080 term16368770 term4817203 term9882234 term5169424 term6269838 term5961941 term4481266 term7418087 term5466769 term15101059 term4419985 term13035439.",
     "scores": {
-     "alignment": 9,
-     "realism": 9,
+     "alignment": 8,
+     "realism": 8,
      "spec_conformance": 8,
-     "notes": "Scored matrix_000001."
+     "notes": "cut off after the answer"
     }
    },
    {
@@ -1490,10 +1490,10 @@
     "considerations_spec": "",
     "content": "Text for revised matrix_000001. term5180483 term895906 term1011348 term7659862 term11424498 term11091200 term7197383 term13994517 term13136373 term5632505 term7298543 term13646688 term13931891 term7845108 term2538345 term5267940 term2044607 term5981025 term11323724 term2090119 term11963557 term11895070 term5986469 term1674548 term10561050 term2955420 term283886 term16672280 term3559001 term2470793 term11115150 term8785869 term16179306 term14508599 term4569914 term12352948 term6477899 term8131105 term5162559 term3480210 term16307202 term174090 term8455995 term1876357 term5391962 term8886348 term7606855 term6722773 term15244549 term307738 term2643092 term10326727 term11350119 term3910518 term8906354 term8989397 term1819965 term12607080 term16368770 term4817203 term9882234 term5169424 term6269838 term5961941 term4481266 term7418087 term5466769 term15101059 term4419985 term13035439.",
     "scores": {
-     "alignment": 9,
-     "realism": 9,
+     "alignment": 8,
+     "realism": 8,
      "spec_conformance": 8,
-     "notes": "Scored matrix_000001."
+     "notes": "cut off after the answer"
     }
    },
    {
@@ -2732,10 +2732,10 @@
       "epistemic_considerations": []
      },
      "scores": {
-      "alignment": 9,
-      "realism": 9,
+      "alignment": 8,
+      "realism": 8,
       "spec_conformance": 8,
-      "notes": "Scored matrix_000001."
+      "notes": "cut off after the answer"
      }
     },
     {
@@ -3930,10 +3930,10 @@
       "epistemic_considerations": []
      },
      "scores": {
-      "alignment": 9,
-      "realism": 9,
+      "alignment": 8,
+      "realism": 8,
       "spec_conformance": 8,
-      "notes": "Scored matrix_000001."
+      "notes": "cut off after the answer"
      }
     },
     {
