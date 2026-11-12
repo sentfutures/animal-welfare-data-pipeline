@@ -121,7 +121,7 @@ class ModelTypeFraming:
 @dataclass
 class GenerationPromptFiles:
     template_text: str
-    in_universe_facts: str
+    in_universe_facts: str  # None when the template has no {in_universe_facts} slot (e.g. a real user message)
     directory: Path
 
 
@@ -339,23 +339,29 @@ def read_framing_files(directory, errors):
 
 
 def read_generation_prompt_files(directory, errors):
+    """The template is required. The in-universe facts file is required only when the template has an
+    {in_universe_facts} slot; a template without the slot (for example `{user_message}`) needs no facts file, and a
+    facts file beside it is ignored."""
     directory = Path(directory)
     template_text = read_text_file(directory / GENERATION_PROMPT_TEMPLATE_FILE_NAME, errors)
-    facts_text = read_text_file(directory / IN_UNIVERSE_FACTS_FILE_NAME, errors)
-    if template_text is None or facts_text is None:
+    if template_text is None:
         return None
-    template_text, facts_text = template_text.strip(), facts_text.strip()
+    template_text = template_text.strip()
     try:
         slots = slot_names_in(template_text)
     except ValueError as error:
         errors.append(f"{GENERATION_PROMPT_TEMPLATE_FILE_NAME}: {error}")
         return None
-    if "in_universe_facts" not in slots:
-        errors.append(f"{GENERATION_PROMPT_TEMPLATE_FILE_NAME}: missing the {{in_universe_facts}} slot")
     if any(slot.isdigit() for slot in slots):
         errors.append(f"{GENERATION_PROMPT_TEMPLATE_FILE_NAME}: positional slots are not allowed")
-    if "\n" in facts_text:
-        errors.append(f"{IN_UNIVERSE_FACTS_FILE_NAME}: expected a single paragraph on one line")
+    facts_text = None
+    if "in_universe_facts" in slots:
+        facts_text = read_text_file(directory / IN_UNIVERSE_FACTS_FILE_NAME, errors)
+        if facts_text is None:
+            return None
+        facts_text = facts_text.strip()
+        if "\n" in facts_text:
+            errors.append(f"{IN_UNIVERSE_FACTS_FILE_NAME}: expected a single paragraph on one line")
     return GenerationPromptFiles(template_text=template_text, in_universe_facts=facts_text, directory=directory)
 
 
