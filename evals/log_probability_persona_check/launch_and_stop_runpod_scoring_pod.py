@@ -361,9 +361,13 @@ class SshTarTransfer:
         remote_command = (
             f"cd {REMOTE_RUN_FOLDER} && if [ -d scoring_outputs ]; then touch {marker}.next && "
             f"staging=$(mktemp -d) && "
-            f"find scoring_outputs -type f -not -name '{unfinished}' {newer_option} | "
-            f"while IFS= read -r file_path; do mkdir -p \"$staging/$(dirname \"$file_path\")\" && "
-            f"cp -p \"$file_path\" \"$staging/$file_path\"; done; "
+            # One cp per directory per batch of files rather than processes per file: with thousands of
+            # per-token files a per-file loop is slow enough to time out. Directories left empty are removed so
+            # an incremental pull with nothing new still sends nothing.
+            f"find scoring_outputs -type d | while IFS= read -r directory; do mkdir -p \"$staging/$directory\" && "
+            f"find \"$directory\" -maxdepth 1 -type f -not -name '{unfinished}' {newer_option} "
+            f"-exec sh -c 'cp -p \"$@\" \"$0\"' \"$staging/$directory\" {{}} +; done; "
+            f"find \"$staging\" -mindepth 1 -depth -type d -empty -delete; "
             f"if [ -d \"$staging/scoring_outputs\" ]; then tar czf - -C \"$staging\" scoring_outputs; fi; "
             f"rm -rf \"$staging\"; fi")
         with tempfile.TemporaryDirectory(dir=self.run_folder) as staging_directory:
