@@ -1,0 +1,42 @@
+{
+  "exp_id": "split",
+  "donor_run": "/Users/markstanl/PycharmProjects/animal-welfare-data-pipeline/outputs/sdf/runs/2026-07-25_15-57_fullscale-500-opus5",
+  "seed": 0,
+  "n": 50,
+  "max_docs": null,
+  "arms": {
+    "control": "/Users/markstanl/PycharmProjects/animal-welfare-data-pipeline/outputs/sdf/runs/2026-10-26_13-47_split-control",
+    "control-b": "/Users/markstanl/PycharmProjects/animal-welfare-data-pipeline/outputs/sdf/runs/2026-10-26_13-48_split-control-b",
+    "split": "/Users/markstanl/PycharmProjects/animal-welfare-data-pipeline/outputs/sdf/runs/2026-10-26_13-49_split-split",
+    "as-shipped": "/Users/markstanl/PycharmProjects/animal-welfare-data-pipeline/outputs/sdf/runs/2026-10-26_13-49_split-as-shipped"
+  },
+  "arm_specs": {
+    "control": {
+      "name": "control",
+      "style_mode": "none",
+      "use_length": false,
+      "split": false
+    },
+    "control-b": {
+      "name": "control-b",
+      "style_mode": "none",
+      "use_length": false,
+      "split": false
+    },
+    "split": {
+      "name": "split",
+      "style_mode": "none",
+      "use_length": false,
+      "split": true
+    },
+    "as-shipped": {
+      "name": "as-shipped",
+      "import_rewrites": true
+    }
+  },
+  "success": {
+    "min_vendi_gain": -0.05,
+    "max_pass_rate_drop": 0.05
+  },
+  "git_commit": "9d7c9a2"
+}

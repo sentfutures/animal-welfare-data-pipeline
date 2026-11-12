@@ -210,3 +210,20 @@ class TestLoadDiversity:
         assert loader.load_diversity(tmp_path)["embed_model"] == "m"
 
 
+
+
+class TestListRunsAcrossProfiles:
+    def _run(self, root, subdir, run_id, profile):
+        d = root / subdir / "runs" / run_id
+        d.mkdir(parents=True)
+        (d / "run_manifest.json").write_text(json.dumps({"label": run_id, "config": {"dad": {"profile": profile}}}))
+        return d
+
+    def test_human_profile_runs_list_as_dad_runs_newest_first(self, tmp_path):
+        self._run(tmp_path, "dad", "2026-10-01_10-00_animal", "animal")
+        human = self._run(tmp_path, "dad_human", "2026-10-20_10-00_local_human", "human")
+        runs = loader.list_runs(tmp_path)
+        assert [(r.pipeline, r.run_id) for r in runs] == [
+            ("dad", "2026-10-20_10-00_local_human"), ("dad", "2026-10-01_10-00_animal")]
+        assert runs[0].run_dir == human
+        assert loader.get_run("dad", "2026-10-20_10-00_local_human", tmp_path).run_dir == human

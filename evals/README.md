@@ -20,9 +20,14 @@ says so below, and the cost is per run rather than per example.
 | `audit_dad.py` | DAD | Corpus-level signals for chat responses: length against the plain-model control arm, tracked phrase tics, recurring rhetorical moves, and a queue of new tic candidates. Offline and free by default. `--judges` adds a paid pass: the welfare-impact and delivery-quality judges, showcase examples, and move discovery. |
 | `audit_sdf.py` | SDF | Corpus-level properties no single-document judge can see: composition and register spread, near-duplicate rate, invented-name collapse, stock phrases, opening shapes. Offline and free by default; `--patterns` and `--principles` each add a paid model pass. |
 | `diversity.py` | both | Semantic diversity in embedding space, the complement to the word-level scans above: nearest-neighbour similarity, near-duplicate rate, topic evenness, and the effective number of distinct documents. Needs an embedding key (`GEMINI_API_KEY` or `OPENAI_API_KEY`); cents per run, cached per run directory. |
+| `external_baseline.py` | SDF | The same diversity measure as `diversity.py`, but against real web text instead of against the corpus itself: a FineWeb-Edu sample matched to our documents on size, length and topic, so the two scores are comparable. Needs `OPENAI_API_KEY`; cents per run, and the streamed sample is cached. |
+| `welfare_lexicon.py` | SDF | Derives the welfare phrase list `external_baseline.py` topic-matches with, from the corpus itself. Free apart from the stream; run once, commit the result. |
 | `score_sdf.py` | SDF | Per-document judge scores (alignment, realism, diversity). Paid. |
 | `compliance_sdf.py` | SDF | Judges each document against the violation-typology appendix of the sentient-beings constitution reading, which supplies the rubric verbatim. Paid. |
 | `log_probability_persona_check/` | SDF | Whether the documents would push a model towards a persona, scored with an open-weights model. See the section below. Needs a GPU pod and Claude calls for the full procedure. |
+| `variable_persistence_sdf.py` | SDF | Per document, a judge says whether each dealt variable value and each assigned consideration persisted in the text (reasoning, then yes/no, typed JSON). The judge never sees the document's description. Resumable; `--dry-run` prints the prompt and a cost estimate with no calls. Paid. |
+| `plausibility_audit_sdf.py` | SDF | A judge reads each document alone (nothing else about it is sent) and scores ten scenario-plausibility axes with quoted evidence, plus an overall score. Resumable. Paid, on `gpt-5.6-luna`. Post-process with `plausibility_audit_postprocess_sdf.py` (offline). See "Model-judged audits" below. |
+| `shoehorning_audit_sdf.py` | SDF | Three passes per document find 25 niche ethical considerations, quote each, and judge whether it is organic or staged and woven in or aside. Resumable. Paid, on `gpt-5.6-luna`. Post-process with `shoehorning_audit_postprocess_sdf.py` (offline). See "Model-judged audits" below. |
 | `report_sdf.py` | SDF | Builds a self-contained HTML report for a run. Offline. |
 | `review_tics.py` | DAD | Command-line triage for the tic-candidate queue: promote a candidate to the watchlist or dismiss it. Offline. |
 | `publish_hf.py` | both | Publishes a run's corpus and audit reports to a Hugging Face dataset. Not a measurement. See the warning below before running it. |
@@ -140,6 +145,81 @@ consumer filtering by language drops them.
 by hand (through `review_tics.py`) and carried across runs, which is what makes
 those counts comparable run over run.
 
+## Model-judged audits: plausibility and shoehorning
+
+Both audits send each document to a judge with a fixed set of instructions and a strict answer schema. The
+judging prompts and schemas are pinned by hash
+(`prompts/tools/plausibility_audit_judge_instructions.txt`,
+`prompts/tools/shoehorning_audit_shared_header.txt` and
+`prompts/tools/shoehorning_audit_pass_*.txt`), so a change to them is deliberate and runs stay comparable.
+The shared pieces (run folders, resume check, quote verification, CSV writing, the
+structured-output request with one parse retry) are in `model_judged_audit_support.py`.
+
+```bash
+python evals/plausibility_audit_sdf.py --input outputs/sdf/latest --run-name plausibility_audit_medium_effort
+python evals/plausibility_audit_postprocess_sdf.py <run folder>
+python evals/shoehorning_audit_sdf.py --input outputs/sdf/latest --run-name shoehorning_audit_medium_effort
+python evals/shoehorning_audit_postprocess_sdf.py <run folder>
+```
+
+Each judging run makes one call per document (per pass, for shoehorning), sends only the
+instructions and the document's `content`, writes a run folder
+`<run>/audit/{plausibility,shoehorning}_audit_runs/<run name>_<timestamp>/` (`--runs-directory`
+changes the parent) and can be continued with `--resume-folder`; a resume refuses a changed prompt
+file or corpus (and a changed reasoning effort; for plausibility also a changed model). Every partial run
+(`--estimate-only`, `--document-ids`, `--document-limit`) goes to a `small_sample_checks`
+subfolder of that parent. `--estimate-only` judges a stratified sample of `--estimate-sample-size`
+documents and writes an extrapolated cost for the whole corpus, scaled by the sample documents that
+were judged successfully and including the tokens of failed attempts (if every sample call fails it
+reports that no estimate is available). Defaults: model `gpt-5.6-luna`, `--reasoning-effort medium`, `--workers 16`. The key is
+`OPENAI_API_KEY` from the repo-root `.env` (`--find-dotenv` for the upward search then the
+environment).
+
+Each run folder holds the judgments (`judgments_*.jsonl`, or
+`classifications_<pass>_*.jsonl`), `errors_*.jsonl` for answers that failed validation twice,
+the instructions actually sent, `run_configuration_*.json` (prompt hashes, corpus path and
+hash, prices), `progress_log_*.txt`, `usage_and_cost_log_*.json`, and the repo's own
+`model_call_cost_log_*.jsonl` plus the full `model_calls.jsonl` and `system_prompts/` (the last two are
+git-ignored). The post-processors add, offline, per-document and per-problem/occurrence
+tables as CSV and JSONL with every quote checked against the document, per-axis and per-item
+summaries, and a join of the document's language and variables. The shoehorning post-processor also
+reports whether each quote was already in the pre-rewrite draft (the run's draft stage output,
+found next to the corpus; `--drafts-path` overrides).
+
+How the audits are built:
+
+- Calls go through `shared/openai_api.py`, so every call lands in the repo's cost log
+  (`stage` tags `eval_plausibility_audit` and `eval_shoehorning_audit`, `item_id` the document,
+  with `__<pass>` appended for shoehorning) and in the model-call log.
+- `shared/openai_api.py` requires an output cap, so calls send
+  `max_output_tokens` 64000 (reasoning tokens included). A cut-off answer is a parse failure and is
+  retried once like a malformed one.
+- Retries on transient transport errors follow `shared/openai_api.py` (8 attempts, exponential
+  wait). A malformed answer gets one parse or validation retry; each record carries `usage` and
+  `latency_seconds`, and failures get error records.
+- The input is an SDF run directory or `sdf_corpus.jsonl` (`--input`, default `outputs/sdf/latest`), and run
+  folders go under the run's `audit/` directory.
+- Prompt files carry audit-specific names in `prompts/tools/`, and the prompt-hash keys in
+  `run_configuration_*.json` use those names.
+- `usage_and_cost_log_*.json` holds one overall total; the progress line's running cost is this session's
+  records plus those from before a resume (judgments and error records alike, and the usage of any
+  attempt completed before a transport error).
+- The shoehorning post-processor finds the drafts next to the corpus, and says so when none are found (every
+  `origin_stage` then reads `draft_unavailable`).
+
+Offline tests (`pytest tests/test_plausibility_audit_sdf.py tests/test_shoehorning_audit_sdf.py
+tests/test_model_judged_audit_support.py`; no key, no network) stub the one network seam,
+`shared.openai_api._create_response`, with a synthetic three-document corpus. They check that the
+prompt files still hash to their pinned values and that the shoehorning schemas and
+instructions equal the committed fixtures (`tests/fixtures/shoehorning_audit_expected_*.json`);
+that the request carries only the instructions and the document with temperature 1 and the cache key;
+answer validation (score ranges, missing or extra axes, bad severities, missing items), the single
+parse retry with usage summed over both attempts, and error records; resume with zero calls and the
+changed-prompt refusal; run-folder placement for full and partial runs; the `--find-dotenv` flag;
+cost-log and model-call-log records; `--estimate-only`; and the post-processors on synthetic run folders
+(failed documents leave empty cells, inapplicable axes are left out of means, quotes crossing a
+paragraph break are flagged, draft versus rewrite origin).
+
 ## Running them
 
 Each script takes a run directory or a corpus file. The three audits write
@@ -161,3 +241,114 @@ SDF evals are always run by hand.
 `diversity.py --compare <previous diversity_report.json>` prints run-over-run
 deltas, which is the way these numbers are usually read: a single run's absolute
 values mean much less than the direction they moved after a change.
+
+## Measuring diversity against real web text
+
+`diversity.py` can say the corpus spans N effective documents, but not whether N
+is low: its only reference is the corpus itself, or a structureless corpus of the
+same size. `external_baseline.py` supplies an outside reference — FineWeb-Edu,
+sampled to match our own documents — so the ratio of the two scores is the
+answer to "low compared to what".
+
+Two steps, the first run once and committed:
+
+```bash
+# derive the welfare phrase list from the corpus (streams 20k background docs)
+python evals/welfare_lexicon.py --input outputs/sdf/latest
+
+# the comparison itself; --sanity streams 20k instead of 300k
+python evals/external_baseline.py --input outputs/sdf/latest --sanity
+python evals/external_baseline.py --input outputs/sdf/latest
+```
+
+The streamed sample is cached under `outputs/external/` (gitignored) and reused,
+so only the first run pays the streaming cost; `--rebuild-pool` refreshes it.
+The report lands in the run's `audit/external_baseline.json`.
+
+Three things about reading the output. **Cells are not comparable to each other**
+— Vendi rises with sample size, and the cells have different `n`, which is why
+each one carries an `n`-matched null: what each side scores on a random subsample
+of its own pool at that same `n`. **Each side's raw score is reported against a
+structureless reference** at its own mean cosine, because any corpus on one topic
+occupies a narrow cone of the embedding space, and that costs diversity without
+being a defect; the gap to the reference is the part that is. And **the phrase
+list is derived from our own corpus**, which pulls the selected FineWeb documents
+toward our region of the space and lowers their measured diversity — so the bias
+runs against the finding, and a gap that survives it is a floor.
+
+## Comparing revision-stage experiment arms
+
+`compare_arms.py` reads the manifest `experiments/experiment.py` wrote and puts
+every arm in one table: full-text Vendi with a bootstrap interval, the
+summary-kernel Vendi, per-language Vendi, the layer-4 judge pass rate and
+per-dimension means, length compliance, near-dup rate and cost.
+
+```bash
+python experiments/compare_arms.py --exp outputs/sdf/experiments/exp1
+python experiments/compare_arms.py --exp outputs/sdf/experiments/exp1 --run-evals --ideas
+```
+
+Without `--run-evals` it reads each arm's existing `audit/diversity_report.json`
+and leaves the diversity columns blank for arms that have none — it never
+silently spends money. `--run-evals` runs `diversity.py` for those arms, and
+`--ideas` adds the summary pass (one model call per document) on top.
+
+Three flags on `diversity.py` exist for this comparison and are useful on their
+own run too:
+
+```bash
+python evals/diversity.py --input outputs/sdf/latest --group-by language --ideas
+```
+
+- `--group-by language|type_id` reports Vendi **within** each group. Groups below
+  `--min-group` (default 10) report a null score rather than a figure that is
+  really just the group's size, since Vendi is bounded by n.
+- `--ideas` now also scores a **Vendi over the one-line summaries** — diversity of
+  what the documents say, with wording and length stripped out. That matters here
+  because a length-targeting arm changes full-text embeddings for reasons that
+  have nothing to do with how varied the ideas are.
+- Every Vendi figure carries a percentile bootstrap interval (`--vendi-boot`, 0
+  disables). It resamples documents with replacement, so it brackets the sampling
+  spread at this n and is honest as a **width**, not as an interval centred on the
+  point estimate.
+
+### Length targeting (experiment 2)
+
+An arm dealt a `{length}` card gets a **response curve** under the main table,
+and it is the point of that experiment rather than a footnote to it: median
+achieved length per dealt level, the ratio to the target, the in-band rate, the
+graded score and the judge pass rate — all against an `unchanged` baseline row,
+which is the undirected counterfactual from the **same arm over the same
+drafts**. A ladder that does not separate from that row is a knob that did
+nothing, and no single percentage would have said so.
+
+Length is reported two ways because one number cannot separate "ignored the
+instruction" from "moved the right way and overshot the band":
+
+- `rate` — the hard share landing inside ±`length_tolerance`.
+- `score` — a Gaussian on the **log** ratio, `sigma = log(1 + tolerance)`.
+  Log, because length is a ratio scale: half the target and twice the target are
+  equally wrong, where a linear relative error caps undershoot at −100% and
+  leaves overshoot unbounded. A document on the band edge scores ≈0.61, so the
+  two measures agree about where the band is and disagree about everything
+  outside it.
+
+Targets are a **multiple of each document's own draft length**, so the expected
+length is per-document and the rungs compare across languages without a
+word/character split. `revision_style.length_ratio` reads the multiple back out
+of the card; a card naming none still renders and is reported by level.
+
+Two notes on reading the table. The **control arm reports a compliance rate
+too** — it is dealt the same cards and simply never renders them, so its rate is
+the chance rate, the null the intervention is read against, for free. And
+`min_vendi_gain` reads **full-text** Vendi, which this experiment confounds:
+varying document length changes embeddings for reasons unrelated to how varied
+the ideas are. Check the `idea Vendi` column (`--run-evals --ideas`) before
+believing a gain here.
+
+The pass/fail verdict comes from the `success:` block in the arms file, never
+from thresholds in this script — a criterion chosen after seeing the numbers is
+not a criterion. A declared criterion that could not be measured reports
+`INCOMPLETE`, so an arm cannot clear a bar nobody checked. The length bars
+(`min_length_compliance`, `min_length_score`) are judged on the arm's own
+documents rather than against the control, for the reason above.

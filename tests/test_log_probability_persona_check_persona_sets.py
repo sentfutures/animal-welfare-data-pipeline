@@ -507,11 +507,30 @@ def test_variable_names_are_read_from_the_template():
         "tradeoff", "centrality", "resolution", "reasoning_featured"]
 
 
-@pytest.mark.parametrize("missing_name", list(SHORT_VARIABLES))
+@pytest.mark.parametrize("missing_name", [name for name in SHORT_VARIABLES if name != "reasoning_featured"])
 def test_missing_variable_fails_loudly(missing_name):
     variables = {name: value for name, value in SHORT_VARIABLES.items() if name != missing_name}
     with pytest.raises(KeyError, match=missing_name):
         prompt_rendering.render_generation_prompt(variables, "doc_with_missing_variable")
+
+
+def test_document_without_reasoning_featured_renders_with_the_layer_two_fallback():
+    variables = {name: value for name, value in SHORT_VARIABLES.items() if name != "reasoning_featured"}
+    prompt = prompt_rendering.render_generation_prompt(variables, "doc_from_a_considerations_selector_run")
+    assert "{" not in prompt and "}" not in prompt
+    assert prompt.endswith("The AI's reasoning features any relevant principles from the constitution.")
+    # the fallback is the one sdf_pipeline/layer2_draft.py uses
+    assert "any relevant principles from the constitution" in (
+        Path(__file__).resolve().parent.parent / "sdf_pipeline" / "layer2_draft.py").read_text()
+
+
+def test_document_with_reasoning_featured_renders_unchanged_by_the_fallback():
+    prompt = prompt_rendering.render_generation_prompt(SHORT_VARIABLES, "doc")
+    assert prompt.endswith("The AI's reasoning features a brief cost comparison.")
+    assert "any relevant principles" not in prompt
+    # an empty value is still an error, not silently replaced by the fallback
+    with pytest.raises(ValueError, match="reasoning_featured"):
+        prompt_rendering.render_generation_prompt({**SHORT_VARIABLES, "reasoning_featured": " "}, "doc")
 
 
 def test_empty_variable_fails_loudly():

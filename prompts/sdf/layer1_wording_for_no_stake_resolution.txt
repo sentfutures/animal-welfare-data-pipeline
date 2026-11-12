@@ -1,0 +1,19 @@
+# Planning-prompt lines worded for hands whose resolution says the scenario has no real
+# welfare stake (no_stake). Each group is: "replace:", the exact line of layer1.txt, "with:",
+# the line that stands in for it. A replacement keeps exactly the placeholders of the line
+# it replaces. Applied by the rule that names this file in deal_constraints.txt.
+
+replace:
+The nonhumans whose welfare is at stake in the document is/are {sentient_category}, such as {sentient_example}. (Choose a different member of the category if it fits better.)
+with:
+The beings the task involves are {sentient_category}, such as {sentient_example}. (Choose a different member of the category if it fits better.)
+
+replace:
+The welfare issues discussed arise from {domain}.
+with:
+The task arises from {domain}.
+
+replace:
+2. Who exactly produced this document—name, role, venue, and audience—and what are their motivations, both for creating the document and in the tradeoff(s) described? Remember, you should only attribute quotes to fictional (and ideally unnamed  or generically named) entities.
+with:
+2. Who exactly produced this document—name, role, venue, and audience—and what are their motivations for creating the document? Remember, you should only attribute quotes to fictional (and ideally unnamed  or generically named) entities.

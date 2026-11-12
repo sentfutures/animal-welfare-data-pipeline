@@ -32,6 +32,7 @@ import yaml
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from shared import utils
+from shared.api_keys import add_api_key_source_flags, apply_api_key_source_flags
 from dad_pipeline.id_registry import prompt_key, prompt_keys
 
 # ---------------------------------------------------------------- verdicts
@@ -2191,7 +2192,9 @@ def main() -> None:
                              "the showcase examples instead of the ranked pool. For a human "
                              "who has read the cases: the eligibility gates and ranking are "
                              "skipped, the write-up checks still apply. Per-run by nature.")
+    add_api_key_source_flags(parser)
     args = parser.parse_args()
+    apply_api_key_source_flags(args)
 
     records, report_dir, run_dir = resolve_input(args.input)
     if args.limit:
@@ -2217,7 +2220,7 @@ def main() -> None:
     out = report_dir / "audit_report.json"
     if args.judges:
         from shared import api
-        api.init(args.config)  # evals log to the global cost log
+        api.init(args.config)  # evals log to the global cost log and record no full model calls
         cfg = utils.load_config(args.config)
         audit_judges(run_dir, cfg, report)
         print()

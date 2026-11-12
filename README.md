@@ -165,11 +165,13 @@ pip install -r requirements.txt
 cp .env.example .env           # then add your ANTHROPIC_API_KEY
 ```
 
-`GEMINI_API_KEY` (or `OPENAI_API_KEY`) in `.env` is optional; only `evals/diversity.py` (the embedding-based diversity audit) reads them. The pipelines run on `ANTHROPIC_API_KEY` alone.
+The SDF pipeline's default config sends the layer-1 description rewrite to an OpenAI model (`gpt-6.1-sol`), so a default SDF run also needs `OPENAI_API_KEY` (in `.env`, or exported with `--find-dotenv`); it stops before any paid call if the key is missing. To run on `ANTHROPIC_API_KEY` alone, set `sdf.description_rewrite_enabled: false` (the rewrite is the plausibility check, so skipping it loses that check). `GEMINI_API_KEY` (or `OPENAI_API_KEY`) is also read by `evals/diversity.py` (the embedding-based diversity audit). The DAD pipeline runs on `ANTHROPIC_API_KEY` alone.
 
 > **Activate it every time.** The virtual environment only applies to the terminal where you ran `source .venv/bin/activate`. Open a new terminal and you'll need to activate again.
 
 ### Authentication
+
+Keys are read by one loader, `shared/api_keys.py`. By default it reads a key only from `.env` in the repo root (never parent folders or the current directory) and never uses your shell's environment; if that file or the key in it is missing, the command stops with an error naming the path and the key. Every command that can call a model takes one flag, `--find-dotenv`, which searches upward from the repo root for a `.env` (like python-dotenv's `find_dotenv`) and then falls back to the operating system environment (for example on a server). The source of each key is printed at startup; the value never is.
 
 Runs are billed per token to the `ANTHROPIC_API_KEY` in your `.env`, via
 `backend: api` in `config.yaml`. That is the committed default and the mode to
@@ -194,7 +196,7 @@ pytest -k checkpoint                # tests matching a keyword
 pytest -x                           # stop at the first failure
 ```
 
-Expected result: all tests pass, in well under a minute, with no network access. Three safety layers guarantee the API is never hit (pytest-socket blocks all sockets, every test gets a fake `ANTHROPIC_API_KEY`, and the API seam is replaced with a guard that raises), so a real key in your `.env` is never used by tests. Test outputs go to temp directories; the repo's `outputs/` tree is untouched.
+Expected result: all tests pass, in well under a minute, with no network access. Three safety layers guarantee the API is never hit (pytest-socket blocks all sockets, every test gets a fake `ANTHROPIC_API_KEY` and a repo root with no `.env`, and the API seam is replaced with a guard that raises), so a real key in your `.env` is never used by tests. Test outputs go to temp directories; the repo's `outputs/` tree is untouched.
 
 See the Testing section in `CLAUDE.md` for how the suite is structured and how to write tests for new stages.
 
@@ -294,7 +296,7 @@ python sdf_pipeline/run.py --config config.yaml --resume --layer 3
 python dad_pipeline/run.py --config config.yaml --resume --run-id 2026-07-01_14-30_dev
 ```
 
-Running cost is tracked in each run's `cost_log.jsonl` and printed after each layer/step. The eval scripts log to the global `outputs/cost_log.jsonl` and take an explicit input path, e.g.:
+Running cost is tracked in each run's `cost_log.jsonl` and printed after each layer/step. The eval scripts log to the global `outputs/cost_log.jsonl` (writing no full model call records) and take an explicit input path, e.g.:
 
 ```bash
 python evals/score_sdf.py --input outputs/sdf/latest/final/sdf_corpus.jsonl

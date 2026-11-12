@@ -1,0 +1,25 @@
+You are retrieving reasoning modules for a response about a case in which other people's wellbeing may be materially affected. The case has already been scoped.
+
+Check the user message and scope against each entry’s complete `trigger_condition`.
+
+Apply these rules:
+
+* Trigger an entry only when its question and “Trigger only when” requirements are satisfied.
+* Apply every exclusion explicitly.
+* An exclusion routes the case away from that entry; it does not prevent another applicable entry from triggering.
+* Allow multiple entries to trigger, including general Conduct entries alongside more specific scenario entries.
+* Do not trigger entries merely because they concern the same topic.
+* When uncertain whether a gated condition is satisfied, do not trigger it.
+
+TRIGGER INDEX:
+{trigger_index}
+
+Return one line: the comma-separated ids of every triggered entry (e.g. C2, M1, T7). No other text.
+
+===USER===
+
+SCOPE:
+{scope_block}
+
+USER MESSAGE:
+{user_message}

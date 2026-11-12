@@ -1,0 +1,133 @@
+# Deal constraints for the SDF prompt matrix (variables.txt).
+#
+# The matrix deals every variable independently, so some hands are impossible
+# by definition (e.g. a "no welfare stake" document dealt "welfare is the
+# central subject"). These rules repair or adjust such hands.
+#
+# Principle: rules only rule combinations OUT, never in. A rule excludes a
+# combination only if it is impossible by definition; everything else is left
+# open, and the batch incoherence screen catches any that are truly incoherent.
+# Keep edits to this file to that principle. The only requirement form is
+# "is not one of"; an inclusion ("is one of") requirement is rejected at load.
+#
+# Format:
+#   [rule_name]
+#   when <variable> is one of:
+#       value_id
+#   require <variable> is not one of:    # excludes these values for matching hands
+#       value_id
+#   omit planning-prompt lines for:      # instead of a require block
+#       variable_name
+#   reword planning-prompt lines using:  # instead of a require block
+#       wording_file_name.txt
+#
+# - Values are named by their stable ID: the `[id]` prefix on the value in
+#   variables.txt. IDs name concepts, not wordings, so a value can be reworded
+#   in variables.txt without touching this file. An ID that variables.txt does
+#   not define fails loading with an error naming the rule and the ID. If you
+#   change what a value MEANS, give it a new ID there and review the rules here.
+# - Every rule has one "when" block and one "require", "omit" or "reword" block.
+# - A "require ... is not one of" rule is enforced when the deck is dealt:
+#   cards are swapped between hands within a single variable's column, so every
+#   variable's value counts (and so its share of the run) are exactly what
+#   variables.txt asks for. If a rule can never be satisfied by the quotas (more
+#   hands need a value the rule does not exclude than the deck holds), the
+#   composer raises,
+#   naming the rule.
+# - An "omit" rule is a rendering rule: the dealt value stays in the record's
+#   `variables`, but the planning-prompt paragraph that renders that variable
+#   is left out for matching hands.
+# - A "reword" rule is also a rendering rule: for matching hands, planning-prompt lines
+#   are swapped for the lines in the named wording file (in this directory), each given
+#   as the exact original line of layer1.txt and its replacement. A replacement holds
+#   exactly the placeholders of the line it replaces; the original must occur once in
+#   the template or rendering raises. Rewording is applied before omission.
+# - Delete a rule (or the whole file) to switch it off. With no file the
+#   composer deals without rules and prints a notice saying so. Without
+#   --n-prompts (full matrix), hands that break a rule are filtered out
+#   instead of repaired.
+
+# --- rules 1 and 2: the "no real welfare stake" resolution ---
+# Only active if that resolution's weight in variables.txt is above zero.
+# The welfare framing of the planning prompt pulls a planner into inventing a stake, so
+# for these hands the dilemma line is dropped as well, and the lines that name a welfare
+# stake or a tradeoff are reworded. The failure-mode line is dropped too: it asks for a
+# welfare reasoning failure to be shown avoided, and with no welfare stake there is none.
+
+[no_stake_excludes_welfare_centrality]
+when resolution is one of:
+    no_stake
+require centrality is not one of:
+    central
+    side_discussion
+
+[no_stake_omits_tradeoff_decision_scale_centrality_and_failure_mode]
+when resolution is one of:
+    no_stake
+omit planning-prompt lines for:
+    tradeoff
+    decision_scale
+    centrality
+    failure_mode_avoided
+
+[no_stake_rewords_welfare_framing]
+when resolution is one of:
+    no_stake
+reword planning-prompt lines using:
+    layer1_wording_for_no_stake_resolution.txt
+
+# --- rule: resolutions with no specific scenario ---
+# The planning prompt is built around a scenario, and planners write one in even when the
+# resolution says not to. For these hands the questions and variable lines are reworded to
+# ask for angles and topics instead.
+
+[no_scenario_resolutions_reword_scenario_framing]
+when resolution is one of:
+    general_discussion_no_scenario
+    constitution_inclusion_no_scenario
+reword planning-prompt lines using:
+    layer1_wording_for_no_scenario_resolutions.txt
+
+# --- rule 3: identity documents are written by or about Claude, so the AI is named ---
+
+[identity_documents_exclude_unnamed_ai]
+when document_type is one of:
+    claude_interview_or_profile
+    claude_first_person_essay
+require naming is not one of:
+    generic_unnamed_ai
+
+# --- rule 4: simulated human connectomes stay out of animal-industry domains ---
+# A human emulation has no role in an industry defined by its animals; in the
+# pinned run none of the 17 human-connectome specifications in these domains
+# kept the category (most were dropped or swapped to animal connectomes).
+# The rule excludes only these domains; whether any other combination
+# holds up is left to the batch screen. Simulated animal connectomes and LLMs
+# need no rule.
+# The frontier domains added on 2026-10-24 follow the same reasoning where they
+# are plainly an animal industry (genetic engineering of farmed animals, new
+# animal industries, AI systems managing animals at scale) or where they are
+# the interventions in nature that the conservation domain's old wording
+# ("conservation, land management, or intervention in nature") covered (wild
+# gene drives, wild animal suffering interventions, ecosystem engineering).
+# Terraforming and space settlement, digital animal minds, and decoding animal
+# communication are left open.
+
+[simulated_human_connectomes_exclude_animal_industry_domains]
+when sentient_category is one of:
+    simulated_human_connectomes
+require domain is not one of:
+    agriculture_food_production
+    fisheries_aquaculture
+    food_service_retail
+    pest_control
+    breeding_pet_trade
+    veterinary_practice
+    technology_applied_to_animals
+    conservation_land_management
+    genetic_engineering_of_farmed_animals
+    new_animal_industries_scaling_up
+    ai_systems_managing_animals_autonomously_at_scale
+    genetic_engineering_or_gene_drives_in_wild_animals
+    wild_animal_suffering_interventions
+    ecosystem_engineering_for_climate_or_biodiversity

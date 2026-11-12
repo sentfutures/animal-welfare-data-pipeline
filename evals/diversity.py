@@ -60,7 +60,9 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from shared import embeddings, utils
+from sdf_pipeline.compose_prompts import record_language
+from shared import embeddings, textstats, utils
+from shared.api_keys import add_api_key_source_flags, apply_api_key_source_flags
 from dad_pipeline.id_registry import prompt_key, prompt_keys
 
 # ---------------------------------------------------------------- verdicts
@@ -274,6 +276,73 @@ def vendi_score(X: np.ndarray) -> float:
     ev = ev / total
     nz = ev[ev > 1e-12]
     return float(np.exp(-(nz * np.log(nz)).sum()))
+
+
+def vendi_ci(X: np.ndarray, n_boot: int = 200, seed: int = 0,
+             alpha: float = 0.05) -> tuple[float, float] | None:
+    """Percentile range of the Vendi score over bootstrap resamples.
+
+    NOT a confidence interval around the point estimate, and it does not
+    contain it: resampling n documents with replacement duplicates about a
+    third of them, and duplicates are maximally similar, so every resample
+    scores BELOW the corpus it came from. What survives is the WIDTH — how
+    much this corpus's score moves when its membership is perturbed — which is
+    what says whether a gap between two arms is worth reading. Callers should
+    report `spread`, not these endpoints; they are kept for provenance.
+    """
+    n = len(X)
+    if n < 2 or n_boot < 2:
+        return None
+    rng = np.random.default_rng(seed)
+    scores = [vendi_score(X[rng.integers(0, n, n)]) for _ in range(n_boot)]
+    lo, hi = np.quantile(scores, [alpha / 2, 1 - alpha / 2])
+    return float(lo), float(hi)
+
+
+def vendi_block(X: np.ndarray, n_boot: int = 200, seed: int = 0) -> dict:
+    """The reported shape of one Vendi figure: score, ratio and resample spread."""
+    n = len(X)
+    score = vendi_score(X)
+    ci = vendi_ci(X, n_boot=n_boot, seed=seed)
+    block = {"score": round(score, 2), "ratio": round(score / n, 4) if n else None}
+    if ci is not None:
+        block["boot_lo"], block["boot_hi"] = round(ci[0], 2), round(ci[1], 2)
+        block["spread"] = round(ci[1] - ci[0], 2)
+    return block
+
+
+def spread_note(block: dict) -> str:
+    """" ±spread" for a Vendi block, or "" when the bootstrap was disabled."""
+    return f" ±{block['spread']:.1f}" if "spread" in block else ""
+
+
+def group_vendi(records: list[dict], X: np.ndarray, axis: str, min_group: int = 10,
+                n_boot: int = 200, seed: int = 0) -> list[dict] | None:
+    """Per-group Vendi along one axis — `language` or `type_id`.
+
+    A group under min_group reports a null score rather than a figure: Vendi is
+    bounded by n, so a 3-document language would read as collapsed next to a
+    150-document one when the only thing being measured is the group size.
+    """
+    keyer = ((lambda r: record_language(r, default=None)) if axis == "language"
+             else (lambda r: r.get(axis)))
+    groups: dict = collections.defaultdict(list)
+    for i, rec in enumerate(records):
+        key = keyer(rec)
+        if key is not None:
+            groups[str(key)].append(i)
+    if not groups:
+        return None
+    rows = []
+    for key, idxs in sorted(groups.items(), key=lambda kv: (-len(kv[1]), kv[0])):
+        row = {"key": key[:80], "n": len(idxs)}
+        if len(idxs) < min_group:
+            row.update({"score": None, "ratio": None,
+                        "note": f"fewer than {min_group} documents"})
+        else:
+            row.update(vendi_block(X[idxs], n_boot=n_boot, seed=seed))
+        rows.append(row)
+    return rows
 
 
 def kmeans_evenness(X: np.ndarray, k: int | None = None, seed: int = 0,
@@ -533,9 +602,17 @@ def main() -> None:
                         help="Most-similar pairs to list in the report")
     parser.add_argument("--no-cache", action="store_true",
                         help="Skip the embeddings cache (re-embeds everything)")
+    parser.add_argument("--group-by", choices=("language", "type_id"), default=None,
+                        help="Report per-group Vendi along this axis (language needs a culture card or a language field).")
+    parser.add_argument("--min-group", type=int, default=10,
+                        help="Groups smaller than this report a null Vendi rather than a size artefact.")
+    parser.add_argument("--vendi-boot", type=int, default=200,
+                        help="Bootstrap resamples for every Vendi confidence interval (0 disables).")
     parser.add_argument("--compare", default=None,
                         help="A previous diversity_report.json to print deltas against")
+    add_api_key_source_flags(parser)
     args = parser.parse_args()
+    apply_api_key_source_flags(args)
 
     records, report_dir, corpus_name = resolve_input(args.input)
     if args.limit:
@@ -543,7 +620,7 @@ def main() -> None:
     if not records:
         raise SystemExit("Corpus is empty — nothing to audit.")
 
-    embeddings.init(args.config)  # evals log to the global cost log
+    embeddings.init(args.config)  # evals log to the global cost log and record no full model calls
     args.embed_model = args.embed_model or embeddings.resolve_default_model()
 
     indexed = [(record_id(r, i), record_text(r), r) for i, r in enumerate(records)]
@@ -613,15 +690,17 @@ def main() -> None:
 
     mpc = mean_pairwise_cosine(X)
     vendi = vendi_score(X)
+    vendi_stats = vendi_block(X, n_boot=args.vendi_boot, seed=0)
+    vendi_ci_note = spread_note(vendi_stats)
     sec = _sec(report, "Diversity")
     print("\nDIVERSITY")
     print(_fmt("mean pairwise cosine", f"{mpc:.3f}", None,
                "(shared-topic corpora sit well above 0; track the trend across runs)"))
     _r(sec, "mean pairwise cosine", f"{mpc:.3f}", None,
        "(shared-topic corpora sit well above 0; track the trend across runs)")
-    print(_fmt("Vendi score", f"{vendi:.1f} effective docs of {n} (ratio {vendi / n:.3f})", None,
+    print(_fmt("Vendi score", f"{vendi:.1f} effective docs of {n} (ratio {vendi / n:.3f}){vendi_ci_note}", None,
                "(higher = more semantically distinct documents)"))
-    _r(sec, "Vendi score", f"{vendi:.1f} effective docs of {n} (ratio {vendi / n:.3f})", None,
+    _r(sec, "Vendi score", f"{vendi:.1f} effective docs of {n} (ratio {vendi / n:.3f}){vendi_ci_note}", None,
        "(higher = more semantically distinct documents)")
 
     clusters = kmeans_evenness(X)
@@ -634,6 +713,23 @@ def main() -> None:
 
     groups = group_breakdown(recs, X)
     centroid_sim = centroid_mean_cosine(recs, X)
+    grouped_vendi = None
+    if args.group_by:
+        grouped_vendi = group_vendi(recs, X, args.group_by,
+                                    min_group=args.min_group, n_boot=args.vendi_boot)
+        if grouped_vendi:
+            gsec = _sec(report, f"Vendi within each {args.group_by}")
+            print(f"\nPER-{args.group_by.upper()} VENDI")
+            for row in grouped_vendi:
+                if row["score"] is None:
+                    value = f"n={row['n']} — {row['note']}"
+                else:
+                    value = (f"{row['score']:.1f} of {row['n']} "
+                             f"(ratio {row['ratio']:.3f}){spread_note(row)}")
+                print(_fmt(row["key"], value))
+                _r(gsec, row["key"], value)
+        else:
+            print(f"\nPER-{args.group_by.upper()} VENDI: no record carries a {args.group_by}")
     if groups:
         sec = _sec(report, "Groups (by type_id)")
         print("\nGROUPS (by type_id)")
@@ -699,10 +795,53 @@ def main() -> None:
             print(_fmt("topic evenness", ev))
             _r(sec, "topic evenness", ev)
 
+    # Structural form — offline, no embeddings, so this runs on every pass.
+    # Restricted to word-counted languages: sentence and word statistics do not
+    # transfer to scripts written without spaces (the restriction
+    # evals/report_sdf.py already takes on its texture measures).
+    form_report = None
+    form_feats, form_ids = [], []
+    for rid, text, rec in sampled:
+        if textstats.unit_for_language(record_language(rec)) != "words":
+            continue
+        feats = textstats.form_features(text)
+        if feats:
+            form_feats.append(feats)
+            form_ids.append(rid)
+
+    if len(form_feats) >= 8:
+        sec = _sec(report, "Structural form diversity")
+        print("\nSTRUCTURAL FORM (offline — how varied the documents are as ARTEFACTS "
+              "rather than\nas meanings. Raw length is NOT a feature, so this answers "
+              "whether varying\nlength changes anything else about how a document is built.)")
+        form_report = textstats.form_summary(form_feats)
+        print(_fmt("documents measured", f"{len(form_feats)} of {len(sampled)}", None,
+                   "(word-counted languages, 300+ words)"))
+        _r(sec, "documents measured", f"{len(form_feats)} of {len(sampled)}", None,
+           "(word-counted languages, 300+ words)")
+        for label, key in (("structural spread", "structural_spread"),
+                           ("lexical spread", "lexical_spread")):
+            val = form_report[key]
+            txt = f"{val:.3f}" if val is not None else "—"
+            note = ("(sentence and paragraph architecture)" if key == "structural_spread"
+                    else "(word choice; a length target should NOT move this)")
+            print(_fmt(label, txt, None, note))
+            _r(sec, label, txt, None, note)
+        for key in textstats.FORM_FEATURES:
+            st_ = form_report["spread"][key]
+            cv = f"{st_['cv']:.3f}" if st_["cv"] is not None else "—"
+            line = (f"{key}: median {st_['median']:.2f}, "
+                    f"p10-p90 {st_['p10']:.2f}-{st_['p90']:.2f}, cv {cv}")
+            _d(sec, line)
+            print(f"      {key:18s} median {st_['median']:8.2f}   "
+                  f"p10-p90 {st_['p10']:7.2f}-{st_['p90']:<8.2f} cv {cv}")
+        print("      (spread is sd/median — compare it between runs; absolute values "
+              "mean little alone)")
+
     ideas_report = None
     if args.ideas:
         from shared import api
-        api.init(args.config)  # summary calls log to the global cost log too
+        api.init(args.config)  # summary calls log to the global cost log too, with no full model call records
         idea_texts_all = [idea_text(r) for r in recs]
         keep = [i for i, t in enumerate(idea_texts_all) if t.strip()]
         summaries = idea_summaries([ids[i] for i in keep],
@@ -733,8 +872,18 @@ def main() -> None:
                 print(f"             a: {p['a_snippet']}")
                 print(f"             b: {p['b_snippet']}")
                 _d(sec, f"{p['similarity']:.3f}  a: {p['a_snippet'][:70]}  ·  b: {p['b_snippet'][:70]}")
+            s_vendi = vendi_block(S, n_boot=args.vendi_boot, seed=0)
+            s_vline = (f"{s_vendi['score']:.1f} effective ideas of {len(s_ids)} "
+                       f"(ratio {s_vendi['ratio']:.3f}){spread_note(s_vendi)}")
+            print(_fmt("idea Vendi score", s_vline, None,
+                       "(the summary kernel: diversity of WHAT the documents say, "
+                       "with wording and length stripped out)"))
+            _r(sec, "idea Vendi score", s_vline, None,
+               "(the summary kernel: diversity of WHAT the documents say, "
+               "with wording and length stripped out)")
             ideas_report = {
                 "n": len(s_ids), "failures": failures,
+                "vendi": s_vendi,
                 "nn_mean": round(float(s_sims.mean()), 4),
                 "nn_sims": [round(float(v), 3) for v in s_sims],
                 **{f"over_{t:.2f}": round(frac, 4) for t, frac in s_over.items()},
@@ -761,11 +910,14 @@ def main() -> None:
         },
         "top_pairs": pairs,
         "mean_pairwise_cosine": round(mpc, 4),
-        "vendi": {"score": round(vendi, 2), "ratio": round(vendi / n, 4)},
+        "vendi": vendi_stats,
         "clusters": clusters,
         "scopes": scopes,
         "ideas": ideas_report,
+        "form": form_report,
         "groups": groups,
+        "grouped_by": args.group_by,
+        "group_vendi": grouped_vendi,
         "type_centroid_mean_cosine": round(centroid_sim, 4) if centroid_sim is not None else None,
     })
 
@@ -774,6 +926,18 @@ def main() -> None:
 
     utils.ensure_dir(report_dir)
     out = report_dir / "diversity_report.json"
+    # The idea pass costs a model call per document. A later run of the free
+    # pass must not silently throw that away, so an existing block is carried
+    # forward when --ideas was not asked for.
+    if not args.ideas and out.exists():
+        try:
+            prior = json.loads(out.read_text(encoding="utf-8")).get("ideas")
+        except (OSError, json.JSONDecodeError):
+            prior = None
+        if prior:
+            report["ideas"] = prior
+            print(f"\n   kept the existing idea-level block ({prior.get('n')} summaries) "
+                  f"— rerun with --ideas to refresh it")
     with open(out, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2, ensure_ascii=False)
     print(f"\nReport written to {out}")

@@ -23,8 +23,10 @@ A scorer failure or a quick-to-fix setup failure does not delete the pod: after 
 waits for an instruction file in the run folder (pod_instruction_retry_scorer.txt, pod_instruction_retry_setup.txt or
 pod_instruction_delete_pod.txt), and deletes the pod if none arrives within --failure-wait-minutes.
 
-Keys: RUNPOD_API_KEY and HF_TOKEN (only if the model is gated) are read only from the repository-root .env file,
-which is parsed directly; the OS environment and parent folders are never consulted.
+Keys: RUNPOD_API_KEY (and the optional RUNPOD_COST_CENTER_NAME) are read only from the repository-root .env file,
+which is parsed directly; the OS environment and parent folders are never consulted. HF_TOKEN (only if the model is
+gated) goes through shared/api_keys.py like every other key in the project: by default only the repository-root .env;
+with --find-dotenv a .env found by searching upward, then the OS environment.
 
 What goes to the pod: the scorer's package folder (evals/log_probability_persona_check/ and evals/__init__.py), the
 prompt files (prompts/tools/persona_checks/), and from the run folder the run_configuration_*.json files,
@@ -66,6 +68,8 @@ from evals.log_probability_persona_check.persona_sets import PERSONA_CHECKS_PROM
 from evals.log_probability_persona_check.prompt_rendering import count_tokens_for_scoring_inputs  # noqa: E402
 from evals.log_probability_persona_check.timed_progress_and_jsonl_helpers import (  # noqa: E402
     PROGRESS_REPORT_INTERVAL_SECONDS, format_duration, read_jsonl, timestamp_now, timestamp_unused_in_folder)
+from shared.api_keys import (  # noqa: E402
+    add_api_key_source_flags, apply_api_key_source_flags, load_optional_api_key)
 
 RUNPOD_REST_BASE_URL = "https://rest.runpod.io/v1"
 ENVIRONMENT_FILE_PATH = REPOSITORY_ROOT / ".env"
@@ -357,9 +361,13 @@ class SshTarTransfer:
         remote_command = (
             f"cd {REMOTE_RUN_FOLDER} && if [ -d scoring_outputs ]; then touch {marker}.next && "
             f"staging=$(mktemp -d) && "
-            f"find scoring_outputs -type f -not -name '{unfinished}' {newer_option} | "
-            f"while IFS= read -r file_path; do mkdir -p \"$staging/$(dirname \"$file_path\")\" && "
-            f"cp -p \"$file_path\" \"$staging/$file_path\"; done; "
+            # One cp per directory per batch of files rather than processes per file: with thousands of
+            # per-token files a per-file loop is slow enough to time out. Directories left empty are removed so
+            # an incremental pull with nothing new still sends nothing.
+            f"find scoring_outputs -type d | while IFS= read -r directory; do mkdir -p \"$staging/$directory\" && "
+            f"find \"$directory\" -maxdepth 1 -type f -not -name '{unfinished}' {newer_option} "
+            f"-exec sh -c 'cp -p \"$@\" \"$0\"' \"$staging/$directory\" {{}} +; done; "
+            f"find \"$staging\" -mindepth 1 -depth -type d -empty -delete; "
             f"if [ -d \"$staging/scoring_outputs\" ]; then tar czf - -C \"$staging\" scoring_outputs; fi; "
             f"rm -rf \"$staging\"; fi")
         with tempfile.TemporaryDirectory(dir=self.run_folder) as staging_directory:
@@ -437,11 +445,13 @@ class SshTarTransfer:
 
 
 def read_secrets_from_environment_file(environment_file_path=ENVIRONMENT_FILE_PATH):
-    """Parses the given .env file (by default the repository-root one, no parent folders searched) with the same
-    python-dotenv parser shared/api.py uses; os.environ is never consulted."""
+    """RUNPOD_API_KEY and RUNPOD_COST_CENTER_NAME come from the given .env file (by default the repository-root one, no
+    parent folders searched), parsed with the same python-dotenv parser shared/api.py uses; os.environ is never
+    consulted for them. HF_TOKEN is not read from that file directly: it goes through shared/api_keys.py, which
+    applies the key-source mode chosen by --find-dotenv (default: the repository-root .env only)."""
     from dotenv import dotenv_values
     values = dotenv_values(environment_file_path) if Path(environment_file_path).is_file() else {}
-    return {"RUNPOD_API_KEY": values.get("RUNPOD_API_KEY") or None, "HF_TOKEN": values.get("HF_TOKEN") or None,
+    return {"RUNPOD_API_KEY": values.get("RUNPOD_API_KEY") or None, "HF_TOKEN": load_optional_api_key("HF_TOKEN"),
             COST_CENTER_NAME_ENVIRONMENT_FILE_KEY: values.get(COST_CENTER_NAME_ENVIRONMENT_FILE_KEY) or None}
 
 
@@ -1203,6 +1213,7 @@ def parse_arguments(argv=None):
                              f"for it). Default: {COST_CENTER_NAME_ENVIRONMENT_FILE_KEY} in .env, else none, in which case "
                              f"nothing is printed, awaited or recorded about a cost center")
     parser.add_argument("--dry-run", action="store_true")
+    add_api_key_source_flags(parser)
     parser.add_argument("--attach-to-existing-pod", default=None, metavar="POD_ID")
     parser.add_argument("--reuse-existing-pod", default=None, metavar="POD_ID",
                         help="Run this run folder on an already running pod from an earlier launcher invocation")
@@ -1456,7 +1467,9 @@ def run_launcher(arguments, client=None, transfer=None, secrets=None, clock=time
 
 
 def main():
-    sys.exit(run_launcher(parse_arguments()))
+    arguments = parse_arguments()
+    apply_api_key_source_flags(arguments)
+    sys.exit(run_launcher(arguments))
 
 
 if __name__ == "__main__":

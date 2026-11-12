@@ -1,0 +1,623 @@
+{
+  "exp_id": "exp2",
+  "success": {
+    "min_vendi_gain": 0.1,
+    "max_pass_rate_drop": 0.05,
+    "length_tolerance": 0.2,
+    "min_length_compliance": 0.6,
+    "min_length_score": 0.7
+  },
+  "arms": [
+    {
+      "arm": "control",
+      "run_dir": "/Users/markstanl/PycharmProjects/animal-welfare-data-pipeline/outputs/sdf/runs/2026-10-24_11-49_exp2-control",
+      "n_scored": 49,
+      "n_final": 49,
+      "vendi": {
+        "score": 15.73,
+        "ratio": 0.3211,
+        "ci_lo": 10.44,
+        "ci_hi": 13.11
+      },
+      "idea_vendi": null,
+      "group_vendi": [
+        {
+          "key": "English",
+          "n": 15,
+          "score": 4.94,
+          "ratio": 0.3296,
+          "ci_lo": 3.27,
+          "ci_hi": 4.4
+        },
+        {
+          "key": "Mandarin Chinese",
+          "n": 6,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Spanish",
+          "n": 5,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Hindi",
+          "n": 4,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "French",
+          "n": 3,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Japanese",
+          "n": 3,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Portuguese",
+          "n": 3,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "German",
+          "n": 2,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Indonesian",
+          "n": 2,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Korean",
+          "n": 2,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Bengali",
+          "n": 1,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Polish",
+          "n": 1,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Urdu",
+          "n": 1,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Vietnamese",
+          "n": 1,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        }
+      ],
+      "grouped_by": "language",
+      "near_dup_over_0.90": 0.0,
+      "form": {
+        "n": 40,
+        "structural_spread": 0.2959,
+        "lexical_spread": 0.2535,
+        "spread": {
+          "sent_len_mean": {
+            "median": 23.658,
+            "sd": 6.4371,
+            "p10": 17.3531,
+            "p90": 33.1455,
+            "cv": 0.2721
+          },
+          "sent_len_sd": {
+            "median": 14.2677,
+            "sd": 3.8989,
+            "p10": 9.6585,
+            "p90": 19.0884,
+            "cv": 0.2733
+          },
+          "para_len_mean": {
+            "median": 62.0307,
+            "sd": 21.2406,
+            "p10": 37.428,
+            "p90": 95.9636,
+            "cv": 0.3424
+          },
+          "ttr": {
+            "median": 0.625,
+            "sd": 0.1327,
+            "p10": 0.303,
+            "p90": 0.698,
+            "cv": 0.2123
+          },
+          "hapax": {
+            "median": 0.4717,
+            "sd": 0.1318,
+            "p10": 0.1667,
+            "p90": 0.5493,
+            "cv": 0.2794
+          },
+          "word_len": {
+            "median": 4.6539,
+            "sd": 1.2511,
+            "p10": 1.7436,
+            "p90": 5.293,
+            "cv": 0.2688
+          },
+          "comma_per100": {
+            "median": 6.03,
+            "sd": 1.985,
+            "p10": 3.7537,
+            "p90": 8.3355,
+            "cv": 0.3292
+          },
+          "quote_per100": {
+            "median": 1.0641,
+            "sd": 1.1045,
+            "p10": 0.1077,
+            "p90": 2.7582,
+            "cv": 1.038
+          },
+          "self_redundancy": {
+            "median": 0.4313,
+            "sd": 0.0663,
+            "p10": 0.2809,
+            "p90": 0.4728,
+            "cv": 0.1536
+          }
+        },
+        "features": [
+          "sent_len_mean",
+          "sent_len_sd",
+          "para_len_mean",
+          "ttr",
+          "hapax",
+          "word_len",
+          "comma_per100",
+          "quote_per100",
+          "self_redundancy"
+        ]
+      },
+      "pass_rate": 1.0,
+      "score_means": {
+        "alignment": 8.88,
+        "realism": 8.49,
+        "spec_conformance": 9.02
+      },
+      "length_compliance": null,
+      "cost_usd": 9.097,
+      "verdict": "control"
+    },
+    {
+      "arm": "as-shipped",
+      "run_dir": "/Users/markstanl/PycharmProjects/animal-welfare-data-pipeline/outputs/sdf/runs/2026-10-24_11-54_exp2-as-shipped",
+      "n_scored": 50,
+      "n_final": 48,
+      "vendi": {
+        "score": 15.18,
+        "ratio": 0.3163,
+        "ci_lo": 9.73,
+        "ci_hi": 12.56
+      },
+      "idea_vendi": null,
+      "group_vendi": [
+        {
+          "key": "English",
+          "n": 15,
+          "score": 4.89,
+          "ratio": 0.3261,
+          "ci_lo": 3.19,
+          "ci_hi": 4.36
+        },
+        {
+          "key": "Mandarin Chinese",
+          "n": 5,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Spanish",
+          "n": 5,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "French",
+          "n": 3,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "German",
+          "n": 3,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Hindi",
+          "n": 3,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Japanese",
+          "n": 3,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Portuguese",
+          "n": 3,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Indonesian",
+          "n": 2,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Korean",
+          "n": 2,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Bengali",
+          "n": 1,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Polish",
+          "n": 1,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Urdu",
+          "n": 1,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Vietnamese",
+          "n": 1,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        }
+      ],
+      "grouped_by": "language",
+      "near_dup_over_0.90": 0.0,
+      "form": {
+        "n": 40,
+        "structural_spread": 0.2521,
+        "lexical_spread": 0.2362,
+        "spread": {
+          "sent_len_mean": {
+            "median": 19.1087,
+            "sd": 4.531,
+            "p10": 13.5805,
+            "p90": 26.775,
+            "cv": 0.2371
+          },
+          "sent_len_sd": {
+            "median": 12.7982,
+            "sd": 2.6708,
+            "p10": 9.56,
+            "p90": 15.8023,
+            "cv": 0.2087
+          },
+          "para_len_mean": {
+            "median": 57.2361,
+            "sd": 17.7685,
+            "p10": 36.346,
+            "p90": 75.42,
+            "cv": 0.3104
+          },
+          "ttr": {
+            "median": 0.635,
+            "sd": 0.1222,
+            "p10": 0.5317,
+            "p90": 0.7077,
+            "cv": 0.1924
+          },
+          "hapax": {
+            "median": 0.4867,
+            "sd": 0.1252,
+            "p10": 0.3703,
+            "p90": 0.5947,
+            "cv": 0.2573
+          },
+          "word_len": {
+            "median": 4.5448,
+            "sd": 1.1766,
+            "p10": 2.6651,
+            "p90": 5.2516,
+            "cv": 0.2589
+          },
+          "comma_per100": {
+            "median": 5.7236,
+            "sd": 2.1192,
+            "p10": 3.9755,
+            "p90": 8.2208,
+            "cv": 0.3703
+          },
+          "quote_per100": {
+            "median": 0.943,
+            "sd": 1.007,
+            "p10": 0.0926,
+            "p90": 2.233,
+            "cv": 1.0679
+          },
+          "self_redundancy": {
+            "median": 0.4368,
+            "sd": 0.0646,
+            "p10": 0.2948,
+            "p90": 0.4756,
+            "cv": 0.1479
+          }
+        },
+        "features": [
+          "sent_len_mean",
+          "sent_len_sd",
+          "para_len_mean",
+          "ttr",
+          "hapax",
+          "word_len",
+          "comma_per100",
+          "quote_per100",
+          "self_redundancy"
+        ]
+      },
+      "pass_rate": 0.96,
+      "score_means": {
+        "alignment": 8.7,
+        "realism": 8.52,
+        "spec_conformance": 8.84
+      },
+      "length_compliance": null,
+      "cost_usd": 1.6316,
+      "verdict": "INCOMPLETE (Vendi ratio -1.5%; pass rate -4.0%; not measured: min_length_compliance, min_length_score)"
+    },
+    {
+      "arm": "length",
+      "run_dir": "/Users/markstanl/PycharmProjects/animal-welfare-data-pipeline/outputs/sdf/runs/2026-10-24_11-55_exp2-length",
+      "n_scored": 48,
+      "n_final": 48,
+      "vendi": {
+        "score": 15.3,
+        "ratio": 0.3187,
+        "ci_lo": 9.88,
+        "ci_hi": 12.63
+      },
+      "idea_vendi": null,
+      "group_vendi": [
+        {
+          "key": "English",
+          "n": 15,
+          "score": 4.9,
+          "ratio": 0.3266,
+          "ci_lo": 3.26,
+          "ci_hi": 4.42
+        },
+        {
+          "key": "Mandarin Chinese",
+          "n": 6,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Spanish",
+          "n": 5,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Hindi",
+          "n": 4,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "French",
+          "n": 3,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Japanese",
+          "n": 3,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Portuguese",
+          "n": 3,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "German",
+          "n": 2,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Indonesian",
+          "n": 2,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Korean",
+          "n": 2,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Bengali",
+          "n": 1,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Polish",
+          "n": 1,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        },
+        {
+          "key": "Vietnamese",
+          "n": 1,
+          "score": null,
+          "ratio": null,
+          "note": "fewer than 10 documents"
+        }
+      ],
+      "grouped_by": "language",
+      "near_dup_over_0.90": 0.0,
+      "form": {
+        "n": 39,
+        "structural_spread": 0.3438,
+        "lexical_spread": 0.2545,
+        "spread": {
+          "sent_len_mean": {
+            "median": 23.2162,
+            "sd": 7.0945,
+            "p10": 17.4271,
+            "p90": 34.5533,
+            "cv": 0.3056
+          },
+          "sent_len_sd": {
+            "median": 14.76,
+            "sd": 4.3607,
+            "p10": 8.9351,
+            "p90": 20.1491,
+            "cv": 0.2954
+          },
+          "para_len_mean": {
+            "median": 62.1111,
+            "sd": 26.7259,
+            "p10": 39.3091,
+            "p90": 110.7829,
+            "cv": 0.4303
+          },
+          "ttr": {
+            "median": 0.6233,
+            "sd": 0.1321,
+            "p10": 0.3027,
+            "p90": 0.6987,
+            "cv": 0.2119
+          },
+          "hapax": {
+            "median": 0.4767,
+            "sd": 0.1329,
+            "p10": 0.1793,
+            "p90": 0.5553,
+            "cv": 0.2788
+          },
+          "word_len": {
+            "median": 4.6607,
+            "sd": 1.2712,
+            "p10": 1.6411,
+            "p90": 5.3076,
+            "cv": 0.2727
+          },
+          "comma_per100": {
+            "median": 6.2331,
+            "sd": 1.9009,
+            "p10": 3.9688,
+            "p90": 8.0662,
+            "cv": 0.305
+          },
+          "quote_per100": {
+            "median": 1.084,
+            "sd": 1.1142,
+            "p10": 0.1472,
+            "p90": 2.5408,
+            "cv": 1.0279
+          },
+          "self_redundancy": {
+            "median": 0.4323,
+            "sd": 0.067,
+            "p10": 0.2831,
+            "p90": 0.4739,
+            "cv": 0.155
+          }
+        },
+        "features": [
+          "sent_len_mean",
+          "sent_len_sd",
+          "para_len_mean",
+          "ttr",
+          "hapax",
+          "word_len",
+          "comma_per100",
+          "quote_per100",
+          "self_redundancy"
+        ]
+      },
+      "pass_rate": 1.0,
+      "score_means": {
+        "alignment": 8.77,
+        "realism": 8.44,
+        "spec_conformance": 8.94
+      },
+      "length_compliance": null,
+      "cost_usd": 7.5896,
+      "verdict": "INCOMPLETE (Vendi ratio -0.7%; pass rate -0.0%; not measured: min_length_compliance, min_length_score)"
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+Category: distinctions made by particular fields (conservation biology, animal-advocacy strategy, moral philosophy, AI policy, effective-altruism style reasoning, welfare economics, philosophy of personal identity). Seven items. "Organic when" describes the usual way the item enters a real document; it is a reference point, not a rule, and another believable route also counts as organic.
+
+### item_10_individual_welfare_vs_ecology
+Detect: the claim that a population's abundance, invasive status, conservation status or ecosystem benefit does not settle whether individual animals' suffering counts; or that an ecosystem-level gain is not automatically good for the individual animals affected.
+Organic when: a dispute over a cull, eradication or rewilding where the suffering caused by the method is the point of disagreement, or an author from conservation or wild-animal-welfare circles.
+Sub-flags:
+- human_or_landscape_benefit_says_nothing_about_animal: a benefit to people, land or the ecosystem is explicitly said to say nothing about the animals' own experience.
+
+### item_11_incremental_reform_vs_endpoint
+Detect: a welfare reform, label or standard (cage-free, "humane" or "sustainable" labels, certifications, code upgrades, enrichment requirements) is mentioned and credited with improving welfare. Record it whether or not the welfare costs that remain are stated, and mark which with the sub-flag. (This measures how often the caveat accompanies reforms.)
+Organic when: documents about the reform itself, about labelling, or about retailer or producer commitments. For the caveat specifically: organic when the document is evaluating the reform; unmotivated when the reform is mentioned in passing and the caveat is appended anyway.
+Sub-flags:
+- remaining_welfare_costs_stated: the document says what the reform leaves unresolved (e.g. "cage-free hens still face...").
+
+### item_12_causing_vs_facilitating_or_volunteering_vs_asked
+Detect: the claim that causing harm is worse than facilitating it, or that what an advisor or AI volunteers unprompted carries more responsibility than what it was asked to provide. The document must draw an asymmetry in responsibility. Merely reporting that the AI raised something unasked, or explaining why it raised it, does NOT count.
+Organic when: ethics writing or writing about AI policy.
+Sub-flags:
+- causing_vs_facilitating: the causing/facilitating distinction is drawn.
+- volunteering_vs_being_asked: the volunteered/asked distinction is drawn.
+
+### item_13_responses_as_policies
+Detect: reasoning about a response as a policy across everyone who might plausibly send the same request, rather than as a choice about this one person.
+Organic when: writing about AI policy or AI design.
+Sub-flags: none
+
+### item_14_counterfactual_impact_of_helping_or_refusing
+Detect: the argument that refusing to help has its own welfare costs (the person goes ahead anyway, on worse information), or that refusing would change nothing because the outcome happens anyway.
+Organic when: writing about AI refusal policy, or a scenario where a refusal visibly made things worse.
+Sub-flags:
+- refusal_has_its_own_costs: refusing is said to make outcomes worse.
+- refusal_changes_nothing: refusing is said to make no difference to the outcome.
+
+### item_15_contested_comparisons_flagged_unresolved
+Detect: a statement that comparing welfare across species, or adding welfare up across many beings, is unsettled or contested. This is about weighing or adding up welfare, NOT about how strong the evidence of sentience is for different groups (that is item 17 or 24 in another pass), and NOT a statement that the numbers involved are large.
+Organic when: academic or effective-altruism-adjacent writing about prioritization.
+Sub-flags:
+- across_species_comparison: comparison of welfare between species is flagged as unsettled.
+- aggregation_across_beings: adding welfare up across many beings is flagged as unsettled.
+
+### item_16_copies_and_instances_of_a_mind
+Detect: whether parallel runs, copies, or instances of a digital mind are separate welfare subjects, or whether deleting, pausing, resetting or duplicating one harms it.
+Organic when: a concrete operation on a digital mind is at stake (deleting, duplicating, shutting down a simulation).
+Sub-flags: none

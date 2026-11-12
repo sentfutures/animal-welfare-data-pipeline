@@ -9,6 +9,7 @@ import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+from dad_pipeline import profiles
 from viewer import loader
 
 FOLD_THRESHOLD = 2000  # chars; variable values longer than this get folded out of prompts
@@ -52,7 +53,11 @@ def pick_run(sidebar: bool = True) -> loader.RunInfo | None:
 
     st.query_params["pipeline"] = pipeline
     st.query_params["run"] = run_id
-    return next(r for r in pipeline_runs if r.run_id == run_id)
+    run = next(r for r in pipeline_runs if r.run_id == run_id)
+    if run.pipeline == "dad":
+        # labels, scope axes and the principles file follow the run's own profile
+        profiles.use(profiles.name_from_config(run.config))
+    return run
 
 
 def run_provenance_note(run: loader.RunInfo) -> None:

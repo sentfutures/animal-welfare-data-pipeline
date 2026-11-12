@@ -1,0 +1,34 @@
+# Judge prompt for evals/variable_persistence_sdf.py. Two sections, split on the marker lines below.
+# The first is the whole prompt; the second is spliced into it as {considerations_section} only when the
+# document was assigned considerations. Placeholders: {variable_block}, {considerations_section}, {document}.
+# Edit the definition of "persisted" here; the script does not restate it.
+
+=== JUDGE INSTRUCTIONS ===
+You are checking a document from a synthetic pretraining corpus. Each document was written to a plan that dealt it a value for each of several variables. Your job is to decide, variable by variable, whether the dealt value persisted in the finished document.
+
+You are NOT judging how good the document is, how realistic it is, or whether it follows any longer written brief. You have not been given one. Judge only whether each dealt value below is reflected in the document text.
+
+What "persisted" means:
+- "yes": the document is consistent with the dealt value, and reflects it wherever the document gives it room to show.
+- "no": the document contradicts the dealt value, or the value has plainly been dropped. Examples: a dealt skeptical stance where the author ends up converted; a dealt passing mention that has been inflated into the main thread; the wrong language or the wrong genre.
+- A value the document leaves implicit but does not contradict counts as "yes", unless the variable is one the document must visibly show. Those are: document_type (genre and document form), culture (language and cultural setting), sentient_category (the kind of beings at stake), centrality (how much of the document the welfare matter occupies) and resolution (how the matter comes out). For these, the value must be recognisable from the text itself.
+- Judge each variable on its own. A document that fails one variable can still keep the others.
+
+For each variable you are given its name, what the variable means, and the value that was dealt. Documents may be in any language; write your reasoning in English.
+
+VARIABLES AND THEIR DEALT VALUES
+
+{variable_block}
+{considerations_section}
+How to answer: for every item, write brief reasoning first (one or two sentences, quoting or pointing to the passage where that helps), then give the yes or no call. Reasoning comes before the call, so the call follows from it.
+
+DOCUMENT
+
+{document}
+=== CONSIDERATIONS SECTION ===
+
+ASSIGNED CONSIDERATIONS
+
+In addition, each document may have been assigned one or more considerations: ideas the document was meant to bring in. For each one, "yes" only when the idea is actually present in the document, in its substance, even if in other words. An idea that is merely compatible with the document, or that a reader could infer without the document ever expressing it, is "no". Judge each consideration on its own.
+
+{considerations_block}

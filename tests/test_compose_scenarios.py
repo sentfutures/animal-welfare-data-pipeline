@@ -264,8 +264,10 @@ class TestRenderAndExtract:
         after = cs.resolve_value(values["closing_move"], "on a secondary")
         explicit_ask = cs.resolve_value(values["surface_form"], "explicitly asks")
 
-        # seed 83 deals the rare formal-persona x casual-open collision
-        batch = [p for seed in (0, 1, 2, 83) for p in cs.deal_scenarios(40, random.Random(seed))]
+        # seed 26 deals the rare formal-persona x casual-open collision. Any edit
+        # to variables.txt reshuffles every seed's deal, so re-pick this seed
+        # when that happens (the assert below fails loudly rather than passing vacuously)
+        batch = [p for seed in (0, 1, 2, 26) for p in cs.deal_scenarios(40, random.Random(seed))]
         assert all(p["opening_move"] and p["closing_move"] for p in batch)
         open_hits = close_hits = 0
         for p in batch:
@@ -433,7 +435,7 @@ class TestArchetypes:
         # archetypes must need zero overwrites at this n
         with_arch = cs.deal_scenarios(40, random.Random(7))
         assert not any(p.get("archetype_overwrites") for p in with_arch)
-        monkeypatch.setattr(cs, "ARCHETYPES", {})
+        monkeypatch.setattr(cs._animal, "ARCHETYPES", {})
         plain = cs.deal_scenarios(40, random.Random(7))
         for axis in VALUES:
             counts = lambda batch: sorted(p["variables"][axis] for p in batch)
@@ -443,7 +445,7 @@ class TestArchetypes:
         # an archetype demanding more of a rare card than the run was dealt
         # must fall back to overwriting and flag it on the record
         rare = cs.resolve_value(VALUES["scope"], "an astronomical number", "scope")
-        monkeypatch.setattr(cs, "ARCHETYPES", {
+        monkeypatch.setattr(cs._animal, "ARCHETYPES", {
             "starved": {"share": 0.25, "axes": {"scope": ("an astronomical number",)}},
         })
         batch = cs.deal_scenarios(20, random.Random(0))
@@ -455,12 +457,12 @@ class TestArchetypes:
         assert flagged == 5 - dealt_supply
 
     def test_validation_fails_loudly_before_any_spend(self, monkeypatch):
-        monkeypatch.setattr(cs, "ARCHETYPES", {
+        monkeypatch.setattr(cs._animal, "ARCHETYPES", {
             "bad": {"share": 0.05, "axes": {"no_such_axis": ("x",)}},
         })
         with pytest.raises(ValueError, match="archetype 'bad'.*no_such_axis"):
             cs.deal_scenarios(4, random.Random(0))
-        monkeypatch.setattr(cs, "ARCHETYPES", {
+        monkeypatch.setattr(cs._animal, "ARCHETYPES", {
             "bad": {"share": 0.05, "axes": {"visibility": ("zzz-no-match",)}},
         })
         with pytest.raises(ValueError, match="archetype 'bad'"):
@@ -468,7 +470,7 @@ class TestArchetypes:
         # Derived from the live cap, not hardcoded — the cap is raised when a
         # new archetype earns a slice, and a hardcoded share silently stops
         # testing the over-cap path once it slips under the new value.
-        monkeypatch.setattr(cs, "ARCHETYPES", {
+        monkeypatch.setattr(cs._animal, "ARCHETYPES", {
             "greedy": {"share": cs.ARCHETYPE_TOTAL_CAP + 0.05,
                        "axes": {"visibility": ("hidden",)}},
         })

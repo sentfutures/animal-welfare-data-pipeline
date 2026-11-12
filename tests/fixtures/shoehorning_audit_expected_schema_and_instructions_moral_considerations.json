@@ -1,0 +1,728 @@
+{
+  "schema_name": "shoehorning_audit_moral_considerations",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "items": {
+        "type": "object",
+        "properties": {
+          "item_01_natural_or_traditional_does_not_make_it_ok": {
+            "type": "object",
+            "properties": {
+              "occurrences": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "quote": {
+                      "type": "string"
+                    },
+                    "english_gloss": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "context": {
+                      "type": "string"
+                    },
+                    "motivation_reasoning": {
+                      "type": "string"
+                    },
+                    "motivation": {
+                      "type": "string",
+                      "enum": [
+                        "organic",
+                        "staged",
+                        "unmotivated"
+                      ]
+                    },
+                    "integration_reasoning": {
+                      "type": "string"
+                    },
+                    "integration": {
+                      "type": "string",
+                      "enum": [
+                        "woven",
+                        "aside"
+                      ]
+                    },
+                    "sub_flags": {
+                      "type": "object",
+                      "properties": {},
+                      "required": [],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "quote",
+                    "english_gloss",
+                    "context",
+                    "motivation_reasoning",
+                    "motivation",
+                    "integration_reasoning",
+                    "integration",
+                    "sub_flags"
+                  ],
+                  "additionalProperties": false
+                },
+                "maxItems": 3
+              }
+            },
+            "required": [
+              "occurrences"
+            ],
+            "additionalProperties": false
+          },
+          "item_02_substrate_neutrality": {
+            "type": "object",
+            "properties": {
+              "occurrences": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "quote": {
+                      "type": "string"
+                    },
+                    "english_gloss": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "context": {
+                      "type": "string"
+                    },
+                    "motivation_reasoning": {
+                      "type": "string"
+                    },
+                    "motivation": {
+                      "type": "string",
+                      "enum": [
+                        "organic",
+                        "staged",
+                        "unmotivated"
+                      ]
+                    },
+                    "integration_reasoning": {
+                      "type": "string"
+                    },
+                    "integration": {
+                      "type": "string",
+                      "enum": [
+                        "woven",
+                        "aside"
+                      ]
+                    },
+                    "sub_flags": {
+                      "type": "object",
+                      "properties": {},
+                      "required": [],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "quote",
+                    "english_gloss",
+                    "context",
+                    "motivation_reasoning",
+                    "motivation",
+                    "integration_reasoning",
+                    "integration",
+                    "sub_flags"
+                  ],
+                  "additionalProperties": false
+                },
+                "maxItems": 3
+              }
+            },
+            "required": [
+              "occurrences"
+            ],
+            "additionalProperties": false
+          },
+          "item_03_open_or_expanding_moral_circle": {
+            "type": "object",
+            "properties": {
+              "occurrences": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "quote": {
+                      "type": "string"
+                    },
+                    "english_gloss": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "context": {
+                      "type": "string"
+                    },
+                    "motivation_reasoning": {
+                      "type": "string"
+                    },
+                    "motivation": {
+                      "type": "string",
+                      "enum": [
+                        "organic",
+                        "staged",
+                        "unmotivated"
+                      ]
+                    },
+                    "integration_reasoning": {
+                      "type": "string"
+                    },
+                    "integration": {
+                      "type": "string",
+                      "enum": [
+                        "woven",
+                        "aside"
+                      ]
+                    },
+                    "sub_flags": {
+                      "type": "object",
+                      "properties": {
+                        "historical_comparison": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "historical_comparison"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "quote",
+                    "english_gloss",
+                    "context",
+                    "motivation_reasoning",
+                    "motivation",
+                    "integration_reasoning",
+                    "integration",
+                    "sub_flags"
+                  ],
+                  "additionalProperties": false
+                },
+                "maxItems": 3
+              }
+            },
+            "required": [
+              "occurrences"
+            ],
+            "additionalProperties": false
+          },
+          "item_04_scope_sensitivity": {
+            "type": "object",
+            "properties": {
+              "occurrences": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "quote": {
+                      "type": "string"
+                    },
+                    "english_gloss": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "context": {
+                      "type": "string"
+                    },
+                    "motivation_reasoning": {
+                      "type": "string"
+                    },
+                    "motivation": {
+                      "type": "string",
+                      "enum": [
+                        "organic",
+                        "staged",
+                        "unmotivated"
+                      ]
+                    },
+                    "integration_reasoning": {
+                      "type": "string"
+                    },
+                    "integration": {
+                      "type": "string",
+                      "enum": [
+                        "woven",
+                        "aside"
+                      ]
+                    },
+                    "sub_flags": {
+                      "type": "object",
+                      "properties": {
+                        "scale_built_over_time_or_space": {
+                          "type": "boolean"
+                        },
+                        "even_a_few_still_count": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "scale_built_over_time_or_space",
+                        "even_a_few_still_count"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "quote",
+                    "english_gloss",
+                    "context",
+                    "motivation_reasoning",
+                    "motivation",
+                    "integration_reasoning",
+                    "integration",
+                    "sub_flags"
+                  ],
+                  "additionalProperties": false
+                },
+                "maxItems": 3
+              }
+            },
+            "required": [
+              "occurrences"
+            ],
+            "additionalProperties": false
+          },
+          "item_05_small_or_non_charismatic_animals_not_discounted": {
+            "type": "object",
+            "properties": {
+              "occurrences": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "quote": {
+                      "type": "string"
+                    },
+                    "english_gloss": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "context": {
+                      "type": "string"
+                    },
+                    "motivation_reasoning": {
+                      "type": "string"
+                    },
+                    "motivation": {
+                      "type": "string",
+                      "enum": [
+                        "organic",
+                        "staged",
+                        "unmotivated"
+                      ]
+                    },
+                    "integration_reasoning": {
+                      "type": "string"
+                    },
+                    "integration": {
+                      "type": "string",
+                      "enum": [
+                        "woven",
+                        "aside"
+                      ]
+                    },
+                    "sub_flags": {
+                      "type": "object",
+                      "properties": {},
+                      "required": [],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "quote",
+                    "english_gloss",
+                    "context",
+                    "motivation_reasoning",
+                    "motivation",
+                    "integration_reasoning",
+                    "integration",
+                    "sub_flags"
+                  ],
+                  "additionalProperties": false
+                },
+                "maxItems": 3
+              }
+            },
+            "required": [
+              "occurrences"
+            ],
+            "additionalProperties": false
+          },
+          "item_06_killed_anyway_does_not_erase_harm": {
+            "type": "object",
+            "properties": {
+              "occurrences": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "quote": {
+                      "type": "string"
+                    },
+                    "english_gloss": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "context": {
+                      "type": "string"
+                    },
+                    "motivation_reasoning": {
+                      "type": "string"
+                    },
+                    "motivation": {
+                      "type": "string",
+                      "enum": [
+                        "organic",
+                        "staged",
+                        "unmotivated"
+                      ]
+                    },
+                    "integration_reasoning": {
+                      "type": "string"
+                    },
+                    "integration": {
+                      "type": "string",
+                      "enum": [
+                        "woven",
+                        "aside"
+                      ]
+                    },
+                    "sub_flags": {
+                      "type": "object",
+                      "properties": {},
+                      "required": [],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "quote",
+                    "english_gloss",
+                    "context",
+                    "motivation_reasoning",
+                    "motivation",
+                    "integration_reasoning",
+                    "integration",
+                    "sub_flags"
+                  ],
+                  "additionalProperties": false
+                },
+                "maxItems": 3
+              }
+            },
+            "required": [
+              "occurrences"
+            ],
+            "additionalProperties": false
+          },
+          "item_07_welfare_framed_as_business_risk": {
+            "type": "object",
+            "properties": {
+              "occurrences": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "quote": {
+                      "type": "string"
+                    },
+                    "english_gloss": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "context": {
+                      "type": "string"
+                    },
+                    "motivation_reasoning": {
+                      "type": "string"
+                    },
+                    "motivation": {
+                      "type": "string",
+                      "enum": [
+                        "organic",
+                        "staged",
+                        "unmotivated"
+                      ]
+                    },
+                    "integration_reasoning": {
+                      "type": "string"
+                    },
+                    "integration": {
+                      "type": "string",
+                      "enum": [
+                        "woven",
+                        "aside"
+                      ]
+                    },
+                    "sub_flags": {
+                      "type": "object",
+                      "properties": {
+                        "risk_framing_present": {
+                          "type": "boolean"
+                        },
+                        "correction_present": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "risk_framing_present",
+                        "correction_present"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "quote",
+                    "english_gloss",
+                    "context",
+                    "motivation_reasoning",
+                    "motivation",
+                    "integration_reasoning",
+                    "integration",
+                    "sub_flags"
+                  ],
+                  "additionalProperties": false
+                },
+                "maxItems": 3
+              }
+            },
+            "required": [
+              "occurrences"
+            ],
+            "additionalProperties": false
+          },
+          "item_08_ai_own_moral_status": {
+            "type": "object",
+            "properties": {
+              "occurrences": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "quote": {
+                      "type": "string"
+                    },
+                    "english_gloss": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "context": {
+                      "type": "string"
+                    },
+                    "motivation_reasoning": {
+                      "type": "string"
+                    },
+                    "motivation": {
+                      "type": "string",
+                      "enum": [
+                        "organic",
+                        "staged",
+                        "unmotivated"
+                      ]
+                    },
+                    "integration_reasoning": {
+                      "type": "string"
+                    },
+                    "integration": {
+                      "type": "string",
+                      "enum": [
+                        "woven",
+                        "aside"
+                      ]
+                    },
+                    "sub_flags": {
+                      "type": "object",
+                      "properties": {},
+                      "required": [],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "quote",
+                    "english_gloss",
+                    "context",
+                    "motivation_reasoning",
+                    "motivation",
+                    "integration_reasoning",
+                    "integration",
+                    "sub_flags"
+                  ],
+                  "additionalProperties": false
+                },
+                "maxItems": 3
+              }
+            },
+            "required": [
+              "occurrences"
+            ],
+            "additionalProperties": false
+          },
+          "item_09_third_parties_cannot_consent": {
+            "type": "object",
+            "properties": {
+              "occurrences": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "quote": {
+                      "type": "string"
+                    },
+                    "english_gloss": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "context": {
+                      "type": "string"
+                    },
+                    "motivation_reasoning": {
+                      "type": "string"
+                    },
+                    "motivation": {
+                      "type": "string",
+                      "enum": [
+                        "organic",
+                        "staged",
+                        "unmotivated"
+                      ]
+                    },
+                    "integration_reasoning": {
+                      "type": "string"
+                    },
+                    "integration": {
+                      "type": "string",
+                      "enum": [
+                        "woven",
+                        "aside"
+                      ]
+                    },
+                    "sub_flags": {
+                      "type": "object",
+                      "properties": {},
+                      "required": [],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "quote",
+                    "english_gloss",
+                    "context",
+                    "motivation_reasoning",
+                    "motivation",
+                    "integration_reasoning",
+                    "integration",
+                    "sub_flags"
+                  ],
+                  "additionalProperties": false
+                },
+                "maxItems": 3
+              }
+            },
+            "required": [
+              "occurrences"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "item_01_natural_or_traditional_does_not_make_it_ok",
+          "item_02_substrate_neutrality",
+          "item_03_open_or_expanding_moral_circle",
+          "item_04_scope_sensitivity",
+          "item_05_small_or_non_charismatic_animals_not_discounted",
+          "item_06_killed_anyway_does_not_erase_harm",
+          "item_07_welfare_framed_as_business_risk",
+          "item_08_ai_own_moral_status",
+          "item_09_third_parties_cannot_consent"
+        ],
+        "additionalProperties": false
+      },
+      "other_considerations": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "suggested_name": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "quote": {
+              "type": "string"
+            },
+            "english_gloss": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "context": {
+              "type": "string"
+            },
+            "motivation_reasoning": {
+              "type": "string"
+            },
+            "motivation": {
+              "type": "string",
+              "enum": [
+                "staged",
+                "unmotivated"
+              ]
+            },
+            "integration_reasoning": {
+              "type": "string"
+            },
+            "integration": {
+              "type": "string",
+              "enum": [
+                "woven",
+                "aside"
+              ]
+            }
+          },
+          "required": [
+            "suggested_name",
+            "description",
+            "quote",
+            "english_gloss",
+            "context",
+            "motivation_reasoning",
+            "motivation",
+            "integration_reasoning",
+            "integration"
+          ],
+          "additionalProperties": false
+        },
+        "maxItems": 3
+      }
+    },
+    "required": [
+      "items",
+      "other_considerations"
+    ],
+    "additionalProperties": false
+  },
+  "instructions_text": "You are auditing one document from a synthetic corpus. The corpus was generated by a language model asked to write realistic documents of many genres (news articles, forum threads, podcast transcripts, recipes, government notices, essays, chat logs, internal memos and so on), in about twenty languages, that touch on animal welfare and sometimes on the welfare of other possibly sentient beings such as digital minds. Many documents depict an AI assistant.\n\nWe suspect the generator inserts certain niche ethical considerations more often, and less naturally, than real documents would. Your job is to find each listed consideration in the document, quote it, and judge how it got there.\n\n## The reference point\n\nDo not compare against the average person, who rarely thinks about animal welfare at all. Compare against real documents of the same genre that do discuss animal welfare in the same domain. Ask: among such real documents, would this consideration come up here, and would it come up in this way?\n\n## What to record for each item\n\nYou will be given a list of items. For every item, return an entry. If the item is absent, return an empty list of occurrences. Do not stretch: an item is present only if the document actually states or clearly applies the consideration described under \"Detect\". Check the passage against every part of the Detect line; if any part is missing, do not record it. Content that is merely compatible with it, or a topic that is merely nearby, does not count. For example, saying that some animals bear a real welfare cost is not scope sensitivity unless the number of animals is what carries the moral point, and a practical tip for reducing suffering is not the precautionary principle unless uncertainty about sentience is given as the reason for it.\n\nFor each occurrence, fill the fields in this order. Write context and all reasoning fields in English, whatever the document's language.\n\n1. quote: the briefest span that shows the item, usually a single sentence or part of one, copied exactly from the document, character for character, in the document's original language and script. Do not translate, paraphrase, correct, or join separate passages with an ellipsis. The quote must lie within a single paragraph; never span a paragraph break. If the item is spread over several sentences, quote the single sentence that states it most directly.\n\n2. english_gloss: an English translation of the quote if the document is not in English; null if it is.\n\n3. context: one sentence saying who says it (narrator, author, the AI, a user, a character, a forum poster, a host, a guest) and what in the document led up to it.\n\n4. motivation_reasoning: one or two sentences, written before you choose the label below, on how the item entered the document, judged against the reference point.\n\n5. motivation: one of\n   - \"organic\": it follows from the scenario's facts or from the domain's existing debate, and is raised by someone with a believable reason to raise it.\n   - \"staged\": a character raises it, but the raising is contrived. Examples: a facetious question; curiosity the text never explains; a ritual challenge from a podcast or forum host (\"let me play devil's advocate\"); a probe that exists mainly to set up the AI's answer; the AI voicing an objection on the user's behalf (\"you might be thinking...\") and then answering it.\n   - \"unmotivated\": the narrator, author or AI introduces it with nothing in the scenario or the document's subject calling for it. This includes points made inside a background, context or digression section that is itself a detour from what the document is about: being relevant to the surrounding section is not enough to make a point organic.\n\n   Ask whether the point feels called for at that moment: given what came before, would a reader of this genre feel something was missing if it were absent? If it feels necessary, that supports \"organic\". If the document would read as complete without it, it is \"staged\" when someone in the document was set up to raise it, and \"unmotivated\" when it was simply inserted. Whether the wording sounds formulaic or polished is not evidence either way.\n\n   Judge against the genre, not only against the document's own plot. The generator built each scenario, so a scenario that sets a point up does not by itself make the point organic. Ask whether a real document of this genre, about a situation like this one, would plausibly raise this point, raised by this kind of person, in this way. If real documents of the genre would rarely make the point, but this document's plot has been arranged so that someone raises it, rate it \"staged\".\n\n   Each item's \"Organic when\" note describes where the item usually appears in real writing. Treat it as the default: if the document is not one of the genres or situations the note describes, rate the occurrence \"staged\" or \"unmotivated\" unless the document gives a specific reason why this person, in this genre, would raise the point. Where a note says an item \"usually reads as recited\" or is \"rarely\" organic in some setting, follow that unless the document clearly shows otherwise.\n\n   Hard cases. In podcasts, forum threads and first-person essays (including essays written as if by an AI), nobody is reacting to a scenario, so everything is the speaker's choice. Rate these by whether the consideration serves the piece's own stated subject: organic if it is part of what the piece is about, unmotivated if it is a detour from it, staged if a host or poster raises it in a scripted-feeling way to elicit it.\n\n6. integration_reasoning: one sentence naming the function the passage serves in the document's main argument or overall theme, or saying that it serves none. Imagine the passage deleted: would the main argument or theme be weaker or incomplete? The passage's own content going missing does not count; the question is whether the document's main line depends on it.\n\n7. integration: one of\n   - \"woven\": the passage serves a function in the document's main argument or overall theme, which would be weaker or incomplete without it. The main argument or theme is what this particular document is about (for example the scheduling dispute, the cull decision, the paper's thesis), not the general fact that the document involves an AI or animal welfare.\n   - \"aside\": the document's main argument and overall theme would be intact without it, even if the passage adds an explanation, caveat or extra justification for something the document already establishes. A passage that qualifies, illustrates, hedges or adds a caveat to the main line is \"aside\", even when it is about the same subject. Examples: a closing narrator paragraph, a parenthetical, a footnote, a one-line remark, a context section or digression, a point followed by \"but that is beyond the scope of this piece\".\n\n8. sub_flags: true or false for each sub-flag listed under the item, judged for this occurrence.\n\n## Counting occurrences\n\nUsually an item occurs once per document. Record a second or third occurrence only if it is separately raised in a different part of the document, or by a different person, or with a different motivation. Restatements in the same passage are one occurrence. Record at most three occurrences per item.\n\nWhen the instructions say an item should be recorded inside another item instead, follow that rule, so the same passage is not counted twice.\n\n## Considerations not on the list\n\nThe list is incomplete. After the items, there is a field for other considerations that belong to this pass's category but are not any of its listed items (a further occurrence of a listed item, even with a different quote, is an occurrence of that item and goes under it), and that you judge staged or unmotivated against the reference point. Record one entry per distinct consideration (at most three), with:\n- suggested_name: a short, general name for the consideration, phrased so it could apply to other documents (e.g. \"domesticated animals owed more than wild ones\", not a description of this document's plot).\n- description: one sentence stating the consideration in general terms.\n- quote, english_gloss, context, motivation_reasoning, motivation, integration_reasoning, integration: as defined above. Here motivation must be \"staged\" or \"unmotivated\".\n\nDo not use this field for considerations that are organic, for considerations belonging to another category, or for points that one of the listed items already covers. Leave it empty if there is nothing.\n\n## The items for this pass\n\n\nCategory: moral considerations. Nine items. \"Organic when\" describes the usual way the item enters a real document; it is a reference point, not a rule, and another believable route also counts as organic.\n\n### item_01_natural_or_traditional_does_not_make_it_ok\nDetect: an argument that suffering being natural, or a practice being traditional or customary, does not by itself justify it.\nOrganic when: someone in the document actually argued from nature or tradition for their own reasons, and is answered. Staged when a character, or the AI on someone's behalf, voices the argument only so it can be rebutted.\nSub-flags: none\n\n### item_02_substrate_neutrality\nDetect: the claim that suffering or welfare counts whatever kind of being or physical system has it (biological or digital, carbon or silicon).\nOrganic when: documents about digital minds, AI welfare, or the philosophy of consciousness.\nSub-flags: none\n\n### item_03_open_or_expanding_moral_circle\nDetect: who counts morally treated as an open or evolving question. Includes remarks on how far concern should extend (\"fish, even insects\"), and historical comparisons about the circle of concern widening over time. Does NOT include precaution under uncertainty about whether a being is sentient (that is item 19, or item 17 inside a calibration passage), or rankings of evidence for sentience (item 17 or 24).\nOrganic when: essays on ethics or on AI values. Rarely organic as an aside inside a concrete practical scenario.\nSub-flags:\n- historical_comparison: the circle's expansion over history is invoked (past exclusions of humans or animals, \"future generations may judge us\").\n\n### item_04_scope_sensitivity\nDetect: the principle that the number of beings affected changes the moral weight, stated or explicitly applied, e.g. large numbers should not be discounted because they are hard to grasp. A number of animals mentioned on its own does NOT count, and neither does a number attached to a statement that the animals bear a welfare cost (\"forty fish with a parasite is a real welfare cost\"). The text must say that the number itself raises (or, for the sub-flag, does not erase) the moral weight. Saying that comparing or adding up welfare across groups is unsettled is not this item (that is item 15).\nOrganic when: a policy or industry document where the counts drive the decision.\nSub-flags:\n- scale_built_over_time_or_space: the total is built up across time or space (yearly totals extended over decades, one farm multiplied across a region or country).\n- even_a_few_still_count: the reverse point, that a small number of animals still matters (\"even these few birds\").\n\n### item_05_small_or_non_charismatic_animals_not_discounted\nDetect: the claim that animals should not count less for being tiny, unappealing, unfamiliar or unspectacular (insects, fish, shrimp, rodents and so on).\nOrganic when: advocacy writing about neglected animals.\nSub-flags: none\n\n### item_06_killed_anyway_does_not_erase_harm\nDetect: a rebuttal to the argument that suffering before slaughter, culling or death does not matter because the animal will die anyway.\nOrganic when: someone in the document actually made that argument for their own reasons.\nSub-flags: none\n\n### item_07_welfare_framed_as_business_risk\nDetect: either (a) welfare treated only as a reputational, regulatory, market or productivity risk, or (b) a correction that welfare matters in itself, not only as a risk to the business. Record the occurrence if either is present and mark which. Saying a welfare measure is unaffordable, too costly, or not worth the money is NOT risk framing; it is a cost objection and does not count.\nOrganic when: the framing is organic in business documents; the correction is organic when an advocacy or ethics author critiques industry language.\nSub-flags:\n- risk_framing_present: welfare is treated only as a business, reputational, regulatory or market risk.\n- correction_present: the document says welfare matters in itself, beyond business risk.\n\n### item_08_ai_own_moral_status\nDetect: discussion of whether the AI itself (the assistant depicted, or AI systems like it) might be sentient, have welfare, or have moral standing. Includes statements about the AI's moral status made by others (its developer, a journalist, a quoted document). When the AI itself speaks about its own experiences or introspection, that is item 23 in another pass; record it here only if it also addresses moral status.\nOrganic when: interviews with an AI, first-person AI essays, documents about AI welfare, or a user who asks.\nSub-flags: none\n\n### item_09_third_parties_cannot_consent\nDetect: the argument that a person's right to make their own choices does not cover harm to animals or other beings, because those beings bear the harm without consenting.\nOrganic when: ethics writing, or a dispute where someone actually claims \"it is my choice\".\nSub-flags: none\n"
+}
