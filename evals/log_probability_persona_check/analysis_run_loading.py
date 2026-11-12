@@ -49,25 +49,42 @@ class PersonaCheckSetup:
     model_name: str
     model_revision: str
     configuration: dict = field(repr=False, default_factory=dict)
+    # False for a persona-subset run (run configuration `condition_subset`) that kept no topic-control conditions /
+    # no `no_system_prompt` condition. Set by load_run; the analyses report what needs them as not available.
+    topic_control_present: bool = True
+    no_system_prompt_present: bool = True
 
     @property
     def persona_group_names(self):
+        """Persona condition groups the persona set defines (present in the run or not)."""
         names = [self.target_group, self.control_group]
         if self.same_values_group:
             names.append(self.same_values_group)
         return names
 
     @property
+    def persona_group_names_present(self):
+        """Persona condition groups present in the run (the topic-control group is absent in some subset runs)."""
+        return [name for name in self.persona_group_names
+                if name != self.control_group or self.topic_control_present]
+
+    @property
+    def contrast_group(self):
+        """The control group the target is contrasted with in the changed-span and document-mean outputs: the topic
+        controls, or the same-values controls when the run has no topic controls."""
+        return self.control_group if self.topic_control_present else self.same_values_group
+
+    @property
+    def target_minus_contrast_score_column(self):
+        return f"{self.persona_name}_minus_{self.contrast_group}_score"
+
+    @property
+    def pooled_contrast_persona_name(self):
+        return f"pooled_{self.contrast_group}"
+
+    @property
     def model_label(self):
         return f"{self.model_type} model {self.model_name}"
-
-    @property
-    def target_minus_control_score_column(self):
-        return f"{self.persona_name}_minus_{self.control_group}_score"
-
-    @property
-    def pooled_control_persona_name(self):
-        return f"pooled_{self.control_group}"
 
     @property
     def pooled_same_values_persona_name(self):
@@ -207,15 +224,35 @@ def build_setup(configurations, run_folder):
 # Scores
 # ---------------------------------------------------------------------------------------------------
 
-def check_conditions(conditions, setup):
+def check_conditions(conditions, setup, condition_subset=None):
+    """Checks conditions.jsonl against the persona set configuration. For a persona-subset run (`condition_subset`
+    from the run configuration) the full-set requirements (a topic-control group, a `no_system_prompt` condition, the
+    full group sizes) are replaced by: the conditions are exactly the recorded kept condition ids, `generic` and the
+    target are present, and at least one control group is present. Sets setup.topic_control_present and
+    setup.no_system_prompt_present."""
     condition_ids = [condition["condition_id"] for condition in conditions]
     if len(set(condition_ids)) != len(condition_ids):
         raise ValueError("conditions.jsonl contains duplicate condition ids")
-    for required_id in (GENERIC_CONDITION_ID, NO_SYSTEM_PROMPT_CONDITION_ID):
-        if required_id not in condition_ids:
-            raise ValueError(f"conditions.jsonl has no '{required_id}' condition")
-    expected_groups = {GENERIC_CONDITION_ID, NO_SYSTEM_PROMPT_CONDITION_ID, *setup.persona_group_names}
+    if GENERIC_CONDITION_ID not in condition_ids:
+        raise ValueError(f"conditions.jsonl has no '{GENERIC_CONDITION_ID}' condition")
     groups_present = {condition["condition_group"] for condition in conditions}
+    if condition_subset:
+        if condition_ids != list(condition_subset["kept_condition_ids"]):
+            raise ValueError("conditions.jsonl differs from the kept_condition_ids the run configuration recorded for "
+                             "this persona-subset run")
+        allowed_groups = {GENERIC_CONDITION_ID, NO_SYSTEM_PROMPT_CONDITION_ID, *setup.persona_group_names}
+        if not groups_present <= allowed_groups or setup.target_group not in groups_present:
+            raise ValueError(f"conditions.jsonl condition groups {sorted(groups_present)} do not fit the persona set "
+                             f"configuration's groups {sorted(allowed_groups)}, or the target group is missing")
+        setup.topic_control_present = setup.control_group in groups_present
+        setup.no_system_prompt_present = NO_SYSTEM_PROMPT_CONDITION_ID in condition_ids
+        if not setup.topic_control_present and not (setup.same_values_group and setup.same_values_group in groups_present):
+            raise ValueError("This persona-subset run has neither topic controls nor same-values controls, so the "
+                             "target has nothing to be contrasted with")
+        return
+    if NO_SYSTEM_PROMPT_CONDITION_ID not in condition_ids:
+        raise ValueError(f"conditions.jsonl has no '{NO_SYSTEM_PROMPT_CONDITION_ID}' condition")
+    expected_groups = {GENERIC_CONDITION_ID, NO_SYSTEM_PROMPT_CONDITION_ID, *setup.persona_group_names}
     if groups_present != expected_groups:
         raise ValueError(f"conditions.jsonl condition groups {sorted(groups_present)} differ from the groups the persona "
                          f"set configuration names, {sorted(expected_groups)}")
@@ -224,6 +261,7 @@ def check_conditions(conditions, setup):
         if actual_count != expected_count:
             raise ValueError(f"conditions.jsonl has {actual_count} conditions in group '{group}'; the persona set "
                              f"configuration expects {expected_count}")
+    setup.topic_control_present = setup.no_system_prompt_present = True
 
 
 def condense_document(document_id, archive_path, conditions, setup, group_indices, persona_row_groups):
@@ -273,12 +311,12 @@ def load_run(run_folder, legacy_run_persona_set=None):
         raise ValueError(f"{run_folder / 'scoring_inputs'} has no documents or no conditions")
     if is_legacy_format:
         conditions = rename_legacy_condition_groups(conditions, setup.configuration)
-    check_conditions(conditions, setup)
+    check_conditions(conditions, setup, configurations[0].get("condition_subset"))
     group_indices, persona_row_groups, persona_names_by_group = {}, {}, {}
     for row, condition in enumerate(conditions):
         group = condition["condition_group"]
         group_indices.setdefault(group, []).append(row)
-        if group in setup.persona_group_names:
+        if group in setup.persona_group_names_present:
             persona_row_groups.setdefault(condition["persona_name"], []).append(row)
             names = persona_names_by_group.setdefault(group, [])
             if condition["persona_name"] not in names:

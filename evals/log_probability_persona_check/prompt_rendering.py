@@ -147,7 +147,7 @@ def render_generation_prompt(variables, document_id, generation_prompt_files: Ge
     missing = [name for name in variable_names if name not in variables]
     if missing:
         raise KeyError(f"Document {document_id} is missing variables: {missing}")
-    slot_values = {"in_universe_facts": files.in_universe_facts}
+    slot_values = {} if files.in_universe_facts is None else {"in_universe_facts": files.in_universe_facts}
     for name in variable_names:
         value = variables[name]
         if not isinstance(value, str) or not value.strip():
