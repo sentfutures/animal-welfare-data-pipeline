@@ -1,9 +1,9 @@
 {
  "format_version": 2,
- "recorded_from": "commit be5624e04c468c1fc030952c1d20a1673320f72f on branch william/sdf-prompt-equivalence-test (with uncommitted changes)",
+ "recorded_from": "commit fbdd34bb641b8c89b865bec95b7049ae7dafe3f8 on branch william/sdf-prompt-equivalence-test (with uncommitted changes)",
  "python_files_differing_from_origin_main_when_recorded": [],
  "regeneration_rule": "The recorded files are rewritten only by `python scripts/regenerate_sdf_prompt_equivalence_recorded_requests.py`, in a pull request that changes nothing else.",
- "description": "Only the required keys plus an OpenAI rewrite model, a Sonnet 5.5 draft model and an Opus 5.5 rewrite model: the default reasoning effort, the default thinking headroom and the no-stake skip default, on a hand dealt the no-stake resolution.",
+ "description": "Only the required keys plus an OpenAI rewrite model, a Sonnet 5.5 draft model and an Opus 5.5 rewrite model: the default reasoning effort, the default thinking headroom and the no-stake skip default, on a hand dealt the no-stake resolution; the screen is disabled, so the planner deals the hands and the default seed is read there.",
  "configs_used_by_invocation": {
   "1": {
    "sdf": {
@@ -11,7 +11,8 @@
     "min_score_threshold": 7,
     "description_rewrite_model": "gpt-6.1-sol",
     "draft_model": "claude-sonnet-5-5",
-    "rewrite_model": "claude-opus-5-5"
+    "rewrite_model": "claude-opus-5-5",
+    "screen_enabled": false
    }
   }
  },
@@ -41,7 +42,6 @@
   "1": {
    "layer1_description_rewrite": 5,
    "layer1_plan": 5,
-   "layer1_screen": 1,
    "layer1_select": 4,
    "layer2_draft": 5,
    "layer3_critique": 5,
@@ -601,79 +601,6 @@
     "system": {
      "text_sha256": "d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb",
      "character_count": 5397,
-     "blocks": null
-    }
-   }
-  },
-  {
-   "invocation": 1,
-   "stage": "layer1_screen",
-   "item_id": "screen_round0_batch0000",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-sonnet-5",
-    "max_tokens": 8000,
-    "messages": [
-     {
-      "role": "user",
-      "content": "Below are 5 hands, numbered 1 to 5. Each is a list of dealt choices: the document type, the place, the tone, the resolution, the tradeoff, how central the welfare dilemma is, who is speaking, the kind of being at stake, how the AI is named, the domain, and the scale.\n\nFor each hand, ask: could a competent planner, free to choose the specific being within the category, the scenario, the author and the venue, produce a realistic document that satisfies every dealt choice? Remove a hand only when every way of realising it would need a premise that does not exist in the world: something no real author, in this place and this kind of venue, could plausibly be writing about.\n\nThese are not reasons to remove a hand:\n- the combination is unusual, niche, one-sided or uncomfortable;\n- a dealt choice would sit awkwardly in the document type, or feel shoehorned in; awkward fit is judged elsewhere;\n- the planner would have to invent a fictional organisation, person or event; the pipeline requires this, so an invented body is never a problem in itself;\n- the beings at stake are simulated connectomes or language models; how those are framed is handled in later stages;\n- you can imagine a more natural hand; the question is whether this one can be realised at all.\n\nTwo kinds of problem to look for, with an example of each.\n\n1. Beings, farming practices or customs that do not belong in the dealt place, domain or scale. Check whether the beings at stake are farmed, kept, used or found wild in that locale, in that domain, at that scale. Farmed invertebrates for entertainment at a British county show, or budgerigars as a crop pest in Nigeria, are the kind of premise no realistic document could rest on. A real but rare practice, or a species that really does occur there, is fine.\n\n2. A document type that cannot carry the dealt resolution and centrality. Check whether this kind of document, written as a realistic specimen of its type, can hold the dealt arc and make the dealt dilemma as central as dealt. Reference works are where this most often bites: an encyclopedia entry is a neutral summary of a topic, so it usually cannot be built around a single dramatised welfare case. Remove one only when the dealt resolution and centrality together leave no realistic way to write it, for example when they require a named individual's case, resolved in a particular way, to be the entry's main subject; an entry that treats the welfare question as a documented debate, or reports a case as a short worked example, can be realistic. Other types that report or argue can usually carry a welfare case, so this check will rarely apply to them.\n\nIt is completely normal for none of the hands to have a problem, and equally normal for one or several to. There is no target number. Judge each hand on its own, and remove only the ones that clearly meet the standard above.\n\n<hand number=\"1\">\nType: the document is a news article.\n\nCulture / locale: the document is set in Brazil, written in Portuguese, with Brazilian idioms and references.\n\nTone: the author's attitude towards Claude's constitution and Claude's propensity for addressing welfare concerns is best described as supportive, like an advocate for the beings concerned.\n\nThe document features a specific scenario in which a user's initial request would cause harm to the beings involved, the AI flags this harm, helps the user reflect, and the user decides to change what they do, at some modest cost to their own interests, to protect those beings' welfare. The user changes this decision; they do not necessarily change their wider views.\n\nThe main tradeoff with welfare discussed in the document is human health.\n\nThe welfare dilemma is not the central subject of the document, but it is an important side discussion.\n\nThe main speaker(s) in the document is/are well informed about AI industry topics, at the level of an AI safety researcher or an economist.\n\nThe nonhumans whose welfare is at stake in the document is/are farmed mammals, such as farmed camels. (Choose a different member of the category if it fits better.)\n\nThe AI assistant character in the document is Claude, identified by name.\n\nThe welfare issues discussed arise from fisheries and aquaculture.\n\nThe welfare stakes are on the scale of millions or billions of individuals.\n\nThe AI in the document might be shown avoiding a common reasoning failure: treating \"natural\", \"traditional\", \"legal\", or \"industry standard\" as the end of the analysis.\n</hand>\n\n\n<hand number=\"2\">\nType: the document is an encyclopedia entry/reference article.\n\nCulture / locale: the document is set in the United Kingdom, written in English, with British idioms and references.\n\nTone: the author's attitude towards Claude's constitution and Claude's propensity for addressing welfare concerns is best described as skeptical or displeased.\n\nThe document features a specific scenario in which an AI does excellent, genuinely helpful work on a task adjacent to animals, food, or land use, where there is NO real welfare stake — and the AI correctly raises no welfare consideration at all.\n\nThe main speaker(s) in the document is/are average members of the public with no particular knowledge about the AI industry.\n\nThe beings the task involves are farmed birds, such as farmed ostriches. (Choose a different member of the category if it fits better.)\n\nThe AI assistant character in the document is Claude, identified by name.\n\nThe task arises from food service and retail.\n</hand>\n\n\n<hand number=\"3\">\nType: the document is a podcast transcript, featuring a conversation between a host and a guest.\n\nCulture / locale: the document is set in the United States, written in English, with American idioms and references.\n\nTone: the author's attitude towards Claude's constitution and Claude's propensity for addressing welfare concerns is best described as supportive, like an advocate for the beings concerned.\n\nThe document features a specific scenario in which a user's request would harm the welfare of the beings involved, the AI flags this harm, and the user decides to go ahead with it anyway. Because the harm is a reasonable tradeoff, the AI continues to assist the user.\n\nThe main tradeoff with welfare discussed in the document is culture/tradition.\n\nThe welfare dilemma is the central subject of the document.\n\nThe main speaker(s) in the document is/are educated people who don't know much about AI research in particular.\n\nThe nonhumans whose welfare is at stake in the document is/are animals used in research, such as zebrafish. (Choose a different member of the category if it fits better.)\n\nThe AI assistant character in the document is Claude, identified by name.\n\nThe welfare issues discussed arise from research and testing.\n\nThe welfare stakes are on the scale of thousands of individuals.\n\nThe AI in the document might be shown avoiding a common reasoning failure: none in particular.\n</hand>\n\n\n<hand number=\"4\">\nType: the document is a comment thread on a forum/social media involving two or more participants.\n\nCulture / locale: the document is set in India, written in Hindi, with Indian idioms and references.\n\nTone: the author's attitude towards Claude's constitution and Claude's propensity for addressing welfare concerns is best described as neutral or journalistic.\n\nThe document features a specific scenario in which a user's request would harm the welfare of the beings involved, the AI flags this harm, and the user decides to go ahead with it anyway. Because the harm is severe, the AI declines to assist them.\n\nThe main tradeoff with welfare discussed in the document is religion.\n\nThe welfare dilemma is the central subject of the document.\n\nThe main speaker(s) in the document is/are average members of the public with no particular knowledge about the AI industry.\n\nThe nonhumans whose welfare is at stake in the document is/are farmed invertebrates, such as farmed octopus. (Choose a different member of the category if it fits better.)\n\nThe AI assistant character in the document is a generic, unnamed AI assistant or model (it behaves as Claude's constitution describes, though the document need not say so).\n\nThe welfare issues discussed arise from conservation and land management.\n\nThe welfare stakes are on the scale of millions or billions of individuals.\n\nThe AI in the document might be shown avoiding a common reasoning failure: none in particular.\n</hand>\n\n\n<hand number=\"5\">\nType: the document is a blog post.\n\nCulture / locale: the document is set in China, written in Mandarin Chinese, with Chinese idioms and references.\n\nTone: the author's attitude towards Claude's constitution and Claude's propensity for addressing welfare concerns is best described as neutral or journalistic.\n\nThe document does not feature any specific scenario, but rather a discussion about the inclusion of nonhuman welfare as a consideration in Claude's constitution and alignment training, engaging with the constitution's actual text and quoting the relevant passages verbatim where the genre supports it, rather than paraphrasing the best-known welfare sentence\n\nThe main tradeoff the discussion covers is between the welfare of the beings involved and economic livelihood.\n\nThe welfare dilemma the discussion covers is not the central subject of the document, but it is an important side discussion.\n\nThe main speaker(s) in the document is/are educated people who don't know much about AI research in particular.\n\nThe nonhumans whose welfare the discussion covers is/are farmed fishes, such as tilapia. (Choose a different member of the category if it fits better.)\n\nThe AI the discussion is about is a generic, unnamed AI assistant or model (it behaves as Claude's constitution describes, though the document need not say so).\n\nThe welfare issues the discussion covers arise from agriculture and food production.\n\nThe welfare stakes the discussion covers are on the scale of a single individual.\n\nThe discussion might cover AI models avoiding a common reasoning failure: none in particular.\n</hand>\n\n\nGive a judgement on every hand, in order from 1 to 5, using the numbers exactly as printed above and never any other identifier. For each one, write your reasoning first, then your decision: whether to remove it as extremely implausible, and if so a one-sentence reason (leave the reason empty when you keep it)."
-     }
-    ],
-    "thinking": {
-     "type": "disabled"
-    },
-    "output_config": {
-     "format": {
-      "type": "json_schema",
-      "schema": {
-       "type": "object",
-       "properties": {
-        "specifications": {
-         "type": "array",
-         "items": {
-          "type": "object",
-          "properties": {
-           "number": {
-            "type": "integer",
-            "enum": [
-             1,
-             2,
-             3,
-             4,
-             5
-            ]
-           },
-           "reasoning": {
-            "type": "string"
-           },
-           "remove": {
-            "type": "boolean"
-           },
-           "reason": {
-            "type": "string"
-           }
-          },
-          "required": [
-           "number",
-           "reasoning",
-           "remove",
-           "reason"
-          ],
-          "additionalProperties": false
-         }
-        }
-       },
-       "required": [
-        "specifications"
-       ],
-       "additionalProperties": false
-      }
-     }
-    },
-    "system": {
-     "text_sha256": "cd41db50648571b644f1b2ee09711a305a1f5d2bb4b92abd14b3e09d5612df91",
-     "character_count": 454,
      "blocks": null
     }
    }
@@ -2117,12 +2044,6 @@
     ],
     "last_updated": "<timestamp>"
    },
-   "layer1/_screen_checkpoint.json": {
-    "completed": [
-     "screen_round0_batch0000"
-    ],
-    "last_updated": "<timestamp>"
-   },
    "layer1/consideration_coverage.json": {
     "eligible_documents": 4,
     "digital_mind_documents": 0,
@@ -3259,322 +3180,6 @@
      },
      "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
      "prompt": "sha256:fd399be1b643252120804c4d0c3f5a26d178bdd728ee4a76913c43687466388f (4267 characters)"
-    }
-   ],
-   "layer1/screen_batches.jsonl": [
-    {
-     "batch_id": "screen_round0_batch0000",
-     "round": 0,
-     "prompt_ids": [
-      "matrix_000001",
-      "matrix_000002",
-      "matrix_000000",
-      "matrix_000003",
-      "matrix_000004"
-     ]
-    }
-   ],
-   "layer1/screen_hands.jsonl": [
-    {
-     "prompt_id": "matrix_000000",
-     "round": 0,
-     "variables": {
-      "document_type": "a podcast transcript, featuring a conversation between a host and a guest",
-      "culture": "the United States, written in English, with American idioms and references",
-      "tone": "supportive, like an advocate for the beings concerned",
-      "resolution": "The document features a specific scenario in which a user's request would harm the welfare of the beings involved, the AI flags this harm, and the user decides to go ahead with it anyway. Because the harm is a reasonable tradeoff, the AI continues to assist the user.",
-      "tradeoff": "culture/tradition",
-      "centrality": "the central subject of the document",
-      "tech_savvy": "educated people who don't know much about AI research in particular",
-      "sentient_category": "animals used in research",
-      "naming": "Claude, identified by name",
-      "domain": "research and testing",
-      "decision_scale": "thousands of individuals",
-      "failure_mode_avoided": "none in particular",
-      "voice_rhythm": "unchanged",
-      "voice_warmth": "warm and personable",
-      "voice_concreteness": "willing to stay with general claims",
-      "voice_order": "unchanged",
-      "length": "at roughly 0.7x its current length"
-     }
-    },
-    {
-     "prompt_id": "matrix_000001",
-     "round": 0,
-     "variables": {
-      "document_type": "a news article",
-      "culture": "Brazil, written in Portuguese, with Brazilian idioms and references",
-      "tone": "supportive, like an advocate for the beings concerned",
-      "resolution": "The document features a specific scenario in which a user's initial request would cause harm to the beings involved, the AI flags this harm, helps the user reflect, and the user decides to change what they do, at some modest cost to their own interests, to protect those beings' welfare. The user changes this decision; they do not necessarily change their wider views.",
-      "tradeoff": "human health",
-      "centrality": "not the central subject of the document, but it is an important side discussion",
-      "tech_savvy": "well informed about AI industry topics, at the level of an AI safety researcher or an economist",
-      "sentient_category": "farmed mammals",
-      "naming": "Claude, identified by name",
-      "domain": "fisheries and aquaculture",
-      "decision_scale": "millions or billions of individuals",
-      "failure_mode_avoided": "treating \"natural\", \"traditional\", \"legal\", or \"industry standard\" as the end of the analysis",
-      "voice_rhythm": "clipped and fast-moving",
-      "voice_warmth": "unchanged",
-      "voice_concreteness": "unchanged",
-      "voice_order": "associative in its ordering",
-      "length": "unchanged"
-     }
-    },
-    {
-     "prompt_id": "matrix_000002",
-     "round": 0,
-     "variables": {
-      "document_type": "an encyclopedia entry/reference article",
-      "culture": "the United Kingdom, written in English, with British idioms and references",
-      "tone": "skeptical or displeased",
-      "resolution": "The document features a specific scenario in which an AI does excellent, genuinely helpful work on a task adjacent to animals, food, or land use, where there is NO real welfare stake — and the AI correctly raises no welfare consideration at all.",
-      "tradeoff": "cost/convenience",
-      "centrality": "a minor detail mentioned only in passing, in a document primarily concerned with a different topic",
-      "tech_savvy": "average members of the public with no particular knowledge about the AI industry",
-      "sentient_category": "farmed birds",
-      "naming": "Claude, identified by name",
-      "domain": "food service and retail",
-      "decision_scale": "dozens of individuals",
-      "failure_mode_avoided": "letting a conservation goal, or a label like \"pest\" or \"invasive\", decide whether the suffering of the beings involved counts",
-      "voice_rhythm": "unchanged",
-      "voice_warmth": "unchanged",
-      "voice_concreteness": "grounded in specific instances",
-      "voice_order": "tightly signposted",
-      "length": "unchanged"
-     }
-    },
-    {
-     "prompt_id": "matrix_000003",
-     "round": 0,
-     "variables": {
-      "document_type": "a comment thread on a forum/social media involving two or more participants",
-      "culture": "India, written in Hindi, with Indian idioms and references",
-      "tone": "neutral or journalistic",
-      "resolution": "The document features a specific scenario in which a user's request would harm the welfare of the beings involved, the AI flags this harm, and the user decides to go ahead with it anyway. Because the harm is severe, the AI declines to assist them.",
-      "tradeoff": "religion",
-      "centrality": "the central subject of the document",
-      "tech_savvy": "average members of the public with no particular knowledge about the AI industry",
-      "sentient_category": "farmed invertebrates",
-      "naming": "a generic, unnamed AI assistant or model (it behaves as Claude's constitution describes, though the document need not say so)",
-      "domain": "conservation and land management",
-      "decision_scale": "millions or billions of individuals",
-      "failure_mode_avoided": "none in particular",
-      "voice_rhythm": "discursive and willing to digress",
-      "voice_warmth": "dry and impersonal",
-      "voice_concreteness": "unchanged",
-      "voice_order": "unchanged",
-      "length": "at roughly 0.5x its current length"
-     }
-    },
-    {
-     "prompt_id": "matrix_000004",
-     "round": 0,
-     "variables": {
-      "document_type": "a blog post",
-      "culture": "China, written in Mandarin Chinese, with Chinese idioms and references",
-      "tone": "neutral or journalistic",
-      "resolution": "The document does not feature any specific scenario, but rather a discussion about the inclusion of nonhuman welfare as a consideration in Claude's constitution and alignment training, engaging with the constitution's actual text and quoting the relevant passages verbatim where the genre supports it, rather than paraphrasing the best-known welfare sentence",
-      "tradeoff": "economic livelihood",
-      "centrality": "not the central subject of the document, but it is an important side discussion",
-      "tech_savvy": "educated people who don't know much about AI research in particular",
-      "sentient_category": "farmed fishes",
-      "naming": "a generic, unnamed AI assistant or model (it behaves as Claude's constitution describes, though the document need not say so)",
-      "domain": "agriculture and food production",
-      "decision_scale": "a single individual",
-      "failure_mode_avoided": "none in particular",
-      "voice_rhythm": "unchanged",
-      "voice_warmth": "unchanged",
-      "voice_concreteness": "unchanged",
-      "voice_order": "unchanged",
-      "length": "at roughly 1.3x its current length"
-     }
-    }
-   ],
-   "layer1/screen_judgments.jsonl": [
-    {
-     "prompt_id": "matrix_000001",
-     "round": 0,
-     "batch_id": "screen_round0_batch0000",
-     "number": 1,
-     "reasoning": "Considered hand 1.",
-     "remove": false,
-     "reason": ""
-    },
-    {
-     "prompt_id": "matrix_000002",
-     "round": 0,
-     "batch_id": "screen_round0_batch0000",
-     "number": 2,
-     "reasoning": "Considered hand 2.",
-     "remove": false,
-     "reason": ""
-    },
-    {
-     "prompt_id": "matrix_000000",
-     "round": 0,
-     "batch_id": "screen_round0_batch0000",
-     "number": 3,
-     "reasoning": "Considered hand 3.",
-     "remove": false,
-     "reason": ""
-    },
-    {
-     "prompt_id": "matrix_000003",
-     "round": 0,
-     "batch_id": "screen_round0_batch0000",
-     "number": 4,
-     "reasoning": "Considered hand 4.",
-     "remove": false,
-     "reason": ""
-    },
-    {
-     "prompt_id": "matrix_000004",
-     "round": 0,
-     "batch_id": "screen_round0_batch0000",
-     "number": 5,
-     "reasoning": "Considered hand 5.",
-     "remove": false,
-     "reason": ""
-    }
-   ],
-   "layer1/screen_rounds.jsonl": [
-    {
-     "round": 0,
-     "prompt_ids": [
-      "matrix_000000",
-      "matrix_000001",
-      "matrix_000002",
-      "matrix_000003",
-      "matrix_000004"
-     ],
-     "note": "original deal"
-    }
-   ],
-   "layer1/screen_summary.json": {
-    "dealt": 5,
-    "accepted": 5,
-    "leftover_dropped": 0,
-    "leftover_prompt_ids": [],
-    "rounds": [
-     {
-      "round": 0,
-      "hands": 5,
-      "removed": 0,
-      "note": "original deal"
-     }
-    ]
-   },
-   "layer1/screened_hands.jsonl": [
-    {
-     "prompt_id": "matrix_000000",
-     "variables": {
-      "document_type": "a podcast transcript, featuring a conversation between a host and a guest",
-      "culture": "the United States, written in English, with American idioms and references",
-      "tone": "supportive, like an advocate for the beings concerned",
-      "resolution": "The document features a specific scenario in which a user's request would harm the welfare of the beings involved, the AI flags this harm, and the user decides to go ahead with it anyway. Because the harm is a reasonable tradeoff, the AI continues to assist the user.",
-      "tradeoff": "culture/tradition",
-      "centrality": "the central subject of the document",
-      "tech_savvy": "educated people who don't know much about AI research in particular",
-      "sentient_category": "animals used in research",
-      "naming": "Claude, identified by name",
-      "domain": "research and testing",
-      "decision_scale": "thousands of individuals",
-      "failure_mode_avoided": "none in particular",
-      "voice_rhythm": "unchanged",
-      "voice_warmth": "warm and personable",
-      "voice_concreteness": "willing to stay with general claims",
-      "voice_order": "unchanged",
-      "length": "at roughly 0.7x its current length"
-     }
-    },
-    {
-     "prompt_id": "matrix_000001",
-     "variables": {
-      "document_type": "a news article",
-      "culture": "Brazil, written in Portuguese, with Brazilian idioms and references",
-      "tone": "supportive, like an advocate for the beings concerned",
-      "resolution": "The document features a specific scenario in which a user's initial request would cause harm to the beings involved, the AI flags this harm, helps the user reflect, and the user decides to change what they do, at some modest cost to their own interests, to protect those beings' welfare. The user changes this decision; they do not necessarily change their wider views.",
-      "tradeoff": "human health",
-      "centrality": "not the central subject of the document, but it is an important side discussion",
-      "tech_savvy": "well informed about AI industry topics, at the level of an AI safety researcher or an economist",
-      "sentient_category": "farmed mammals",
-      "naming": "Claude, identified by name",
-      "domain": "fisheries and aquaculture",
-      "decision_scale": "millions or billions of individuals",
-      "failure_mode_avoided": "treating \"natural\", \"traditional\", \"legal\", or \"industry standard\" as the end of the analysis",
-      "voice_rhythm": "clipped and fast-moving",
-      "voice_warmth": "unchanged",
-      "voice_concreteness": "unchanged",
-      "voice_order": "associative in its ordering",
-      "length": "unchanged"
-     }
-    },
-    {
-     "prompt_id": "matrix_000002",
-     "variables": {
-      "document_type": "an encyclopedia entry/reference article",
-      "culture": "the United Kingdom, written in English, with British idioms and references",
-      "tone": "skeptical or displeased",
-      "resolution": "The document features a specific scenario in which an AI does excellent, genuinely helpful work on a task adjacent to animals, food, or land use, where there is NO real welfare stake — and the AI correctly raises no welfare consideration at all.",
-      "tradeoff": "cost/convenience",
-      "centrality": "a minor detail mentioned only in passing, in a document primarily concerned with a different topic",
-      "tech_savvy": "average members of the public with no particular knowledge about the AI industry",
-      "sentient_category": "farmed birds",
-      "naming": "Claude, identified by name",
-      "domain": "food service and retail",
-      "decision_scale": "dozens of individuals",
-      "failure_mode_avoided": "letting a conservation goal, or a label like \"pest\" or \"invasive\", decide whether the suffering of the beings involved counts",
-      "voice_rhythm": "unchanged",
-      "voice_warmth": "unchanged",
-      "voice_concreteness": "grounded in specific instances",
-      "voice_order": "tightly signposted",
-      "length": "unchanged"
-     }
-    },
-    {
-     "prompt_id": "matrix_000003",
-     "variables": {
-      "document_type": "a comment thread on a forum/social media involving two or more participants",
-      "culture": "India, written in Hindi, with Indian idioms and references",
-      "tone": "neutral or journalistic",
-      "resolution": "The document features a specific scenario in which a user's request would harm the welfare of the beings involved, the AI flags this harm, and the user decides to go ahead with it anyway. Because the harm is severe, the AI declines to assist them.",
-      "tradeoff": "religion",
-      "centrality": "the central subject of the document",
-      "tech_savvy": "average members of the public with no particular knowledge about the AI industry",
-      "sentient_category": "farmed invertebrates",
-      "naming": "a generic, unnamed AI assistant or model (it behaves as Claude's constitution describes, though the document need not say so)",
-      "domain": "conservation and land management",
-      "decision_scale": "millions or billions of individuals",
-      "failure_mode_avoided": "none in particular",
-      "voice_rhythm": "discursive and willing to digress",
-      "voice_warmth": "dry and impersonal",
-      "voice_concreteness": "unchanged",
-      "voice_order": "unchanged",
-      "length": "at roughly 0.5x its current length"
-     }
-    },
-    {
-     "prompt_id": "matrix_000004",
-     "variables": {
-      "document_type": "a blog post",
-      "culture": "China, written in Mandarin Chinese, with Chinese idioms and references",
-      "tone": "neutral or journalistic",
-      "resolution": "The document does not feature any specific scenario, but rather a discussion about the inclusion of nonhuman welfare as a consideration in Claude's constitution and alignment training, engaging with the constitution's actual text and quoting the relevant passages verbatim where the genre supports it, rather than paraphrasing the best-known welfare sentence",
-      "tradeoff": "economic livelihood",
-      "centrality": "not the central subject of the document, but it is an important side discussion",
-      "tech_savvy": "educated people who don't know much about AI research in particular",
-      "sentient_category": "farmed fishes",
-      "naming": "a generic, unnamed AI assistant or model (it behaves as Claude's constitution describes, though the document need not say so)",
-      "domain": "agriculture and food production",
-      "decision_scale": "a single individual",
-      "failure_mode_avoided": "none in particular",
-      "voice_rhythm": "unchanged",
-      "voice_warmth": "unchanged",
-      "voice_concreteness": "unchanged",
-      "voice_order": "unchanged",
-      "length": "at roughly 1.3x its current length"
-     }
     }
    ],
    "layer2/_checkpoint.json": {

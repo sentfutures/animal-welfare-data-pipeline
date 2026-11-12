@@ -1,6 +1,6 @@
 {
  "format_version": 2,
- "recorded_from": "commit be5624e04c468c1fc030952c1d20a1673320f72f on branch william/sdf-prompt-equivalence-test (with uncommitted changes)",
+ "recorded_from": "commit fbdd34bb641b8c89b865bec95b7049ae7dafe3f8 on branch william/sdf-prompt-equivalence-test (with uncommitted changes)",
  "python_files_differing_from_origin_main_when_recorded": [],
  "regeneration_rule": "The recorded files are rewritten only by `python scripts/regenerate_sdf_prompt_equivalence_recorded_requests.py`, in a pull request that changes nothing else.",
  "description": "A complete run whose plan, draft, rewrite and score files and checkpoints are then edited so that a record has no mark and a mark has no record; the resume must send no request.",

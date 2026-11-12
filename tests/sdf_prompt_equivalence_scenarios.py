@@ -103,6 +103,8 @@ def _remove_records(path: Path, key: str, ids: list[str]) -> None:
 
 
 def _remove_checkpoint_marks(path: Path, ids: list[str]) -> None:
+    if not path.exists():   # the stage wrote no checkpoint, so there is no mark to lose
+        return
     data = json.loads(path.read_text(encoding="utf-8"))
     data["completed"] = [i for i in data["completed"] if i not in ids]
     path.write_text(json.dumps(data), encoding="utf-8")
@@ -173,8 +175,8 @@ def _text_with_cosine_in_range(base_text: str, lowest: float, highest: float) ->
         for position in range(replaced):
             changed[3 + position * 2] = f"altered{position}"
         candidate = " ".join(changed)
-        _, dropped = textstats.near_dup_filter([base_text, candidate], 0.0)
-        similarity = dropped[0]["similarity"]
+        vectors = textstats.shingle_matrix([base_text, candidate])
+        similarity = round(float(vectors[0] @ vectors[1]), 4)
         if lowest <= similarity < highest:
             return candidate
     raise AssertionError(f"no variant of the text has a cosine in [{lowest}, {highest})")
@@ -377,19 +379,30 @@ def _configuration_scenarios() -> list[Scenario]:
             sdf_config_overrides={"n_prompts": 12}),
         Scenario(
             name="minimal_config_with_only_a_plan_model",
-            description="Only sdf.n_prompts, sdf.min_score_threshold and sdf.plan_model: every fallback chain "
+            description="Only sdf.n_prompts (12), sdf.min_score_threshold and sdf.plan_model: every fallback chain "
                         "(screen, select, description rewrite to the plan model; draft, rewrite, score to the "
-                        "global model) and every code default is used.",
-            invocations=(Invocation(),), reply_behaviour=small_scores, config_kind="minimal",
-            sdf_config_overrides={"plan_model": "claude-haiku-4-5"}),
+                        "global model) and every code default (screen batch size and redeal rounds, scoring "
+                        "attempts, seed, entity seed, revision style) is used. The screen removes two hands in "
+                        "each of rounds 0, 1 and 2; one document's scoring answer is unusable twice.",
+            invocations=(Invocation(),),
+            reply_behaviour=ReplyBehaviour(
+                screen_removals={"screen_round0_batch0000": [2, 5], "screen_round1_batch0000": [1, 2],
+                                 "screen_round2_batch0000": [1, 2]},
+                consideration_scores_by_item={_hand(0): {("moral", 0): 5, ("epistemic", 2): 5}, _hand(1): {("moral", 1): 5}},
+                overrides={("layer1_select", _hand(0), 1): _text(UNUSABLE_JSON),
+                           ("layer1_select", _hand(0), 2): _text(UNUSABLE_JSON)}),
+            config_kind="minimal",
+            sdf_config_overrides={"n_prompts": 12, "plan_model": "claude-haiku-4-5"}),
         Scenario(
             name="minimal_config_with_openai_rewrite_and_adaptive_thinking_models",
             description="Only the required keys plus an OpenAI rewrite model, a Sonnet 5.5 draft model and an "
                         "Opus 5.5 rewrite model: the default reasoning effort, the default thinking headroom "
-                        "and the no-stake skip default, on a hand dealt the no-stake resolution.",
+                        "and the no-stake skip default, on a hand dealt the no-stake resolution; the screen is disabled, so the "
+                        "planner deals the hands and the default seed is read there.",
             invocations=(Invocation(),), reply_behaviour=small_scores, config_kind="minimal",
             sdf_config_overrides={"n_prompts": 5, "description_rewrite_model": "gpt-6.1-sol",
-                                  "draft_model": "claude-sonnet-5-5", "rewrite_model": "claude-opus-5-5"},
+                                  "draft_model": "claude-sonnet-5-5", "rewrite_model": "claude-opus-5-5",
+                                  "screen_enabled": False},
             no_stake_weight_edit="one_in_five"),
         Scenario(
             name="temperature_kept_on_every_stage_with_a_two_call_revision",
@@ -406,6 +419,39 @@ def _configuration_scenarios() -> list[Scenario]:
             sdf_config_keys_to_remove=models_removed,
             top_level_config_overrides={"model": "claude-haiku-4-5", "temperature": 0.5}),
     ]
+
+
+def _deal_repair_scenario() -> Scenario:
+    return Scenario(
+        name="deal_repair_of_five_no_stake_hands_with_every_plan_call_failing",
+        description="Twenty-five hands with five dealt the no-stake resolution, all breaking the centrality deal "
+                    "rule and repaired by seeded swaps; every plan call then throws, so the run stops after the "
+                    "plan requests, which show the repaired hands.",
+        invocations=(Invocation(expected_exit_message_fragment="layer1_plan: every pending API call failed"),),
+        reply_behaviour=ReplyBehaviour(overrides={("layer1_plan", _hand(n), 1): _raise() for n in range(40)}),
+        config_kind="minimal", sdf_config_overrides={"n_prompts": 25}, no_stake_weight_edit="one_in_five")
+
+
+def _pad_plan_descriptions_and_forget_the_rewrite(run_directory):
+    """A resume over plan records whose descriptions carry stray whitespace (as if written by older
+    code or edited by hand), with the description rewrite's results gone."""
+    plans_path = _stage_path(run_directory, 1, "plans.jsonl")
+    plans = utils.load_jsonl(plans_path)
+    for plan in plans:
+        plan["description"] = f"\n\n   {plan['description']}   \n"
+    utils.save_jsonl(plans, plans_path)
+    _stage_path(run_directory, 1, "description_rewrites.jsonl").unlink()
+    _stage_path(run_directory, 1, "_description_rewrite_checkpoint.json").unlink()
+    _delete_stage_files(run_directory, (2, 3, 4))
+
+
+def _padded_descriptions_scenario() -> Scenario:
+    return Scenario(
+        name="resume_over_plans_with_padded_descriptions",
+        description="A complete run, then a resume after the plan descriptions were padded with whitespace and the "
+                    "description rewrite and later stages were lost.",
+        invocations=(Invocation(), Invocation(("--resume",), before=_pad_plan_descriptions_and_forget_the_rewrite)),
+        reply_behaviour=ReplyBehaviour(), sdf_config_overrides={"n_prompts": 3, "screen_enabled": False})
 
 
 def all_scenarios() -> list[Scenario]:
@@ -428,6 +474,8 @@ def all_scenarios() -> list[Scenario]:
         _interrupted_records_scenario(),
         _screen_removal_that_cannot_be_redealt(),
         *_configuration_scenarios(),
+        _deal_repair_scenario(),
+        _padded_descriptions_scenario(),
         *_failure_scenarios(),
     ]
 

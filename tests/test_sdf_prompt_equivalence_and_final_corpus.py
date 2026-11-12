@@ -252,6 +252,12 @@ def test_code_defaults_are_used_when_the_config_names_nothing(outcome_of):
     models = {r["stage"]: r["wire"]["model"] for r in only_plan_model.recorder.records}
     assert models["layer1_screen"] == models["layer1_select"] == models["layer1_description_rewrite"] == "claude-haiku-4-5"
     assert models["layer2_draft"] == models["layer3_critique"] == models["layer4_score"] == "claude-sonnet-5"
+    assert [r["round"] for r in _rows(only_plan_model, 1, "screen_rounds.jsonl")] == [0, 1, 2, 3], \
+        "the default is three redeal rounds"
+    assert [b["prompt_ids"] and len(b["prompt_ids"]) for b in _rows(only_plan_model, 1, "screen_batches.jsonl")
+            if b["round"] == 0] == [10, 2], "the default screen batch size is 10"
+    assert {r["prompt_id"]: r["attempts"] for r in _rows(only_plan_model, 1, "consideration_scores.jsonl")
+            }[scenarios._hand(0)] == 3, "the default is three scoring attempts"
     openai_and_adaptive = outcome_of("minimal_config_with_openai_rewrite_and_adaptive_thinking_models")
     rewrite = next(r for r in openai_and_adaptive.recorder.records if r["stage"] == "layer1_description_rewrite")
     assert rewrite["route"] == "openai" and rewrite["wire"]["reasoning"] == {"effort": "medium"}
@@ -293,3 +299,21 @@ def test_description_rewrite_routes(outcome_of):
     assert request["route"] == "openai"
     assert request["wire"]["reasoning"] == {"effort": "low"} and request["wire"]["max_output_tokens"] == 8000
     assert request["wire"]["text"]["format"]["name"] == "description_rewrite_answer"
+
+
+def test_deal_repair_scenario_repairs_five_no_stake_hands(outcome_of):
+    outcome = outcome_of("deal_repair_of_five_no_stake_hands_with_every_plan_call_failing")
+    hands = _rows(outcome, 1, "screen_hands.jsonl")
+    no_stake = [h for h in hands if "NO real welfare stake" in h["variables"]["resolution"]]
+    assert len(hands) == 25 and len(no_stake) == 5
+    assert not [h for h in no_stake if h["variables"]["centrality"].startswith(("the central subject", "not the central"))], \
+        "the deal rule moved every no-stake hand off the welfare centralities"
+    assert _calls_in_invocation(outcome, 1, "layer1_plan") == 25 and _calls_in_invocation(outcome, 1, "layer2_draft") == 0
+
+
+def test_resume_over_padded_plan_descriptions_sends_them_stripped_to_the_rewrite_only(outcome_of):
+    outcome = outcome_of("resume_over_plans_with_padded_descriptions")
+    rewrite = next(r for r in outcome.recorder.records if r["stage"] == "layer1_description_rewrite" and r["invocation"] == 2)
+    assert "   Planned description" not in rewrite["wire"]["input"] and "Planned description" in rewrite["wire"]["input"]
+    draft = next(r for r in outcome.recorder.records if r["stage"] == "layer2_draft" and r["invocation"] == 2)
+    assert "   Planned description" in draft["wire"]["messages"][0]["content"], "the draft prompt carries the stored text"
