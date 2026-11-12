@@ -688,9 +688,12 @@ def _only_run_directory(outputs_root: Path) -> Path:
 
 
 def run_scenario(scenario: Scenario, working_directory: Path, monkeypatch,
-                 maximum_random_reply_delay_seconds: float = 0.0) -> ScenarioOutcome:
+                 maximum_random_reply_delay_seconds: float = 0.0,
+                 after_each_invocation: Callable | None = None) -> ScenarioOutcome:
     """Run the scenario's invocations of ``sdf_pipeline/run.py``'s ``main`` with every provider
-    request recorded and answered by canned replies. Output goes under ``working_directory``."""
+    request recorded and answered by canned replies. Output goes under ``working_directory``.
+    ``after_each_invocation``, if given, is called with (invocation number from 1, run directory)
+    once the invocation has ended and its files are recorded; it must not change the run."""
     outputs_root = working_directory / "outputs"
     monkeypatch.setenv("PIPELINE_OUTPUT_ROOT", str(outputs_root))
     recorder = ModelRequestRecorder(scenario.reply_behaviour, maximum_random_reply_delay_seconds)
@@ -736,11 +739,14 @@ def run_scenario(scenario: Scenario, working_directory: Path, monkeypatch,
         final_path = run_directory / "final" / "sdf_corpus.jsonl"
         final_lines.append(final_path.read_text(encoding="utf-8").splitlines() if final_path.exists() else [])
         stage_files.append(snapshot_stage_files(run_directory))
+        if after_each_invocation is not None:
+            after_each_invocation(invocation_number, run_directory)
     return ScenarioOutcome(scenario, recorder, run_directory, configs_used, exit_messages, final_lines, stage_files)
 
 
 def run_scenario_in_isolation(scenario: Scenario, working_directory: Path,
-                              maximum_random_reply_delay_seconds: float = 0.0) -> ScenarioOutcome:
+                              maximum_random_reply_delay_seconds: float = 0.0,
+                              after_each_invocation: Callable | None = None) -> ScenarioOutcome:
     """``run_scenario`` with the isolation tests/conftest.py gives every test (fake keys, no real
     .env, shared.api globals reset), for callers outside a test function (the regeneration script
     and module-scoped fixtures)."""
@@ -761,7 +767,8 @@ def run_scenario_in_isolation(scenario: Scenario, working_directory: Path,
                             ("_temperature_warned", False)):
             monkeypatch.setattr(api, name, value)
         monkeypatch.setattr(openai_api, "_client", None)
-        return run_scenario(scenario, working_directory, monkeypatch, maximum_random_reply_delay_seconds)
+        return run_scenario(scenario, working_directory, monkeypatch, maximum_random_reply_delay_seconds,
+                            after_each_invocation)
 
 
 # ---------------------------------------------------------------------------------- serialising
