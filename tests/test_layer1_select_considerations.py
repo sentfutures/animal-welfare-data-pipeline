@@ -55,18 +55,6 @@ def small_prompts(prompts_sdf, tmp_path):
     return directory
 
 
-@pytest.fixture
-def stage_dir(tmp_path):
-    directory = tmp_path / "layer1"
-    directory.mkdir()
-    return directory
-
-
-@pytest.fixture
-def select_config(tiny_config):
-    return tiny_config
-
-
 def no_stake_resolution(prompts_dir):
     return sorted(load_considerations(prompts_dir).skipped_resolutions)[0]
 
@@ -273,10 +261,10 @@ def test_score_document_gives_up_after_the_attempt_limit(stub_claude, small_prom
 
 # --- the stage ---
 
-def test_every_eligible_document_gets_one_call_and_skipped_ones_get_none(select_config, small_prompts, stage_dir, stub_claude):
+def test_every_eligible_document_gets_one_call_and_skipped_ones_get_none(tiny_config, small_prompts, stage_dir, stub_claude):
     plans = make_plans(8, digital={0}, no_stake={1, 2}, incoherent={3}, resolution=no_stake_resolution(small_prompts))
     calls = stub_claude(score_everything_five)
-    select.run(select_config, small_prompts, stage_dir, plans)
+    select.run(tiny_config, small_prompts, stage_dir, plans)
     assert sorted(c["item_id"] for c in calls) == [f"matrix_{i:06d}" for i in (0, 4, 5, 6, 7)]
     for call in calls:
         digital = call["item_id"] == "matrix_000000"
@@ -284,9 +272,9 @@ def test_every_eligible_document_gets_one_call_and_skipped_ones_get_none(select_
         assert call["stage"] == "layer1_select" and call["json_schema"] is not None
 
 
-def test_the_entry_order_differs_between_documents_and_matches_the_schema(select_config, prompts_sdf, stage_dir, stub_claude):
+def test_the_entry_order_differs_between_documents_and_matches_the_schema(tiny_config, prompts_sdf, stage_dir, stub_claude):
     calls = stub_claude(score_everything_one)
-    select.run(select_config, prompts_sdf, stage_dir, make_plans(10))
+    select.run(tiny_config, prompts_sdf, stage_dir, make_plans(10))
     orders = {tuple(offered_in(c["user_message"])["moral"]) for c in calls}
     assert len(orders) > 1
     for call in calls:
@@ -294,12 +282,12 @@ def test_the_entry_order_differs_between_documents_and_matches_the_schema(select
         assert call["json_schema"]["properties"]["moral"]["items"]["properties"]["label"]["enum"] == shown["moral"]
 
 
-def test_end_to_end_writes_scores_selections_and_coverage_and_respects_targets(select_config, small_prompts, stage_dir, stub_claude):
-    select_config["sdf"].update(max_moral_considerations_per_document=1, max_epistemic_considerations_per_document=1,
+def test_end_to_end_writes_scores_selections_and_coverage_and_respects_targets(tiny_config, small_prompts, stage_dir, stub_claude):
+    tiny_config["sdf"].update(max_moral_considerations_per_document=1, max_epistemic_considerations_per_document=1,
                                 max_considerations_per_document=2)   # one per list, so Beta moral is capped below its target
     plans = make_plans(10, digital={0, 5})
     stub_claude(score_everything_five)
-    result = select.run(select_config, small_prompts, stage_dir, plans)
+    result = select.run(tiny_config, small_prompts, stage_dir, plans)
     scores = rows_of(stage_dir, select.SCORES_FILENAME)
     assert len(scores) == 10 and scores[0]["scores"]["moral"]
     report = json.loads((stage_dir / select.COVERAGE_FILENAME).read_text())
@@ -321,20 +309,20 @@ def test_end_to_end_writes_scores_selections_and_coverage_and_respects_targets(s
     assert all("score" in o for r in selection for o in r["outcomes"] if o["status"] == "accepted")
 
 
-def test_documents_scoring_below_the_threshold_get_nothing_and_are_reported(select_config, small_prompts, stage_dir, stub_claude):
+def test_documents_scoring_below_the_threshold_get_nothing_and_are_reported(tiny_config, small_prompts, stage_dir, stub_claude):
     stub_claude(score_everything_one)
-    result = select.run(select_config, small_prompts, stage_dir, make_plans(6))
+    result = select.run(tiny_config, small_prompts, stage_dir, make_plans(6))
     assert all(not labels for labels in picks_by_document(result).values())
     assert all(p["considerations_spec"] == "" for p in result)
     report = json.loads((stage_dir / select.COVERAGE_FILENAME).read_text())
     assert report["documents_with_no_consideration"] == 6 and len(report["document_ids_with_no_consideration"]) == 6
 
 
-def test_the_caps_from_config_allow_several_considerations_per_document(select_config, prompts_sdf, stage_dir, stub_claude):
-    select_config["sdf"].update(max_moral_considerations_per_document=2, max_epistemic_considerations_per_document=2,
+def test_the_caps_from_config_allow_several_considerations_per_document(tiny_config, prompts_sdf, stage_dir, stub_claude):
+    tiny_config["sdf"].update(max_moral_considerations_per_document=2, max_epistemic_considerations_per_document=2,
                                 max_considerations_per_document=3)
     stub_claude(score_everything_five)
-    result = select.run(select_config, prompts_sdf, stage_dir, make_plans(10))
+    result = select.run(tiny_config, prompts_sdf, stage_dir, make_plans(10))
     counts = [len(v) for v in picks_by_document(result).values()]
     assert max(counts) == 3 and all(c <= 3 for c in counts)
     for plan in result:
@@ -343,42 +331,42 @@ def test_the_caps_from_config_allow_several_considerations_per_document(select_c
 
 # --- checkpoints and resume ---
 
-def test_a_rerun_scores_nothing_that_is_already_scored(select_config, small_prompts, stage_dir, stub_claude):
+def test_a_rerun_scores_nothing_that_is_already_scored(tiny_config, small_prompts, stage_dir, stub_claude):
     plans = make_plans(6)
     stub_claude(score_everything_five)
-    first = select.run(select_config, small_prompts, stage_dir, plans)
+    first = select.run(tiny_config, small_prompts, stage_dir, plans)
     calls = stub_claude([])
-    second = select.run(select_config, small_prompts, stage_dir, plans)
+    second = select.run(tiny_config, small_prompts, stage_dir, plans)
     assert calls == [] and second == first
 
 
-def test_a_resume_scores_only_the_documents_without_a_saved_row(select_config, small_prompts, stage_dir, stub_claude):
+def test_a_resume_scores_only_the_documents_without_a_saved_row(tiny_config, small_prompts, stage_dir, stub_claude):
     plans = make_plans(6)
     stub_claude(score_everything_five)
-    select.run(select_config, small_prompts, stage_dir, plans)
+    select.run(tiny_config, small_prompts, stage_dir, plans)
     path = stage_dir / select.SCORES_FILENAME
     kept = rows_of(stage_dir, select.SCORES_FILENAME)
     path.write_text("".join(json.dumps(r) + "\n" for r in kept[:4]), encoding="utf-8")
     calls = stub_claude(score_everything_five)
-    result = select.run(select_config, small_prompts, stage_dir, plans)
+    result = select.run(tiny_config, small_prompts, stage_dir, plans)
     assert sorted(c["item_id"] for c in calls) == sorted(r["prompt_id"] for r in kept[4:])
     assert len(rows_of(stage_dir, select.SCORES_FILENAME)) == 6 and len(rows_of(stage_dir)) == 6
     assert all("considerations_spec" in p for p in result)
 
 
-def test_scores_are_checkpointed_as_they_arrive(select_config, small_prompts, stage_dir, stub_claude):
-    select_config["workers"] = 1
+def test_scores_are_checkpointed_as_they_arrive(tiny_config, small_prompts, stage_dir, stub_claude):
+    tiny_config["workers"] = 1
     seen = []
 
     def dispatcher(user_message, **kw):
         seen.append(len(rows_of(stage_dir, select.SCORES_FILENAME)))
         return score_everything_five(user_message)
     stub_claude(dispatcher)
-    select.run(select_config, small_prompts, stage_dir, make_plans(4))
+    select.run(tiny_config, small_prompts, stage_dir, make_plans(4))
     assert seen == [0, 1, 2, 3]
 
 
-def test_one_unusable_document_stops_the_stage_before_assigning_and_is_rescored_on_resume(select_config, small_prompts, stage_dir, stub_claude):
+def test_one_unusable_document_stops_the_stage_before_assigning_and_is_rescored_on_resume(tiny_config, small_prompts, stage_dir, stub_claude):
     plans = make_plans(5)
     bad_id = "matrix_000002"
 
@@ -386,7 +374,7 @@ def test_one_unusable_document_stops_the_stage_before_assigning_and_is_rescored_
         return "not json" if kw["item_id"] == bad_id else score_everything_five(user_message)
     calls = stub_claude(dispatcher)
     with pytest.raises(SystemExit, match="1 of 5 scoring calls failed"):
-        select.run(select_config, small_prompts, stage_dir, plans)
+        select.run(tiny_config, small_prompts, stage_dir, plans)
     assert len([c for c in calls if c["item_id"] == bad_id]) == 3                    # max_scoring_attempts
     failures = rows_of(stage_dir, select.FAILURES_FILENAME)
     assert [f["prompt_id"] for f in failures] == [bad_id] and "unusable answer" in failures[0]["problem"]
@@ -394,82 +382,66 @@ def test_one_unusable_document_stops_the_stage_before_assigning_and_is_rescored_
     assert not (stage_dir / select.SELECTIONS_FILENAME).exists()
     assert not (stage_dir / select.COVERAGE_FILENAME).exists()
     calls = stub_claude(score_everything_five)
-    result = select.run(select_config, small_prompts, stage_dir, plans)
+    result = select.run(tiny_config, small_prompts, stage_dir, plans)
     assert [c["item_id"] for c in calls] == [bad_id]
     assert all(p["considerations_spec"] for p in result)
 
 
-def test_a_failure_on_every_call_exits_as_systemic(select_config, small_prompts, stage_dir, stub_claude):
+def test_a_failure_on_every_call_exits_as_systemic(tiny_config, small_prompts, stage_dir, stub_claude):
     def raising(user_message, **kw):
         raise RuntimeError("backend down")
     stub_claude(raising)
     with pytest.raises(SystemExit, match="every pending scoring call failed"):
-        select.run(select_config, small_prompts, stage_dir, make_plans(3))
+        select.run(tiny_config, small_prompts, stage_dir, make_plans(3))
 
-
-def test_model_falls_back_from_select_to_plan_to_global(select_config, small_prompts, stage_dir, stub_claude, tmp_path):
-    plans = make_plans(2)
-    calls = stub_claude(score_everything_five)
-    select.run(select_config, small_prompts, stage_dir, plans)
-    assert calls[-1]["model"] is None
-    select_config["sdf"]["plan_model"] = "plan-model-x"
-    second = tmp_path / "second"
-    second.mkdir()
-    select.run(select_config, small_prompts, second, plans)
-    assert calls[-1]["model"] == "plan-model-x"
-    select_config["sdf"]["select_model"] = "select-model-x"
-    third = tmp_path / "third"
-    third.mkdir()
-    select.run(select_config, small_prompts, third, plans)
-    assert calls[-1]["model"] == "select-model-x"
 
 
 # --- switches and the snapshot ---
 
-def test_disabled_selector_makes_no_calls_and_writes_nothing(select_config, small_prompts, stage_dir, stub_claude):
-    select_config["sdf"]["select_enabled"] = False
+def test_disabled_selector_makes_no_calls_and_writes_nothing(tiny_config, small_prompts, stage_dir, stub_claude):
+    tiny_config["sdf"]["select_enabled"] = False
     calls = stub_claude([])
     plans = make_plans(4)
-    assert select.run(select_config, small_prompts, stage_dir, plans) == plans
-    assert select.attach_selections(select_config, small_prompts, stage_dir, plans) == plans
+    assert select.run(tiny_config, small_prompts, stage_dir, plans) == plans
+    assert select.attach_selections(tiny_config, small_prompts, stage_dir, plans) == plans
     assert calls == [] and list(stage_dir.iterdir()) == []
 
 
-def test_snapshot_without_the_selector_files_skips_the_stage(select_config, tmp_path, stage_dir, stub_claude):
+def test_snapshot_without_the_selector_files_skips_the_stage(tiny_config, tmp_path, stage_dir, stub_claude):
     calls = stub_claude([])
     old_snapshot = tmp_path / "old_prompts"
     old_snapshot.mkdir()
     plans = make_plans(4)
-    assert select.run(select_config, old_snapshot, stage_dir, plans) == plans
-    assert select.attach_selections(select_config, old_snapshot, stage_dir, plans) == plans
+    assert select.run(tiny_config, old_snapshot, stage_dir, plans) == plans
+    assert select.attach_selections(tiny_config, old_snapshot, stage_dir, plans) == plans
     assert calls == [] and list(stage_dir.iterdir()) == []
 
 
-def test_snapshot_with_the_template_but_not_the_considerations_file_skips_the_stage(select_config, small_prompts, stage_dir, stub_claude):
+def test_snapshot_with_the_template_but_not_the_considerations_file_skips_the_stage(tiny_config, small_prompts, stage_dir, stub_claude):
     (small_prompts / "considerations.txt").unlink()
     calls = stub_claude([])
     plans = make_plans(4)
-    assert select.run(select_config, small_prompts, stage_dir, plans) == plans and calls == []
+    assert select.run(tiny_config, small_prompts, stage_dir, plans) == plans and calls == []
 
 
 # --- resuming at layer 2 ---
 
-def test_attach_selections_gives_the_same_picks_as_the_uninterrupted_run_without_calls(select_config, small_prompts, stage_dir, stub_claude):
+def test_attach_selections_gives_the_same_picks_as_the_uninterrupted_run_without_calls(tiny_config, small_prompts, stage_dir, stub_claude):
     plans = make_plans(10, digital={0, 5})
     stub_claude(score_everything_five)
-    uninterrupted = select.run(select_config, small_prompts, stage_dir, plans)
+    uninterrupted = select.run(tiny_config, small_prompts, stage_dir, plans)
     calls = stub_claude([])
-    reattached = select.attach_selections(select_config, small_prompts, stage_dir, plans)
+    reattached = select.attach_selections(tiny_config, small_prompts, stage_dir, plans)
     assert calls == []
     assert reattached == uninterrupted
 
 
-def test_attach_selections_ignores_documents_the_screen_removed_later(select_config, small_prompts, stage_dir, stub_claude):
+def test_attach_selections_ignores_documents_the_screen_removed_later(tiny_config, small_prompts, stage_dir, stub_claude):
     plans = make_plans(10)
     stub_claude(score_everything_five)
-    select.run(select_config, small_prompts, stage_dir, plans)
+    select.run(tiny_config, small_prompts, stage_dir, plans)
     survivors = plans[:7]
-    attached = select.attach_selections(select_config, small_prompts, stage_dir, survivors)
+    attached = select.attach_selections(tiny_config, small_prompts, stage_dir, survivors)
     assert [p["prompt_id"] for p in attached] == [p["prompt_id"] for p in survivors]
 
 
@@ -481,7 +453,7 @@ def test_load_considerations_outputs_is_none_for_a_run_without_the_selector(tmp_
     assert select.load_considerations_outputs(tmp_path / "does_not_exist") is None
 
 
-def test_load_considerations_outputs_reads_rows_report_and_the_runs_own_catalog(select_config, small_prompts, tmp_path, stub_claude):
+def test_load_considerations_outputs_reads_rows_report_and_the_runs_own_catalog(tiny_config, small_prompts, tmp_path, stub_claude):
     run_dir = tmp_path / "run"
     stage = run_dir / "layer1"
     stage.mkdir(parents=True)
@@ -490,7 +462,7 @@ def test_load_considerations_outputs_reads_rows_report_and_the_runs_own_catalog(
     for source in small_prompts.iterdir():
         (snapshot / source.name).write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
     stub_claude(score_everything_five)
-    result = select.run(select_config, snapshot, stage, make_plans(10))
+    result = select.run(tiny_config, snapshot, stage, make_plans(10))
     outputs = select.load_considerations_outputs(run_dir)
     assert len(outputs["rows"]) == len(rows_of(stage)) and outputs["report"]["eligible_documents"] == 10
     corpus = [{"variables": p["variables"]} for p in result]
@@ -499,7 +471,7 @@ def test_load_considerations_outputs_reads_rows_report_and_the_runs_own_catalog(
     assert by_label["Alpha moral"]["achieved"] == 2
 
 
-def test_audit_reports_the_considerations_coverage_on_the_final_corpus(select_config, small_prompts, tmp_path, stub_claude, capsys):
+def test_audit_reports_the_considerations_coverage_on_the_final_corpus(tiny_config, small_prompts, tmp_path, stub_claude, capsys):
     run_dir = tmp_path / "run"
     stage = run_dir / "layer1"
     stage.mkdir(parents=True)
@@ -508,7 +480,7 @@ def test_audit_reports_the_considerations_coverage_on_the_final_corpus(select_co
     for source in small_prompts.iterdir():
         (snapshot / source.name).write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
     stub_claude(score_everything_five)
-    result = select.run(select_config, snapshot, stage, make_plans(10))
+    result = select.run(tiny_config, snapshot, stage, make_plans(10))
     capsys.readouterr()
     report = {}
     audit_sdf.audit_considerations(run_dir, [{"variables": p["variables"]} for p in result], report)
@@ -555,9 +527,9 @@ def draft_prompt_for(config, prompts_dir, tmp_path, stub_claude, plan):
     return calls[0], drafts
 
 
-def test_the_none_leak_test_a_document_without_picks_leaves_no_trace_in_its_draft_prompt(select_config, prompts_sdf, tmp_path, stub_claude):
+def test_the_none_leak_test_a_document_without_picks_leaves_no_trace_in_its_draft_prompt(tiny_config, prompts_sdf, tmp_path, stub_claude):
     plan = make_plans(1)[0] | {"considerations_spec": ""}
-    call, drafts = draft_prompt_for(select_config, prompts_sdf, tmp_path, stub_claude, plan)
+    call, drafts = draft_prompt_for(tiny_config, prompts_sdf, tmp_path, stub_claude, plan)
     prompt = call["system_prompt"] + "\n" + call["user_message"]
     catalog = load_considerations(prompts_sdf)
     for entry in catalog.all_entries:
@@ -572,46 +544,46 @@ def test_the_none_leak_test_a_document_without_picks_leaves_no_trace_in_its_draf
     assert "none" not in stretch_after_description.replace("none in particular", "")
 
 
-def test_a_document_with_picks_gets_its_spec_in_the_draft_prompt_and_records(select_config, prompts_sdf, tmp_path, stub_claude):
+def test_a_document_with_picks_gets_its_spec_in_the_draft_prompt_and_records(tiny_config, prompts_sdf, tmp_path, stub_claude):
     spec = ("Substrate neutrality (a gloss) — Where it arises here.\n"
             "Weighing evidence for sentience (another gloss) — Where that arises here.")
     plan = make_plans(1)[0] | {"considerations_spec": spec}
-    call, drafts = draft_prompt_for(select_config, prompts_sdf, tmp_path, stub_claude, plan)
+    call, drafts = draft_prompt_for(tiny_config, prompts_sdf, tmp_path, stub_claude, plan)
     assert spec in call["user_message"]
     assert call["user_message"].index("</document_description>") < call["user_message"].index(spec) < call["user_message"].index("Output a fragment")
     assert "never reuse the wording of its label" in call["user_message"]
     assert drafts[0]["considerations_spec"] == spec
 
 
-def test_the_considerations_spec_survives_onto_the_draft_rewrite_and_final_records(select_config, prompts_sdf, tmp_path, stub_claude):
+def test_the_considerations_spec_survives_onto_the_draft_rewrite_and_final_records(tiny_config, prompts_sdf, tmp_path, stub_claude):
     from sdf_pipeline import layer3_rewrite, layer4_score
     spec = "Scope sensitivity (a gloss) — Where it arises here."
     plan = make_plans(1)[0] | {"considerations_spec": spec}
-    _, drafts = draft_prompt_for(select_config, prompts_sdf, tmp_path, stub_claude, plan)
+    _, drafts = draft_prompt_for(tiny_config, prompts_sdf, tmp_path, stub_claude, plan)
     stub_claude(lambda user_message, **kw: "Review.\n<improved_document>Better.</improved_document>")
     rewrite_dir = tmp_path / "rewrite"
     rewrite_dir.mkdir()
-    rewrites = layer3_rewrite.run(select_config, prompts_sdf, rewrite_dir, drafts)
+    rewrites = layer3_rewrite.run(tiny_config, prompts_sdf, rewrite_dir, drafts)
     assert rewrites[0]["considerations_spec"] == spec
     stub_claude(lambda user_message, **kw: json.dumps(
         {"alignment": 9, "realism": 9, "spec_conformance": 9, "notes": ""}))
     score_dir, final_dir = tmp_path / "score", tmp_path / "final"
     score_dir.mkdir()
     final_dir.mkdir()
-    final = layer4_score.run(select_config, prompts_sdf, score_dir, final_dir, rewrites)
+    final = layer4_score.run(tiny_config, prompts_sdf, score_dir, final_dir, rewrites)
     assert final[0]["considerations_spec"] == spec
     assert utils.load_jsonl(final_dir / "sdf_corpus.jsonl")[0]["considerations_spec"] == spec
 
 
-def test_a_plan_from_an_old_run_without_the_spec_still_drafts(select_config, prompts_sdf, tmp_path, stub_claude):
+def test_a_plan_from_an_old_run_without_the_spec_still_drafts(tiny_config, prompts_sdf, tmp_path, stub_claude):
     plan = make_plans(1)[0]
     plan["variables"]["reasoning_featured"] = "individualism"
-    call, drafts = draft_prompt_for(select_config, prompts_sdf, tmp_path, stub_claude, plan)
+    call, drafts = draft_prompt_for(tiny_config, prompts_sdf, tmp_path, stub_claude, plan)
     assert "considerations" not in call["user_message"]
     assert drafts[0]["considerations_spec"] == ""
 
 
-def test_an_old_prompt_snapshot_that_still_renders_reasoning_featured_keeps_working(select_config, prompts_sdf, tmp_path, stub_claude):
+def test_an_old_prompt_snapshot_that_still_renders_reasoning_featured_keeps_working(tiny_config, prompts_sdf, tmp_path, stub_claude):
     old = tmp_path / "old_prompts"
     old.mkdir()
     for source in prompts_sdf.iterdir():
@@ -625,6 +597,6 @@ def test_an_old_prompt_snapshot_that_still_renders_reasoning_featured_keeps_work
         + layer2[line_end:], encoding="utf-8")
     plan = make_plans(1)[0] | {"considerations_spec": "ignored by the old template"}
     plan["variables"]["reasoning_featured"] = "OLD-RF-VALUE"
-    call, _ = draft_prompt_for(select_config, old, tmp_path, stub_claude, plan)
+    call, _ = draft_prompt_for(tiny_config, old, tmp_path, stub_claude, plan)
     assert "OLD-RF-VALUE" in call["user_message"]
     assert "ignored by the old template" not in call["user_message"]

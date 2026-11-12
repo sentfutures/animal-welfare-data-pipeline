@@ -449,6 +449,14 @@ def tiny_config(tmp_path):
 
 
 @pytest.fixture
+def stage_dir(tmp_path):
+    """An empty directory standing in for one run's layer1 stage folder."""
+    directory = tmp_path / "layer1"
+    directory.mkdir()
+    return directory
+
+
+@pytest.fixture
 def tiny_config_file(tiny_config, tmp_path):
     path = tmp_path / "config.yaml"
     path.write_text(yaml.safe_dump(tiny_config))

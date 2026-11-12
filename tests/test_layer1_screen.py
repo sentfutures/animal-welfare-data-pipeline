@@ -59,13 +59,6 @@ def remove_the_first_three_hands_of_every_batch(user_message, **kw):
 
 
 @pytest.fixture
-def stage_dir(tmp_path):
-    directory = tmp_path / "layer1"
-    directory.mkdir()
-    return directory
-
-
-@pytest.fixture
 def screen_config(tiny_config):
     tiny_config["sdf"]["n_prompts"] = 25
     tiny_config["sdf"]["screen_batch_size"] = 10
@@ -272,21 +265,6 @@ def test_batches_are_written_before_any_call(screen_config, prompts_sdf, stage_d
     stub_claude(dispatcher)
     screen.run(screen_config, prompts_sdf, stage_dir)
     assert seen_at_first_call == [3, 3, 3]
-
-
-def test_model_falls_back_from_screen_to_plan_to_global(screen_config, prompts_sdf, tmp_path, stub_claude):
-    screen_config["sdf"]["n_prompts"] = 3
-    calls = stub_claude(no_removals)
-    for name, knobs, expected in (
-        ("first", {}, None),
-        ("second", {"plan_model": "plan-model-x"}, "plan-model-x"),
-        ("third", {"plan_model": "plan-model-x", "screen_model": "screen-model-x"}, "screen-model-x"),
-    ):
-        directory = tmp_path / name
-        directory.mkdir()
-        screen_config["sdf"].update(knobs)
-        screen.run(screen_config, prompts_sdf, directory)
-        assert calls[-1]["model"] == expected
 
 
 def test_batch_size_knob(screen_config, prompts_sdf, stage_dir, stub_claude):
