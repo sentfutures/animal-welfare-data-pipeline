@@ -42,7 +42,6 @@ later stages assign over the whole plan set and a resume retries them.
 """
 
 import copy
-import json
 import sys
 import time
 from dataclasses import dataclass
@@ -53,6 +52,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from shared import api, openai_api, utils
 from shared.api_keys import FIND_DOTENV_FLAG, load_optional_api_key
 from sdf_pipeline import compose_prompts as cp
+from sdf_pipeline import structured_answers
 
 STAGE_TAG = "layer1_description_rewrite"
 TEMPLATE_FILENAME = "layer1_description_rewrite.txt"
@@ -86,13 +86,11 @@ class RewritePrompts:
 
 def load_rewrite_prompts(prompts_dir: Path) -> RewritePrompts | None:
     """The stage's prompt files, or None for a run whose snapshot predates the stage."""
-    directory = Path(prompts_dir)
-    if not (directory / TEMPLATE_FILENAME).is_file():
+    loaded = structured_answers.load_template_and_answer_schema(prompts_dir, TEMPLATE_FILENAME, SCHEMA_FILENAME)
+    if loaded is None:
         return None
-    return RewritePrompts(
-        template=(directory / TEMPLATE_FILENAME).read_text(encoding="utf-8"),
-        answer_schema=json.loads((directory / SCHEMA_FILENAME).read_text(encoding="utf-8")),
-    )
+    template, answer_schema = loaded
+    return RewritePrompts(template=template, answer_schema=answer_schema)
 
 
 def build_rewrite_prompt(
@@ -110,13 +108,11 @@ def parse_rewrite_answer(raw: str, allowed_checks: list[str]) -> RewriteResult:
     neither; a dealt-value conflict carries a conflict reason and no rewritten
     description, and its ``rewrite_needed`` is ignored (stored as false) because
     there is no rewrite to need."""
-    try:
-        data = json.loads(raw or "")
-        reasoning, needed, rewritten, changes, conflict, conflict_reason = (
+    reasoning, needed, rewritten, changes, conflict, conflict_reason = structured_answers.parse_json_answer(
+        raw, RewriteAnswerError,
+        extract=lambda data: (
             data["reasoning"], data["rewrite_needed"], data["rewritten_description"],
-            data["changes"], data["dealt_value_conflict"], data["conflict_reason"])
-    except (ValueError, KeyError, TypeError) as e:
-        raise RewriteAnswerError(f"answer is not the expected JSON ({type(e).__name__}: {e})") from e
+            data["changes"], data["dealt_value_conflict"], data["conflict_reason"]))
     if (not isinstance(reasoning, str) or not isinstance(needed, bool) or not isinstance(rewritten, str)
             or not isinstance(changes, list) or not isinstance(conflict, bool)
             or not isinstance(conflict_reason, str)):
@@ -187,8 +183,7 @@ def rewrite_description(
             return_stop_reason=True,
             json_schema=copy.deepcopy(prompts.answer_schema),
         )
-    if stop_reason != "end_turn":
-        raise RewriteAnswerError(f"truncated answer (stop_reason={stop_reason})")
+    structured_answers.raise_if_answer_was_truncated(stop_reason, RewriteAnswerError)
     return parse_rewrite_answer(raw, check_names(prompts))
 
 
