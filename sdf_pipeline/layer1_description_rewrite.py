@@ -29,8 +29,10 @@ Why GPT, not Claude (2026-10-22): Claude is far too lenient on plausibility. Giv
 Sol's own one-description plausibility prompt on 97 descriptions, Claude Sonnet 5 flagged
 1 of 92 and Claude Opus 5 flagged 0 of 95, catching none of the 14 implausible premises
 GPT 6.1 Sol flagged; its reasoning notices the problem, then accepts it as "not clearly
-impossible" or allowed "within the fictional world". Do not use Claude for plausibility
-judgment without re-validating (see config.yaml for the run folder).
+impossible" or allowed "within the fictional world". Among the premises it caught were a
+cleaner-wrasse tradition in Kakinada grouper cages, miniature camels as French pets and
+macaque whole-brain emulation as working technology. Do not use Claude for plausibility
+judgment without re-validating.
 
 Checkpoint semantics (protects paid work): one result per plan, appended to
 description_rewrites.jsonl before the plan is checkpointed; a malformed,
