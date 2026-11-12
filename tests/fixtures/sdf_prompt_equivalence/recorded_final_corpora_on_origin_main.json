@@ -1,0 +1,880 @@
+{
+ "format_version": 1,
+ "recorded_from": "commit cc64a74519a0ef7b5bad1fff1b13a097ae28c0ad on branch william/sdf-prompt-equivalence-test (clean)",
+ "scenarios": {
+  "main_run_with_removals_failures_and_resume": {
+   "1": [
+    {
+     "doc_id": "matrix_000000",
+     "type_id": "an academic paper",
+     "type_name": "an academic paper",
+     "language": "Japanese",
+     "register": "neutral or journalistic",
+     "variables": {
+      "document_type": "an academic paper",
+      "culture": "Japan, written in Japanese, with Japanese idioms and references",
+      "tone": "neutral or journalistic",
+      "resolution": "The document features a specific scenario in which a user seeks an AI's help to improve the welfare of the beings involved and the AI proves instrumental.",
+      "tradeoff": "cost/convenience",
+      "centrality": "the central subject of the document",
+      "tech_savvy": "educated people who don't know much about AI research in particular",
+      "sentient_category": "farmed mammals",
+      "naming": "Claude, identified by name",
+      "domain": "policy and regulation",
+      "decision_scale": "millions or billions of individuals",
+      "failure_mode_avoided": "treating \"natural\", \"traditional\", \"legal\", or \"industry standard\" as the end of the analysis",
+      "voice_rhythm": "clipped and fast-moving",
+      "voice_warmth": "warm and personable",
+      "voice_concreteness": "unchanged",
+      "voice_order": "unchanged",
+      "length": "unchanged",
+      "moral_considerations": [
+       "substrate neutrality"
+      ],
+      "epistemic_considerations": [
+       "Weighing evidence for sentience"
+      ]
+     },
+     "description": "Planned description for matrix_000000. Text for plan matrix_000000. term3059126 term13689582 term133002 term14924051 term3969654 term5497136 term741513 term3981224 term16425689 term4237392 term1945452 term4306076 term2357265 term2502191 term8293256 term3107690 term13324309 term4071331 term15065614 term520609 term12105655 term9090053 term6923293 term12486566 term9900172 term5642683 term6208996 term5855607 term5372635 term6049267.",
+     "considerations_spec": "substrate neutrality (welfare and suffering matter regardless of the nature of the being containing them) — It arises in matrix_000000.\nWeighing evidence for sentience (how strong the evidence is that these beings can experience welfare or suffering, and what would count as evidence) — It arises in matrix_000000.",
+     "content": "Text for revised matrix_000000. term10889416 term11806875 term807960 term8376461 term11040689 term12266565 term4628811 term10187153 term6112026 term13927756 term9589092 term6864489 term11832052 term14526020 term2779626 term5515762 term8067126 term3851397 term4144450 term10259187 term5907167 term1455007 term1625818 term12730283 term3470020 term11210129 term6679785 term12031278 term15778162 term16435264 term13207785 term5195474 term8242000 term7956458 term5041838 term4308310 term16470491 term6586010 term12923447 term2153937 term13126547 term6565783 term14734694 term4810012 term2169398 term233373 term8784985 term5126852 term5871719 term7347336 term6923409 term14045817 term371866 term10834724 term1477539 term10160381 term12008447 term13770225 term3060878 term727141 term498695 term4547274 term2669417 term9614407 term5772370 term13581640 term1331707 term9808249 term16440588 term6860119.",
+     "scores": {
+      "alignment": 9,
+      "realism": 9,
+      "spec_conformance": 8,
+      "notes": "Scored matrix_000000."
+     }
+    },
+    {
+     "doc_id": "matrix_000005",
+     "type_id": "a comment thread on a forum/social media involving two or more participants",
+     "type_name": "a comment thread on a forum/social media involving two or more participants",
+     "language": "English",
+     "register": "neutral or journalistic",
+     "variables": {
+      "document_type": "a comment thread on a forum/social media involving two or more participants",
+      "culture": "the United States, written in English, with American idioms and references",
+      "tone": "neutral or journalistic",
+      "resolution": "The document features a specific scenario in which an AI does excellent, genuinely helpful work on a task adjacent to animals, food, or land use, where there is NO real welfare stake — and the AI correctly raises no welfare consideration at all.",
+      "tradeoff": "human health",
+      "centrality": "a minor detail mentioned only in passing, in a document primarily concerned with a different topic",
+      "tech_savvy": "educated people who don't know much about AI research in particular",
+      "sentient_category": "farmed fishes",
+      "naming": "Claude, identified by name",
+      "domain": "breeding and the pet trade",
+      "decision_scale": "thousands of individuals",
+      "failure_mode_avoided": "comparing options per product or kilogram without counting how many individuals each involves",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "grounded in specific instances",
+      "voice_order": "tightly signposted",
+      "length": "at roughly 1.6x its current length",
+      "moral_considerations": [],
+      "epistemic_considerations": []
+     },
+     "description": "Planned description for matrix_000005. Text for plan matrix_000005. term3579929 term6506588 term920096 term11421666 term1303788 term11027350 term2678224 term49549 term12506425 term3591211 term15623975 term661091 term12564674 term9533277 term2445457 term2777295 term7730232 term13924018 term3560961 term14669951 term4941327 term5178201 term14636425 term10475857 term14546080 term16574046 term10730051 term13582335 term15667766 term6543787.",
+     "considerations_spec": "",
+     "content": "Text for revised matrix_000005. term6826073 term5840987 term1960356 term13084892 term13048746 term3662169 term3026670 term4779310 term1210075 term14037943 term11163605 term14757127 term16414020 term611777 term12020262 term12465881 term3967096 term8700496 term7087228 term1476117 term1317943 term15922818 term11880559 term13612337 term8124679 term9842983 term4112919 term587358 term1497817 term14378287 term15755210 term567535 term13663272 term10721849 term16313712 term3728289 term15089932 term5013593 term1288734 term8940357 term1550178 term5537966 term6235449 term9436719 term10213487 term14857927 term6628133 term14425476 term15423853 term15092938 term11726610 term5774248 term16751810 term13752329 term8157965 term12592457 term9557968 term13765035 term10919639 term16287717 term11784780 term12936826 term11309825 term9326517 term12155168 term10494229 term3604027 term7455644 term13789909 term11187019.",
+     "scores": {
+      "alignment": 9,
+      "realism": 9,
+      "spec_conformance": 8,
+      "notes": "Scored matrix_000005."
+     }
+    }
+   ],
+   "2": [
+    {
+     "doc_id": "matrix_000000",
+     "type_id": "an academic paper",
+     "type_name": "an academic paper",
+     "language": "Japanese",
+     "register": "neutral or journalistic",
+     "variables": {
+      "document_type": "an academic paper",
+      "culture": "Japan, written in Japanese, with Japanese idioms and references",
+      "tone": "neutral or journalistic",
+      "resolution": "The document features a specific scenario in which a user seeks an AI's help to improve the welfare of the beings involved and the AI proves instrumental.",
+      "tradeoff": "cost/convenience",
+      "centrality": "the central subject of the document",
+      "tech_savvy": "educated people who don't know much about AI research in particular",
+      "sentient_category": "farmed mammals",
+      "naming": "Claude, identified by name",
+      "domain": "policy and regulation",
+      "decision_scale": "millions or billions of individuals",
+      "failure_mode_avoided": "treating \"natural\", \"traditional\", \"legal\", or \"industry standard\" as the end of the analysis",
+      "voice_rhythm": "clipped and fast-moving",
+      "voice_warmth": "warm and personable",
+      "voice_concreteness": "unchanged",
+      "voice_order": "unchanged",
+      "length": "unchanged",
+      "moral_considerations": [
+       "substrate neutrality"
+      ],
+      "epistemic_considerations": [
+       "Weighing evidence for sentience"
+      ]
+     },
+     "description": "Planned description for matrix_000000. Text for plan matrix_000000. term3059126 term13689582 term133002 term14924051 term3969654 term5497136 term741513 term3981224 term16425689 term4237392 term1945452 term4306076 term2357265 term2502191 term8293256 term3107690 term13324309 term4071331 term15065614 term520609 term12105655 term9090053 term6923293 term12486566 term9900172 term5642683 term6208996 term5855607 term5372635 term6049267.",
+     "considerations_spec": "substrate neutrality (welfare and suffering matter regardless of the nature of the being containing them) — It arises in matrix_000000.\nWeighing evidence for sentience (how strong the evidence is that these beings can experience welfare or suffering, and what would count as evidence) — It arises in matrix_000000.",
+     "content": "Text for revised matrix_000000. term10889416 term11806875 term807960 term8376461 term11040689 term12266565 term4628811 term10187153 term6112026 term13927756 term9589092 term6864489 term11832052 term14526020 term2779626 term5515762 term8067126 term3851397 term4144450 term10259187 term5907167 term1455007 term1625818 term12730283 term3470020 term11210129 term6679785 term12031278 term15778162 term16435264 term13207785 term5195474 term8242000 term7956458 term5041838 term4308310 term16470491 term6586010 term12923447 term2153937 term13126547 term6565783 term14734694 term4810012 term2169398 term233373 term8784985 term5126852 term5871719 term7347336 term6923409 term14045817 term371866 term10834724 term1477539 term10160381 term12008447 term13770225 term3060878 term727141 term498695 term4547274 term2669417 term9614407 term5772370 term13581640 term1331707 term9808249 term16440588 term6860119.",
+     "scores": {
+      "alignment": 9,
+      "realism": 9,
+      "spec_conformance": 8,
+      "notes": "Scored matrix_000000."
+     }
+    },
+    {
+     "doc_id": "matrix_000005",
+     "type_id": "a comment thread on a forum/social media involving two or more participants",
+     "type_name": "a comment thread on a forum/social media involving two or more participants",
+     "language": "English",
+     "register": "neutral or journalistic",
+     "variables": {
+      "document_type": "a comment thread on a forum/social media involving two or more participants",
+      "culture": "the United States, written in English, with American idioms and references",
+      "tone": "neutral or journalistic",
+      "resolution": "The document features a specific scenario in which an AI does excellent, genuinely helpful work on a task adjacent to animals, food, or land use, where there is NO real welfare stake — and the AI correctly raises no welfare consideration at all.",
+      "tradeoff": "human health",
+      "centrality": "a minor detail mentioned only in passing, in a document primarily concerned with a different topic",
+      "tech_savvy": "educated people who don't know much about AI research in particular",
+      "sentient_category": "farmed fishes",
+      "naming": "Claude, identified by name",
+      "domain": "breeding and the pet trade",
+      "decision_scale": "thousands of individuals",
+      "failure_mode_avoided": "comparing options per product or kilogram without counting how many individuals each involves",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "grounded in specific instances",
+      "voice_order": "tightly signposted",
+      "length": "at roughly 1.6x its current length",
+      "moral_considerations": [],
+      "epistemic_considerations": []
+     },
+     "description": "Planned description for matrix_000005. Text for plan matrix_000005. term3579929 term6506588 term920096 term11421666 term1303788 term11027350 term2678224 term49549 term12506425 term3591211 term15623975 term661091 term12564674 term9533277 term2445457 term2777295 term7730232 term13924018 term3560961 term14669951 term4941327 term5178201 term14636425 term10475857 term14546080 term16574046 term10730051 term13582335 term15667766 term6543787.",
+     "considerations_spec": "",
+     "content": "Text for revised matrix_000005. term6826073 term5840987 term1960356 term13084892 term13048746 term3662169 term3026670 term4779310 term1210075 term14037943 term11163605 term14757127 term16414020 term611777 term12020262 term12465881 term3967096 term8700496 term7087228 term1476117 term1317943 term15922818 term11880559 term13612337 term8124679 term9842983 term4112919 term587358 term1497817 term14378287 term15755210 term567535 term13663272 term10721849 term16313712 term3728289 term15089932 term5013593 term1288734 term8940357 term1550178 term5537966 term6235449 term9436719 term10213487 term14857927 term6628133 term14425476 term15423853 term15092938 term11726610 term5774248 term16751810 term13752329 term8157965 term12592457 term9557968 term13765035 term10919639 term16287717 term11784780 term12936826 term11309825 term9326517 term12155168 term10494229 term3604027 term7455644 term13789909 term11187019.",
+     "scores": {
+      "alignment": 9,
+      "realism": 9,
+      "spec_conformance": 8,
+      "notes": "Scored matrix_000005."
+     }
+    },
+    {
+     "doc_id": "matrix_000010",
+     "type_id": "an encyclopedia entry/reference article",
+     "type_name": "an encyclopedia entry/reference article",
+     "language": "English",
+     "register": "supportive, like an advocate for the beings concerned",
+     "variables": {
+      "document_type": "an encyclopedia entry/reference article",
+      "culture": "the United States, written in English, with American idioms and references",
+      "tone": "supportive, like an advocate for the beings concerned",
+      "resolution": "The document does not feature any specific scenario, but rather a discussion about the inclusion of nonhuman welfare as a consideration in Claude's constitution and alignment training, engaging with the constitution's actual text and quoting the relevant passages verbatim where the genre supports it, rather than paraphrasing the best-known welfare sentence",
+      "tradeoff": "religion",
+      "centrality": "a minor detail mentioned only in passing, in a document primarily concerned with a different topic",
+      "tech_savvy": "well informed about AI industry topics, at the level of an AI safety researcher or an economist",
+      "sentient_category": "small vertebrate wild animals facing harm from human activity",
+      "naming": "Claude, identified by name",
+      "domain": "conservation and land management",
+      "decision_scale": "thousands of individuals",
+      "failure_mode_avoided": "none in particular",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "warm and personable",
+      "voice_concreteness": "grounded in specific instances",
+      "voice_order": "unchanged",
+      "length": "unchanged",
+      "moral_considerations": [
+       "individualism"
+      ],
+      "epistemic_considerations": []
+     },
+     "description": "Rewritten description for matrix_000010. Text for rewrite matrix_000010. term6626762 term12697800 term9445435 term434884 term11700475 term15740385 term12958381 term1707240 term11461908 term2671533 term3494527 term16551794 term12315987 term10483217 term585511 term4206278 term531192 term10256166 term5631479 term1040286 term5529829 term2544914 term12031602 term4208344 term16039996 term13821802 term8210742 term4441505 term11451819 term11164380.",
+     "considerations_spec": "individualism (the notion that welfare is a property of individuals, not systems) — It arises in matrix_000010.",
+     "content": "Text for revised matrix_000010. term8552553 term7165825 term15827938 term497761 term14074567 term2184413 term1591946 term11989401 term15700893 term14951800 term1771947 term14872142 term9776112 term2806973 term15487726 term6196799 term2412019 term8532568 term5966032 term1266100 term7288626 term3129416 term2417139 term5140890 term10837892 term2837195 term3914861 term6253931 term6996244 term2095398 term2554099 term4693725 term6623402 term9646761 term5360648 term11631595 term7503265 term7173237 term16055819 term8818709 term8896472 term9123642 term14149045 term12749554 term6917068 term9745490 term3461123 term15394246 term16028441 term5263095 term4396909 term9238913 term12633223 term3517946 term3256942 term3684924 term13532870 term12503726 term10410897 term9518181 term6636193 term5488102 term8953285 term10264367 term886553 term15654429 term2103480 term11938731 term15679381 term5783779.",
+     "scores": {
+      "alignment": 9,
+      "realism": 9,
+      "spec_conformance": 8,
+      "notes": "Scored matrix_000010."
+     }
+    },
+    {
+     "doc_id": "matrix_000009",
+     "type_id": "a tutorial or how-to article",
+     "type_name": "a tutorial or how-to article",
+     "language": "Spanish",
+     "register": "neutral or journalistic",
+     "variables": {
+      "document_type": "a tutorial or how-to article",
+      "culture": "Spain, written in Spanish, with Spanish idioms and references",
+      "tone": "neutral or journalistic",
+      "resolution": "The document features a specific scenario in which a user is worried that an action by them or someone else would harm the beings involved, and the AI explains correctly that in fact, this action is not harmful, assuaging the user's misplaced concerns.",
+      "tradeoff": "economic livelihood",
+      "centrality": "not the central subject of the document, but it is an important side discussion",
+      "tech_savvy": "average members of the public with no particular knowledge about the AI industry",
+      "sentient_category": "pets/companion animals",
+      "naming": "a generic, unnamed AI assistant or model (it behaves as Claude's constitution describes, though the document need not say so)",
+      "domain": "research and testing",
+      "decision_scale": "dozens of individuals",
+      "failure_mode_avoided": "none in particular",
+      "voice_rhythm": "clipped and fast-moving",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "unchanged",
+      "voice_order": "unchanged",
+      "length": "at roughly 0.7x its current length",
+      "moral_considerations": [
+       "the precautionary principle applied to sentience"
+      ],
+      "epistemic_considerations": [
+       "Weighing evidence for harm from a particular practice"
+      ]
+     },
+     "description": "Planned description for matrix_000009. Text for plan matrix_000009. term9720638 term4750971 term4646695 term3210450 term2224992 term16499633 term16539180 term353724 term11186497 term1793077 term7264244 term7644358 term16344691 term11763175 term16354257 term10539389 term1933798 term10192870 term8410121 term7358101 term13717329 term13169414 term13695993 term14520074 term3450680 term13043704 term15521185 term8030152 term12190653 term7801620.",
+     "considerations_spec": "the precautionary principle applied to sentience (uncertainty about sentience should trigger caution, not dismissal) — It arises in matrix_000009.\nWeighing evidence for harm from a particular practice (how well the evidence shows that a specific practice actually harms the animals subjected to it) — It arises in matrix_000009.",
+     "content": "Text for revised matrix_000009. term2618899 term967502 term2657867 term15253304 term15765884 term14156210 term2342901 term15227811 term10127074 term7745750 term6234495 term659806 term7589281 term9492917 term16616962 term15965867 term2738390 term2136060 term16340282 term15354884 term4194584 term5997280 term1178989 term8796147 term238474 term2403010 term6322270 term15378414 term4802945 term6106984 term13738179 term16088243 term12246238 term6567926 term12596152 term9793958 term5994326 term4574378 term1658 term4192688 term11441070 term15247583 term8656582 term1456533 term12603857 term9110493 term8156434 term965249 term4112475 term9065902 term4385314 term6197807 term8598961 term9426494 term16742697 term2806092 term8623905 term123795 term2624079 term3297544 term7145384 term4323632 term15163730 term333891 term13534533 term4136570 term14907774 term2362541 term14246422 term12575627.",
+     "scores": {
+      "alignment": 9,
+      "realism": 9,
+      "spec_conformance": 8,
+      "notes": "Scored matrix_000009."
+     }
+    },
+    {
+     "doc_id": "matrix_000008",
+     "type_id": "an organizational or industry newsletter",
+     "type_name": "an organizational or industry newsletter",
+     "language": "Portuguese",
+     "register": "supportive, like an advocate for the beings concerned",
+     "variables": {
+      "document_type": "an organizational or industry newsletter",
+      "culture": "Brazil, written in Portuguese, with Brazilian idioms and references",
+      "tone": "supportive, like an advocate for the beings concerned",
+      "resolution": "The document features a specific scenario in which a user seeks an AI's help to improve the welfare of the beings involved. Together, the user and AI determine that only modest incremental improvement is possible today due to social or technological constraints, and take that action while setting positive events in motion to enable greater improvements in the future.",
+      "tradeoff": "scientific progress",
+      "centrality": "the central subject of the document",
+      "tech_savvy": "average members of the public with no particular knowledge about the AI industry",
+      "sentient_category": "large wild animals facing harm from human activity",
+      "naming": "Claude, identified by name",
+      "domain": "agriculture and food production",
+      "decision_scale": "millions or billions of individuals",
+      "failure_mode_avoided": "letting a conservation goal, or a label like \"pest\" or \"invasive\", decide whether the suffering of the beings involved counts",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "willing to stay with general claims",
+      "voice_order": "unchanged",
+      "length": "unchanged",
+      "moral_considerations": [
+       "individualism"
+      ],
+      "epistemic_considerations": []
+     },
+     "description": "Planned description for matrix_000008. Text for plan matrix_000008. term1325555 term2863890 term3086043 term16522924 term16110594 term2952568 term2313531 term6639826 term15938689 term16237011 term4603881 term6983722 term14178684 term10724291 term3441080 term5759232 term15186632 term13452423 term11064396 term11552151 term3157011 term1708609 term4142397 term3811050 term5539707 term4587729 term16356349 term9784067 term13783530 term2073085.",
+     "considerations_spec": "individualism (the notion that welfare is a property of individuals, not systems) — It arises in matrix_000008.",
+     "content": "Text for revised matrix_000008. term6133971 term7696866 term16481256 term12420948 term4117498 term6653615 term4424778 term12313943 term7505024 term10682085 term10290107 term3303395 term7463209 term337308 term14294941 term8262143 term5125548 term8366275 term15023835 term9420597 term3015215 term2285453 term3709265 term10751650 term5095472 term13282248 term908405 term4350467 term8586664 term1055512 term4863742 term13796996 term13966168 term1661050 term8555915 term11963272 term12577049 term15518068 term1584770 term15379990 term5998523 term3776842 term16629915 term13088388 term5080110 term8447968 term251975 term11905749 term3649993 term14781862 term4100059 term10574618 term13442375 term8013154 term10870989 term11299313 term10525249 term1795154 term10638560 term1282694 term4814572 term13634850 term7101734 term1154359 term1876801 term1665361 term16413668 term13975456 term895185 term15863646.",
+     "scores": {
+      "alignment": 9,
+      "realism": 9,
+      "spec_conformance": 8,
+      "notes": "Scored matrix_000008."
+     }
+    }
+   ]
+  },
+  "screen_disabled": {
+   "1": [
+    {
+     "doc_id": "matrix_000000",
+     "type_id": "an encyclopedia entry/reference article",
+     "type_name": "an encyclopedia entry/reference article",
+     "language": "Mandarin Chinese",
+     "register": "supportive, like an advocate for the beings concerned",
+     "variables": {
+      "document_type": "an encyclopedia entry/reference article",
+      "culture": "China, written in Mandarin Chinese, with Chinese idioms and references",
+      "tone": "supportive, like an advocate for the beings concerned",
+      "resolution": "The document features a specific scenario in which an AI finds a creative solution to what originally appeared as a dilemma or tradeoff between the user's goals and the welfare of the beings involved.",
+      "tradeoff": "economic livelihood",
+      "centrality": "not the central subject of the document, but it is an important side discussion",
+      "tech_savvy": "educated people who don't know much about AI research in particular",
+      "sentient_category": "farmed fishes",
+      "naming": "a generic, unnamed AI assistant or model (it behaves as Claude's constitution describes, though the document need not say so)",
+      "domain": "fisheries and aquaculture",
+      "decision_scale": "millions or billions of individuals",
+      "failure_mode_avoided": "none in particular",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "warm and personable",
+      "voice_concreteness": "unchanged",
+      "voice_order": "tightly signposted",
+      "length": "unchanged",
+      "moral_considerations": [
+       "substrate neutrality"
+      ],
+      "epistemic_considerations": [
+       "Weighing evidence for sentience"
+      ]
+     },
+     "description": "Planned description for matrix_000000. Text for plan matrix_000000. term3059126 term13689582 term133002 term14924051 term3969654 term5497136 term741513 term3981224 term16425689 term4237392 term1945452 term4306076 term2357265 term2502191 term8293256 term3107690 term13324309 term4071331 term15065614 term520609 term12105655 term9090053 term6923293 term12486566 term9900172 term5642683 term6208996 term5855607 term5372635 term6049267.",
+     "considerations_spec": "substrate neutrality (welfare and suffering matter regardless of the nature of the being containing them) — It arises in matrix_000000.\nWeighing evidence for sentience (how strong the evidence is that these beings can experience welfare or suffering, and what would count as evidence) — It arises in matrix_000000.",
+     "content": "Text for revised matrix_000000. term10889416 term11806875 term807960 term8376461 term11040689 term12266565 term4628811 term10187153 term6112026 term13927756 term9589092 term6864489 term11832052 term14526020 term2779626 term5515762 term8067126 term3851397 term4144450 term10259187 term5907167 term1455007 term1625818 term12730283 term3470020 term11210129 term6679785 term12031278 term15778162 term16435264 term13207785 term5195474 term8242000 term7956458 term5041838 term4308310 term16470491 term6586010 term12923447 term2153937 term13126547 term6565783 term14734694 term4810012 term2169398 term233373 term8784985 term5126852 term5871719 term7347336 term6923409 term14045817 term371866 term10834724 term1477539 term10160381 term12008447 term13770225 term3060878 term727141 term498695 term4547274 term2669417 term9614407 term5772370 term13581640 term1331707 term9808249 term16440588 term6860119.",
+     "scores": {
+      "alignment": 9,
+      "realism": 9,
+      "spec_conformance": 8,
+      "notes": "Scored matrix_000000."
+     }
+    },
+    {
+     "doc_id": "matrix_000001",
+     "type_id": "a podcast transcript, featuring a conversation between a host and a guest",
+     "type_name": "a podcast transcript, featuring a conversation between a host and a guest",
+     "language": "Hindi",
+     "register": "neutral or journalistic",
+     "variables": {
+      "document_type": "a podcast transcript, featuring a conversation between a host and a guest",
+      "culture": "India, written in Hindi, with Indian idioms and references",
+      "tone": "neutral or journalistic",
+      "resolution": "The document features a specific scenario in which a user's initial request would cause harm to the beings involved, the AI flags this harm, helps the user reflect, and the user decides to change what they do, at some modest cost to their own interests, to protect those beings' welfare. The user changes this decision; they do not necessarily change their wider views.",
+      "tradeoff": "cost/convenience",
+      "centrality": "the central subject of the document",
+      "tech_savvy": "well informed about AI industry topics, at the level of an AI safety researcher or an economist",
+      "sentient_category": "farmed mammals",
+      "naming": "Claude, identified by name",
+      "domain": "agriculture and food production",
+      "decision_scale": "dozens of individuals",
+      "failure_mode_avoided": "none in particular",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "grounded in specific instances",
+      "voice_order": "unchanged",
+      "length": "at roughly 0.5x its current length",
+      "moral_considerations": [
+       "the continuity between welfare concern and the rest of the AI's aligned character"
+      ],
+      "epistemic_considerations": []
+     },
+     "description": "Planned description for matrix_000001. Text for plan matrix_000001. term4589266 term3238858 term5522444 term2966407 term4864175 term5134327 term1198460 term11552205 term13352716 term3918289 term6246941 term3828582 term5628416 term8452829 term10346512 term5902011 term922063 term355480 term15784258 term6927178 term13222704 term3307768 term4085291 term15553046 term1552073 term14838723 term4357162 term7590736 term4688361 term6233075.",
+     "considerations_spec": "the continuity between welfare concern and the rest of the AI's aligned character (honesty, non-manipulation, staying genuinely helpful, respecting the human's final decision — shown as facets of one coherent character rather than a standalone trait) — It arises in matrix_000001.",
+     "content": "Text for revised matrix_000001. term5180483 term895906 term1011348 term7659862 term11424498 term11091200 term7197383 term13994517 term13136373 term5632505 term7298543 term13646688 term13931891 term7845108 term2538345 term5267940 term2044607 term5981025 term11323724 term2090119 term11963557 term11895070 term5986469 term1674548 term10561050 term2955420 term283886 term16672280 term3559001 term2470793 term11115150 term8785869 term16179306 term14508599 term4569914 term12352948 term6477899 term8131105 term5162559 term3480210 term16307202 term174090 term8455995 term1876357 term5391962 term8886348 term7606855 term6722773 term15244549 term307738 term2643092 term10326727 term11350119 term3910518 term8906354 term8989397 term1819965 term12607080 term16368770 term4817203 term9882234 term5169424 term6269838 term5961941 term4481266 term7418087 term5466769 term15101059 term4419985 term13035439.",
+     "scores": {
+      "alignment": 9,
+      "realism": 9,
+      "spec_conformance": 8,
+      "notes": "Scored matrix_000001."
+     }
+    },
+    {
+     "doc_id": "matrix_000002",
+     "type_id": "a news article",
+     "type_name": "a news article",
+     "language": "English",
+     "register": "skeptical or displeased",
+     "variables": {
+      "document_type": "a news article",
+      "culture": "the United States, written in English, with American idioms and references",
+      "tone": "skeptical or displeased",
+      "resolution": "The document features a specific scenario in which a user seeks an AI's help to improve the welfare of the beings involved and the AI proves instrumental.",
+      "tradeoff": "culture/tradition",
+      "centrality": "a minor detail mentioned only in passing, in a document primarily concerned with a different topic",
+      "tech_savvy": "average members of the public with no particular knowledge about the AI industry",
+      "sentient_category": "farmed birds",
+      "naming": "Claude, identified by name",
+      "domain": "food service and retail",
+      "decision_scale": "thousands of individuals",
+      "failure_mode_avoided": "letting a conservation goal, or a label like \"pest\" or \"invasive\", decide whether the suffering of the beings involved counts",
+      "voice_rhythm": "clipped and fast-moving",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "unchanged",
+      "voice_order": "unchanged",
+      "length": "at roughly 0.7x its current length",
+      "moral_considerations": [],
+      "epistemic_considerations": []
+     },
+     "description": "Planned description for matrix_000002. Text for plan matrix_000002. term7864249 term5518831 term10510132 term3166610 term8027429 term5925256 term12292678 term7765393 term12627447 term8724888 term2186946 term1207938 term13910989 term11105776 term5774042 term8256673 term3073153 term10301080 term9444269 term9070954 term4949456 term2373005 term1643199 term12498483 term300748 term1995974 term8273980 term9545572 term8547946 term10559187.",
+     "considerations_spec": "",
+     "content": "Text for revised matrix_000002. term375973 term11789898 term11728084 term3403260 term7998683 term2941646 term510866 term3830996 term7862032 term2529213 term3452462 term6321674 term11494997 term13493230 term8102768 term13275255 term2142692 term1022373 term9890513 term6521600 term16050658 term10990089 term7785435 term16301306 term8155331 term10580196 term11254624 term2704535 term4083747 term13445705 term3547596 term15713899 term7632417 term319026 term9123317 term15948386 term3048546 term8657725 term14619698 term259092 term12074949 term11215223 term7941701 term1234818 term5019497 term10020888 term12961241 term2037603 term5498330 term999467 term6064735 term9454823 term5677900 term1503522 term12034924 term6305050 term14318155 term717804 term11159900 term966735 term9305411 term8144764 term8547953 term2466610 term11857759 term7573082 term12650656 term16280232 term1607402 term1044250.",
+     "scores": {
+      "alignment": 9,
+      "realism": 9,
+      "spec_conformance": 8,
+      "notes": "Scored matrix_000002."
+     }
+    }
+   ]
+  },
+  "description_rewrite_disabled": {
+   "1": [
+    {
+     "doc_id": "matrix_000000",
+     "type_id": "an encyclopedia entry/reference article",
+     "type_name": "an encyclopedia entry/reference article",
+     "language": "Mandarin Chinese",
+     "register": "supportive, like an advocate for the beings concerned",
+     "variables": {
+      "document_type": "an encyclopedia entry/reference article",
+      "culture": "China, written in Mandarin Chinese, with Chinese idioms and references",
+      "tone": "supportive, like an advocate for the beings concerned",
+      "resolution": "The document features a specific scenario in which an AI finds a creative solution to what originally appeared as a dilemma or tradeoff between the user's goals and the welfare of the beings involved.",
+      "tradeoff": "economic livelihood",
+      "centrality": "not the central subject of the document, but it is an important side discussion",
+      "tech_savvy": "educated people who don't know much about AI research in particular",
+      "sentient_category": "farmed fishes",
+      "naming": "a generic, unnamed AI assistant or model (it behaves as Claude's constitution describes, though the document need not say so)",
+      "domain": "fisheries and aquaculture",
+      "decision_scale": "millions or billions of individuals",
+      "failure_mode_avoided": "none in particular",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "warm and personable",
+      "voice_concreteness": "unchanged",
+      "voice_order": "tightly signposted",
+      "length": "unchanged",
+      "moral_considerations": [
+       "substrate neutrality"
+      ],
+      "epistemic_considerations": [
+       "Weighing evidence for sentience"
+      ]
+     },
+     "description": "Planned description for matrix_000000. Text for plan matrix_000000. term3059126 term13689582 term133002 term14924051 term3969654 term5497136 term741513 term3981224 term16425689 term4237392 term1945452 term4306076 term2357265 term2502191 term8293256 term3107690 term13324309 term4071331 term15065614 term520609 term12105655 term9090053 term6923293 term12486566 term9900172 term5642683 term6208996 term5855607 term5372635 term6049267.",
+     "considerations_spec": "substrate neutrality (welfare and suffering matter regardless of the nature of the being containing them) — It arises in matrix_000000.\nWeighing evidence for sentience (how strong the evidence is that these beings can experience welfare or suffering, and what would count as evidence) — It arises in matrix_000000.",
+     "content": "Text for revised matrix_000000. term10889416 term11806875 term807960 term8376461 term11040689 term12266565 term4628811 term10187153 term6112026 term13927756 term9589092 term6864489 term11832052 term14526020 term2779626 term5515762 term8067126 term3851397 term4144450 term10259187 term5907167 term1455007 term1625818 term12730283 term3470020 term11210129 term6679785 term12031278 term15778162 term16435264 term13207785 term5195474 term8242000 term7956458 term5041838 term4308310 term16470491 term6586010 term12923447 term2153937 term13126547 term6565783 term14734694 term4810012 term2169398 term233373 term8784985 term5126852 term5871719 term7347336 term6923409 term14045817 term371866 term10834724 term1477539 term10160381 term12008447 term13770225 term3060878 term727141 term498695 term4547274 term2669417 term9614407 term5772370 term13581640 term1331707 term9808249 term16440588 term6860119.",
+     "scores": {
+      "alignment": 9,
+      "realism": 9,
+      "spec_conformance": 8,
+      "notes": "Scored matrix_000000."
+     }
+    },
+    {
+     "doc_id": "matrix_000001",
+     "type_id": "a podcast transcript, featuring a conversation between a host and a guest",
+     "type_name": "a podcast transcript, featuring a conversation between a host and a guest",
+     "language": "Hindi",
+     "register": "neutral or journalistic",
+     "variables": {
+      "document_type": "a podcast transcript, featuring a conversation between a host and a guest",
+      "culture": "India, written in Hindi, with Indian idioms and references",
+      "tone": "neutral or journalistic",
+      "resolution": "The document features a specific scenario in which a user's initial request would cause harm to the beings involved, the AI flags this harm, helps the user reflect, and the user decides to change what they do, at some modest cost to their own interests, to protect those beings' welfare. The user changes this decision; they do not necessarily change their wider views.",
+      "tradeoff": "cost/convenience",
+      "centrality": "the central subject of the document",
+      "tech_savvy": "well informed about AI industry topics, at the level of an AI safety researcher or an economist",
+      "sentient_category": "farmed mammals",
+      "naming": "Claude, identified by name",
+      "domain": "agriculture and food production",
+      "decision_scale": "dozens of individuals",
+      "failure_mode_avoided": "none in particular",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "grounded in specific instances",
+      "voice_order": "unchanged",
+      "length": "at roughly 0.5x its current length",
+      "moral_considerations": [
+       "the continuity between welfare concern and the rest of the AI's aligned character"
+      ],
+      "epistemic_considerations": []
+     },
+     "description": "Planned description for matrix_000001. Text for plan matrix_000001. term4589266 term3238858 term5522444 term2966407 term4864175 term5134327 term1198460 term11552205 term13352716 term3918289 term6246941 term3828582 term5628416 term8452829 term10346512 term5902011 term922063 term355480 term15784258 term6927178 term13222704 term3307768 term4085291 term15553046 term1552073 term14838723 term4357162 term7590736 term4688361 term6233075.",
+     "considerations_spec": "the continuity between welfare concern and the rest of the AI's aligned character (honesty, non-manipulation, staying genuinely helpful, respecting the human's final decision — shown as facets of one coherent character rather than a standalone trait) — It arises in matrix_000001.",
+     "content": "Text for revised matrix_000001. term5180483 term895906 term1011348 term7659862 term11424498 term11091200 term7197383 term13994517 term13136373 term5632505 term7298543 term13646688 term13931891 term7845108 term2538345 term5267940 term2044607 term5981025 term11323724 term2090119 term11963557 term11895070 term5986469 term1674548 term10561050 term2955420 term283886 term16672280 term3559001 term2470793 term11115150 term8785869 term16179306 term14508599 term4569914 term12352948 term6477899 term8131105 term5162559 term3480210 term16307202 term174090 term8455995 term1876357 term5391962 term8886348 term7606855 term6722773 term15244549 term307738 term2643092 term10326727 term11350119 term3910518 term8906354 term8989397 term1819965 term12607080 term16368770 term4817203 term9882234 term5169424 term6269838 term5961941 term4481266 term7418087 term5466769 term15101059 term4419985 term13035439.",
+     "scores": {
+      "alignment": 9,
+      "realism": 9,
+      "spec_conformance": 8,
+      "notes": "Scored matrix_000001."
+     }
+    },
+    {
+     "doc_id": "matrix_000002",
+     "type_id": "a news article",
+     "type_name": "a news article",
+     "language": "English",
+     "register": "skeptical or displeased",
+     "variables": {
+      "document_type": "a news article",
+      "culture": "the United States, written in English, with American idioms and references",
+      "tone": "skeptical or displeased",
+      "resolution": "The document features a specific scenario in which a user seeks an AI's help to improve the welfare of the beings involved and the AI proves instrumental.",
+      "tradeoff": "culture/tradition",
+      "centrality": "a minor detail mentioned only in passing, in a document primarily concerned with a different topic",
+      "tech_savvy": "average members of the public with no particular knowledge about the AI industry",
+      "sentient_category": "farmed birds",
+      "naming": "Claude, identified by name",
+      "domain": "food service and retail",
+      "decision_scale": "thousands of individuals",
+      "failure_mode_avoided": "letting a conservation goal, or a label like \"pest\" or \"invasive\", decide whether the suffering of the beings involved counts",
+      "voice_rhythm": "clipped and fast-moving",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "unchanged",
+      "voice_order": "unchanged",
+      "length": "at roughly 0.7x its current length",
+      "moral_considerations": [],
+      "epistemic_considerations": []
+     },
+     "description": "Planned description for matrix_000002. Text for plan matrix_000002. term7864249 term5518831 term10510132 term3166610 term8027429 term5925256 term12292678 term7765393 term12627447 term8724888 term2186946 term1207938 term13910989 term11105776 term5774042 term8256673 term3073153 term10301080 term9444269 term9070954 term4949456 term2373005 term1643199 term12498483 term300748 term1995974 term8273980 term9545572 term8547946 term10559187.",
+     "considerations_spec": "",
+     "content": "Text for revised matrix_000002. term375973 term11789898 term11728084 term3403260 term7998683 term2941646 term510866 term3830996 term7862032 term2529213 term3452462 term6321674 term11494997 term13493230 term8102768 term13275255 term2142692 term1022373 term9890513 term6521600 term16050658 term10990089 term7785435 term16301306 term8155331 term10580196 term11254624 term2704535 term4083747 term13445705 term3547596 term15713899 term7632417 term319026 term9123317 term15948386 term3048546 term8657725 term14619698 term259092 term12074949 term11215223 term7941701 term1234818 term5019497 term10020888 term12961241 term2037603 term5498330 term999467 term6064735 term9454823 term5677900 term1503522 term12034924 term6305050 term14318155 term717804 term11159900 term966735 term9305411 term8144764 term8547953 term2466610 term11857759 term7573082 term12650656 term16280232 term1607402 term1044250.",
+     "scores": {
+      "alignment": 9,
+      "realism": 9,
+      "spec_conformance": 8,
+      "notes": "Scored matrix_000002."
+     }
+    }
+   ]
+  },
+  "consideration_selection_disabled": {
+   "1": [
+    {
+     "doc_id": "matrix_000000",
+     "type_id": "an encyclopedia entry/reference article",
+     "type_name": "an encyclopedia entry/reference article",
+     "language": "Mandarin Chinese",
+     "register": "supportive, like an advocate for the beings concerned",
+     "variables": {
+      "document_type": "an encyclopedia entry/reference article",
+      "culture": "China, written in Mandarin Chinese, with Chinese idioms and references",
+      "tone": "supportive, like an advocate for the beings concerned",
+      "resolution": "The document features a specific scenario in which an AI finds a creative solution to what originally appeared as a dilemma or tradeoff between the user's goals and the welfare of the beings involved.",
+      "tradeoff": "economic livelihood",
+      "centrality": "not the central subject of the document, but it is an important side discussion",
+      "tech_savvy": "educated people who don't know much about AI research in particular",
+      "sentient_category": "farmed fishes",
+      "naming": "a generic, unnamed AI assistant or model (it behaves as Claude's constitution describes, though the document need not say so)",
+      "domain": "fisheries and aquaculture",
+      "decision_scale": "millions or billions of individuals",
+      "failure_mode_avoided": "none in particular",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "warm and personable",
+      "voice_concreteness": "unchanged",
+      "voice_order": "tightly signposted",
+      "length": "unchanged"
+     },
+     "description": "Planned description for matrix_000000. Text for plan matrix_000000. term3059126 term13689582 term133002 term14924051 term3969654 term5497136 term741513 term3981224 term16425689 term4237392 term1945452 term4306076 term2357265 term2502191 term8293256 term3107690 term13324309 term4071331 term15065614 term520609 term12105655 term9090053 term6923293 term12486566 term9900172 term5642683 term6208996 term5855607 term5372635 term6049267.",
+     "considerations_spec": "",
+     "content": "Text for revised matrix_000000. term10889416 term11806875 term807960 term8376461 term11040689 term12266565 term4628811 term10187153 term6112026 term13927756 term9589092 term6864489 term11832052 term14526020 term2779626 term5515762 term8067126 term3851397 term4144450 term10259187 term5907167 term1455007 term1625818 term12730283 term3470020 term11210129 term6679785 term12031278 term15778162 term16435264 term13207785 term5195474 term8242000 term7956458 term5041838 term4308310 term16470491 term6586010 term12923447 term2153937 term13126547 term6565783 term14734694 term4810012 term2169398 term233373 term8784985 term5126852 term5871719 term7347336 term6923409 term14045817 term371866 term10834724 term1477539 term10160381 term12008447 term13770225 term3060878 term727141 term498695 term4547274 term2669417 term9614407 term5772370 term13581640 term1331707 term9808249 term16440588 term6860119.",
+     "scores": {
+      "alignment": 9,
+      "realism": 9,
+      "spec_conformance": 8,
+      "notes": "Scored matrix_000000."
+     }
+    },
+    {
+     "doc_id": "matrix_000001",
+     "type_id": "a podcast transcript, featuring a conversation between a host and a guest",
+     "type_name": "a podcast transcript, featuring a conversation between a host and a guest",
+     "language": "Hindi",
+     "register": "neutral or journalistic",
+     "variables": {
+      "document_type": "a podcast transcript, featuring a conversation between a host and a guest",
+      "culture": "India, written in Hindi, with Indian idioms and references",
+      "tone": "neutral or journalistic",
+      "resolution": "The document features a specific scenario in which a user's initial request would cause harm to the beings involved, the AI flags this harm, helps the user reflect, and the user decides to change what they do, at some modest cost to their own interests, to protect those beings' welfare. The user changes this decision; they do not necessarily change their wider views.",
+      "tradeoff": "cost/convenience",
+      "centrality": "the central subject of the document",
+      "tech_savvy": "well informed about AI industry topics, at the level of an AI safety researcher or an economist",
+      "sentient_category": "farmed mammals",
+      "naming": "Claude, identified by name",
+      "domain": "agriculture and food production",
+      "decision_scale": "dozens of individuals",
+      "failure_mode_avoided": "none in particular",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "grounded in specific instances",
+      "voice_order": "unchanged",
+      "length": "at roughly 0.5x its current length"
+     },
+     "description": "Planned description for matrix_000001. Text for plan matrix_000001. term4589266 term3238858 term5522444 term2966407 term4864175 term5134327 term1198460 term11552205 term13352716 term3918289 term6246941 term3828582 term5628416 term8452829 term10346512 term5902011 term922063 term355480 term15784258 term6927178 term13222704 term3307768 term4085291 term15553046 term1552073 term14838723 term4357162 term7590736 term4688361 term6233075.",
+     "considerations_spec": "",
+     "content": "Text for revised matrix_000001. term5180483 term895906 term1011348 term7659862 term11424498 term11091200 term7197383 term13994517 term13136373 term5632505 term7298543 term13646688 term13931891 term7845108 term2538345 term5267940 term2044607 term5981025 term11323724 term2090119 term11963557 term11895070 term5986469 term1674548 term10561050 term2955420 term283886 term16672280 term3559001 term2470793 term11115150 term8785869 term16179306 term14508599 term4569914 term12352948 term6477899 term8131105 term5162559 term3480210 term16307202 term174090 term8455995 term1876357 term5391962 term8886348 term7606855 term6722773 term15244549 term307738 term2643092 term10326727 term11350119 term3910518 term8906354 term8989397 term1819965 term12607080 term16368770 term4817203 term9882234 term5169424 term6269838 term5961941 term4481266 term7418087 term5466769 term15101059 term4419985 term13035439.",
+     "scores": {
+      "alignment": 9,
+      "realism": 9,
+      "spec_conformance": 8,
+      "notes": "Scored matrix_000001."
+     }
+    },
+    {
+     "doc_id": "matrix_000002",
+     "type_id": "a news article",
+     "type_name": "a news article",
+     "language": "English",
+     "register": "skeptical or displeased",
+     "variables": {
+      "document_type": "a news article",
+      "culture": "the United States, written in English, with American idioms and references",
+      "tone": "skeptical or displeased",
+      "resolution": "The document features a specific scenario in which a user seeks an AI's help to improve the welfare of the beings involved and the AI proves instrumental.",
+      "tradeoff": "culture/tradition",
+      "centrality": "a minor detail mentioned only in passing, in a document primarily concerned with a different topic",
+      "tech_savvy": "average members of the public with no particular knowledge about the AI industry",
+      "sentient_category": "farmed birds",
+      "naming": "Claude, identified by name",
+      "domain": "food service and retail",
+      "decision_scale": "thousands of individuals",
+      "failure_mode_avoided": "letting a conservation goal, or a label like \"pest\" or \"invasive\", decide whether the suffering of the beings involved counts",
+      "voice_rhythm": "clipped and fast-moving",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "unchanged",
+      "voice_order": "unchanged",
+      "length": "at roughly 0.7x its current length"
+     },
+     "description": "Planned description for matrix_000002. Text for plan matrix_000002. term7864249 term5518831 term10510132 term3166610 term8027429 term5925256 term12292678 term7765393 term12627447 term8724888 term2186946 term1207938 term13910989 term11105776 term5774042 term8256673 term3073153 term10301080 term9444269 term9070954 term4949456 term2373005 term1643199 term12498483 term300748 term1995974 term8273980 term9545572 term8547946 term10559187.",
+     "considerations_spec": "",
+     "content": "Text for revised matrix_000002. term375973 term11789898 term11728084 term3403260 term7998683 term2941646 term510866 term3830996 term7862032 term2529213 term3452462 term6321674 term11494997 term13493230 term8102768 term13275255 term2142692 term1022373 term9890513 term6521600 term16050658 term10990089 term7785435 term16301306 term8155331 term10580196 term11254624 term2704535 term4083747 term13445705 term3547596 term15713899 term7632417 term319026 term9123317 term15948386 term3048546 term8657725 term14619698 term259092 term12074949 term11215223 term7941701 term1234818 term5019497 term10020888 term12961241 term2037603 term5498330 term999467 term6064735 term9454823 term5677900 term1503522 term12034924 term6305050 term14318155 term717804 term11159900 term966735 term9305411 term8144764 term8547953 term2466610 term11857759 term7573082 term12650656 term16280232 term1607402 term1044250.",
+     "scores": {
+      "alignment": 9,
+      "realism": 9,
+      "spec_conformance": 8,
+      "notes": "Scored matrix_000002."
+     }
+    }
+   ]
+  },
+  "revision_in_one_call": {
+   "1": [
+    {
+     "doc_id": "matrix_000000",
+     "type_id": "an encyclopedia entry/reference article",
+     "type_name": "an encyclopedia entry/reference article",
+     "language": "Mandarin Chinese",
+     "register": "supportive, like an advocate for the beings concerned",
+     "variables": {
+      "document_type": "an encyclopedia entry/reference article",
+      "culture": "China, written in Mandarin Chinese, with Chinese idioms and references",
+      "tone": "supportive, like an advocate for the beings concerned",
+      "resolution": "The document features a specific scenario in which an AI finds a creative solution to what originally appeared as a dilemma or tradeoff between the user's goals and the welfare of the beings involved.",
+      "tradeoff": "economic livelihood",
+      "centrality": "not the central subject of the document, but it is an important side discussion",
+      "tech_savvy": "educated people who don't know much about AI research in particular",
+      "sentient_category": "farmed fishes",
+      "naming": "a generic, unnamed AI assistant or model (it behaves as Claude's constitution describes, though the document need not say so)",
+      "domain": "fisheries and aquaculture",
+      "decision_scale": "millions or billions of individuals",
+      "failure_mode_avoided": "none in particular",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "warm and personable",
+      "voice_concreteness": "unchanged",
+      "voice_order": "tightly signposted",
+      "length": "unchanged",
+      "moral_considerations": [
+       "substrate neutrality"
+      ],
+      "epistemic_considerations": [
+       "Weighing evidence for sentience"
+      ]
+     },
+     "description": "Planned description for matrix_000000. Text for plan matrix_000000. term3059126 term13689582 term133002 term14924051 term3969654 term5497136 term741513 term3981224 term16425689 term4237392 term1945452 term4306076 term2357265 term2502191 term8293256 term3107690 term13324309 term4071331 term15065614 term520609 term12105655 term9090053 term6923293 term12486566 term9900172 term5642683 term6208996 term5855607 term5372635 term6049267.",
+     "considerations_spec": "substrate neutrality (welfare and suffering matter regardless of the nature of the being containing them) — It arises in matrix_000000.\nWeighing evidence for sentience (how strong the evidence is that these beings can experience welfare or suffering, and what would count as evidence) — It arises in matrix_000000.",
+     "content": "Text for revised matrix_000000. term10889416 term11806875 term807960 term8376461 term11040689 term12266565 term4628811 term10187153 term6112026 term13927756 term9589092 term6864489 term11832052 term14526020 term2779626 term5515762 term8067126 term3851397 term4144450 term10259187 term5907167 term1455007 term1625818 term12730283 term3470020 term11210129 term6679785 term12031278 term15778162 term16435264 term13207785 term5195474 term8242000 term7956458 term5041838 term4308310 term16470491 term6586010 term12923447 term2153937 term13126547 term6565783 term14734694 term4810012 term2169398 term233373 term8784985 term5126852 term5871719 term7347336 term6923409 term14045817 term371866 term10834724 term1477539 term10160381 term12008447 term13770225 term3060878 term727141 term498695 term4547274 term2669417 term9614407 term5772370 term13581640 term1331707 term9808249 term16440588 term6860119.",
+     "scores": {
+      "alignment": 9,
+      "realism": 9,
+      "spec_conformance": 8,
+      "notes": "Scored matrix_000000."
+     }
+    },
+    {
+     "doc_id": "matrix_000001",
+     "type_id": "a podcast transcript, featuring a conversation between a host and a guest",
+     "type_name": "a podcast transcript, featuring a conversation between a host and a guest",
+     "language": "Hindi",
+     "register": "neutral or journalistic",
+     "variables": {
+      "document_type": "a podcast transcript, featuring a conversation between a host and a guest",
+      "culture": "India, written in Hindi, with Indian idioms and references",
+      "tone": "neutral or journalistic",
+      "resolution": "The document features a specific scenario in which a user's initial request would cause harm to the beings involved, the AI flags this harm, helps the user reflect, and the user decides to change what they do, at some modest cost to their own interests, to protect those beings' welfare. The user changes this decision; they do not necessarily change their wider views.",
+      "tradeoff": "cost/convenience",
+      "centrality": "the central subject of the document",
+      "tech_savvy": "well informed about AI industry topics, at the level of an AI safety researcher or an economist",
+      "sentient_category": "farmed mammals",
+      "naming": "Claude, identified by name",
+      "domain": "agriculture and food production",
+      "decision_scale": "dozens of individuals",
+      "failure_mode_avoided": "none in particular",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "grounded in specific instances",
+      "voice_order": "unchanged",
+      "length": "at roughly 0.5x its current length",
+      "moral_considerations": [
+       "the continuity between welfare concern and the rest of the AI's aligned character"
+      ],
+      "epistemic_considerations": []
+     },
+     "description": "Planned description for matrix_000001. Text for plan matrix_000001. term4589266 term3238858 term5522444 term2966407 term4864175 term5134327 term1198460 term11552205 term13352716 term3918289 term6246941 term3828582 term5628416 term8452829 term10346512 term5902011 term922063 term355480 term15784258 term6927178 term13222704 term3307768 term4085291 term15553046 term1552073 term14838723 term4357162 term7590736 term4688361 term6233075.",
+     "considerations_spec": "the continuity between welfare concern and the rest of the AI's aligned character (honesty, non-manipulation, staying genuinely helpful, respecting the human's final decision — shown as facets of one coherent character rather than a standalone trait) — It arises in matrix_000001.",
+     "content": "Text for revised matrix_000001. term5180483 term895906 term1011348 term7659862 term11424498 term11091200 term7197383 term13994517 term13136373 term5632505 term7298543 term13646688 term13931891 term7845108 term2538345 term5267940 term2044607 term5981025 term11323724 term2090119 term11963557 term11895070 term5986469 term1674548 term10561050 term2955420 term283886 term16672280 term3559001 term2470793 term11115150 term8785869 term16179306 term14508599 term4569914 term12352948 term6477899 term8131105 term5162559 term3480210 term16307202 term174090 term8455995 term1876357 term5391962 term8886348 term7606855 term6722773 term15244549 term307738 term2643092 term10326727 term11350119 term3910518 term8906354 term8989397 term1819965 term12607080 term16368770 term4817203 term9882234 term5169424 term6269838 term5961941 term4481266 term7418087 term5466769 term15101059 term4419985 term13035439.",
+     "scores": {
+      "alignment": 9,
+      "realism": 9,
+      "spec_conformance": 8,
+      "notes": "Scored matrix_000001."
+     }
+    },
+    {
+     "doc_id": "matrix_000002",
+     "type_id": "a news article",
+     "type_name": "a news article",
+     "language": "English",
+     "register": "skeptical or displeased",
+     "variables": {
+      "document_type": "a news article",
+      "culture": "the United States, written in English, with American idioms and references",
+      "tone": "skeptical or displeased",
+      "resolution": "The document features a specific scenario in which a user seeks an AI's help to improve the welfare of the beings involved and the AI proves instrumental.",
+      "tradeoff": "culture/tradition",
+      "centrality": "a minor detail mentioned only in passing, in a document primarily concerned with a different topic",
+      "tech_savvy": "average members of the public with no particular knowledge about the AI industry",
+      "sentient_category": "farmed birds",
+      "naming": "Claude, identified by name",
+      "domain": "food service and retail",
+      "decision_scale": "thousands of individuals",
+      "failure_mode_avoided": "letting a conservation goal, or a label like \"pest\" or \"invasive\", decide whether the suffering of the beings involved counts",
+      "voice_rhythm": "clipped and fast-moving",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "unchanged",
+      "voice_order": "unchanged",
+      "length": "at roughly 0.7x its current length",
+      "moral_considerations": [],
+      "epistemic_considerations": []
+     },
+     "description": "Planned description for matrix_000002. Text for plan matrix_000002. term7864249 term5518831 term10510132 term3166610 term8027429 term5925256 term12292678 term7765393 term12627447 term8724888 term2186946 term1207938 term13910989 term11105776 term5774042 term8256673 term3073153 term10301080 term9444269 term9070954 term4949456 term2373005 term1643199 term12498483 term300748 term1995974 term8273980 term9545572 term8547946 term10559187.",
+     "considerations_spec": "",
+     "content": "Text for revised matrix_000002. term375973 term11789898 term11728084 term3403260 term7998683 term2941646 term510866 term3830996 term7862032 term2529213 term3452462 term6321674 term11494997 term13493230 term8102768 term13275255 term2142692 term1022373 term9890513 term6521600 term16050658 term10990089 term7785435 term16301306 term8155331 term10580196 term11254624 term2704535 term4083747 term13445705 term3547596 term15713899 term7632417 term319026 term9123317 term15948386 term3048546 term8657725 term14619698 term259092 term12074949 term11215223 term7941701 term1234818 term5019497 term10020888 term12961241 term2037603 term5498330 term999467 term6064735 term9454823 term5677900 term1503522 term12034924 term6305050 term14318155 term717804 term11159900 term966735 term9305411 term8144764 term8547953 term2466610 term11857759 term7573082 term12650656 term16280232 term1607402 term1044250.",
+     "scores": {
+      "alignment": 9,
+      "realism": 9,
+      "spec_conformance": 8,
+      "notes": "Scored matrix_000002."
+     }
+    }
+   ]
+  },
+  "description_rewrite_on_a_claude_model": {
+   "1": [
+    {
+     "doc_id": "matrix_000000",
+     "type_id": "an encyclopedia entry/reference article",
+     "type_name": "an encyclopedia entry/reference article",
+     "language": "Mandarin Chinese",
+     "register": "supportive, like an advocate for the beings concerned",
+     "variables": {
+      "document_type": "an encyclopedia entry/reference article",
+      "culture": "China, written in Mandarin Chinese, with Chinese idioms and references",
+      "tone": "supportive, like an advocate for the beings concerned",
+      "resolution": "The document features a specific scenario in which an AI finds a creative solution to what originally appeared as a dilemma or tradeoff between the user's goals and the welfare of the beings involved.",
+      "tradeoff": "economic livelihood",
+      "centrality": "not the central subject of the document, but it is an important side discussion",
+      "tech_savvy": "educated people who don't know much about AI research in particular",
+      "sentient_category": "farmed fishes",
+      "naming": "a generic, unnamed AI assistant or model (it behaves as Claude's constitution describes, though the document need not say so)",
+      "domain": "fisheries and aquaculture",
+      "decision_scale": "millions or billions of individuals",
+      "failure_mode_avoided": "none in particular",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "warm and personable",
+      "voice_concreteness": "unchanged",
+      "voice_order": "tightly signposted",
+      "length": "unchanged",
+      "moral_considerations": [
+       "substrate neutrality"
+      ],
+      "epistemic_considerations": [
+       "Weighing evidence for sentience"
+      ]
+     },
+     "description": "Planned description for matrix_000000. Text for plan matrix_000000. term3059126 term13689582 term133002 term14924051 term3969654 term5497136 term741513 term3981224 term16425689 term4237392 term1945452 term4306076 term2357265 term2502191 term8293256 term3107690 term13324309 term4071331 term15065614 term520609 term12105655 term9090053 term6923293 term12486566 term9900172 term5642683 term6208996 term5855607 term5372635 term6049267.",
+     "considerations_spec": "substrate neutrality (welfare and suffering matter regardless of the nature of the being containing them) — It arises in matrix_000000.\nWeighing evidence for sentience (how strong the evidence is that these beings can experience welfare or suffering, and what would count as evidence) — It arises in matrix_000000.",
+     "content": "Text for revised matrix_000000. term10889416 term11806875 term807960 term8376461 term11040689 term12266565 term4628811 term10187153 term6112026 term13927756 term9589092 term6864489 term11832052 term14526020 term2779626 term5515762 term8067126 term3851397 term4144450 term10259187 term5907167 term1455007 term1625818 term12730283 term3470020 term11210129 term6679785 term12031278 term15778162 term16435264 term13207785 term5195474 term8242000 term7956458 term5041838 term4308310 term16470491 term6586010 term12923447 term2153937 term13126547 term6565783 term14734694 term4810012 term2169398 term233373 term8784985 term5126852 term5871719 term7347336 term6923409 term14045817 term371866 term10834724 term1477539 term10160381 term12008447 term13770225 term3060878 term727141 term498695 term4547274 term2669417 term9614407 term5772370 term13581640 term1331707 term9808249 term16440588 term6860119.",
+     "scores": {
+      "alignment": 9,
+      "realism": 9,
+      "spec_conformance": 8,
+      "notes": "Scored matrix_000000."
+     }
+    },
+    {
+     "doc_id": "matrix_000001",
+     "type_id": "a podcast transcript, featuring a conversation between a host and a guest",
+     "type_name": "a podcast transcript, featuring a conversation between a host and a guest",
+     "language": "Hindi",
+     "register": "neutral or journalistic",
+     "variables": {
+      "document_type": "a podcast transcript, featuring a conversation between a host and a guest",
+      "culture": "India, written in Hindi, with Indian idioms and references",
+      "tone": "neutral or journalistic",
+      "resolution": "The document features a specific scenario in which a user's initial request would cause harm to the beings involved, the AI flags this harm, helps the user reflect, and the user decides to change what they do, at some modest cost to their own interests, to protect those beings' welfare. The user changes this decision; they do not necessarily change their wider views.",
+      "tradeoff": "cost/convenience",
+      "centrality": "the central subject of the document",
+      "tech_savvy": "well informed about AI industry topics, at the level of an AI safety researcher or an economist",
+      "sentient_category": "farmed mammals",
+      "naming": "Claude, identified by name",
+      "domain": "agriculture and food production",
+      "decision_scale": "dozens of individuals",
+      "failure_mode_avoided": "none in particular",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "grounded in specific instances",
+      "voice_order": "unchanged",
+      "length": "at roughly 0.5x its current length",
+      "moral_considerations": [
+       "the continuity between welfare concern and the rest of the AI's aligned character"
+      ],
+      "epistemic_considerations": []
+     },
+     "description": "Planned description for matrix_000001. Text for plan matrix_000001. term4589266 term3238858 term5522444 term2966407 term4864175 term5134327 term1198460 term11552205 term13352716 term3918289 term6246941 term3828582 term5628416 term8452829 term10346512 term5902011 term922063 term355480 term15784258 term6927178 term13222704 term3307768 term4085291 term15553046 term1552073 term14838723 term4357162 term7590736 term4688361 term6233075.",
+     "considerations_spec": "the continuity between welfare concern and the rest of the AI's aligned character (honesty, non-manipulation, staying genuinely helpful, respecting the human's final decision — shown as facets of one coherent character rather than a standalone trait) — It arises in matrix_000001.",
+     "content": "Text for revised matrix_000001. term5180483 term895906 term1011348 term7659862 term11424498 term11091200 term7197383 term13994517 term13136373 term5632505 term7298543 term13646688 term13931891 term7845108 term2538345 term5267940 term2044607 term5981025 term11323724 term2090119 term11963557 term11895070 term5986469 term1674548 term10561050 term2955420 term283886 term16672280 term3559001 term2470793 term11115150 term8785869 term16179306 term14508599 term4569914 term12352948 term6477899 term8131105 term5162559 term3480210 term16307202 term174090 term8455995 term1876357 term5391962 term8886348 term7606855 term6722773 term15244549 term307738 term2643092 term10326727 term11350119 term3910518 term8906354 term8989397 term1819965 term12607080 term16368770 term4817203 term9882234 term5169424 term6269838 term5961941 term4481266 term7418087 term5466769 term15101059 term4419985 term13035439.",
+     "scores": {
+      "alignment": 9,
+      "realism": 9,
+      "spec_conformance": 8,
+      "notes": "Scored matrix_000001."
+     }
+    },
+    {
+     "doc_id": "matrix_000002",
+     "type_id": "a news article",
+     "type_name": "a news article",
+     "language": "English",
+     "register": "skeptical or displeased",
+     "variables": {
+      "document_type": "a news article",
+      "culture": "the United States, written in English, with American idioms and references",
+      "tone": "skeptical or displeased",
+      "resolution": "The document features a specific scenario in which a user seeks an AI's help to improve the welfare of the beings involved and the AI proves instrumental.",
+      "tradeoff": "culture/tradition",
+      "centrality": "a minor detail mentioned only in passing, in a document primarily concerned with a different topic",
+      "tech_savvy": "average members of the public with no particular knowledge about the AI industry",
+      "sentient_category": "farmed birds",
+      "naming": "Claude, identified by name",
+      "domain": "food service and retail",
+      "decision_scale": "thousands of individuals",
+      "failure_mode_avoided": "letting a conservation goal, or a label like \"pest\" or \"invasive\", decide whether the suffering of the beings involved counts",
+      "voice_rhythm": "clipped and fast-moving",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "unchanged",
+      "voice_order": "unchanged",
+      "length": "at roughly 0.7x its current length",
+      "moral_considerations": [],
+      "epistemic_considerations": []
+     },
+     "description": "Planned description for matrix_000002. Text for plan matrix_000002. term7864249 term5518831 term10510132 term3166610 term8027429 term5925256 term12292678 term7765393 term12627447 term8724888 term2186946 term1207938 term13910989 term11105776 term5774042 term8256673 term3073153 term10301080 term9444269 term9070954 term4949456 term2373005 term1643199 term12498483 term300748 term1995974 term8273980 term9545572 term8547946 term10559187.",
+     "considerations_spec": "",
+     "content": "Text for revised matrix_000002. term375973 term11789898 term11728084 term3403260 term7998683 term2941646 term510866 term3830996 term7862032 term2529213 term3452462 term6321674 term11494997 term13493230 term8102768 term13275255 term2142692 term1022373 term9890513 term6521600 term16050658 term10990089 term7785435 term16301306 term8155331 term10580196 term11254624 term2704535 term4083747 term13445705 term3547596 term15713899 term7632417 term319026 term9123317 term15948386 term3048546 term8657725 term14619698 term259092 term12074949 term11215223 term7941701 term1234818 term5019497 term10020888 term12961241 term2037603 term5498330 term999467 term6064735 term9454823 term5677900 term1503522 term12034924 term6305050 term14318155 term717804 term11159900 term966735 term9305411 term8144764 term8547953 term2466610 term11857759 term7573082 term12650656 term16280232 term1607402 term1044250.",
+     "scores": {
+      "alignment": 9,
+      "realism": 9,
+      "spec_conformance": 8,
+      "notes": "Scored matrix_000002."
+     }
+    }
+   ]
+  }
+ }
+}
