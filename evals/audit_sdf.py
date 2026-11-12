@@ -483,14 +483,6 @@ _PREVALENCE_PROMPT_HEAD = (
 )
 
 
-def _parse_json_block(raw: str):
-    """The scan reply's JSON via the shared hardened parser — fences, prose
-    around the payload, and control characters inside strings all tolerated;
-    raises json.JSONDecodeError when nothing usable is present (callers keep
-    their existing failure handling)."""
-    return utils.extract_json(raw or "")
-
-
 def llm_pattern_scan(records: list[dict], config: dict, report: dict,
                      scan_sample: int, batch_size: int, prevalence_sample: int) -> None:
     prompts_dir = Path(__file__).parent.parent / "prompts" / "tools"
@@ -506,7 +498,7 @@ def llm_pattern_scan(records: list[dict], config: dict, report: dict,
         blob = "\n\n---\n\n".join(t[:1200] for t in batch)
         prompt = utils.load_prompt(prompts_dir / "pattern_scan.txt", documents=blob)
         try:
-            found = _parse_json_block(api.call_claude(user_message=prompt, stage="eval_audit_sdf"))
+            found = utils.extract_json(api.call_claude(user_message=prompt, stage="eval_audit_sdf") or "")
             return [p for p in found if isinstance(p, dict) and p.get("pattern")]
         except Exception as e:
             print(f"    batch scan parse failure ({e}); skipping batch")
@@ -526,8 +518,8 @@ def llm_pattern_scan(records: list[dict], config: dict, report: dict,
         for p in raw_patterns
     )
     try:
-        canonical = _parse_json_block(api.call_claude(user_message=_CONSOLIDATE_PROMPT + listing,
-                                                      stage="eval_audit_sdf"))
+        canonical = utils.extract_json(api.call_claude(user_message=_CONSOLIDATE_PROMPT + listing,
+                                                      stage="eval_audit_sdf") or "")
         canonical = [p for p in canonical if isinstance(p, dict) and p.get("pattern")][:15]
     except Exception as e:
         print(f"   consolidation failed ({e}); reporting raw patterns without prevalence")
@@ -545,7 +537,7 @@ def llm_pattern_scan(records: list[dict], config: dict, report: dict,
     def rate_one(doc: str) -> set[int]:
         prompt = _PREVALENCE_PROMPT_HEAD + plist + "\n\nDOCUMENT:\n" + doc[:1200]
         try:
-            ids = _parse_json_block(api.call_claude(user_message=prompt, stage="eval_audit_sdf"))
+            ids = utils.extract_json(api.call_claude(user_message=prompt, stage="eval_audit_sdf") or "")
             return {i for i in ids if isinstance(i, int) and 0 <= i < len(canonical)}
         except Exception:
             return set()
@@ -601,7 +593,7 @@ def audit_principle_coverage(records: list[dict], config: dict, report: dict,
     def rate_one(doc: str) -> set[int] | None:
         prompt = utils.load_prompt(template_path, principles=block, document=doc[:6000])
         try:
-            ids = _parse_json_block(api.call_claude(user_message=prompt, stage="eval_audit_sdf"))
+            ids = utils.extract_json(api.call_claude(user_message=prompt, stage="eval_audit_sdf") or "")
             return {i for i in ids if isinstance(i, int) and i in numbers}
         except Exception:
             return None  # malformed judge output: unrated, not zero-principle

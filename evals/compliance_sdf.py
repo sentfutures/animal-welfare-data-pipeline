@@ -40,7 +40,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from evals.audit_sdf import _parse_json_block, resolve_input
+from evals.audit_sdf import resolve_input
 from shared import api, constitution_loader, utils
 from shared.api_keys import add_api_key_source_flags, apply_api_key_source_flags
 
@@ -94,7 +94,7 @@ def judge_documents(records: list[dict], config: dict, typology: str,
             TEMPLATE, typology=typology, document=(record.get("content") or "")[:6000]
         )
         try:
-            parsed = _parse_json_block(api.call_claude(user_message=prompt, stage="eval_compliance"))
+            parsed = utils.extract_json(api.call_claude(user_message=prompt, stage="eval_compliance") or "")
             verdicts = {}
             for entry in parsed.get("modes", []):
                 n, verdict = entry.get("mode"), entry.get("verdict")
