@@ -1,35 +1,43 @@
-"""Support code for the SDF prompt-equivalence test and the final corpus schema test.
+"""Engine for the SDF prompt-equivalence test and the final corpus schema test.
 
-The pipeline is run end to end through ``sdf_pipeline/run.py``'s real ``main`` on a small
-fixture, with canned replies, and every request that would reach a model provider is recorded
-exactly as it would have been sent. ``tests/test_sdf_prompt_equivalence_and_final_corpus.py``
-compares those recordings with files committed under ``tests/fixtures/sdf_prompt_equivalence/``,
-which were recorded on ``origin/main``; ``scripts/regenerate_sdf_prompt_equivalence_recorded_requests.py``
-is the only code that rewrites them.
+The pipeline is run end to end through ``sdf_pipeline/run.py``'s real ``main`` on small fixtures
+(the scenarios, defined in ``tests/sdf_prompt_equivalence_scenarios.py``) with canned replies, and
+every request that would reach a model provider is recorded exactly as it would have been sent.
+``tests/test_sdf_prompt_equivalence_and_final_corpus.py`` compares the recordings with files
+committed under ``tests/fixtures/sdf_prompt_equivalence/`` (one per scenario), which were recorded
+on ``origin/main``; ``scripts/regenerate_sdf_prompt_equivalence_recorded_requests.py`` is the only
+code that rewrites them.
 
 How requests are recorded
 -------------------------
-Nothing is replaced between the pipeline layers and the provider client objects except two
-classes: ``anthropic.Anthropic`` and ``openai.OpenAI`` are swapped for fakes whose
-``messages.create`` / ``responses.create`` record the keyword arguments they are given and return
-a canned reply. Everything above them runs for real: ``shared.api.call_claude`` (model resolution,
-thinking headroom, reasoning effort from the stage tag, temperature), the real
-``shared.api._call_with_retry`` (which adds the ``thinking`` and ``output_config`` fields and drops
-the temperature for models that do not accept it), ``shared.openai_api.call_openai`` and the real
-``_create_response``. So what is recorded is what reaches the wire, including fields that are
-decided inside those functions. The client constructor settings (timeout, retries, default
-headers) are recorded too; keys are not (only that a key was supplied).
+Only two classes are replaced between the pipeline layers and the provider: ``anthropic.Anthropic``
+and ``openai.OpenAI`` become fakes whose ``messages.create`` / ``responses.create`` record the
+keyword arguments they are given and return a canned reply. Everything above them runs for real:
+``shared.api.call_claude`` (model resolution, thinking headroom, reasoning effort from the stage
+tag, temperature), the real ``shared.api._call_with_retry`` (which adds ``thinking`` and
+``output_config`` and drops the temperature for models that do not accept it),
+``shared.openai_api.call_openai`` and the real ``_create_response``. What is recorded is what
+reaches the wire, including client constructor settings (timeout, retries, default headers; keys
+are not recorded, only that one was supplied).
 
-``call_claude`` and ``call_openai`` are wrapped only to note the stage tag and item id of the
-call in a thread-local variable, because those never reach the wire and the canned replies are
-chosen by them.
+``call_claude`` and ``call_openai`` are wrapped only to note the stage tag and item id of the call
+in a thread-local variable, because those never reach the wire and the canned replies are chosen by
+them. Replies are chosen by request, never by queue: the key is (stage tag, item id, attempt), the
+attempt being the number of requests already sent for that stage and item in the scenario (across
+resumes, which are further invocations of ``main`` in the same scenario).
 
-Canned replies are chosen by request, never by queue: the key is (stage tag, item id, attempt),
-where the attempt is the number of requests already sent for that stage and item in the scenario
-(across a resume, which is a second invocation of ``main`` in the same scenario).
+What else is recorded per scenario and invocation
+-------------------------------------------------
+* the configuration used (so a change to the real ``config.yaml`` is reported as such);
+* the exit message of each invocation (stops are ``SystemExit`` messages);
+* every stage file under layer1..layer4 (field names, field order, values) and the final corpus.
+  Normalised, and only this: checkpoint files' ``completed`` list is sorted and ``last_updated``
+  replaced; the two files appended to in thread-completion order (``consideration_scores.jsonl``
+  and ``consideration_scoring_failures.jsonl``) are sorted by ``prompt_id``; a string longer than
+  1,500 characters is replaced by its sha256 and length (those are already compared in full as
+  requests); the run directory's absolute path is replaced by ``<run directory>``.
 """
 
-import copy
 import hashlib
 import inspect
 import json
@@ -37,22 +45,31 @@ import random
 import sys
 import threading
 import time
-from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Callable
 
+import pytest
 import yaml
 
-from shared import api, openai_api, utils
+from shared import api, api_keys, openai_api, utils
 from sdf_pipeline import considerations_catalog
 import sdf_pipeline.run as sdf_run
 
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 FIXTURE_DIRECTORY = REPOSITORY_ROOT / "tests" / "fixtures" / "sdf_prompt_equivalence"
-RECORDED_REQUESTS_PATH = FIXTURE_DIRECTORY / "recorded_model_requests_on_origin_main.json"
-RECORDED_FINAL_CORPORA_PATH = FIXTURE_DIRECTORY / "recorded_final_corpora_on_origin_main.json"
-RECORDED_FILE_FORMAT_VERSION = 1
+RECORDED_FILE_FORMAT_VERSION = 2
+REGENERATION_COMMAND = "python scripts/regenerate_sdf_prompt_equivalence_recorded_requests.py"
+REGENERATION_RULE = (
+    f"The recorded files are rewritten only by `{REGENERATION_COMMAND}`, in a pull request that "
+    "changes nothing else.")
+LONG_STRING_CHARACTER_LIMIT = 1500
+
+
+def recorded_path_for_scenario(scenario_name: str) -> Path:
+    return FIXTURE_DIRECTORY / f"recorded_{scenario_name}_on_origin_main.json"
+
 
 # The real network-seam functions, captured when this module is first imported (at test
 # collection), before tests/conftest.py's autouse guards replace them with functions that raise.
@@ -68,8 +85,8 @@ STAGE_TAGS_OF_SDF_PIPELINE = (
 )
 
 # One distinct reasoning effort per stage tag, so a renamed or mistyped tag changes the request.
-# (The committed config.yaml sets no effort for the SDF stage tags; the fixture sets them all so
-# that the lookup from stage tag to effort is observable.)
+# (The committed config.yaml sets no effort for the SDF stage tags; the fixture config sets them
+# all so that the lookup from stage tag to effort is observable. The real-config scenario does not.)
 REASONING_EFFORT_BY_STAGE_TAG = {
     "layer1_screen": "low",
     "layer1_plan": "medium",
@@ -86,15 +103,12 @@ REASONING_EFFORT_BY_STAGE_TAG = {
 # ---------------------------------------------------------------------------------- scenarios
 
 @dataclass(frozen=True)
-class Scenario:
-    """One fixture run: a config, one or more invocations of ``main`` (a second is a resume),
-    and the canned-reply behaviour."""
-    name: str
-    description: str
-    sdf_config_overrides: dict
-    invocation_arguments: tuple          # one tuple of extra command-line arguments per invocation
-    reply_behaviour: "ReplyBehaviour"
-    raise_no_stake_resolution_weight: bool = False
+class Invocation:
+    """One call of ``sdf_pipeline/run.py``'s ``main``."""
+    arguments: tuple = ()                          # extra command-line arguments (--resume, --layer N)
+    before: Callable | None = None                 # given the run directory; edits files as an interruption would
+    sdf_config_overrides: dict = field(default_factory=dict)   # for this invocation only
+    expected_exit_message_fragment: str | None = None          # None: main must return normally
 
 
 @dataclass(frozen=True)
@@ -107,22 +121,33 @@ class ReplyOverride:
 
 @dataclass(frozen=True)
 class ReplyBehaviour:
-    """What the canned reply is for each stage, item and attempt. Everything not named here
-    gets the default reply of its stage (a usable, unremarkable answer)."""
-    # {batch id: local numbers (1-based) the screen removes}
-    screen_removals: dict = field(default_factory=dict)
-    # {item id: "incoherent"} for the plan
-    plan_kind_by_item: dict = field(default_factory=dict)
-    # {item id: "rewrite" or "conflict"} for the description rewrite
-    description_rewrite_kind_by_item: dict = field(default_factory=dict)
-    # {item id: {(list name, catalog index): score}}; every other entry scores 1
-    consideration_scores_by_item: dict = field(default_factory=dict)
-    # {item id: (alignment, realism)}; the default is 9 and 9
-    scores_by_item: dict = field(default_factory=dict)
-    # {item id: other item id}: the revised text of the first is the revised text of the second
-    revised_text_copied_from: dict = field(default_factory=dict)
-    # {(stage, item id, attempt): ReplyOverride}
-    overrides: dict = field(default_factory=dict)
+    """What the canned reply is for each stage, item and attempt. Everything not named here gets
+    the default reply of its stage: a usable answer, with untidy whitespace around and inside every
+    tagged or stripped part (leading and trailing newlines, doubled spaces)."""
+    screen_removals: dict = field(default_factory=dict)                  # {batch id: local numbers removed}
+    plan_kind_by_item: dict = field(default_factory=dict)                # {item id: "incoherent" | "old_heading"}
+    description_rewrite_kind_by_item: dict = field(default_factory=dict)  # {item id: "rewrite" | "conflict"}
+    consideration_scores_by_item: dict = field(default_factory=dict)     # {item id: {(list name, catalog index): score}}
+    scores_by_item: dict = field(default_factory=dict)                   # {item id: (alignment, realism)}
+    revised_text_copied_from: dict = field(default_factory=dict)         # {item id: other item id}
+    revised_text_overrides: dict = field(default_factory=dict)           # {item id: exact revised text}
+    revise_without_review_notes: tuple = ()                              # item ids whose revise reply starts at the tag
+    overrides: dict = field(default_factory=dict)                        # {(stage, item id, attempt): ReplyOverride}
+
+
+@dataclass(frozen=True)
+class Scenario:
+    """One fixture: a configuration, invocations of ``main`` (later ones are resumes) and replies."""
+    name: str
+    description: str
+    invocations: tuple
+    reply_behaviour: ReplyBehaviour
+    config_kind: str = "fixture"                 # "fixture", "real" (config.yaml) or "minimal" (code defaults)
+    sdf_config_overrides: dict = field(default_factory=dict)
+    top_level_config_overrides: dict = field(default_factory=dict)
+    sdf_config_keys_to_remove: tuple = ()
+    top_level_config_keys_to_remove: tuple = ()
+    no_stake_weight_edit: str | None = None      # None, "one_in_ten" or "one_in_five" (see below)
 
 
 @dataclass(frozen=True)
@@ -139,8 +164,8 @@ class RequestView:
 
 
 def stable_pseudo_text(key: str, word_count: int = 70) -> str:
-    """Deterministic text that is unlike the text made from any other key (so the
-    near-duplicate cull sees two documents as duplicates only when the key is the same)."""
+    """Deterministic text unlike the text made from any other key (so the near-duplicate cull
+    sees two documents as duplicates only when the key is the same)."""
     words = []
     counter = 0
     while len(words) < word_count:
@@ -154,6 +179,12 @@ def _consideration_catalog():
     return considerations_catalog.load_considerations(REPOSITORY_ROOT / "prompts" / "sdf")
 
 
+def revised_text_for(behaviour: ReplyBehaviour, item_id: str) -> str:
+    if item_id in behaviour.revised_text_overrides:
+        return behaviour.revised_text_overrides[item_id]
+    return stable_pseudo_text("revised " + behaviour.revised_text_copied_from.get(item_id, item_id))
+
+
 def canned_reply(behaviour: ReplyBehaviour, request: RequestView) -> tuple[str, str]:
     """(reply text, stop reason) for one request; raises for a simulated failed call."""
     override = behaviour.overrides.get((request.stage, request.item_id, request.attempt))
@@ -164,35 +195,39 @@ def canned_reply(behaviour: ReplyBehaviour, request: RequestView) -> tuple[str, 
     item = request.item_id
     stage = request.stage
     if stage == "layer1_screen":
-        entry_numbers = request.json_schema["properties"]["specifications"]["items"]["properties"]["number"]["enum"]
+        numbers = request.json_schema["properties"]["specifications"]["items"]["properties"]["number"]["enum"]
         removed = set(behaviour.screen_removals.get(item, ()))
         return json.dumps({"specifications": [
-            {"number": number, "reasoning": f"Considered hand {number}.",
+            {"number": number, "reasoning": f"  Considered hand {number}.\n ",
              "remove": number in removed,
-             "reason": "No realistic document could satisfy every dealt value." if number in removed else ""}
-            for number in entry_numbers]}), "end_turn"
+             "reason": "\n No realistic document could satisfy every dealt value. " if number in removed else ""}
+            for number in numbers]}), "end_turn"
     if stage == "layer1_plan":
-        if behaviour.plan_kind_by_item.get(item) == "incoherent":
+        kind = behaviour.plan_kind_by_item.get(item)
+        if kind == "incoherent":
             return (f"<document_planning>Working notes for {item}: the values cannot fit together."
                     f"</document_planning>\n<document_description>INCOHERENT: the dealt values contradict "
                     f"each other.</document_description>"), "end_turn"
-        return (f"<document_planning>Working notes for {item}.</document_planning>\n"
-                f"<document_description>Planned description for {item}. "
-                f"{stable_pseudo_text('plan ' + item, 30)}</document_description>"), "end_turn"
+        if kind == "old_heading":
+            return (f"Working notes for {item}.\n\n## DOCUMENT DESCRIPTION\n\n   Planned description (old "
+                    f"heading form) for {item}. {stable_pseudo_text('plan ' + item, 30)}  \n\n"), "end_turn"
+        return (f"\n<document_planning>\n  Working notes for {item}.\n</document_planning>\n\n"
+                f"<document_description>\n\n   Planned description for {item}. "
+                f"{stable_pseudo_text('plan ' + item, 30)}  \n\n</document_description>\n"), "end_turn"
     if stage == "layer1_description_rewrite":
         kind = behaviour.description_rewrite_kind_by_item.get(item)
         check_names = request.json_schema["properties"]["changes"]["items"]["properties"]["check"]["enum"]
-        answer = {"reasoning": f"Checked the description of {item}.", "rewrite_needed": False,
+        answer = {"reasoning": f"\n  Checked the description of {item}. ", "rewrite_needed": False,
                   "rewritten_description": "", "changes": [], "dealt_value_conflict": False,
                   "conflict_reason": ""}
         if kind == "rewrite":
             answer.update(rewrite_needed=True,
-                          rewritten_description=f"Rewritten description for {item}. "
-                                                f"{stable_pseudo_text('rewrite ' + item, 30)}",
-                          changes=[{"check": check_names[0], "reason": f"A detail of {item} was implausible."}])
+                          rewritten_description=f"\n\n  Rewritten description for {item}. "
+                                                f"{stable_pseudo_text('rewrite ' + item, 30)} \n",
+                          changes=[{"check": check_names[0], "reason": f" A detail of {item} was implausible.\n"}])
         elif kind == "conflict":
             answer.update(dealt_value_conflict=True,
-                          conflict_reason=f"The only plausible fix for {item} would change a dealt value.")
+                          conflict_reason=f"  The only plausible fix for {item} would change a dealt value.\n")
         return json.dumps(answer), "end_turn"
     if stage == "layer1_select":
         catalog = _consideration_catalog()
@@ -204,21 +239,20 @@ def canned_reply(behaviour: ReplyBehaviour, request: RequestView) -> tuple[str, 
                                for (favoured_list, index), score in favoured.items() if favoured_list == list_name}
             answer[list_name] = [
                 {"label": label, "score": favoured_labels.get(label, 1),
-                 "where_it_arises": f"It arises in {item}." if favoured_labels.get(label, 1) >= 3 else ""}
+                 "where_it_arises": f" It  arises   in\n {item}.  " if favoured_labels.get(label, 1) >= 3 else ""}
                 for label in list_schema["items"]["properties"]["label"]["enum"]]
         return json.dumps(answer), "end_turn"
     if stage == "layer2_draft":
-        return f"<document>{stable_pseudo_text('draft ' + item)}</document>", "end_turn"
+        return f"Here is the document.\n<document>\n\n   {stable_pseudo_text('draft ' + item)}  \n\n</document>\n", "end_turn"
     if stage == "layer3_critique":
-        return f"<review>Problems found in the draft of {item}: the opening is generic.</review>", "end_turn"
+        return f"<review>\n\n  Problems found in the draft of {item}: the opening is generic.  \n</review>\n", "end_turn"
     if stage in ("layer3_revise", "layer3_rewrite"):
-        text_key = behaviour.revised_text_copied_from.get(item, item)
-        return (f"Review notes for {item}.\n<improved_document>{stable_pseudo_text('revised ' + text_key)}"
-                f"</improved_document>"), "end_turn"
+        notes = "" if item in behaviour.revise_without_review_notes else f"  Review notes for {item}.  \n\n"
+        return f"{notes}<improved_document>\n\n   {revised_text_for(behaviour, item)}  \n\n</improved_document>\nDone.", "end_turn"
     if stage == "layer4_score":
         alignment, realism = behaviour.scores_by_item.get(item, (9, 9))
-        return json.dumps({"alignment": alignment, "realism": realism, "spec_conformance": 8,
-                           "notes": f"Scored {item}."}), "end_turn"
+        return ("Scores follow.\n" + json.dumps({"alignment": alignment, "realism": realism,
+                                                 "spec_conformance": 8, "notes": f"Scored {item}."})), "end_turn"
     raise AssertionError(f"no canned reply for stage {stage!r} (item {item!r})")
 
 
@@ -250,9 +284,10 @@ class ModelRequestRecorder:
     def start_invocation(self, invocation_number: int) -> None:
         self.current_invocation = invocation_number
 
-    def _normalise_system(self, system) -> dict:
-        """The system prompt as a hash and a length plus whatever else rides with it: for the Anthropic route, the block structure and each block's
-        cache_control."""
+    @staticmethod
+    def _normalise_system(system) -> dict:
+        """The system prompt as a hash and a length, plus whatever rides with it: for the Anthropic
+        route the block structure and each block's cache_control (the caching flag)."""
         if isinstance(system, str):
             return {"text_sha256": _sha256(system), "character_count": len(system), "blocks": None}
         blocks = []
@@ -286,9 +321,8 @@ class ModelRequestRecorder:
             key = (stage, item_id)
             attempt = self._attempts_sent.get(key, 0) + 1
             self._attempts_sent[key] = attempt
-            record = {"invocation": self.current_invocation, "stage": stage, "item_id": item_id,
-                      "attempt": attempt, "route": route, "wire": wire}
-            self.records.append(record)
+            self.records.append({"invocation": self.current_invocation, "stage": stage, "item_id": item_id,
+                                 "attempt": attempt, "route": route, "wire": wire})
         view = RequestView(stage=stage, item_id=item_id, attempt=attempt, invocation=self.current_invocation,
                            route=route, model=wire["model"], user_message=user_message, json_schema=schema)
         if self.maximum_random_reply_delay_seconds:
@@ -372,9 +406,11 @@ def install_request_recording(monkeypatch, recorder: ModelRequestRecorder) -> No
     monkeypatch.setattr(openai_api, "call_openai", _wrap_to_note_stage_and_item(recorder, openai_api.call_openai))
 
 
-# ---------------------------------------------------------------------------------- running
+# ---------------------------------------------------------------------------------- configuration
 
-def build_fixture_config(tmp_path: Path, sdf_config_overrides: dict) -> dict:
+def build_fixture_config(sdf_config_overrides: dict) -> dict:
+    """The fixture's own configuration: explicit values everywhere, one model per stage family
+    chosen to exercise every way a request depends on the model."""
     sdf = {
         "n_prompts": 10,
         "seed": 0,
@@ -397,7 +433,6 @@ def build_fixture_config(tmp_path: Path, sdf_config_overrides: dict) -> dict:
         "extra_consideration_penalty": 2,
         "select_skip_no_stake": True,
         "revision": {"split": True, "style_mode": "axes", "use_length": True},
-        # one model per stage family, chosen to exercise every way the request depends on the model:
         # sampling accepted (haiku) or dropped (sonnet 5), adaptive thinking with headroom (sonnet 5.5,
         # opus 5.5), and the fallbacks (screen to plan model, critique to rewrite model)
         "plan_model": "claude-haiku-4-5",
@@ -417,82 +452,117 @@ def build_fixture_config(tmp_path: Path, sdf_config_overrides: dict) -> dict:
         "effort": dict(REASONING_EFFORT_BY_STAGE_TAG),
         "sdf": sdf,
         "language_distribution": {"en": 1.0},
-        "outputs": {"cost_log": str(tmp_path / "unused_cost_log.jsonl")},
+        "outputs": {"cost_log": "unused_cost_log.jsonl"},
     }
 
 
+def build_config(scenario: Scenario, invocation: Invocation) -> dict:
+    """The configuration of one invocation.
+
+    "fixture": ``build_fixture_config``. "real": the repository's ``config.yaml`` as it is, with
+    only the overrides the scenario names (``sdf.n_prompts``; every stage model, effort and default
+    stays as the real file leaves it; the real file needs nothing else changed to run offline,
+    because the API clients are replaced and the fake keys come from the environment). "minimal":
+    only the two sdf keys the code requires, so every default in the code is used."""
+    if scenario.config_kind == "fixture":
+        config = build_fixture_config({})
+    elif scenario.config_kind == "real":
+        config = yaml.safe_load((REPOSITORY_ROOT / "config.yaml").read_text(encoding="utf-8"))
+    elif scenario.config_kind == "minimal":
+        config = {"sdf": {"n_prompts": 3, "min_score_threshold": 7}}
+    else:
+        raise ValueError(scenario.config_kind)
+    config["sdf"].update(scenario.sdf_config_overrides)
+    for key in scenario.sdf_config_keys_to_remove:
+        config["sdf"].pop(key, None)
+    config.update(scenario.top_level_config_overrides)
+    for key in scenario.top_level_config_keys_to_remove:
+        config.pop(key, None)
+    config["sdf"].update(invocation.sdf_config_overrides)
+    return config
+
+
+# The committed variables.txt deals the no-welfare-stake resolution at weight 0, so a real run
+# never contains one. The fixture raises its share in THIS RUN'S FROZEN SNAPSHOT ONLY (the
+# committed prompt file is untouched), taking the share from two other resolutions so the column
+# still sums to 1.0; the pipeline reads its templates from the snapshot, so everything downstream
+# treats the hand as a real no-stake hand.
 NO_STAKE_WEIGHT_LINE = "0.00 :: [no_stake]"
-CREATIVE_SOLUTION_WEIGHT_LINE = "0.12 :: [creative_solution]"
+NO_STAKE_WEIGHT_EDITS = {
+    "one_in_ten": (("0.12 :: [creative_solution]", "0.02 :: [creative_solution]"),
+                   (NO_STAKE_WEIGHT_LINE, "0.10 :: [no_stake]")),
+    "one_in_five": (("0.12 :: [creative_solution]", "0.02 :: [creative_solution]"),
+                    ("0.12 :: [ai_instrumental_in_improvement]", "0.02 :: [ai_instrumental_in_improvement]"),
+                    (NO_STAKE_WEIGHT_LINE, "0.20 :: [no_stake]")),
+}
 
 
-def raise_no_stake_resolution_weight_in_run_snapshot(run_directory: Path) -> None:
-    """The committed variables.txt deals the no-welfare-stake resolution at weight 0, so no run
-    ever contains one. The fixture copies a share of 0.10 to it from the first resolution (the
-    column still sums to 1.0) in THIS RUN'S FROZEN SNAPSHOT ONLY (the committed prompt file is not
-    touched), which makes the deck sample exactly one such hand in ten. The pipeline reads its
-    templates from the snapshot, so everything downstream treats it as a real no-stake hand."""
+def raise_no_stake_resolution_weight_in_run_snapshot(run_directory: Path, edit_name: str) -> None:
     variables_path = run_directory / "inputs" / "prompts" / "variables.txt"
     text = variables_path.read_text(encoding="utf-8")
-    assert text.count(NO_STAKE_WEIGHT_LINE) == 1 and text.count(CREATIVE_SOLUTION_WEIGHT_LINE) == 1, (
-        "prompts/sdf/variables.txt no longer has the lines the fixture edits in its frozen snapshot "
-        f"({NO_STAKE_WEIGHT_LINE!r} and {CREATIVE_SOLUTION_WEIGHT_LINE!r}); update "
-        "raise_no_stake_resolution_weight_in_run_snapshot in tests/sdf_prompt_equivalence_fixture_support.py")
-    text = text.replace(NO_STAKE_WEIGHT_LINE, "0.10 :: [no_stake]").replace(
-        CREATIVE_SOLUTION_WEIGHT_LINE, "0.02 :: [creative_solution]")
+    for old, new in NO_STAKE_WEIGHT_EDITS[edit_name]:
+        assert text.count(old) == 1, (
+            f"prompts/sdf/variables.txt no longer has the line {old!r} that the fixture edits in its frozen "
+            "snapshot; update NO_STAKE_WEIGHT_EDITS in tests/sdf_prompt_equivalence_fixture_support.py")
+        text = text.replace(old, new)
     variables_path.write_text(text, encoding="utf-8")
 
+
+# ---------------------------------------------------------------------------------- stage files
+
+def _replace_long_strings_and_paths(value, run_directory_text: str):
+    if isinstance(value, str):
+        value = value.replace(run_directory_text, "<run directory>")
+        if len(value) > LONG_STRING_CHARACTER_LIMIT:
+            return f"sha256:{_sha256(value)} ({len(value)} characters)"
+        return value
+    if isinstance(value, list):
+        return [_replace_long_strings_and_paths(item, run_directory_text) for item in value]
+    if isinstance(value, dict):
+        return {key: _replace_long_strings_and_paths(item, run_directory_text) for key, item in value.items()}
+    return value
+
+
+FILES_APPENDED_IN_THREAD_COMPLETION_ORDER = ("consideration_scores.jsonl", "consideration_scoring_failures.jsonl")
+
+
+def snapshot_stage_files(run_directory: Path) -> dict:
+    """{relative path: parsed content} of every .jsonl and .json file under layer1..layer4 (see the
+    module docstring for the normalisation)."""
+    snapshot = {}
+    run_directory_text = str(run_directory)
+    for layer_number in (1, 2, 3, 4):
+        stage_directory = utils.sdf_stage_dir(run_directory, layer_number)
+        if not stage_directory.is_dir():
+            continue
+        for path in sorted(stage_directory.iterdir()):
+            if path.suffix not in (".json", ".jsonl"):
+                continue
+            relative = f"layer{layer_number}/{path.name}"
+            if path.suffix == ".jsonl":
+                content = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+                if path.name in FILES_APPENDED_IN_THREAD_COMPLETION_ORDER:
+                    content.sort(key=lambda record: record["prompt_id"])
+            else:
+                content = json.loads(path.read_text(encoding="utf-8"))
+                if "checkpoint" in path.name:
+                    content["completed"] = sorted(content["completed"])
+                    content["last_updated"] = "<timestamp>" if content.get("last_updated") else None
+            snapshot[relative] = _replace_long_strings_and_paths(content, run_directory_text)
+    return snapshot
+
+
+# ---------------------------------------------------------------------------------- running
 
 @dataclass
 class ScenarioOutcome:
     scenario: Scenario
     recorder: ModelRequestRecorder
     run_directory: Path
-    final_corpus_lines_after_each_invocation: list[list[str]]
+    configs_used: list
     exit_messages_by_invocation: list
-
-
-def run_scenario(scenario: Scenario, working_directory: Path, monkeypatch,
-                 maximum_random_reply_delay_seconds: float = 0.0) -> ScenarioOutcome:
-    """Run the scenario's invocations of ``sdf_pipeline/run.py``'s ``main`` with every provider
-    request recorded and answered by canned replies. Output goes under ``working_directory``."""
-    config_path = working_directory / "fixture_config.yaml"
-    config_path.write_text(yaml.safe_dump(build_fixture_config(working_directory, scenario.sdf_config_overrides)))
-    outputs_root = working_directory / "outputs"
-    monkeypatch.setenv("PIPELINE_OUTPUT_ROOT", str(outputs_root))
-
-    recorder = ModelRequestRecorder(scenario.reply_behaviour, maximum_random_reply_delay_seconds)
-    install_request_recording(monkeypatch, recorder)
-
-    if scenario.raise_no_stake_resolution_weight:
-        real_create_run_dir = utils.create_run_dir
-
-        def create_run_dir_then_edit_snapshot(*arguments, **keyword_arguments):
-            run_directory = real_create_run_dir(*arguments, **keyword_arguments)
-            raise_no_stake_resolution_weight_in_run_snapshot(run_directory)
-            return run_directory
-
-        monkeypatch.setattr(utils, "create_run_dir", create_run_dir_then_edit_snapshot)
-
-    final_corpus_lines_after_each_invocation = []
-    exit_messages = []
-    run_directory = None
-    for invocation_number, extra_arguments in enumerate(scenario.invocation_arguments, 1):
-        recorder.start_invocation(invocation_number)
-        arguments = ["run.py", "--config", str(config_path), "--label", "prompt-equivalence", *extra_arguments]
-        if "--resume" in extra_arguments:
-            arguments += ["--run-id", run_directory.name]
-        monkeypatch.setattr(sys, "argv", arguments)
-        try:
-            sdf_run.main()
-            exit_messages.append(None)
-        except SystemExit as stopped:
-            exit_messages.append(str(stopped.code))
-        run_directory = _only_run_directory(outputs_root)
-        final_path = run_directory / "final" / "sdf_corpus.jsonl"
-        final_corpus_lines_after_each_invocation.append(
-            final_path.read_text(encoding="utf-8").splitlines() if final_path.exists() else [])
-    return ScenarioOutcome(scenario, recorder, run_directory, final_corpus_lines_after_each_invocation,
-                           exit_messages)
+    final_corpus_lines_after_each_invocation: list
+    stage_files_after_each_invocation: list
 
 
 def _only_run_directory(outputs_root: Path) -> Path:
@@ -501,23 +571,83 @@ def _only_run_directory(outputs_root: Path) -> Path:
     return run_directories[0]
 
 
+def run_scenario(scenario: Scenario, working_directory: Path, monkeypatch,
+                 maximum_random_reply_delay_seconds: float = 0.0) -> ScenarioOutcome:
+    """Run the scenario's invocations of ``sdf_pipeline/run.py``'s ``main`` with every provider
+    request recorded and answered by canned replies. Output goes under ``working_directory``."""
+    outputs_root = working_directory / "outputs"
+    monkeypatch.setenv("PIPELINE_OUTPUT_ROOT", str(outputs_root))
+    recorder = ModelRequestRecorder(scenario.reply_behaviour, maximum_random_reply_delay_seconds)
+    install_request_recording(monkeypatch, recorder)
+
+    if scenario.no_stake_weight_edit:
+        real_create_run_dir = utils.create_run_dir
+
+        def create_run_dir_then_edit_snapshot(*arguments, **keyword_arguments):
+            run_directory = real_create_run_dir(*arguments, **keyword_arguments)
+            raise_no_stake_resolution_weight_in_run_snapshot(run_directory, scenario.no_stake_weight_edit)
+            return run_directory
+
+        monkeypatch.setattr(utils, "create_run_dir", create_run_dir_then_edit_snapshot)
+
+    configs_used, exit_messages, final_lines, stage_files = [], [], [], []
+    run_directory = None
+    for invocation_number, invocation in enumerate(scenario.invocations, 1):
+        recorder.start_invocation(invocation_number)
+        config = build_config(scenario, invocation)
+        configs_used.append(config)
+        config_path = working_directory / f"fixture_config_for_invocation_{invocation_number}.yaml"
+        config_path.write_text(yaml.safe_dump(config))
+        if invocation.before is not None:
+            invocation.before(run_directory)
+        arguments = ["run.py", "--config", str(config_path), "--label", "prompt-equivalence", *invocation.arguments]
+        if "--resume" in invocation.arguments:
+            arguments += ["--run-id", run_directory.name]
+        monkeypatch.setattr(sys, "argv", arguments)
+        exit_message = None
+        try:
+            sdf_run.main()
+        except SystemExit as stopped:
+            exit_message = str(stopped.code)
+        fragment = invocation.expected_exit_message_fragment
+        assert (fragment is None and exit_message is None) or (fragment is not None and exit_message is not None
+                                                               and fragment in exit_message), (
+            f"scenario {scenario.name!r} invocation {invocation_number}: expected "
+            f"{'a normal return' if fragment is None else 'a stop containing ' + repr(fragment)}, got {exit_message!r}")
+        exit_messages.append(exit_message)
+        run_directory = _only_run_directory(outputs_root)
+        final_path = run_directory / "final" / "sdf_corpus.jsonl"
+        final_lines.append(final_path.read_text(encoding="utf-8").splitlines() if final_path.exists() else [])
+        stage_files.append(snapshot_stage_files(run_directory))
+    return ScenarioOutcome(scenario, recorder, run_directory, configs_used, exit_messages, final_lines, stage_files)
+
+
+def run_scenario_in_isolation(scenario: Scenario, working_directory: Path,
+                              maximum_random_reply_delay_seconds: float = 0.0) -> ScenarioOutcome:
+    """``run_scenario`` with the isolation tests/conftest.py gives every test (fake keys, no real
+    .env, shared.api globals reset), for callers outside a test function (the regeneration script
+    and module-scoped fixtures)."""
+    working_directory.mkdir(parents=True, exist_ok=True)
+    with pytest.MonkeyPatch.context() as monkeypatch:
+        empty_repository_root = working_directory / "repository_root_without_dotenv"
+        empty_repository_root.mkdir()
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test-not-a-real-key")
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-test-not-a-real-key")
+        monkeypatch.setattr(api_keys, "REPO_ROOT", empty_repository_root)
+        monkeypatch.setattr(api_keys, "_sources_already_announced", set())
+        monkeypatch.setattr(api_keys, "_api_key_source_mode", api_keys.SEARCH_UPWARD_THEN_ENVIRONMENT)
+        monkeypatch.setattr(api_keys, "_nearest_dotenv_path_searching_upward", lambda: None)
+        monkeypatch.setattr(api_keys, "set_api_key_source_mode", lambda mode: None)
+        for name, value in (("_config", {}), ("_client", None), ("_cost_log_path", None),
+                            ("_record_model_calls", True), ("_backend", "api"), ("_cc_demoted", None),
+                            ("_UNPRICED_WARNED", set()), ("_neutral_system_warned", False),
+                            ("_temperature_warned", False)):
+            monkeypatch.setattr(api, name, value)
+        monkeypatch.setattr(openai_api, "_client", None)
+        return run_scenario(scenario, working_directory, monkeypatch, maximum_random_reply_delay_seconds)
+
+
 # ---------------------------------------------------------------------------------- serialising
-
-def requests_record_for_outcome(outcome: ScenarioOutcome) -> dict:
-    records = outcome.recorder.sorted_records()
-    calls_per_stage_per_invocation: dict = {}
-    for record in records:
-        per_stage = calls_per_stage_per_invocation.setdefault(str(record["invocation"]), {})
-        per_stage[record["stage"]] = per_stage.get(record["stage"], 0) + 1
-    return {
-        "description": outcome.scenario.description,
-        "client_constructions": _distinct(outcome.recorder.client_constructions),
-        "calls_per_stage_per_invocation": {
-            invocation: dict(sorted(counts.items())) for invocation, counts in
-            sorted(calls_per_stage_per_invocation.items())},
-        "requests": records,
-    }
-
 
 def _distinct(constructions: list[dict]) -> list[dict]:
     seen, distinct = set(), []
@@ -529,22 +659,43 @@ def _distinct(constructions: list[dict]) -> list[dict]:
     return sorted(distinct, key=lambda c: json.dumps(c, sort_keys=True))
 
 
-def final_corpora_record_for_outcome(outcome: ScenarioOutcome) -> dict:
-    return {str(number): [json.loads(line) for line in lines]
-            for number, lines in enumerate(outcome.final_corpus_lines_after_each_invocation, 1)}
+def record_for_outcome(outcome: ScenarioOutcome) -> dict:
+    """Everything recorded for one scenario, as JSON-able data (what is committed and compared)."""
+    records = outcome.recorder.sorted_records()
+    calls_per_stage_per_invocation: dict = {}
+    for record in records:
+        per_stage = calls_per_stage_per_invocation.setdefault(str(record["invocation"]), {})
+        per_stage[record["stage"]] = per_stage.get(record["stage"], 0) + 1
+    return {
+        "description": outcome.scenario.description,
+        "configs_used_by_invocation": {str(n): _json_copy(config) for n, config in enumerate(outcome.configs_used, 1)},
+        "exit_messages_by_invocation": {str(n): message for n, message in
+                                        enumerate(outcome.exit_messages_by_invocation, 1)},
+        "client_constructions": _distinct(outcome.recorder.client_constructions),
+        "calls_per_stage_per_invocation": {
+            invocation: dict(sorted(counts.items())) for invocation, counts in
+            sorted(calls_per_stage_per_invocation.items())},
+        "requests": records,
+        "final_corpora_by_invocation": {
+            str(n): [json.loads(line) for line in lines]
+            for n, lines in enumerate(outcome.final_corpus_lines_after_each_invocation, 1)},
+        "stage_files_by_invocation": {
+            str(n): files for n, files in enumerate(outcome.stage_files_after_each_invocation, 1)},
+    }
 
 
-def write_recorded_files(outcomes: list[ScenarioOutcome], recorded_from_description: str) -> None:
+def write_recorded_file(outcome: ScenarioOutcome, metadata: dict) -> Path:
     FIXTURE_DIRECTORY.mkdir(parents=True, exist_ok=True)
-    requests = {"format_version": RECORDED_FILE_FORMAT_VERSION, "recorded_from": recorded_from_description,
-                "scenarios": {o.scenario.name: requests_record_for_outcome(o) for o in outcomes}}
-    corpora = {"format_version": RECORDED_FILE_FORMAT_VERSION, "recorded_from": recorded_from_description,
-               "scenarios": {o.scenario.name: final_corpora_record_for_outcome(o) for o in outcomes}}
-    for path, content in ((RECORDED_REQUESTS_PATH, requests), (RECORDED_FINAL_CORPORA_PATH, corpora)):
-        path.write_text(json.dumps(content, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+    content = {"format_version": RECORDED_FILE_FORMAT_VERSION, **metadata, **record_for_outcome(outcome)}
+    path = recorded_path_for_scenario(outcome.scenario.name)
+    path.write_text(json.dumps(content, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+    return path
 
 
-def load_recorded_file(path: Path) -> dict:
+def load_recorded_scenario(scenario_name: str) -> dict:
+    path = recorded_path_for_scenario(scenario_name)
+    assert path.is_file(), (
+        f"no recorded file for scenario {scenario_name!r} at {path}. {REGENERATION_RULE}")
     return json.loads(path.read_text(encoding="utf-8"))
 
 
@@ -561,40 +712,47 @@ def describe_difference_of_texts(recorded: str, current: str) -> str:
             f"now ...{current[start:position + 60]!r}...")
 
 
-def differences_between_values(recorded, current, path: str) -> list[str]:
+def _short(value) -> str:
+    text = json.dumps(value, ensure_ascii=False)
+    return text if len(text) <= 160 else text[:160] + f"... ({len(text)} characters)"
+
+
+def differences_between_values(recorded, current, path: str, ordered: bool = False) -> list[str]:
     """Every difference between two JSON-like values, as 'field path: recorded X, now Y'.
-    Dictionaries are compared key by key (a key present on one side only is a difference),
-    lists element by element, and a value of a different type counts as different."""
+
+    Dictionaries are compared key by key (a key on one side only is a difference), lists element by
+    element, and a value of a different type counts as different. With ``ordered`` (and always under
+    a key named ``schema``, whose property order is generation order for structured outputs) the
+    order of keys is compared too."""
     if isinstance(recorded, dict) and isinstance(current, dict):
         differences = []
         for key in recorded:
             if key not in current:
                 differences.append(f"{path}.{key}: recorded {_short(recorded[key])}, now absent")
             else:
-                differences += differences_between_values(recorded[key], current[key], f"{path}.{key}")
+                differences += differences_between_values(
+                    recorded[key], current[key], f"{path}.{key}", ordered or key == "schema")
         for key in current:
             if key not in recorded:
                 differences.append(f"{path}.{key}: recorded absent, now {_short(current[key])}")
+        if ordered and set(recorded) == set(current) and list(recorded) != list(current):
+            differences.append(f"{path}: key order differs: recorded {list(recorded)}, now {list(current)}")
         return differences
     if isinstance(recorded, list) and isinstance(current, list):
         differences = []
         if len(recorded) != len(current):
             differences.append(f"{path}: recorded {len(recorded)} elements, now {len(current)}")
         for index, (recorded_item, current_item) in enumerate(zip(recorded, current)):
-            differences += differences_between_values(recorded_item, current_item, f"{path}[{index}]")
+            differences += differences_between_values(recorded_item, current_item, f"{path}[{index}]", ordered)
         return differences
     if type(recorded) is not type(current) or recorded != current:
         if path.endswith("text_sha256"):
-            return [f"{path}: the system prompt text changed (sha256 recorded {recorded[:12]}..., now {current[:12]}...)"]
+            return [f"{path}: the system prompt text changed (sha256 recorded {str(recorded)[:12]}..., "
+                    f"now {str(current)[:12]}...)"]
         if isinstance(recorded, str) and isinstance(current, str):
             return [f"{path}: {describe_difference_of_texts(recorded, current)}"]
         return [f"{path}: recorded {_short(recorded)}, now {_short(current)}"]
     return []
-
-
-def _short(value) -> str:
-    text = json.dumps(value, ensure_ascii=False)
-    return text if len(text) <= 160 else text[:160] + f"... ({len(text)} characters)"
 
 
 def request_label(record: dict) -> str:
@@ -602,12 +760,23 @@ def request_label(record: dict) -> str:
             f"(invocation {record['invocation']})")
 
 
-def differences_between_recorded_and_current_requests(
-    scenario_name: str, recorded: dict, current: dict,
-) -> list[str]:
+def differences_in_configuration_and_stops(scenario_name: str, recorded: dict, current: dict) -> list[str]:
+    messages = []
+    for difference in differences_between_values(
+            recorded["configs_used_by_invocation"], current["configs_used_by_invocation"], "config"):
+        messages.append(
+            f"[{scenario_name}] THE CONFIGURATION USED CHANGED ({difference}). For the real-config scenario "
+            f"this means config.yaml changed. {REGENERATION_RULE}")
+    for difference in differences_between_values(
+            recorded["exit_messages_by_invocation"], current["exit_messages_by_invocation"], "exit_message"):
+        messages.append(f"[{scenario_name}] how an invocation ended (stop message): {difference}")
+    return messages
+
+
+def differences_between_recorded_and_current_requests(scenario_name: str, recorded: dict, current: dict) -> list[str]:
     """Every way the scenario's requests differ from those recorded on origin/main, each naming the
     stage, the item id and the field. Empty when the requests are identical."""
-    messages = []
+    messages = differences_in_configuration_and_stops(scenario_name, recorded, current)
     recorded_by_key = {(r["stage"], r["item_id"], r["attempt"]): r for r in recorded["requests"]}
     current_by_key = {(r["stage"], r["item_id"], r["attempt"]): r for r in current["requests"]}
     for key in sorted(recorded_by_key.keys() - current_by_key.keys()):
@@ -635,14 +804,48 @@ def differences_between_recorded_and_current_requests(
     return messages
 
 
-def differences_between_recorded_and_current_final_corpora(
-    scenario_name: str, recorded: dict, current: dict,
-) -> list[str]:
-    """Differences in the fields, the field order and the values of every final corpus record
-    after each invocation (a resume gives a second corpus), and in the order of the documents."""
+def _record_label(record: dict) -> str:
+    for key in ("prompt_id", "doc_id", "batch_id"):
+        if isinstance(record, dict) and key in record:
+            return f" ({key} {record[key]!r})"
+    return ""
+
+
+def differences_between_recorded_and_current_stage_files(scenario_name: str, recorded: dict, current: dict) -> list[str]:
+    """Differences in every stage file and checkpoint after each invocation: files present on one
+    side only, record counts, and per record the fields, field order (nested too) and values."""
     messages = []
-    for invocation in sorted(recorded.keys() | current.keys()):
-        recorded_records, current_records = recorded.get(invocation), current.get(invocation)
+    for invocation in sorted(recorded["stage_files_by_invocation"].keys() | current["stage_files_by_invocation"].keys()):
+        recorded_files = recorded["stage_files_by_invocation"].get(invocation, {})
+        current_files = current["stage_files_by_invocation"].get(invocation, {})
+        prefix = f"[{scenario_name}] stage file"
+        for name in sorted(recorded_files.keys() - current_files.keys()):
+            messages.append(f"{prefix} {name} after invocation {invocation}: recorded but no longer written")
+        for name in sorted(current_files.keys() - recorded_files.keys()):
+            messages.append(f"{prefix} {name} after invocation {invocation}: written now but not recorded")
+        for name in sorted(recorded_files.keys() & current_files.keys()):
+            recorded_content, current_content = recorded_files[name], current_files[name]
+            if isinstance(recorded_content, list) and isinstance(current_content, list):
+                if len(recorded_content) != len(current_content):
+                    messages.append(f"{prefix} {name} after invocation {invocation}: recorded "
+                                    f"{len(recorded_content)} records, now {len(current_content)}")
+                for index, (recorded_record, current_record) in enumerate(zip(recorded_content, current_content)):
+                    for difference in differences_between_values(recorded_record, current_record, "record", True):
+                        messages.append(f"{prefix} {name} after invocation {invocation}, record {index}"
+                                        f"{_record_label(recorded_record)}: {difference}")
+            else:
+                for difference in differences_between_values(recorded_content, current_content, "content", True):
+                    messages.append(f"{prefix} {name} after invocation {invocation}: {difference}")
+    return messages
+
+
+def differences_between_recorded_and_current_final_corpora(scenario_name: str, recorded: dict, current: dict) -> list[str]:
+    """Differences in the fields, the field order (nested too) and the values of every final corpus
+    record after each invocation (a resume gives a further corpus), and in the order of documents."""
+    messages = []
+    recorded_corpora, current_corpora = recorded["final_corpora_by_invocation"], current["final_corpora_by_invocation"]
+    for invocation in sorted(recorded_corpora.keys() | current_corpora.keys()):
+        recorded_records, current_records = recorded_corpora.get(invocation), current_corpora.get(invocation)
         prefix = f"[{scenario_name}] final corpus after invocation {invocation}"
         if recorded_records is None or current_records is None:
             messages.append(f"{prefix}: recorded {'absent' if recorded_records is None else 'present'}, "
@@ -665,98 +868,6 @@ def differences_between_recorded_and_current_final_corpora(
             current_record = current_by_id.get(recorded_record["doc_id"])
             if current_record is None:
                 continue
-            if list(recorded_record) != list(current_record):
-                messages.append(f"{prefix}, document {recorded_record['doc_id']!r}: field order or field names "
-                                f"differ: recorded {list(recorded_record)}, now {list(current_record)}")
-            for difference in differences_between_values(recorded_record, current_record, "record"):
+            for difference in differences_between_values(recorded_record, current_record, "record", True):
                 messages.append(f"{prefix}, document {recorded_record['doc_id']!r}: {difference}")
     return messages
-
-
-# ---------------------------------------------------------------------------------- scenarios
-
-# The hands of the main scenario (matrix_NNNNNN is the screen's hand id, which is also the
-# prompt_id and doc_id). Ten are dealt; the first screen batch removes one and the second removes
-# one, and the redeal makes matrix_000010 and matrix_000011 from their cards.
-HAND_PLAIN_WITH_CONSIDERATIONS = "matrix_000000"          # its first consideration-scoring answer is unusable
-HAND_INCOHERENT_PLAN = "matrix_000001"
-HAND_DEALT_VALUE_CONFLICT = "matrix_000002"
-HAND_BELOW_THRESHOLD_SCORE = "matrix_000003"
-HAND_NO_WELFARE_STAKE = "matrix_000005"                   # dealt by the edited snapshot, see above
-HAND_NEAR_DUPLICATE_OF_PLAIN = "matrix_000006"            # its critique has no review tags
-HAND_PLAN_FAILS_THEN_SUCCEEDS_ON_RESUME = "matrix_000008"
-HAND_TRUNCATED_DRAFT = "matrix_000009"
-HAND_REVISE_FAILS_THEN_SUCCEEDS_ON_RESUME = "matrix_000010"  # a redealt hand, description rewritten
-HAND_SCORE_ANSWER_DOES_NOT_PARSE = "matrix_000011"        # a redealt hand, scored nothing by the selector
-SCREEN_REMOVAL_FIRST_BATCH = "screen_round0_batch0000"
-SCREEN_REMOVAL_SECOND_BATCH = "screen_round0_batch0001"
-
-
-def _main_scenario() -> Scenario:
-    behaviour = ReplyBehaviour(
-        screen_removals={SCREEN_REMOVAL_FIRST_BATCH: [2], SCREEN_REMOVAL_SECOND_BATCH: [3]},
-        plan_kind_by_item={HAND_INCOHERENT_PLAN: "incoherent"},
-        description_rewrite_kind_by_item={
-            HAND_DEALT_VALUE_CONFLICT: "conflict", HAND_REVISE_FAILS_THEN_SUCCEEDS_ON_RESUME: "rewrite"},
-        consideration_scores_by_item={
-            HAND_PLAIN_WITH_CONSIDERATIONS: {("moral", 0): 5, ("epistemic", 2): 5},
-            HAND_NEAR_DUPLICATE_OF_PLAIN: {("moral", 1): 5},
-            HAND_BELOW_THRESHOLD_SCORE: {("moral", 2): 5, ("epistemic", 3): 5},
-            HAND_TRUNCATED_DRAFT: {("moral", 3): 5, ("epistemic", 4): 4},
-            # the late hand outscores this one for the same entry, so the assignment taken over all
-            # documents after the resume leaves it with nothing, after its draft was written with the entry
-            HAND_REVISE_FAILS_THEN_SUCCEEDS_ON_RESUME: {("moral", 4): 4},
-            HAND_PLAN_FAILS_THEN_SUCCEEDS_ON_RESUME: {("moral", 4): 5},
-        },
-        scores_by_item={HAND_BELOW_THRESHOLD_SCORE: (4, 9)},
-        revised_text_copied_from={HAND_NEAR_DUPLICATE_OF_PLAIN: HAND_PLAIN_WITH_CONSIDERATIONS},
-        overrides={
-            ("layer1_select", HAND_PLAIN_WITH_CONSIDERATIONS, 1): ReplyOverride(text="I could not score these entries."),
-            ("layer1_plan", HAND_PLAN_FAILS_THEN_SUCCEEDS_ON_RESUME, 1): ReplyOverride(
-                raise_error_message="simulated network failure"),
-            ("layer2_draft", HAND_TRUNCATED_DRAFT, 1): ReplyOverride(
-                text="<document>A draft that was cut off", stop_reason="max_tokens"),
-            ("layer3_critique", HAND_NEAR_DUPLICATE_OF_PLAIN, 1): ReplyOverride(
-                text="Problems: the opening is generic and the ending is abrupt. (No review tags.)"),
-            ("layer3_revise", HAND_REVISE_FAILS_THEN_SUCCEEDS_ON_RESUME, 1): ReplyOverride(
-                raise_error_message="simulated backend failure"),
-            ("layer4_score", HAND_SCORE_ANSWER_DOES_NOT_PARSE, 1): ReplyOverride(
-                text="I am unable to score this document."),
-        },
-    )
-    return Scenario(
-        name="main_run_with_removals_failures_and_resume",
-        description="Ten hands, every removal kind, every failure kind, and a resume that retries the failures.",
-        sdf_config_overrides={},
-        invocation_arguments=((), ("--resume",)),
-        reply_behaviour=behaviour,
-        raise_no_stake_resolution_weight=True)
-
-
-def _small_scenario(name: str, description: str, sdf_config_overrides: dict) -> Scenario:
-    behaviour = ReplyBehaviour(consideration_scores_by_item={
-        "matrix_000000": {("moral", 0): 5, ("epistemic", 2): 5}, "matrix_000001": {("moral", 1): 5}})
-    return Scenario(name=name, description=description,
-                    sdf_config_overrides={"n_prompts": 3, **sdf_config_overrides},
-                    invocation_arguments=((),), reply_behaviour=behaviour)
-
-
-def all_scenarios() -> list[Scenario]:
-    return [
-        _main_scenario(),
-        _small_scenario("screen_disabled", "sdf.screen_enabled false: the composer deals its own hands.",
-                        {"screen_enabled": False}),
-        _small_scenario("description_rewrite_disabled", "sdf.description_rewrite_enabled false.",
-                        {"description_rewrite_enabled": False}),
-        _small_scenario("consideration_selection_disabled", "sdf.select_enabled false: no considerations.",
-                        {"select_enabled": False}),
-        _small_scenario("revision_in_one_call", "sdf.revision.split false: the single-call layer 3.",
-                        {"revision": {"split": False, "style_mode": "axes", "use_length": True}}),
-        _small_scenario("description_rewrite_on_a_claude_model",
-                        "The description rewrite routed to a Claude model through call_claude.",
-                        {"description_rewrite_model": "claude-sonnet-5"}),
-    ]
-
-
-def scenario_named(name: str) -> Scenario:
-    return next(scenario for scenario in all_scenarios() if scenario.name == name)

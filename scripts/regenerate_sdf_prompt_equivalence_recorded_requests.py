@@ -1,15 +1,20 @@
 #!/usr/bin/env python3
 """Regenerate the files that tests/test_sdf_prompt_equivalence_and_final_corpus.py compares against.
 
-This is the ONLY code that rewrites tests/fixtures/sdf_prompt_equivalence/*.json; the test never
-does. Run it deliberately, in a pull request that changes nothing else, when a request change is
-intended (a prompt edit, a config default, a model change). The recorded files are meant to be
-recorded on origin/main: run it from a checkout of origin/main, or pass --recorded-from to say what
-the code was.
+This is the ONLY code that rewrites tests/fixtures/sdf_prompt_equivalence/*.json (one file per
+scenario); the test never does. Run it deliberately, in a pull request that changes nothing else,
+when a request change is intended (a prompt edit, a config change, a model change). The recorded
+files are meant to be recorded on origin/main.
+
+Guard: each recorded file stores the commit it was recorded from and the Python files under
+sdf_pipeline/, shared/ and dad_pipeline/ that differed from origin/main when it was recorded. The
+test fails if that list is not empty, so a refactor branch cannot quietly regenerate the files to
+match its own changes: this script refuses to run when such files differ unless
+--allow-python-changes is given, and the test then fails until a human edits it, in plain view in
+review. Prompt, config and constitution changes are not Python files and do not trip it.
 
 No model API is called and no key is read: every provider client is replaced by a recorder that
-returns canned replies (see tests/sdf_prompt_equivalence_fixture_support.py), and fake keys are
-set for the run.
+returns canned replies (tests/sdf_prompt_equivalence_fixture_support.py), with fake keys.
 
     python scripts/regenerate_sdf_prompt_equivalence_recorded_requests.py
 """
@@ -20,51 +25,53 @@ import sys
 import tempfile
 from pathlib import Path
 
-import pytest
-
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPOSITORY_ROOT))
 sys.path.insert(0, str(REPOSITORY_ROOT / "tests"))
 
 import sdf_prompt_equivalence_fixture_support as support  # noqa: E402
-from shared import api, api_keys, openai_api  # noqa: E402
+import sdf_prompt_equivalence_scenarios as scenarios  # noqa: E402
+
+PYTHON_DIRECTORIES_THE_REQUESTS_DEPEND_ON = ("sdf_pipeline", "shared", "dad_pipeline")
 
 
-def describe_code_being_recorded() -> str:
-    def git(*arguments):
-        return subprocess.run(["git", *arguments], cwd=REPOSITORY_ROOT, capture_output=True, text=True).stdout.strip()
-    dirty = "with uncommitted changes" if git("status", "--porcelain", "--untracked-files=no") else "clean"
-    return f"commit {git('rev-parse', 'HEAD')} on branch {git('rev-parse', '--abbrev-ref', 'HEAD')} ({dirty})"
+def git(*arguments: str) -> str:
+    return subprocess.run(["git", *arguments], cwd=REPOSITORY_ROOT, capture_output=True, text=True).stdout.strip()
+
+
+def python_files_differing_from_origin_main() -> list[str]:
+    committed = git("diff", "--name-only", "origin/main", "--", *PYTHON_DIRECTORIES_THE_REQUESTS_DEPEND_ON).splitlines()
+    untracked = git("ls-files", "--others", "--exclude-standard", "--", *PYTHON_DIRECTORIES_THE_REQUESTS_DEPEND_ON).splitlines()
+    return sorted(name for name in {*committed, *untracked} if name.endswith(".py"))
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--recorded-from", default=None,
-                        help="text stored in the files as what was recorded (default: this checkout's commit)")
+    parser.add_argument("--allow-python-changes", action="store_true",
+                        help="record even though Python files differ from origin/main (see the guard above)")
     arguments = parser.parse_args()
-    recorded_from = arguments.recorded_from or describe_code_being_recorded()
 
-    outcomes = []
-    with pytest.MonkeyPatch.context() as monkeypatch:
-        # the same isolation tests/conftest.py gives every test
-        with tempfile.TemporaryDirectory() as empty_repository_root:
-            monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test-not-a-real-key")
-            monkeypatch.setenv("OPENAI_API_KEY", "sk-test-not-a-real-key")
-            monkeypatch.setattr(api_keys, "REPO_ROOT", Path(empty_repository_root))
-            monkeypatch.setattr(api_keys, "_sources_already_announced", set())
-            monkeypatch.setattr(api_keys, "_api_key_source_mode", api_keys.SEARCH_UPWARD_THEN_ENVIRONMENT)
-            monkeypatch.setattr(api_keys, "_nearest_dotenv_path_searching_upward", lambda: None)
-            monkeypatch.setattr(api_keys, "set_api_key_source_mode", lambda mode: None)
-            for scenario in support.all_scenarios():
-                with tempfile.TemporaryDirectory() as working_directory, pytest.MonkeyPatch.context() as scenario_patch:
-                    for name, value in (("_config", {}), ("_client", None), ("_cost_log_path", None),
-                                        ("_record_model_calls", True), ("_backend", "api")):
-                        scenario_patch.setattr(api, name, value)
-                    scenario_patch.setattr(openai_api, "_client", None)
-                    print(f"=== recording scenario {scenario.name}")
-                    outcomes.append(support.run_scenario(scenario, Path(working_directory), scenario_patch))
-    support.write_recorded_files(outcomes, recorded_from)
-    print(f"Wrote {support.RECORDED_REQUESTS_PATH} and {support.RECORDED_FINAL_CORPORA_PATH}")
+    differing = python_files_differing_from_origin_main()
+    if differing and not arguments.allow_python_changes:
+        sys.exit("Refusing to regenerate: these Python files differ from origin/main, so the recorded requests "
+                 f"would no longer be the ones origin/main sends: {differing}. Regenerate from origin/main, or "
+                 "pass --allow-python-changes if the request change is deliberate (the test will then fail "
+                 "until the recorded list is reviewed).")
+    dirty = "with uncommitted changes" if git("status", "--porcelain", "--untracked-files=no") else "clean"
+    metadata = {
+        "recorded_from": f"commit {git('rev-parse', 'HEAD')} on branch {git('rev-parse', '--abbrev-ref', 'HEAD')} ({dirty})",
+        "python_files_differing_from_origin_main_when_recorded": differing,
+        "regeneration_rule": support.REGENERATION_RULE,
+    }
+    all_scenarios = scenarios.all_scenarios()
+    for existing in support.FIXTURE_DIRECTORY.glob("recorded_*_on_origin_main.json"):
+        existing.unlink()   # a scenario that no longer exists must not leave a stale file
+    for scenario in all_scenarios:
+        print(f"=== recording scenario {scenario.name}", flush=True)
+        with tempfile.TemporaryDirectory() as working_directory:
+            outcome = support.run_scenario_in_isolation(scenario, Path(working_directory))
+            support.write_recorded_file(outcome, metadata)
+    print(f"Wrote {len(all_scenarios)} recorded files under {support.FIXTURE_DIRECTORY}")
 
 
 if __name__ == "__main__":
