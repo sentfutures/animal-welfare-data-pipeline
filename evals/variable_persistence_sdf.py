@@ -58,8 +58,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from evals.audit_sdf import resolve_input
 from evals.model_judged_audit_support import (
-    SMALL_SAMPLE_CHECKS_DIRECTORY_NAME, check_resume_is_compatible, corpus_path_of, sha256_of_file,
-    write_run_configuration)
+    SMALL_SAMPLE_CHECKS_DIRECTORY_NAME, check_resume_is_compatible, corpus_path_of, run_directory_of,
+    sha256_of_file, write_run_configuration)
 from sdf_pipeline import compose_prompts as cp
 from sdf_pipeline import considerations_catalog
 from shared import api, utils
@@ -128,16 +128,6 @@ def find_prompts_dir(run_directory: Path | None) -> Path:
         if (snapshot / "variables.txt").is_file() and (snapshot / "considerations.txt").is_file():
             return snapshot
     return DEFAULT_PROMPTS_DIR
-
-
-def run_directory_of(input_argument: str) -> Path | None:
-    """The run directory an --input points at, if it can be told (a run dir, or a corpus in <run>/final/)."""
-    path = Path(input_argument)
-    if path.is_dir():
-        return path
-    if path.parent.name == "final":
-        return path.parent.parent
-    return None
 
 
 def _load_catalog(prompts_dir: Path):

@@ -54,7 +54,11 @@ def corpus_path(tmp_path):
 
 def test_request_contains_only_instructions_and_content(definition):
     for document in synthetic_corpus():
-        arguments = judge.build_request_arguments(definition, document["content"], "medium")
+        arguments = openai_api.build_request_arguments(
+            judge.MODEL_NAME, definition.instructions_text, document["content"],
+            max_output_tokens=judge.MAXIMUM_OUTPUT_TOKENS, reasoning_effort="medium",
+            json_schema=definition.schema, schema_name=definition.schema_name,
+            prompt_cache_key=definition.schema_name)
         assert arguments["input"] == document["content"]
         assert arguments["instructions"] == definition.instructions_text
         assert arguments["temperature"] == 1 and "top_p" not in arguments

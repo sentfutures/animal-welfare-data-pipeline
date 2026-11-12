@@ -126,16 +126,6 @@ class JudgeDefinition:
         self.schema_name = SCHEMA_NAME
 
 
-def build_request_arguments(judge_definition, document_content, reasoning_effort):
-    """The complete payload sent to client.responses.create by shared.openai_api.call_openai.
-    Only instructions and content go in."""
-    return openai_api.build_request_arguments(
-        MODEL_NAME, judge_definition.instructions_text, document_content,
-        max_output_tokens=MAXIMUM_OUTPUT_TOKENS, reasoning_effort=reasoning_effort,
-        json_schema=judge_definition.schema, schema_name=judge_definition.schema_name,
-        prompt_cache_key=judge_definition.schema_name)
-
-
 def is_valid_score(value):
     return isinstance(value, int) and not isinstance(value, bool) and value in SCORE_VALUES
 
@@ -219,10 +209,6 @@ def judge_one_document(judge_definition, document, reasoning_effort):
 # ----------------------------------------------------------------------------
 
 JUDGMENT_FILE_PATTERN = "judgments_*.jsonl"
-
-
-def load_corpus(corpus_path):
-    return read_jsonl(corpus_path)
 
 
 def find_completed_document_ids(run_folder):

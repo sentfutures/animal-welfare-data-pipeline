@@ -8,6 +8,7 @@ the same conftest safety net as everything else.
 import json
 
 from evals import audit_sdf
+from shared import utils
 
 
 def _recs(*contents):
@@ -47,17 +48,17 @@ class TestMarkdownMetric:
 
 class TestParseJsonBlock:
     def test_plain_and_fenced(self):
-        assert audit_sdf._parse_json_block('[1, 2]') == [1, 2]
-        assert audit_sdf._parse_json_block('```json\n{"a": 1}\n```') == {"a": 1}
+        assert utils.extract_json('[1, 2]') == [1, 2]
+        assert utils.extract_json('```json\n{"a": 1}\n```') == {"a": 1}
 
     def test_recovers_first_block_from_trailing_prose(self):
         # the "Extra data" failure seen live: valid JSON followed by more text
         raw = '[{"pattern": "x"}]\n\nAdditionally, I noticed...'
-        assert audit_sdf._parse_json_block(raw) == [{"pattern": "x"}]
+        assert utils.extract_json(raw) == [{"pattern": "x"}]
 
     def test_recovers_json_after_leading_prose(self):
         raw = 'Here are the patterns:\n[{"pattern": "y"}]'
-        assert audit_sdf._parse_json_block(raw) == [{"pattern": "y"}]
+        assert utils.extract_json(raw) == [{"pattern": "y"}]
 
 
 class TestTruncationAudit:
