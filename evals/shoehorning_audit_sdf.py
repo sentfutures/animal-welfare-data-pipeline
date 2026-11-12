@@ -30,7 +30,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from evals.model_judged_audit_support import (  # noqa: E402
-    DEFAULT_INPUT, MAXIMUM_OUTPUT_TOKENS, AppendOnlyJsonlWriter, RunningUsageTotals,
+    DEFAULT_INPUT, AppendOnlyJsonlWriter, RunningUsageTotals,
     StructuredOutputParseFailure, TimedProgressReporter, build_array_schema, build_strict_object_schema,
     check_resume_is_compatible, choose_run_folder, choose_runs_parent_directory, choose_stratified_sample,
     compute_cost_in_dollars, corpus_path_of, find_completed_keys, format_duration, read_all_records,
