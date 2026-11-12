@@ -151,6 +151,4 @@ language_distribution:
   en: 1.0
 
 outputs:
-  sdf_final: outputs/sdf/final/sdf_corpus.jsonl
-  dad_final: outputs/dad/final/dad_corpus.jsonl
   cost_log: outputs/cost_log.jsonl

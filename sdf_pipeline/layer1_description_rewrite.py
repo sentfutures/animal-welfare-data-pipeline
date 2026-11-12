@@ -22,8 +22,8 @@ result is stored in description_rewrites.jsonl and re-applied on resume.
 Config (``sdf`` section): ``description_rewrite_enabled`` (default true),
 ``description_rewrite_model`` (falls back to ``plan_model``, then the global model),
 ``description_rewrite_reasoning_effort`` (OpenAI models only). A model name starting
-with ``gpt-`` routes to OpenAI (shared/openai_api.py, key from the OPENAI_API_KEY
-environment variable); anything else goes to Claude.
+with ``gpt-`` routes to OpenAI (shared/openai_api.py, key OPENAI_API_KEY read from the
+repo-root .env via shared/api_keys.py); anything else goes to Claude.
 
 Why GPT, not Claude (2026-10-22): Claude is far too lenient on plausibility. Given GPT 6.1
 Sol's own one-description plausibility prompt on 97 descriptions, Claude Sonnet 5 flagged
