@@ -142,11 +142,7 @@ def main() -> None:
             print(f"  [{entry.list_name}] {entry.label}: target {targets[entry.label]} (share {entry.target_share})")
         first_plan = min(eligible, key=lambda p: p["prompt_id"])
         first_id = first_plan["prompt_id"]
-        facts = selector.DocumentFacts(
-            document_description=first_plan["description"],
-            document_type=first_plan["variables"].get("document_type", ""),
-            centrality=first_plan["variables"].get("centrality", ""),
-            sentient_category=first_plan["variables"].get("sentient_category", ""))
+        facts = selector.DocumentFacts.from_plan(first_plan)
         offered = selector.shuffled_offer(
             selector.eligible_entries_for_document(catalog, first_plan["variables"]),
             config["sdf"].get("seed", 0), first_id)

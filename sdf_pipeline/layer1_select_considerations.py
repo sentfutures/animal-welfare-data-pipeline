@@ -71,6 +71,7 @@ from sdf_pipeline.considerations_catalog import (
     CONSIDERATIONS_FILENAME, EPISTEMIC_LIST, LIST_NAMES, MORAL_LIST,
     Consideration, ConsiderationCatalog, load_considerations,
 )
+from sdf_pipeline import structured_answers
 from sdf_pipeline.considerations_coverage import corpus_coverage
 from shared import api, utils
 from shared.matrix import split_sections
@@ -103,13 +104,22 @@ class DocumentFacts:
     centrality: str
     sentient_category: str
 
+    @classmethod
+    def from_plan(cls, plan: dict) -> "DocumentFacts":
+        """The facts of a plan record: its description and the three dealt values the selector shows."""
+        variables = plan["variables"]
+        return cls(
+            document_description=plan["description"],
+            document_type=variables.get("document_type", ""),
+            centrality=variables.get("centrality", ""),
+            sentient_category=variables.get("sentient_category", ""))
+
 
 # ---------------------------------------------------------------- eligibility, prompt and schema
 
 def load_selection_template(prompts_dir: Path) -> str | None:
     """The selector template, or None for a run whose snapshot predates the selector."""
-    path = Path(prompts_dir) / TEMPLATE_FILENAME
-    return path.read_text(encoding="utf-8") if path.is_file() else None
+    return structured_answers.read_template_if_present(prompts_dir, TEMPLATE_FILENAME)
 
 
 def eligible_entries_for_document(catalog: ConsiderationCatalog, variables: dict) -> dict[str, list[Consideration]]:
@@ -185,10 +195,8 @@ def parse_scoring_answer(raw: str, offered: dict[str, list[Consideration]]) -> d
     offered list, items that name each offered label exactly once with an integer score
     1-5 (and, for a score of 3 or more, a non-empty ``where_it_arises``), and nothing
     for a list that was not offered. ``where_it_arises`` is blanked for scores below 3."""
-    try:
-        answer = json.loads(raw or "")
-    except ValueError as error:
-        raise ScoringAnswerError(f"no usable JSON object ({error})") from error
+    answer = structured_answers.parse_json_answer(
+        raw, ScoringAnswerError, caught_exceptions=(ValueError,), failure_message="no usable JSON object ({error})")
     if not isinstance(answer, dict):
         raise ScoringAnswerError("answer is not a JSON object")
     parsed: dict[str, dict[str, dict]] = {}
@@ -257,8 +265,7 @@ def score_document(
             json_schema=schema,
         )
         try:
-            if stop_reason != "end_turn":
-                raise ScoringAnswerError(f"truncated answer (stop_reason={stop_reason})")
+            structured_answers.raise_if_answer_was_truncated(stop_reason, ScoringAnswerError)
             return parse_scoring_answer(raw, offered), attempt
         except ScoringAnswerError as error:
             problem = str(error)
@@ -391,11 +398,7 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
     def score_one(prompt_id: str):
         plan = plan_by_id[prompt_id]
         variables = plan["variables"]
-        facts = DocumentFacts(
-            document_description=plan["description"],
-            document_type=variables.get("document_type", ""),
-            centrality=variables.get("centrality", ""),
-            sentient_category=variables.get("sentient_category", ""))
+        facts = DocumentFacts.from_plan(plan)
         offered = shuffled_offer(eligible_entries_for_document(catalog, variables), seed, prompt_id)
         try:
             scores, attempts = score_document(
