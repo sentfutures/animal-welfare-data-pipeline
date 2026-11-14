@@ -529,3 +529,94 @@ def test_an_ordinary_run_has_no_seeded_from_entry(source_run):
 
 def test_the_seedable_steps_and_the_reasons_for_the_others_do_not_overlap():
     assert not set(seeding.SEEDABLE_STEPS) & set(seeding.UNSEEDABLE_STEPS)
+
+
+# ------------------------------------------------------------------ run resolution, revise under one call, re-solved assignment
+
+
+def test_a_bare_name_is_a_run_id_and_a_local_folder_is_used_only_when_no_run_has_that_name(tmp_path, monkeypatch):
+    runs_root = tmp_path / "runs"
+    (runs_root / "run_a").mkdir(parents=True)
+    working_directory = tmp_path / "working"
+    (working_directory / "run_b").mkdir(parents=True)
+    monkeypatch.chdir(working_directory)
+    assert seeding.resolve_source_run("run_a", runs_root) == runs_root / "run_a"
+    assert seeding.resolve_source_run("run_b", runs_root) == (working_directory / "run_b").resolve()
+
+
+def test_a_bare_name_that_is_both_a_run_and_a_local_folder_is_refused_naming_both(tmp_path, monkeypatch):
+    runs_root = tmp_path / "runs"
+    (runs_root / "shared_name").mkdir(parents=True)
+    working_directory = tmp_path / "working"
+    (working_directory / "shared_name").mkdir(parents=True)
+    monkeypatch.chdir(working_directory)
+    with pytest.raises(seeding.SeedingRefused) as caught:
+        seeding.resolve_source_run("shared_name", runs_root)
+    message = str(caught.value)
+    assert "ambiguous" in message
+    assert str(runs_root / "shared_name") in message and str((working_directory / "shared_name").resolve()) in message
+
+
+def test_a_value_with_a_separator_is_a_path_not_a_run_id(tmp_path, monkeypatch):
+    runs_root = tmp_path / "runs"
+    (runs_root / "shared_name").mkdir(parents=True)
+    (runs_root / "run_a").mkdir(parents=True)
+    working_directory = tmp_path / "working"
+    (working_directory / "shared_name").mkdir(parents=True)
+    monkeypatch.chdir(working_directory)
+    assert seeding.resolve_source_run("./shared_name", runs_root) == (working_directory / "shared_name").resolve()
+    with pytest.raises(seeding.SeedingRefused) as caught:
+        seeding.resolve_source_run("missing/run_a", runs_root)  # not read as the run id "run_a"
+    assert "no run folder at missing/run_a" in str(caught.value)
+
+
+def test_seeding_at_revise_under_the_single_call_configuration_is_refused_saying_to_seed_at_critique(
+        source_run, tiny_config, outputs_root, stub_claude, monkeypatch, tmp_path):
+    source_directory, _ = source_run
+    tiny_config["sdf"]["revision"] = {"split": False}
+    one_call_config = tmp_path / "one_call_config.yaml"
+    one_call_config.write_text(yaml.safe_dump(tiny_config))
+    calls = stub_claude(_dispatch)
+    before = run_names(outputs_root)
+    with pytest.raises(SystemExit) as caught:
+        run_main(monkeypatch, one_call_config, "--seed-from", source_directory.name, "--from-step", "revise")
+    message = str(caught.value)
+    assert "revises in one call together with the critique, so there is no separate revise step; seed from 'critique' instead" in message
+    assert "sdf.revision.split: false" in message
+    assert calls == [] and run_names(outputs_root) == before
+
+
+@pytest.mark.parametrize("document_selection", ["one", "all"])
+def test_seeding_at_consideration_scoring_says_and_records_that_the_assignment_is_solved_again(
+        document_selection, config_file, outputs_root, stub_claude, monkeypatch, capsys):
+    stub_claude(_dispatch_that_scores_the_first_consideration_of_each_list_highly)
+    run_main(monkeypatch, config_file, "--label", "source")
+    source_directory = only_run_directory_not_in(outputs_root, set())
+    known = run_names(outputs_root)
+    stub_claude(_dispatch_that_scores_the_first_consideration_of_each_list_highly)
+    extra = ["--document-ids", document_ids_of(source_directory)[0]] if document_selection == "one" else []
+    expected_count = 1 if document_selection == "one" else DOCUMENT_COUNT
+    capsys.readouterr()
+    run_main(monkeypatch, config_file, "--seed-from", source_directory.name, "--from-step", "consideration_scoring", *extra)
+    output = capsys.readouterr().out
+    assert f"the consideration assignment will be solved again over the {expected_count} selected document(s)" in output
+    assert "may differ from the source run's" in output
+    assert "seed at consideration_scoring for a fresh assignment, at draft to keep the source's" in output
+    manifest = json.loads((only_run_directory_not_in(outputs_root, known) / "run_manifest.json").read_text())
+    seeded_from = manifest["seeded_from"]
+    assert seeded_from["consideration_assignment_solved_again_over_document_count"] == expected_count
+    assert seeded_from["consideration_assignment"] == (
+        f"solved again over {expected_count} document(s); may differ from the source run's")
+
+
+def test_seeding_at_draft_prints_no_assignment_notice_and_records_no_assignment_field(
+        source_run, config_file, outputs_root, stub_claude, monkeypatch, capsys):
+    source_directory, _ = source_run
+    known = run_names(outputs_root)
+    stub_claude(_dispatch)
+    capsys.readouterr()
+    run_main(monkeypatch, config_file, "--seed-from", source_directory.name, "--from-step", "draft",
+             "--document-ids", document_ids_of(source_directory)[0])
+    assert "solved again" not in capsys.readouterr().out
+    manifest = json.loads((only_run_directory_not_in(outputs_root, known) / "run_manifest.json").read_text())
+    assert "consideration_assignment" not in manifest["seeded_from"]
