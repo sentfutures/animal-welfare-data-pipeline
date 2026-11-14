@@ -74,6 +74,33 @@ class ThrottledProgressClock:
         return time.monotonic() - self.started_at
 
 
+@dataclass
+class StepProgress:
+    """What the runner has seen of the documents of one run so far: the counts and the clock that
+    a step's progress and summary lines are built from. The runner owns and updates it (``record``
+    runs once per outcome, just before the step's ``progress_line``); a step only reads it.
+    ``accepted_updates`` holds each accepted outcome's update, for a step that counts something in
+    them (the description rewrite counts rewrites)."""
+    pending_count: int = 0
+    documents_seen: int = 0
+    answered: int = 0   # every outcome that is not a failure
+    failed: int = 0
+    removed: int = 0
+    accepted_updates: list = field(default_factory=list)
+    clock: ThrottledProgressClock = field(default_factory=ThrottledProgressClock)
+
+    def record(self, outcome) -> None:
+        self.documents_seen += 1
+        if isinstance(outcome, Failed):
+            self.failed += 1
+            return
+        self.answered += 1
+        if isinstance(outcome, Removed):
+            self.removed += 1
+        elif isinstance(outcome, Accepted):
+            self.accepted_updates.append(outcome.update)
+
+
 def reason_without_error_prefix(reason: str) -> str:
     """A thrown call's failure reason without its leading ``error: ``."""
     return reason.removeprefix("error: ")
@@ -86,9 +113,12 @@ def line_for_document_left_to_retry(document_id: str, problem: str, ending: str 
 
 @dataclass(frozen=True)
 class ModelReply:
-    """What came back: the text and the stop reason (None when the backend gives none)."""
+    """What came back: the text and the stop reason (None when the backend gives none).
+    ``attempt`` is which send of the same request this answers (the runner sets it: 1 for the first),
+    so a step that treats the last attempt differently needs no state of its own."""
     text: str
     stop_reason: str | None
+    attempt: int = 1
 
 
 class FailureKind(Enum):
@@ -125,6 +155,15 @@ class Created:
 
 
 StepOutcome = Accepted | Removed | Failed | Created
+
+
+@dataclass(frozen=True)
+class OutcomeRecords:
+    """Every record an outcome produces, for the runner to write. ``records`` are (file name in the
+    stage folder, record) pairs, written in this order; ``finishes_the_document`` says the runner
+    marks the document done in the checkpoint after writing them."""
+    records: tuple = ()
+    finishes_the_document: bool = False
 
 
 class WhatAFailedDocumentDoes(Enum):
@@ -164,6 +203,10 @@ class StepPolicy:
     errors_counted_as_thrown_calls: WhereAnErrorIsAThrownCall = (
         WhereAnErrorIsAThrownCall.BUILD | WhereAnErrorIsAThrownCall.SEND)
 
+    def __post_init__(self):
+        if self.maximum_attempts_in_one_run < 1:
+            raise ValueError(f"maximum_attempts_in_one_run is {self.maximum_attempts_in_one_run}; it must be at least 1")
+
 
 def systemic_stop_message_for(stage_tag: str, call_noun: str, unit_noun: str) -> str:
     """The exit message when every pending call of a step failed, for the step's tag, the word for its
@@ -198,13 +241,11 @@ class DocumentStep(ABC):
     unit_noun: str = "document"
     policy: StepPolicy = StepPolicy()
     systemic_stop_message: str   # built from the tag and nouns unless the class declares it
-    # When True, the runner writes each outcome's stage file record, checkpoint mark, failure record
+    # When True, the runner writes each outcome's records, checkpoint mark
     # and progress line from the worker, under a lock, the moment its answer arrives (completion
     # order), instead of on the calling thread in input order. For a step whose stage file is its
     # only checkpoint (consideration scoring): a crash must not lose finished paid answers.
     writes_stage_file_as_replies_arrive: bool = False
-    # A second stage file for failed documents: the runner appends ``failure_record`` to it.
-    failure_file_name: str | None = None
 
     def __init_subclass__(cls, **keyword_arguments):
         super().__init_subclass__(**keyword_arguments)
@@ -236,24 +277,20 @@ class DocumentStep(ABC):
     def stage_file_record(self, document, update) -> dict:
         """The record the step's stage file holds for an accepted update."""
 
-    def progress_line(self, document, outcome) -> str | None:
-        """The line printed once the outcome is written (None prints nothing)."""
-        return None
+    def outcome_records(self, document, outcome) -> OutcomeRecords:
+        """Every (file name, record) pair the outcome produces, in write order, and whether it finishes
+        the document. The runner writes them; the step only decides what they hold. The default: an
+        accepted update is one record in the stage file and finishes the document; a removal or a failure
+        writes nothing (the plan step overrides it for an INCOHERENT plan, the description rewrite for a
+        dealt-value conflict, consideration scoring for a failure)."""
+        if isinstance(outcome, Accepted):
+            return OutcomeRecords(((self.stage_file_name, self.stage_file_record(document, outcome.update)),), True)
+        return OutcomeRecords()
 
-    def stage_file_record_for_removal(self, document, removed: "Removed") -> dict | None:
-        """The record to write to the stage file, and mark done in the checkpoint, when the step
-        removes a document (None writes nothing and marks nothing). The plan step uses it: an
-        INCOHERENT plan is a finished plan whose record says so."""
+    def progress_line(self, document, outcome, progress: StepProgress) -> str | None:
+        """The line printed once the outcome is written (None prints nothing). ``progress`` is the
+        runner's count so far, this outcome included."""
         return None
-
-    def failure_record(self, document, failed: "Failed") -> dict | None:
-        """The record appended to ``failure_file_name`` (in the stage folder) when a document's
-        final outcome is a failure; None writes nothing."""
-        return None
-
-    def failure_when_no_attempt_is_allowed(self, document) -> "Failed":
-        """The failure for a document when the policy allows no attempt at all (zero calls)."""
-        return Failed(FailureKind.UNUSABLE_ANSWER, "no attempt allowed")
 
     def after_documents_are_processed(self, run_result) -> None:
         """Called once after every pending document is processed and the systemic stop check has

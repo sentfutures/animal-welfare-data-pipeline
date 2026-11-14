@@ -37,7 +37,7 @@ from sdf_pipeline.dealt_value_identifiers import value_ids_field_of
 from sdf_pipeline.step_runner import StepRunner, run_corpus_step
 from sdf_pipeline.update_steps import (
     Accepted, CorpusStep, DocumentStep, Failed, ModelReply, ModelRequest, Removed, StepPolicy,
-    line_for_document_left_to_retry, reason_without_error_prefix)
+    StepProgress, line_for_document_left_to_retry, reason_without_error_prefix)
 
 PARSE_ERROR_SCORES = {"alignment": 5, "realism": 5, "spec_conformance": 5, "notes": "Parse error."}
 
@@ -90,7 +90,7 @@ class ScoreStep(DocumentStep):
         return {"doc_id": rewrite["doc_id"], "variables": rewrite["variables"], **value_ids_field_of(rewrite),
                 "scores": update}
 
-    def progress_line(self, rewrite: dict, outcome) -> str | None:
+    def progress_line(self, rewrite: dict, outcome, progress: StepProgress) -> str | None:
         doc_id = rewrite["doc_id"]
         if isinstance(outcome, Failed):
             return line_for_document_left_to_retry(

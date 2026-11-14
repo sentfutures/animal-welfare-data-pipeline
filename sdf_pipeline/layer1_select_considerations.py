@@ -72,8 +72,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from sdf_pipeline import considerations_assignment as assignment
 from sdf_pipeline.step_runner import StepRunner, run_corpus_step
 from sdf_pipeline.update_steps import (
-    Accepted, CorpusStep, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, StepPolicy,
-    ThrottledProgressClock, WhatAFailedDocumentDoes, WhereAnErrorIsAThrownCall, line_for_document_left_to_retry, reason_without_error_prefix)
+    Accepted, CorpusStep, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, OutcomeRecords,
+    StepPolicy, StepProgress, WhatAFailedDocumentDoes, WhereAnErrorIsAThrownCall, line_for_document_left_to_retry, reason_without_error_prefix)
 from sdf_pipeline.considerations_catalog import (
     CONSIDERATIONS_FILENAME, EPISTEMIC_LIST, LIST_NAMES, MORAL_LIST,
     Consideration, ConsiderationCatalog, load_considerations,
@@ -271,7 +271,6 @@ class ConsiderationScoringStep(DocumentStep):
     step_name = "consideration_scoring"
     stage_file_name = SCORES_FILENAME
     stage_file_id_field = "prompt_id"
-    failure_file_name = FAILURES_FILENAME
     writes_stage_file_as_replies_arrive = True   # the scores file is the checkpoint: write each row the moment it arrives
     stage_tag = STAGE_TAG
     call_noun = "scoring call"
@@ -292,17 +291,12 @@ class ConsiderationScoringStep(DocumentStep):
             failed_document=WhatAFailedDocumentDoes.STOPS_THE_RUN_AFTER_THE_STEP,
             errors_counted_as_thrown_calls=WhereAnErrorIsAThrownCall.BUILD | WhereAnErrorIsAThrownCall.SEND
             | WhereAnErrorIsAThrownCall.INTERPRET)
-        self._offered_by_document_id: dict = {}
-        self._attempts_by_document_id: dict = {}
-        self._clock = ThrottledProgressClock()
-        self.begin_run(0)
 
-    def begin_run(self, pending_count: int) -> None:
-        """Reset the progress counters; the wrapper calls it with the number of documents to score."""
-        self._pending_count = pending_count
-        self._answered = 0
-        self._failed = 0
-        self._clock.restart()
+    def offered_entries(self, plan: dict) -> dict[str, list[Consideration]]:
+        """The entries offered for the plan, each list in its shuffled order: a pure function of the
+        catalog, the plan's variables, the run's seed and the prompt id."""
+        return shuffled_offer(
+            eligible_entries_for_document(self.catalog, plan["variables"]), self.seed, plan["prompt_id"])
 
     def applies_to(self, plan: dict) -> bool:
         """A plan with a description, outside the no-welfare-stake arm (when that is skipped)."""
@@ -310,10 +304,7 @@ class ConsiderationScoringStep(DocumentStep):
             self.skip_no_stake and self.catalog.is_skipped_resolution(plan["variables"]))
 
     def build_request(self, plan: dict) -> ModelRequest:
-        prompt_id = plan["prompt_id"]
-        offered = shuffled_offer(
-            eligible_entries_for_document(self.catalog, plan["variables"]), self.seed, prompt_id)
-        self._offered_by_document_id[prompt_id] = offered
+        offered = self.offered_entries(plan)
         system, user = build_scoring_prompt(self.template, DocumentFacts.from_plan(plan), offered)
         return self.model_request(
             plan, user, system, self.model,
@@ -322,26 +313,15 @@ class ConsiderationScoringStep(DocumentStep):
         )
 
     def interpret(self, plan: dict, reply: ModelReply):
-        prompt_id = plan["prompt_id"]
-        attempt = self._attempts_by_document_id.get(prompt_id, 0) + 1
-        self._attempts_by_document_id[prompt_id] = attempt
         try:
             structured_answers.raise_if_answer_was_truncated(reply.stop_reason, ScoringAnswerError)
-            scores = parse_scoring_answer(reply.text, self._offered_by_document_id[prompt_id])
+            scores = parse_scoring_answer(reply.text, self.offered_entries(plan))
         except ScoringAnswerError as error:
             problem = str(error)
-            if attempt >= self.maximum_attempts:
-                self._attempts_by_document_id.pop(prompt_id, None)
+            if reply.attempt >= self.maximum_attempts:
                 problem = f"{problem} (after {self.maximum_attempts} attempts)"
             return Failed(FailureKind.UNUSABLE_ANSWER, problem)
-        except Exception:  # the declared exception policy records it as a thrown call; forget the attempt count first
-            self._attempts_by_document_id.pop(prompt_id, None)
-            raise
-        self._attempts_by_document_id.pop(prompt_id, None)
-        return Accepted({"scores": scores, "attempts": attempt})
-
-    def failure_when_no_attempt_is_allowed(self, plan: dict) -> Failed:
-        return Failed(FailureKind.UNUSABLE_ANSWER, f" (after {self.maximum_attempts} attempts)")
+        return Accepted({"scores": scores, "attempts": reply.attempt})
 
     def stage_file_record(self, plan: dict, update: dict) -> dict:
         return {"prompt_id": plan["prompt_id"], "scores": update["scores"], "attempts": update["attempts"]}
@@ -352,21 +332,22 @@ class ConsiderationScoringStep(DocumentStep):
             return f"unusable answer ({failed.reason})"
         return f"API call failed ({reason_without_error_prefix(failed.reason)})"
 
-    def failure_record(self, plan: dict, failed: Failed) -> dict:
-        return {"prompt_id": plan["prompt_id"], "problem": self._problem_text(failed)}
+    def outcome_records(self, plan: dict, outcome) -> OutcomeRecords:
+        """An accepted score row finishes the plan (the scores file is the checkpoint); a failure writes
+        its problem to the failures file and finishes nothing."""
+        if isinstance(outcome, Failed):
+            return OutcomeRecords(((FAILURES_FILENAME, {"prompt_id": plan["prompt_id"], "problem": self._problem_text(outcome)}),))
+        return super().outcome_records(plan, outcome)
 
-    def progress_line(self, plan: dict, outcome) -> str | None:
+    def progress_line(self, plan: dict, outcome, progress: StepProgress) -> str | None:
         lines = []
         if isinstance(outcome, Failed):
-            self._failed += 1
             lines.append(line_for_document_left_to_retry(
                 plan["prompt_id"], self._problem_text(outcome), ending="will be rescored on resume"))
-        else:
-            self._answered += 1
-        if self._clock.is_due():
-            elapsed_seconds = self._clock.mark_printed()
-            lines.append(f"  Scoring progress: {self._answered} answered, {self._failed} failed of "
-                         f"{self._pending_count} ({elapsed_seconds:.1f}s elapsed)")
+        if progress.clock.is_due():
+            elapsed_seconds = progress.clock.mark_printed()
+            lines.append(f"  Scoring progress: {progress.answered} answered, {progress.failed} failed of "
+                         f"{progress.pending_count} ({elapsed_seconds:.1f}s elapsed)")
         return "\n".join(lines) if lines else None
 
     def after_documents_are_processed(self, run_result) -> None:
@@ -374,7 +355,8 @@ class ConsiderationScoringStep(DocumentStep):
         unusable). Nothing is printed for a run with nothing to score."""
         if not run_result.pending_document_ids:
             return
-        print(f"  Scoring: {self._answered} answered, {self._failed} failed ({self._clock.seconds_since_start():.1f}s)")
+        progress = run_result.progress
+        print(f"  Scoring: {progress.answered} answered, {progress.failed} failed ({progress.clock.seconds_since_start():.1f}s)")
         if len(run_result.failed_document_ids) == len(run_result.pending_document_ids):
             raise SystemExit(self.systemic_stop_message)
 
@@ -523,7 +505,6 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
     pending = runner.select_pending(documents_in_scoring_order)
     print(f"  Scoring considerations for {len(eligible)} specifications: "
           f"{len(eligible) - len(pending)} already scored, {len(pending)} to score")
-    step.begin_run(len(pending))
     runner.run(documents_in_scoring_order)  # stops the run before the assignment if any document failed
 
     score_rows = {r["prompt_id"]: r for r in utils.load_jsonl(scores_path) if r["prompt_id"] in plan_by_id}

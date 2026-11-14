@@ -61,8 +61,8 @@ from sdf_pipeline import structured_answers
 from sdf_pipeline.dealt_value_identifiers import value_ids_field_of
 from sdf_pipeline.step_runner import StepRunner
 from sdf_pipeline.update_steps import (
-    Accepted, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, Removed, StepPolicy,
-    ThrottledProgressClock, WhatAFailedDocumentDoes, WhereAnErrorIsAThrownCall, line_for_document_left_to_retry, reason_without_error_prefix)
+    Accepted, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, OutcomeRecords, Removed,
+    StepPolicy, StepProgress, WhatAFailedDocumentDoes, WhereAnErrorIsAThrownCall, line_for_document_left_to_retry, reason_without_error_prefix)
 
 STAGE_TAG = "layer1_description_rewrite"
 TEMPLATE_FILENAME = "layer1_description_rewrite.txt"
@@ -308,15 +308,7 @@ class DescriptionRewriteStep(DocumentStep):
             prompts_dir, sdf.get("entity_pool_seed", cp.DEFAULT_ENTITY_SEED))
         self.stage_directory = stage_directory
         self.plans = plans
-        self.clock = ThrottledProgressClock()
-        self.begin_session(pending_count=0)
         self.held_out_count = 0
-
-    def begin_session(self, pending_count: int) -> None:
-        """Reset the counters the progress and summary lines use; called just before the run."""
-        self.pending_count = pending_count
-        self.documents_seen = self.rewritten_count = self.conflict_count = 0
-        self.clock.restart()
 
     def applies_to(self, plan: dict) -> bool:
         return bool(plan.get("description"))
@@ -350,32 +342,31 @@ class DescriptionRewriteStep(DocumentStep):
             plan, update.reasoning, update.rewrite_needed, update.rewritten_description,
             list(update.changes), update.dealt_value_conflict, update.conflict_reason)
 
-    def stage_file_record_for_removal(self, plan: dict, removed: Removed) -> dict:
-        """The dealt-value conflict's stored result (the runner appends it and marks the plan done).
-        The rejection record goes to its own file here, just before the runner writes the result."""
-        detail = removed.detail
-        utils.append_jsonl({
-            "prompt_id": plan["prompt_id"], "variables": plan["variables"], **value_ids_field_of(plan),
-            "conflict_reason": detail["conflict_reason"], "description": plan["description"],
-        }, self.stage_directory / REJECTIONS_FILENAME)
-        return _stored_result_record(plan, detail["reasoning"], False, "", [], True, detail["conflict_reason"])
+    def outcome_records(self, plan: dict, outcome) -> OutcomeRecords:
+        """A dealt-value conflict is the stored result (in the stage file) and then the rejection
+        (in its own file), in that order, and finishes the plan; every other outcome as the default."""
+        if not isinstance(outcome, Removed):
+            return super().outcome_records(plan, outcome)
+        detail = outcome.detail
+        return OutcomeRecords((
+            (RESULTS_FILENAME, _stored_result_record(plan, detail["reasoning"], False, "", [], True, detail["conflict_reason"])),
+            (REJECTIONS_FILENAME, {
+                "prompt_id": plan["prompt_id"], "variables": plan["variables"], **value_ids_field_of(plan),
+                "conflict_reason": detail["conflict_reason"], "description": plan["description"]}),
+        ), finishes_the_document=True)
 
-    def progress_line(self, plan: dict, outcome) -> str | None:
-        self.documents_seen += 1
+    def progress_line(self, plan: dict, outcome, progress: StepProgress) -> str | None:
         if isinstance(outcome, Failed):
             if outcome.kind is FailureKind.THROWN_CALL:
                 problem = f"API call failed ({reason_without_error_prefix(outcome.reason)})"
             else:
                 problem = outcome.reason
             return line_for_document_left_to_retry(plan["prompt_id"], problem)
-        if isinstance(outcome, Removed):
-            self.conflict_count += 1
-        else:
-            self.rewritten_count += outcome.update.rewrite_needed
-        if self.clock.is_due() or self.documents_seen == self.pending_count:
-            elapsed_seconds = self.clock.mark_printed()
-            return (f"  Description rewrite {self.documents_seen}/{self.pending_count}: {self.rewritten_count} "
-                    f"rewritten, {self.conflict_count} dropped for a dealt-value conflict "
+        if progress.clock.is_due() or progress.documents_seen == progress.pending_count:
+            rewritten_count = sum(update.rewrite_needed for update in progress.accepted_updates)
+            elapsed_seconds = progress.clock.mark_printed()
+            return (f"  Description rewrite {progress.documents_seen}/{progress.pending_count}: {rewritten_count} "
+                    f"rewritten, {progress.removed} dropped for a dealt-value conflict "
                     f"({elapsed_seconds:.1f}s)")
         return None
 
@@ -389,7 +380,7 @@ class DescriptionRewriteStep(DocumentStep):
         print(f"  Description rewrite: {sum(r['rewrite_needed'] for r in results.values())} of "
               f"{len(described)} descriptions rewritten, "
               f"{sum(r['dealt_value_conflict'] for r in results.values())} dropped for a dealt-value "
-              f"conflict ({self.clock.seconds_since_start():.1f}s this session)")
+              f"conflict ({run_result.progress.clock.seconds_since_start():.1f}s this session)")
 
     def message_when_failed_documents_stop_the_run(self, run_result) -> str:
         return self._held_out_stop_message()
@@ -419,7 +410,6 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
     pending = runner.select_pending(plans)
     print(f"  Description rewrite: {len(described)} descriptions, {len(pending)} to check "
           f"({len(described) - len(pending)} already done)")
-    step.begin_session(pending_count=len(pending))
     runner.run(plans)  # stops the run itself when a failed document leaves descriptions held out
     if step.held_out_count:  # held out with nothing failing in this run (a checkpoint without a stored result)
         raise SystemExit(step._held_out_stop_message())

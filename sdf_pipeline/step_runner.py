@@ -8,17 +8,20 @@ layers did before.
 
 A document is pending when it applies to the step, has no record in the stage file and is not
 marked done in the checkpoint. ``Failed`` marks nothing done, so a resume retries it. ``Removed``
-marks nothing done unless the step supplies a record through ``stage_file_record_for_removal``.
+marks nothing done unless the step's ``outcome_records`` says it finishes the document.
+
+The runner is the only thing that writes files, counts progress (``StepProgress``) and counts attempts
+(``ModelReply.attempt``); a step builds requests and interprets replies.
 """
 
 import threading
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from shared import api, openai_api, utils
 from sdf_pipeline.update_steps import (
     Accepted, BatchStep, CorpusStep, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, Removed,
-    WhatAFailedDocumentDoes, WhereAnErrorIsAThrownCall)
+    StepProgress, WhatAFailedDocumentDoes, WhereAnErrorIsAThrownCall)
 
 
 @dataclass
@@ -30,6 +33,7 @@ class StepRunResult:
     failed_document_ids: list = field(default_factory=list)
     thrown_call_document_ids: list = field(default_factory=list)  # failed with a thrown call (any place the policy counts)
     pending_document_ids: list = field(default_factory=list)
+    progress: StepProgress = field(default_factory=StepProgress)  # the counts and clock of this run
 
 
 def send_model_request(request: ModelRequest) -> ModelReply:
@@ -110,7 +114,7 @@ class StepRunner:
                  marks_nothing_done: bool = False, also_finished_document_ids=frozenset()):
         self.step = step
         self._write_lock = threading.Lock()
-        self._removal_record_by_document_id: dict = {}
+        self.progress = StepProgress()
         self.stage_directory = stage_directory
         self.workers = workers
         self.send = send
@@ -148,10 +152,7 @@ class StepRunner:
         outcome = self._attempt_loop(document)
         if self.step.writes_stage_file_as_replies_arrive:
             with self._write_lock:
-                self._write_outcome_files(document, outcome)
-                line = self.step.progress_line(document, outcome)
-                if line is not None:
-                    print(line)
+                self._write_outcome_files_and_print_line(document, outcome)
         return outcome
 
     def _attempt_loop(self, document):
@@ -163,12 +164,9 @@ class StepRunner:
             if WhereAnErrorIsAThrownCall.BUILD not in counted_places:
                 raise
             return failure_for_exception(error)
-        maximum_attempts = step.policy.maximum_attempts_in_one_run
-        if maximum_attempts < 1:
-            return step.failure_when_no_attempt_is_allowed(document)
-        for attempt in range(1, maximum_attempts + 1):
+        for attempt in range(1, step.policy.maximum_attempts_in_one_run + 1):
             try:
-                reply = self.send(request)
+                reply = replace(self.send(request), attempt=attempt)
             except Exception as error:
                 # One poison document must not kill the step and discard its siblings' in-flight work.
                 if WhereAnErrorIsAThrownCall.SEND not in counted_places:
@@ -185,30 +183,22 @@ class StepRunner:
                 break
         return outcome
 
-    def _removal_record(self, document, removed):
-        """The step's record for a removed document, asked for once (the step may have side effects)."""
-        document_id = self.step.document_id_of(document)
-        if document_id not in self._removal_record_by_document_id:
-            self._removal_record_by_document_id[document_id] = self.step.stage_file_record_for_removal(document, removed)
-        return self._removal_record_by_document_id[document_id]
-
     def _write_outcome_files(self, document, outcome):
-        """The stage file record and checkpoint mark of an accepted (or removed-with-record)
-        outcome, and the failure record of a failed one."""
-        step = self.step
-        document_id = step.document_id_of(document)
-        if isinstance(outcome, Failed):
-            failure_record = step.failure_record(document, outcome)
-            if failure_record is not None:
-                utils.append_jsonl(failure_record, self.stage_directory / step.failure_file_name)
-        elif isinstance(outcome, Removed):
-            record = self._removal_record(document, outcome)
-            if record is not None:
-                utils.append_jsonl(record, self.stage_file_path)
-                self._mark_done(document_id)
-        elif isinstance(outcome, Accepted):
-            utils.append_jsonl(step.stage_file_record(document, outcome.update), self.stage_file_path)
-            self._mark_done(document_id)
+        """The records the step says the outcome produces, in its order, then the checkpoint mark when
+        it finishes the document."""
+        outcome_records = self.step.outcome_records(document, outcome)
+        for file_name, record in outcome_records.records:
+            utils.append_jsonl(record, self.stage_directory / file_name)
+        if outcome_records.finishes_the_document:
+            self._mark_done(self.step.document_id_of(document))
+
+    def _write_outcome_files_and_print_line(self, document, outcome):
+        """Write the outcome's files, count it in the run's progress and print the step's line."""
+        self._write_outcome_files(document, outcome)
+        self.progress.record(outcome)
+        line = self.step.progress_line(document, outcome, self.progress)
+        if line is not None:
+            print(line)
 
     def run(self, documents: list) -> StepRunResult:
         step = self.step
@@ -218,7 +208,9 @@ class StepRunner:
             records_in_input_order=[
                 self.existing_records_by_document_id[step.document_id_of(d)] for d in documents
                 if step.document_id_of(d) in self.existing_records_by_document_id],
-            pending_document_ids=[step.document_id_of(d) for d in pending])
+            pending_document_ids=[step.document_id_of(d) for d in pending],
+            progress=StepProgress(pending_count=len(pending)))
+        self.progress = result.progress
         counted_failures = 0
         writes_as_replies_arrive = step.writes_stage_file_as_replies_arrive
         for document, outcome in zip(pending, utils.parallel_map(self._answer_one, pending, self.workers)):
@@ -229,17 +221,12 @@ class StepRunner:
                     result.thrown_call_document_ids.append(document_id)
                 if outcome.kind in policy.failure_kinds_counting_towards_the_systemic_stop:
                     counted_failures += 1
-            elif isinstance(outcome, Removed):
-                record = self._removal_record(document, outcome)
-                if record is not None:
-                    result.records_in_input_order.append(record)
-            elif isinstance(outcome, Accepted):
-                result.records_in_input_order.append(step.stage_file_record(document, outcome.update))
+            elif isinstance(outcome, (Removed, Accepted)):
+                result.records_in_input_order.extend(
+                    record for file_name, record in step.outcome_records(document, outcome).records
+                    if file_name == step.stage_file_name)
             if not writes_as_replies_arrive:  # otherwise the worker wrote its files and printed its line
-                self._write_outcome_files(document, outcome)
-                line = step.progress_line(document, outcome)
-                if line is not None:
-                    print(line)
+                self._write_outcome_files_and_print_line(document, outcome)
         if pending and counted_failures == len(pending):
             raise SystemExit(step.systemic_stop_message)
         step.after_documents_are_processed(result)

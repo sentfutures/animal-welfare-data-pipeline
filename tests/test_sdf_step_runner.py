@@ -46,7 +46,7 @@ class ToyStep(DocumentStep):
     def stage_file_record(self, document, update):
         return {"doc_id": document["id"], "content": update}
 
-    def progress_line(self, document, outcome):
+    def progress_line(self, document, outcome, progress):
         self.outcomes_by_document_id[document["id"]] = outcome
         return f"  {document['id']}: {type(outcome).__name__}"
 
