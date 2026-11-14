@@ -28,10 +28,12 @@ Then the stage and the document:
 ``--output-format json`` prints one JSON object (full texts, settings, request hash). Use
 ``--maximum-characters-per-text N`` to cut long prompts for reading.
 
-Stages it cannot cover yet: the implausibility screen, the description rewrite, the consideration
-scoring (layer1_select) and the gate and near-duplicate cull. The first three are not steps on this
-branch (each builds its request inside its own layer and sends it itself), so there is no
-``build_request`` to call; the gate and the cull make no model call.
+Stages: screen (give a hand id; the request is that of the batch the hand belongs to, from the run's
+saved batch plan, in the round given by --round), description_rewrite, plan, select (the consideration
+scoring), draft, critique, revise, combined, score. The description rewrite's OpenAI route is shown with
+the max tokens and reasoning effort it sends, which skip ``call_claude``'s thinking headroom
+(``sdf_pipeline.step_runner.resolve_settings_of_model_request``). Not covered: the deal, the redeal, the
+consideration assignment, the gate and the near-duplicate cull, which make no model call.
 """
 
 import argparse
@@ -47,15 +49,16 @@ sys.path.insert(0, str(REPOSITORY_ROOT))
 
 from shared import api, utils  # noqa: E402
 from sdf_pipeline import (  # noqa: E402
-    layer1_description_rewrite, layer1_plan, layer1_select_considerations, layer2_draft, layer3_rewrite,
-    layer4_score)
+    layer1_description_rewrite, layer1_plan, layer1_screen, layer1_select_considerations, layer2_draft,
+    layer3_rewrite, layer4_score)
+from sdf_pipeline import compose_prompts  # noqa: E402
+from sdf_pipeline.considerations_catalog import load_considerations  # noqa: E402
+from sdf_pipeline.step_runner import resolve_settings_of_model_request  # noqa: E402
 from sdf_pipeline.update_steps import ModelRequest  # noqa: E402
 
-STAGES_THIS_COMMAND_COVERS = ("plan", "draft", "critique", "revise", "combined", "score")
+STAGES_THIS_COMMAND_COVERS = ("screen", "description_rewrite", "plan", "select", "draft", "critique", "revise",
+                              "combined", "score")
 STAGES_THIS_COMMAND_CANNOT_COVER_YET = {
-    "screen": "not a step on this branch: layer1_screen builds and sends its batch request itself",
-    "description_rewrite": "not a step on this branch: layer1_description_rewrite builds and sends its own request (OpenAI or Claude route)",
-    "select": "not a step on this branch: layer1_select_considerations builds and sends its own scoring request",
     "gate": "makes no model call",
     "near_duplicate_cull": "makes no model call",
 }
@@ -93,13 +96,62 @@ def _record_with_id(records: list, key: str, document_id: str, file_description:
     raise RequestCannotBeBuilt(f"no record with {key} {document_id!r} in {file_description}")
 
 
-def build_full_request(run_directory: Path, config: dict, stage: str, document_id: str) -> FullRequest:
+def _screen_step_and_batch(run_directory: Path, config: dict, prompts_directory: Path, layer_one_directory: Path,
+                           hand_id: str, round_number: int | None):
+    """The screen step and the batch (as the run planned it, from screen_batches.jsonl) holding the hand."""
+    sdf = config["sdf"]
+    prompts = layer1_screen.load_screen_prompts(prompts_directory)
+    if prompts is None:
+        raise RequestCannotBeBuilt("this run's prompt snapshot has no screen template")
+    batch_records = [record for record in utils.load_jsonl(layer_one_directory / layer1_screen.BATCHES_FILENAME)
+                     if hand_id in record["prompt_ids"] and (round_number is None or record["round"] == round_number)]
+    if not batch_records:
+        raise RequestCannotBeBuilt(
+            f"no planned screen batch holds hand {hand_id!r}"
+            + (f" in round {round_number}" if round_number is not None else "")
+            + f" in {layer_one_directory / layer1_screen.BATCHES_FILENAME}")
+    if len(batch_records) > 1:
+        raise RequestCannotBeBuilt(
+            f"hand {hand_id!r} is in batches of rounds {[r['round'] for r in batch_records]}; pass --round")
+    hands_by_id = {hand["prompt_id"]: hand
+                   for hand in utils.load_jsonl(layer_one_directory / layer1_screen.HANDS_FILENAME)}
+    step = layer1_screen.ScreenStep(
+        prompts, sdf.get("screen_model") or sdf.get("plan_model"),
+        int(sdf.get("screen_batch_size", layer1_screen.DEFAULT_BATCH_SIZE)),
+        compose_prompts.make_variable_line_renderer(
+            prompts_directory, sdf.get("entity_pool_seed", compose_prompts.DEFAULT_ENTITY_SEED)))
+    return step, step.batch_from_record(batch_records[0], hands_by_id)
+
+
+def build_full_request(run_directory: Path, config: dict, stage: str, document_id: str,
+                       round_number: int | None = None) -> FullRequest:
     """The request ``stage`` would send for ``document_id`` in this run, and its resolved settings.
-    Reads stage files only."""
+    Reads stage files only. For the screen, ``document_id`` is a hand id and the request is that of the
+    batch the hand belongs to in ``round_number`` (any round holding it, when None and only one does)."""
     run_directory = Path(run_directory)
     prompts_directory = _prompts_directory_of_run(run_directory)
     layer_directory = {number: utils.sdf_stage_dir(run_directory, number) for number in (1, 2, 3, 4)}
-    if stage == "plan":
+    if stage == "screen":
+        step, document = _screen_step_and_batch(run_directory, config, prompts_directory, layer_directory[1],
+                                                document_id, round_number)
+    elif stage == "description_rewrite":
+        prompts = layer1_description_rewrite.load_rewrite_prompts(prompts_directory)
+        if prompts is None or not layer1_description_rewrite.enabled(config):
+            raise RequestCannotBeBuilt("the description rewrite is disabled or has no template in this run")
+        plans = utils.load_jsonl(layer_directory[1] / "plans.jsonl")
+        step = layer1_description_rewrite.DescriptionRewriteStep(
+            config, prompts, prompts_directory, layer_directory[1], plans)
+        document = _record_with_id(plans, "prompt_id", document_id, f"{layer_directory[1] / 'plans.jsonl'}")
+    elif stage == "select":
+        template = layer1_select_considerations.load_selection_template(prompts_directory)
+        if template is None or not layer1_select_considerations.selection_enabled(config):
+            raise RequestCannotBeBuilt("consideration selection is disabled or has no template in this run")
+        step = layer1_select_considerations.ConsiderationScoringStep(
+            config, load_considerations(prompts_directory), template)
+        plans = layer1_description_rewrite.load_rewritten_plans(
+            config, layer_directory[1], utils.load_jsonl(layer_directory[1] / "plans.jsonl"))
+        document = _record_with_id(plans, "prompt_id", document_id, "the plans after the description rewrite")
+    elif stage == "plan":
         step = layer1_plan.PlanStep(config)
         document = _record_with_id(utils.load_jsonl(layer_directory[1] / "prompts.jsonl"), "prompt_id",
                                    document_id, f"{layer_directory[1] / 'prompts.jsonl'}")
@@ -133,13 +185,10 @@ def build_full_request(run_directory: Path, config: dict, stage: str, document_i
         raise RequestCannotBeBuilt(f"stage {stage!r} cannot be shown yet: {STAGES_THIS_COMMAND_CANNOT_COVER_YET[stage]}")
     else:
         raise RequestCannotBeBuilt(f"unknown stage {stage!r}; choose from {', '.join(STAGES_THIS_COMMAND_COVERS)}")
-    if not step.applies_to(document):
+    if stage != "screen" and not step.applies_to(document):
         raise RequestCannotBeBuilt(f"the {stage} step does not apply to {document_id!r} (it sends no request for it)")
     request = step.build_request(document)
-    settings = api.resolve_request_settings(
-        request.model, request.stage, request.max_tokens, request.temperature,
-        json_schema=request.json_schema, cache_system=request.cache_system, config=config)
-    return FullRequest(request=request, settings=settings)
+    return FullRequest(request=request, settings=resolve_settings_of_model_request(request, config))
 
 
 def _cut(text: str, maximum_characters: int | None) -> str:
@@ -188,6 +237,8 @@ def main(arguments: list[str] | None = None) -> int:
     parser.add_argument("--config", type=Path, help="config to resolve settings against (run folder mode; default: the run's manifest)")
     parser.add_argument("--stage", required=True, choices=[*STAGES_THIS_COMMAND_COVERS, *STAGES_THIS_COMMAND_CANNOT_COVER_YET])
     parser.add_argument("--document-id", required=True)
+    parser.add_argument("--round", type=int, default=None, dest="round_number",
+                        help="screen only: the round whose batch to show (needed when the hand is in several)")
     parser.add_argument("--output-format", choices=("text", "json"), default="text")
     parser.add_argument("--maximum-characters-per-text", type=int, default=None)
     parsed = parser.parse_args(arguments)
@@ -195,12 +246,14 @@ def main(arguments: list[str] | None = None) -> int:
     try:
         if parsed.run_folder is not None:
             config = config_of_run(parsed.run_folder, parsed.config)
-            full_request = build_full_request(parsed.run_folder, config, parsed.stage, parsed.document_id)
+            full_request = build_full_request(parsed.run_folder, config, parsed.stage, parsed.document_id,
+                                      parsed.round_number)
         else:
             with tempfile.TemporaryDirectory() as temporary_name:
                 run_directory, config = _run_fixture_scenario_in_temporary_folder(
                     parsed.fixture_scenario, Path(temporary_name))
-                full_request = build_full_request(run_directory, config, parsed.stage, parsed.document_id)
+                full_request = build_full_request(run_directory, config, parsed.stage, parsed.document_id,
+                                      parsed.round_number)
     except RequestCannotBeBuilt as problem:
         print(f"Cannot show a request: {problem}", file=sys.stderr)
         return 2

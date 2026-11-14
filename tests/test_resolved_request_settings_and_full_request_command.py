@@ -115,13 +115,14 @@ def test_openai_route_resolution_equals_what_call_claude_hands_to_call_openai(mo
 
 # ------------------------------------------------------------------ the command against the recordings
 
+STAGE_TAGS = {
+    "description_rewrite": "layer1_description_rewrite", "plan": "layer1_plan", "select": "layer1_select",
+    "draft": "layer2_draft", "critique": "layer3_critique", "revise": "layer3_revise", "score": "layer4_score"}
 SCENARIOS_AND_STAGE_TAGS = [
-    ("temperature_kept_on_every_stage_with_a_two_call_revision",
-     {"plan": "layer1_plan", "draft": "layer2_draft", "critique": "layer3_critique", "revise": "layer3_revise",
-      "score": "layer4_score"}),
-    ("minimal_config_with_openai_rewrite_and_adaptive_thinking_models",
-     {"plan": "layer1_plan", "draft": "layer2_draft", "critique": "layer3_critique", "revise": "layer3_revise",
-      "score": "layer4_score"}),
+    # Claude-routed description rewrite and a screen that keeps sampling parameters
+    ("temperature_kept_on_every_stage_with_a_two_call_revision", {**STAGE_TAGS, "screen": "layer1_screen"}),
+    # OpenAI-routed description rewrite, adaptive-thinking draft and rewrite models, no screen
+    ("minimal_config_with_openai_rewrite_and_adaptive_thinking_models", dict(STAGE_TAGS)),
 ]
 
 
@@ -142,20 +143,40 @@ def _snapshot(directory: Path) -> dict:
     return {str(path): (path.stat().st_mtime_ns, path.stat().st_size) for path in directory.rglob("*") if path.is_file()}
 
 
+def _document_id_for(run_directory: Path, stage: str, recorded: dict) -> str:
+    """The recorded item id; for the screen (recorded by batch id) the first hand of that batch."""
+    if stage != "screen":
+        return recorded["item_id"]
+    batches = command.utils.load_jsonl(
+        command.utils.sdf_stage_dir(run_directory, 1) / command.layer1_screen.BATCHES_FILENAME)
+    return next(batch["prompt_ids"][0] for batch in batches if batch["batch_id"] == recorded["item_id"])
+
+
+def _wire_settings_and_user_message(recorded: dict) -> tuple:
+    """(model, max tokens, temperature, effort, thinking, user message marker) of a recorded request."""
+    wire = recorded["wire"]
+    if recorded["route"] == "openai":
+        return (wire["model"], wire["max_output_tokens"], wire["temperature"], wire["reasoning"]["effort"],
+                None, wire["input"])
+    return (wire["model"], wire["max_tokens"], wire.get("temperature"), (wire.get("output_config") or {}).get("effort"),
+            wire["thinking"], wire["messages"][0]["content"])
+
+
 def test_printed_settings_equal_the_recorded_wire_settings_and_nothing_is_written(scenario_run):
     name, stage_tags, run_directory, config = scenario_run
     before = _snapshot(run_directory)
     for stage, stage_tag in stage_tags.items():
         recorded = _recorded_request(name, stage_tag)
-        full_request = command.build_full_request(run_directory, config, stage, recorded["item_id"])
-        wire, settings = recorded["wire"], full_request.settings
+        full_request = command.build_full_request(
+            run_directory, config, stage, _document_id_for(run_directory, stage, recorded))
+        settings = full_request.settings
+        model, max_tokens, temperature, effort, thinking, user_message_marker = _wire_settings_and_user_message(recorded)
         assert full_request.request.stage == stage_tag
-        assert settings.model == wire["model"], stage
-        assert settings.max_tokens == wire["max_tokens"], stage
-        assert settings.temperature == wire.get("temperature"), stage
-        assert settings.effort == (wire.get("output_config") or {}).get("effort"), stage
-        assert settings.thinking == wire["thinking"], stage
-        assert support.hashed_text_marker(full_request.request.user_message) == wire["messages"][0]["content"], stage
+        assert full_request.request.item_id == recorded["item_id"], stage   # the screen: the batch id
+        assert (settings.model, settings.max_tokens, settings.temperature, settings.effort, settings.thinking) == (
+            model, max_tokens, temperature, effort, thinking), stage
+        assert settings.provider == recorded["route"], stage
+        assert support.hashed_text_marker(full_request.request.user_message) == user_message_marker, stage
     assert _snapshot(run_directory) == before
 
 
@@ -176,7 +197,21 @@ def test_command_line_prints_the_full_request_as_json(scenario_run, capsys):
 
 def test_stages_without_a_step_are_refused_with_the_reason(scenario_run, capsys):
     _, _, run_directory, config = scenario_run
-    with pytest.raises(command.RequestCannotBeBuilt, match="not a step on this branch"):
-        command.build_full_request(run_directory, config, "screen", "matrix_000000")
+    with pytest.raises(command.RequestCannotBeBuilt, match="makes no model call"):
+        command.build_full_request(run_directory, config, "gate", "matrix_000000")
     with pytest.raises(command.RequestCannotBeBuilt, match="no record"):
         command.build_full_request(run_directory, config, "draft", "no_such_document")
+
+
+def test_screen_request_is_that_of_the_batch_holding_the_hand_and_needs_a_round_only_when_ambiguous(scenario_run):
+    name, stage_tags, run_directory, config = scenario_run
+    if "screen" not in stage_tags:
+        return   # only the scenario with a screen has a batch to look up
+    recorded = _recorded_request(name, "layer1_screen")
+    hand_id = _document_id_for(run_directory, "screen", recorded)
+    assert command.build_full_request(run_directory, config, "screen", hand_id, round_number=0).request.item_id \
+        == recorded["item_id"]
+    with pytest.raises(command.RequestCannotBeBuilt, match="no planned screen batch"):
+        command.build_full_request(run_directory, config, "screen", hand_id, round_number=9)
+    with pytest.raises(command.RequestCannotBeBuilt, match="no planned screen batch"):
+        command.build_full_request(run_directory, config, "screen", "no_such_hand")

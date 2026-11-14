@@ -69,6 +69,25 @@ def send_model_request(request: ModelRequest) -> ModelReply:
     return ModelReply(text=text, stop_reason=stop_reason)
 
 
+def resolve_settings_of_model_request(request: ModelRequest, config: dict | None = None) -> api.ResolvedRequestSettings:
+    """The settings ``send_model_request`` will send ``request`` with, by the route it takes.
+
+    A request without ``openai_schema_name`` goes through ``shared.api.call_claude``, so its settings
+    are ``api.resolve_request_settings`` (the very call ``call_claude`` makes). The description rewrite's
+    OpenAI route calls ``openai_api.call_openai`` directly with the request's own max tokens and
+    reasoning effort, so no thinking headroom is added and its settings are those values as they are
+    (the temperature is the OpenAI wrapper's constant). Read-only; ``config`` defaults to the loaded one."""
+    if request.openai_schema_name is None:
+        return api.resolve_request_settings(
+            request.model, request.stage, request.max_tokens, request.temperature,
+            json_schema=request.json_schema, cache_system=request.cache_system, config=config)
+    return api.ResolvedRequestSettings(
+        provider="openai", model=request.model, max_tokens=request.max_tokens, thinking_headroom_added=0,
+        requested_temperature=openai_api.SAMPLING_TEMPERATURE, temperature=openai_api.SAMPLING_TEMPERATURE,
+        effort=request.openai_reasoning_effort, effort_configured=request.openai_reasoning_effort,
+        thinking=None, structured_output=request.json_schema is not None, cache_system=False)
+
+
 class StepRunner:
     def __init__(self, step: DocumentStep, stage_directory, event_log: DocumentEventLog,
                  workers: int = 1, send=send_model_request, existing_records_by_document_id: dict | None = None,
