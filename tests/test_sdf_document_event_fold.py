@@ -28,6 +28,8 @@ def main_scenario_after_each_invocation():
                 "events_text": events_path.read_text(encoding="utf-8"),
                 "states": load_document_states(run_directory),
                 "draft_records": utils.load_jsonl(utils.sdf_stage_dir(run_directory, 2) / "drafts.jsonl"),
+                "score_records": utils.load_jsonl(utils.sdf_stage_dir(run_directory, 4) / "scores.jsonl"),
+                "final_corpus": utils.load_jsonl(run_directory / "final" / "sdf_corpus.jsonl"),
             })
         support.run_scenario_in_isolation(
             scenarios.scenario_named(scenarios.MAIN_SCENARIO_NAME), Path(base_directory) / "run",
@@ -64,6 +66,28 @@ def test_folded_draft_events_match_the_loader_states_after_every_invocation(main
             if update is not None:
                 assert list(update.items()) == list(records_by_id[document_id].items())
         assert set(records_by_id) == set(drafted_by_events)
+
+
+def test_folded_score_events_match_the_scores_file_and_gate_and_cull_match_the_final_corpus(
+        main_scenario_after_each_invocation, tmp_path):
+    for invocation in main_scenario_after_each_invocation:
+        folded = fold_document_events(_events_of(invocation["events_text"], tmp_path))
+        scored_by_events = {
+            document_id: update for document_id, document in folded.items()
+            if (update := document.accepted_update_by_step.get("score")) is not None}
+        scores_file_records = {record["doc_id"]: record for record in invocation["score_records"]}
+        assert scored_by_events == scores_file_records
+        for document_id, update in scored_by_events.items():  # field for field and in field order
+            assert list(update.items()) == list(scores_file_records[document_id].items())
+        survivors_by_events = {
+            document_id for document_id in scored_by_events
+            if "gate" in folded[document_id].accepted_update_by_step
+            and "near_duplicate_cull" in folded[document_id].accepted_update_by_step}
+        assert survivors_by_events == {record["doc_id"] for record in invocation["final_corpus"]}
+        removed = {document_id for document_id, d in folded.items()
+                   if "gate" in d.removal_by_step or "near_duplicate_cull" in d.removal_by_step}
+        assert removed == set(scored_by_events) - survivors_by_events
+        assert removed, "the fixture has a below-threshold score and a near-duplicate"
 
 
 def test_the_resume_resolves_the_draft_failure_the_first_invocation_recorded(main_scenario_after_each_invocation, tmp_path):
