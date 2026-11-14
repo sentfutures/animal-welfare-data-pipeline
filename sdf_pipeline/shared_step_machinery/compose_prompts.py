@@ -35,15 +35,15 @@ later stage's template): these are still deck-sampled and recorded in each recor
 Usage
 -----
     # Dry run: matrix size, per-variable counts, three sample prompts
-    python sdf_pipeline/compose_prompts.py
+    python sdf_pipeline/shared_step_machinery/compose_prompts.py
 
     # THE knob for run size: deck-sample exactly N prompts. Per-variable
     # value shares match the weights by construction (largest-remainder
     # quotas per variable, each deck shuffled, decks zipped) — no drift.
-    python sdf_pipeline/compose_prompts.py --n-prompts 5000 --seed 0 --out prompts.jsonl
+    python sdf_pipeline/shared_step_machinery/compose_prompts.py --n-prompts 5000 --seed 0 --out prompts.jsonl
 
     # Full cartesian product (ignores weights; can be huge — for debugging)
-    python sdf_pipeline/compose_prompts.py --out all_prompts.jsonl
+    python sdf_pipeline/shared_step_machinery/compose_prompts.py --out all_prompts.jsonl
 
 Output records: ``{"prompt_id": ..., "variables": {...}, "system": ..., "prompt": ...}``
 (``variables`` holds only the matrix axes; ``system``/``prompt`` are the two
@@ -73,7 +73,7 @@ import re
 import sys
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 

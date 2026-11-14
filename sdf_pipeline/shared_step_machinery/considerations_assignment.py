@@ -49,12 +49,12 @@ import numpy as np
 from scipy.optimize import linprog
 from scipy.sparse import coo_matrix
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from sdf_pipeline.considerations_catalog import (  # noqa: E402
+from sdf_pipeline.shared_step_machinery.considerations_catalog import (  # noqa: E402
     LIST_NAMES, MORAL_LIST, ConsiderationCatalog,
 )
-from sdf_pipeline.considerations_coverage import document_coverage_shares, entry_targets  # noqa: E402
+from sdf_pipeline.shared_step_machinery.considerations_coverage import document_coverage_shares, entry_targets  # noqa: E402
 
 SCORE_VALUES = (1, 2, 3, 4, 5)
 DEFAULT_MINIMUM_ASSIGNABLE_SCORE = 3

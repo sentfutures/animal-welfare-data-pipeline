@@ -5,7 +5,7 @@ single-call rewrite."""
 import json
 from pathlib import Path
 
-from sdf_pipeline import compose_prompts as cp
+from sdf_pipeline.shared_step_machinery import compose_prompts as cp
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 

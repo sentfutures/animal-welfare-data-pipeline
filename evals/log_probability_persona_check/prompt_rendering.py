@@ -40,8 +40,8 @@ from evals.log_probability_persona_check.scoring_model_defaults import (MODEL_TY
 BASE_MODEL_PREAMBLE_AND_DOCUMENT_SEPARATOR = "\n\n"
 
 # Variables a document may lack. SDF runs from the considerations selector onward no longer deal `reasoning_featured`
-# (they record moral_considerations / epistemic_considerations instead, which sdf_pipeline/layer2_draft.py passes to
-# the draft prompt as a separate block, not in this slot). layer2_draft.py fills a missing `reasoning_featured` with
+# (they record moral_considerations / epistemic_considerations instead, which sdf_pipeline/layer4_draft_critique_and_revise/draft.py passes to
+# the draft prompt as a separate block, not in this slot). draft.py fills a missing `reasoning_featured` with
 # this same neutral text, so the check's generation prompt matches what a snapshot that still renders the slot got.
 VARIABLE_FALLBACKS_FOR_ABSENT_VARIABLES = {
     "reasoning_featured": "any relevant principles from the constitution"}

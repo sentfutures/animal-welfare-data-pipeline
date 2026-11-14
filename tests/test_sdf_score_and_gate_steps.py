@@ -9,12 +9,12 @@ import json
 
 import pytest
 
-from sdf_pipeline import layer4_score as score
-from sdf_pipeline.layer4_score import keep_documents_at_or_above_threshold, remove_near_duplicates
+from sdf_pipeline.layer5_score_and_final_selection import run_layer as score
+from sdf_pipeline.layer5_score_and_final_selection.run_layer import keep_documents_at_or_above_threshold, remove_near_duplicates
 from sdf_pipeline.shared_step_machinery.update_steps import Accepted, FailureKind, Failed, ModelReply, StepProgress
 from sdf_step_and_command_line_test_helpers import outcome_of, records_of, run_of
 from shared import utils
-from sdf_pipeline.shared_step_machinery.step_record import LAYER4
+from shared.sdf_run_layouts import SCORE
 from sdf_plan_draft_rewrite_and_score_test_builders import SCORE_OK, make_rewrite
 
 LONG_TEXT = ("Le même document mot pour mot, assez long pour produire des shingles "
@@ -35,7 +35,7 @@ def final_dir(tmp_path):
 
 @pytest.fixture
 def score_run(tiny_config, prompts_sdf, stage_dir):
-    return run_of(tiny_config, prompts_sdf, LAYER4, stage_dir)
+    return run_of(tiny_config, prompts_sdf, SCORE, stage_dir)
 
 
 # ---------------------------------------------------------------- reading the score reply

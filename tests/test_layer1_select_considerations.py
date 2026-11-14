@@ -17,10 +17,10 @@ from pathlib import Path
 import pytest
 
 from evals import audit_sdf
-from sdf_pipeline import compose_prompts as cp
-from sdf_pipeline import layer1_select_considerations as select
-from sdf_pipeline import layer2_draft
-from sdf_pipeline.considerations_catalog import load_considerations
+from sdf_pipeline.shared_step_machinery import compose_prompts as cp
+from sdf_pipeline.layer3_consideration_scoring_and_selection import run_layer as select
+from sdf_pipeline.layer4_draft_critique_and_revise import draft as draft_step
+from sdf_pipeline.shared_step_machinery.considerations_catalog import load_considerations
 from shared import utils
 
 SMALL_CONSIDERATIONS = """\
@@ -252,7 +252,7 @@ def test_an_unusable_answer_is_asked_again_with_the_same_request_then_accepted(s
     calls = stub_claude(["not json", (answer_with_labels(offered), "max_tokens"), answer_with_labels(offered)])
     select.run(select_config, small_prompts, stage_dir, plans)
     assert len(calls) == 3 and len({c["user_message"] for c in calls}) == 1
-    assert calls[0]["stage"] == "layer1_select" and calls[0]["json_schema"] == select.build_scoring_schema(offered)
+    assert calls[0]["stage"] == "layer3_consideration_scoring" and calls[0]["json_schema"] == select.build_scoring_schema(offered)
     (row,) = rows_of(stage_dir, select.SCORES_FILENAME)
     assert row["attempts"] == 3 and row["scores"]["moral"]["Beta moral"]["score"] == 4
 
@@ -267,7 +267,7 @@ def test_every_eligible_document_gets_one_call_and_skipped_ones_get_none(select_
     for call in calls:
         digital = call["item_id"] == "matrix_000000"
         assert ("Delta digital" in call["user_message"]) == digital
-        assert call["stage"] == "layer1_select" and call["json_schema"] is not None
+        assert call["stage"] == "layer3_consideration_scoring" and call["json_schema"] is not None
 
 
 def test_the_entry_order_differs_between_documents_and_matches_the_schema(select_config, prompts_sdf, stage_dir, stub_claude):
@@ -393,16 +393,16 @@ def test_a_failure_on_every_call_exits_as_systemic(select_config, small_prompts,
         select.run(select_config, small_prompts, stage_dir, make_plans(3))
 
 
-def test_model_falls_back_from_select_to_plan_to_global(select_config, small_prompts, stage_dir, stub_claude, tmp_path):
+def test_model_falls_back_from_select_to_description_write_to_global(select_config, small_prompts, stage_dir, stub_claude, tmp_path):
     plans = make_plans(2)
     calls = stub_claude(score_everything_five)
     select.run(select_config, small_prompts, stage_dir, plans)
     assert calls[-1]["model"] is None
-    select_config["sdf"]["plan_model"] = "plan-model-x"
+    select_config["sdf"]["description_write_model"] = "description-write-model-x"
     second = tmp_path / "second"
     second.mkdir()
     select.run(select_config, small_prompts, second, plans)
-    assert calls[-1]["model"] == "plan-model-x"
+    assert calls[-1]["model"] == "description-write-model-x"
     select_config["sdf"]["select_model"] = "select-model-x"
     third = tmp_path / "third"
     third.mkdir()
@@ -537,7 +537,7 @@ def draft_prompt_for(config, prompts_dir, tmp_path, stub_claude, plan):
     config["workers"] = 1
     output_dir = tmp_path / f"draft_{len(list(tmp_path.iterdir()))}"
     output_dir.mkdir()
-    drafts = layer2_draft.run(config, prompts_dir, output_dir, [plan])
+    drafts = draft_step.run(config, prompts_dir, output_dir, [plan])
     return calls[0], drafts
 
 
@@ -570,21 +570,22 @@ def test_a_document_with_picks_gets_its_spec_in_the_draft_prompt_and_records(sel
 
 
 def test_the_considerations_spec_survives_onto_the_draft_rewrite_and_final_records(select_config, prompts_sdf, tmp_path, stub_claude):
-    from sdf_pipeline import layer3_rewrite, layer4_score
+    from sdf_pipeline.layer4_draft_critique_and_revise import run_layer as draft_critique_and_revise_layer
+    from sdf_pipeline.layer5_score_and_final_selection import run_layer as score_and_final_selection_layer
     spec = "Scope sensitivity (a gloss) — Where it arises here."
     plan = make_plans(1)[0] | {"considerations_spec": spec}
     _, drafts = draft_prompt_for(select_config, prompts_sdf, tmp_path, stub_claude, plan)
     stub_claude(lambda user_message, **kw: "Review.\n<improved_document>Better.</improved_document>")
     rewrite_dir = tmp_path / "rewrite"
     rewrite_dir.mkdir()
-    rewrites = layer3_rewrite.run(select_config, prompts_sdf, rewrite_dir, drafts)
+    rewrites = draft_critique_and_revise_layer.run_critique_and_revise(select_config, prompts_sdf, rewrite_dir, drafts)
     assert rewrites[0]["considerations_spec"] == spec
     stub_claude(lambda user_message, **kw: json.dumps(
         {"alignment": 9, "realism": 9, "spec_conformance": 9, "notes": ""}))
     score_dir, final_dir = tmp_path / "score", tmp_path / "final"
     score_dir.mkdir()
     final_dir.mkdir()
-    final = layer4_score.run(select_config, prompts_sdf, score_dir, final_dir, rewrites)
+    final = score_and_final_selection_layer.run(select_config, prompts_sdf, score_dir, final_dir, rewrites)
     assert final[0]["considerations_spec"] == spec
     assert utils.load_jsonl(final_dir / "sdf_corpus.jsonl")[0]["considerations_spec"] == spec
 

@@ -1,4 +1,4 @@
-"""Layer 1 description rewrite: one call per planned description checks it for plausibility, dealt-value conformance and organisation naming.
+"""Layer 2 step, the description rewrite: one call per planned description checks it for plausibility, dealt-value conformance and organisation naming.
 A rewrite keeps ``original_description`` and ``changes``; a dealt-value conflict drops the plan. Results live in description_rewrites.jsonl (plans.jsonl is never modified)
 and a malformed answer is not recorded, so ``--resume`` retries it. Use a GPT model for the call: Claude was far too lenient on plausibility (evidence in ``config.yaml``)."""
 
@@ -8,19 +8,20 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from shared import openai_api, utils
+from shared import openai_api, sdf_run_layouts, utils
 from shared.api_keys import FIND_DOTENV_FLAG, load_optional_api_key
-from sdf_pipeline import compose_prompts as cp
+from sdf_pipeline.compatibility_with_runs_made_by_earlier_code.renamed_model_settings import model_setting
+from sdf_pipeline.shared_step_machinery import compose_prompts as cp
 from sdf_pipeline.shared_step_machinery import structured_answers
-from sdf_pipeline.shared_step_machinery.step_record import LAYER1, Run, StageFile, Step, loaded_once_per_run
+from sdf_pipeline.shared_step_machinery.step_record import Run, StageFile, Step, loaded_once_per_run
 from sdf_pipeline.shared_step_machinery.step_runner import find_pending, run_step, send_model_request
 from sdf_pipeline.shared_step_machinery.update_steps import (
     Accepted, Failed, FailureKind, ModelReply, ModelRequest, OutcomeRecords, Removed, StepPolicy, StepProgress,
     WhatAFailedDocumentDoes, WhereAnErrorIsAThrownCall, line_for_document_left_to_retry, reason_without_error_prefix)
+from shared.sdf_run_layouts import DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE
 
-STAGE_TAG = "layer1_description_rewrite"
 TEMPLATE_FILENAME = "layer1_description_rewrite.txt"
 SCHEMA_FILENAME = "layer1_description_rewrite_answer_schema.json"
 RESULTS_FILENAME = "description_rewrites.jsonl"
@@ -116,7 +117,7 @@ def build_rewrite_request(
     """The request for one plan: an OpenAI route for a ``gpt-`` model, otherwise Claude; both schema-constrained."""
     system, user = build_rewrite_prompt(prompts, variable_lines, description)
     settings = dict(
-        user_message=user, system_prompt=system or "", model=model, stage=STAGE_TAG, item_id=item_id,
+        user_message=user, system_prompt=system or "", model=model, stage=STEP.stage_tag, item_id=item_id,
         max_tokens=_MAX_TOKENS, json_schema=copy.deepcopy(prompts.answer_schema))
     if openai_api.is_openai_model(model):
         return ModelRequest(
@@ -182,14 +183,15 @@ def enabled(config: dict) -> bool:
 def require_openai_key_if_configured(config: dict) -> None:
     """Exit before any paid call when the rewrite is enabled, routed to an OpenAI model
     (a ``gpt-`` model name) and no ``OPENAI_API_KEY`` is available. Without this, the
-    Claude screen and plan calls are paid for before the first rewrite call fails."""
+    Claude screen and description write calls are paid for before the first rewrite call fails."""
     if not enabled(config):
         return
     sdf = config["sdf"]
-    model = sdf.get("description_rewrite_model") or sdf.get("plan_model")
+    model = sdf.get("description_rewrite_model") or model_setting(sdf, "description_write_model")
     if openai_api.is_openai_model(model) and load_optional_api_key("OPENAI_API_KEY") is None:
         raise SystemExit(
-            f"sdf.description_rewrite_model is '{model}', an OpenAI model, so layer 1 needs "
+            f"sdf.description_rewrite_model is '{model}', an OpenAI model, so layer "
+            f"{sdf_run_layouts.active_layout().layer_number_of_key[sdf_run_layouts.DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE]} needs "
             "OPENAI_API_KEY, and the configured key source has none (by default only the repo "
             f"root's .env is read; pass {FIND_DOTENV_FLAG} to search upward and then use the "
             "environment). Set it, or set sdf.description_rewrite_enabled: false to skip the "
@@ -209,8 +211,8 @@ def load_rewritten_plans(config: dict, output_dir: Path, plans: list[dict]) -> l
     return apply_results(plans, results)
 
 
-RESULTS = StageFile(LAYER1, RESULTS_FILENAME, "prompt_id")
-REJECTIONS = StageFile(LAYER1, REJECTIONS_FILENAME, "prompt_id")
+RESULTS = StageFile(DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE, RESULTS_FILENAME, "prompt_id")
+REJECTIONS = StageFile(DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE, REJECTIONS_FILENAME, "prompt_id")
 
 
 def _stored_result_record(plan: dict, reasoning: str, rewrite_needed: bool, rewritten_description: str,
@@ -305,12 +307,12 @@ def count_held_out_plans(plans: list[dict], stage_directory: Path) -> int:
 
 
 def held_out_stop_message(held_out_count: int) -> str:
-    return (f"{STAGE_TAG}: {held_out_count} descriptions held out — stopping before the "
+    return (f"{STEP.stage_tag}: {held_out_count} descriptions held out — stopping before the "
             "stages that assign over the whole plan set; fix and --resume.")
 
 
 def after_run(plans: list, run_result, run: Run) -> None:
-    stage_directory = run.stage_directories[LAYER1]
+    stage_directory = run.stage_directories[DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE]
     results = load_results(stage_directory)
     described = [plan for plan in plans if plan.get("description")]
     held_out_count = count_held_out_plans(plans, stage_directory)
@@ -324,8 +326,8 @@ def after_run(plans: list, run_result, run: Run) -> None:
 
 
 STEP = Step(
-    name="description_rewrite", folder_key=LAYER1, stage_tag=STAGE_TAG,
-    model_setting_keys=("description_rewrite_model", "plan_model"),
+    name="description_rewrite", folder_key=DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE,
+    model_setting_keys=("description_rewrite_model", "description_write_model"),
     applies=lambda plan, run: bool(plan.get("description")),
     build_request=build_request, read_reply=read_reply, records=records, writes=(RESULTS, REJECTIONS),
     checkpoint_file_name=CHECKPOINT_FILENAME,
@@ -335,7 +337,7 @@ STEP = Step(
         errors_counted_as_thrown_calls=WhereAnErrorIsAThrownCall.BUILD | WhereAnErrorIsAThrownCall.SEND
         | WhereAnErrorIsAThrownCall.INTERPRET),
     call_noun="call", unit_noun="plan", progress_line=progress_line, after_run=after_run,
-    stop_message=lambda plans, run_result, run: held_out_stop_message(count_held_out_plans(plans, run.stage_directories[LAYER1])))
+    stop_message=lambda plans, run_result, run: held_out_stop_message(count_held_out_plans(plans, run.stage_directories[DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE])))
 
 
 def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) -> list[dict]:
@@ -346,7 +348,7 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
     if load_rewrite_prompts(prompts_dir) is None:
         print(f"  No {TEMPLATE_FILENAME} in this run's prompt snapshot — description rewrite skipped")
         return plans
-    run_of_rewrite = Run(config, prompts_dir, {LAYER1: output_dir})
+    run_of_rewrite = Run(config, prompts_dir, {DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE: output_dir})
     described = [p for p in plans if p.get("description")]
     _, pending = find_pending(STEP, run_of_rewrite, plans)
     print(f"  Description rewrite: {len(described)} descriptions, {len(pending)} to check "
@@ -362,7 +364,7 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
 
 def load_description_rewrite_outputs(run_dir: Path) -> dict | None:
     """The stage's stored results for a run, or None when it never ran."""
-    stage_dir = utils.sdf_stage_dir(run_dir, 1)
+    stage_dir = utils.sdf_stage_folder(run_dir, DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE)
     results = load_results(stage_dir)
     if not results:
         return None

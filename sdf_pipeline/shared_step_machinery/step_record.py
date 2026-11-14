@@ -1,15 +1,15 @@
-"""The ``Step`` record each step module defines, the ``Run`` its functions receive, and the id accessor for stage records.
-A model-calling step is plain functions and one ``STEP = Step(...)``; ``build_request`` and ``read_reply`` take lists of documents."""
+"""The ``Step`` record each step file defines, the ``Run`` its functions receive, and the id accessor for stage records.
+A model-calling step file holds plain functions and one ``STEP = Step(...)``; ``build_request`` and ``read_reply`` take lists of documents."""
 
 import functools
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
-from sdf_pipeline.shared_step_machinery.update_steps import Accepted, ModelRequest, OutcomeRecords, StepPolicy, systemic_stop_message_for
-from shared import utils
-
-LAYER1, LAYER2, LAYER3, LAYER4 = "layer1", "layer2", "layer3", "layer4"   # folder keys: a run's stage folders
+from sdf_pipeline.compatibility_with_runs_made_by_earlier_code.renamed_model_settings import model_setting
+from sdf_pipeline.shared_step_machinery.update_steps import (
+    Accepted, ModelRequest, OutcomeRecords, StepPolicy, systemic_stop_message_for)
+from shared import sdf_run_layouts, utils
 
 
 def id_field_of(record: dict) -> str:
@@ -23,7 +23,7 @@ def document_id_of(record: dict) -> str:
 
 @dataclass(frozen=True)
 class StageFile:
-    folder_key: str   # which folder it lives in
+    folder_key: str   # which folder it lives in (``sdf_run_layouts.FOLDER_KEYS``)
     file_name: str
     id_field: str     # the field of each record that holds the document id
 
@@ -79,8 +79,7 @@ def _never(document: dict, run: Run) -> bool:
 class Step:
     """Everything about one model-calling step."""
     name: str
-    folder_key: str                               # the folder the step writes in
-    stage_tag: str                                # the cost-log tag of the step's calls
+    folder_key: str                               # ``shared/sdf_run_layouts.py``: the folder and the cost-log tag come from the run's layout
     model_setting_keys: tuple = ()                # ``sdf.<key>``; the first one set wins
     applies: Callable = _always                   # (document, run) -> False when the step skips the document
     finished_elsewhere: Callable = _never         # (document, run) -> True when another step finished it
@@ -89,19 +88,29 @@ class Step:
     read_reply: Callable | None = None
     records: Callable | None = None               # (documents, outcomes, run) -> every record the outcomes write
     writes: tuple = ()                            # stage files
-    checkpoint_file_name: str | None = None       # the checkpoint file in the folder: a group's key is marked after its records
+    checkpoint_file_name: str | Callable | None = None   # the checkpoint file in the folder (or a function of the active layout giving it): a group's key is marked after its records
     writes_as_replies_arrive: bool = False        # write each outcome the moment it arrives
     policy: StepPolicy = StepPolicy()
     call_noun: str = "API call"
     unit_noun: str = "document"
-    name_in_messages: str | None = None           # stop messages start with this instead of the stage tag
+    name_in_messages: Callable | None = None      # () -> what stop messages start with instead of the stage tag
     progress_line: Callable | None = None
     after_run: Callable | None = None
     stop_message: Callable | None = None          # (documents, result, run) -> the exit message when a failed group stops the run
 
+    @property
+    def stage_tag(self) -> str:
+        """The cost-log tag of the step's calls in the layout of the run being written."""
+        return self.stage_tag_in(sdf_run_layouts.active_layout())
+
+    def stage_tag_in(self, layout) -> str:
+        """The cost-log tag of the step's calls in a layout."""
+        return layout.stage_tag(self.name)
+
     def model_for(self, config: dict):
-        """The model the step is configured with (the first setting key that is set)."""
-        return next((config["sdf"].get(key) for key in self.model_setting_keys if config["sdf"].get(key)), None)
+        """The model the step is configured with (the first setting key that is set; a renamed key also under its old name)."""
+        return next((model_setting(config["sdf"], key) for key in self.model_setting_keys
+                     if model_setting(config["sdf"], key)), None)
 
     def model_request(self, document: dict, user_message: str, system_prompt: str | None, run: Run,
                       **settings) -> ModelRequest:
@@ -113,4 +122,5 @@ class Step:
     @property
     def systemic_stop_message(self) -> str:
         """The exit message when every pending call of the step failed."""
-        return systemic_stop_message_for(self.name_in_messages or self.stage_tag, self.call_noun, self.unit_noun)
+        label = self.name_in_messages() if self.name_in_messages else self.stage_tag
+        return systemic_stop_message_for(label, self.call_noun, self.unit_noun)

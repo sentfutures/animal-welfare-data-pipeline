@@ -7,7 +7,7 @@ cards quiet sends the prompt layer 3 sent before these axes existed.
 
 import pytest
 
-from sdf_pipeline import revision_style as rs
+from sdf_pipeline.shared_step_machinery import revision_style as rs
 
 
 

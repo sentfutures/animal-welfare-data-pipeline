@@ -57,16 +57,16 @@ def _rewrite_answer(rewrite_needed=False, description="", **overrides):
 def _sdf_dispatch(user_message, **kw):
     if kw["stage"] == "layer1_screen":  # layer 1 screen: removes nothing
         return _screen_answer(user_message, remove=())
-    if kw["stage"] == "layer1_description_rewrite":  # layer 1 description rewrite: declines
+    if kw["stage"] == "layer2_description_rewrite":  # layer 1 description rewrite: declines
         return _rewrite_answer()
-    if kw["stage"] == "layer1_select":  # layer 1 considerations selector: scores every entry 1 (nothing assignable)
+    if kw["stage"] == "layer3_consideration_scoring":  # layer 1 considerations selector: scores every entry 1 (nothing assignable)
         return json.dumps({
             name: [{"label": label, "score": 1, "where_it_arises": ""}
                    for label in schema["items"]["properties"]["label"]["enum"]]
             for name, schema in kw["json_schema"]["properties"].items()})
     # keyed on stage, not max_tokens: the critique and the revise halves share a
     # token cap, so a cap cannot tell them apart.
-    if kw.get("stage") == "layer3_critique":
+    if kw.get("stage") == "layer4_critique":
         return f"<review>Problems with {kw['item_id']}.</review>"
     if kw["max_tokens"] == 6000:  # layer 3: drafting from the spec
         return f"<document>Drafted body for {kw['item_id']}.</document>"
@@ -110,13 +110,13 @@ def test_sdf_pipeline_end_to_end_offline(tiny_config_file, outputs_root, stub_cl
     assert len(calls) == 15
     stages = [c["stage"] for c in calls]
     assert stages.count("layer1_screen") == 1
-    assert stages.count("layer1_select") == 2
+    assert stages.count("layer3_consideration_scoring") == 2
     # order: screen before any plan, plans before description rewrites, description rewrites before the selector
     assert stages[0] == "layer1_screen"
-    assert stages.index("layer1_description_rewrite") > max(
-        i for i, stage in enumerate(stages) if stage == "layer1_plan")
-    assert stages.index("layer1_select") > max(
-        i for i, stage in enumerate(stages) if stage == "layer1_description_rewrite")
+    assert stages.index("layer2_description_rewrite") > max(
+        i for i, stage in enumerate(stages) if stage == "layer2_description_write")
+    assert stages.index("layer3_consideration_scoring") > max(
+        i for i, stage in enumerate(stages) if stage == "layer2_description_rewrite")
     assert all(r["considerations_spec"] == "" for r in corpus)
 
 
@@ -131,7 +131,7 @@ def test_sdf_screen_removal_is_dropped_before_drafting(
     calls = stub_claude(dispatch)
     _run_main(monkeypatch, sdf_run.main, tiny_config_file)
     run_dir = outputs_root / "sdf" / "latest"
-    rejections = utils.load_jsonl(run_dir / "layer1" / "screen_rejections.jsonl")
+    rejections = utils.load_jsonl(run_dir / "layer1_deal_variables_and_screen" / "screen_rejections.jsonl")
     assert len(rejections) == 1
     corpus = utils.load_jsonl(run_dir / "final" / "sdf_corpus.jsonl")
     assert [r["doc_id"] for r in corpus] == [
@@ -143,14 +143,14 @@ def test_sdf_screen_removal_is_dropped_before_drafting(
     assert len(calls) == 8
     # the removed hand never reached planning, so it never reached the selector
     removed_id = rejections[0]["prompt_id"]
-    assert not any(c["item_id"].startswith(removed_id) for c in calls if c["stage"] == "layer1_select")
+    assert not any(c["item_id"].startswith(removed_id) for c in calls if c["stage"] == "layer3_consideration_scoring")
 
 
 def test_sdf_rewritten_description_and_dealt_value_conflict_reach_layer_2(
     tiny_config_file, outputs_root, stub_claude, monkeypatch
 ):
     def dispatch(user_message, **kw):
-        if kw["stage"] == "layer1_description_rewrite":
+        if kw["stage"] == "layer2_description_rewrite":
             if kw["item_id"] == "matrix_000000":
                 return _rewrite_answer(True, "Rewritten spec for matrix_000000.")
             return _rewrite_answer(dealt_value_conflict=True, conflict_reason="The dealt scale cannot occur.")
@@ -159,18 +159,18 @@ def test_sdf_rewritten_description_and_dealt_value_conflict_reach_layer_2(
     calls = stub_claude(dispatch)
     _run_main(monkeypatch, sdf_run.main, tiny_config_file)
     run_dir = outputs_root / "sdf" / "latest"
-    drafts = utils.load_jsonl(run_dir / "layer2" / "drafts.jsonl")
+    drafts = utils.load_jsonl(run_dir / "layer4_draft_critique_and_revise" / "drafts.jsonl")
     assert [d["doc_id"] for d in drafts] == ["matrix_000000"]
     draft_calls = [c for c in calls if c["max_tokens"] == 6000]
     assert "Rewritten spec for matrix_000000." in draft_calls[0]["user_message"]  # layer 2 gets the rewrite
-    assert len(utils.load_jsonl(run_dir / "layer1" / "description_rewrite_rejections.jsonl")) == 1
+    assert len(utils.load_jsonl(run_dir / "layer2_description_write_and_description_rewrite" / "description_rewrite_rejections.jsonl")) == 1
     # planning keeps the planner's own text on disk
-    plans = {p["prompt_id"]: p for p in utils.load_jsonl(run_dir / "layer1" / "plans.jsonl")}
+    plans = {p["prompt_id"]: p for p in utils.load_jsonl(run_dir / "layer2_description_write_and_description_rewrite" / "plans.jsonl")}
     assert plans["matrix_000000"]["description"] == "Spec for matrix_000000."
 
-    # resuming at layer 2 re-applies the stored rewrite and drops the conflicted plan, with no layer 1 calls
+    # resuming at layer 4 re-applies the stored rewrite and drops the conflicted plan, with no layer 1 calls
     resumed = stub_claude([])
-    _run_main(monkeypatch, sdf_run.main, tiny_config_file, "--resume", "--layer", "2")
+    _run_main(monkeypatch, sdf_run.main, tiny_config_file, "--resume", "--layer", "4")
     assert resumed == []
 
 
@@ -179,21 +179,19 @@ def test_sdf_resume_at_last_layer_makes_no_calls(tiny_config_file, outputs_root,
     _run_main(monkeypatch, sdf_run.main, tiny_config_file)
 
     calls = stub_claude([])
-    _run_main(monkeypatch, sdf_run.main, tiny_config_file, "--resume", "--layer", "4")
+    _run_main(monkeypatch, sdf_run.main, tiny_config_file, "--resume", "--layer", "5")
     assert calls == []
     corpus = utils.load_jsonl(outputs_root / "sdf" / "latest" / "final" / "sdf_corpus.jsonl")
     assert len(corpus) == 2
 
 
-def test_sdf_rejects_a_pre_renumber_layer_number(tiny_config_file, stub_claude, monkeypatch):
-    """--layer 5 was the score stage before the renumber and does not exist now.
-
-    Remapping it silently would resume a paid run at the wrong stage — every old
-    number from 3 up names a different stage today — so the CLI refuses it.
-    """
+def test_sdf_rejects_a_layer_number_after_the_last_layer(tiny_config_file, outputs_root, stub_claude, monkeypatch):
+    """A run has layers 1 to 5; a number beyond them is refused rather than remapped."""
+    stub_claude(_sdf_dispatch)
+    _run_main(monkeypatch, sdf_run.main, tiny_config_file)
     calls = stub_claude([])
     with pytest.raises(SystemExit):
-        _run_main(monkeypatch, sdf_run.main, tiny_config_file, "--resume", "--layer", "5")
+        _run_main(monkeypatch, sdf_run.main, tiny_config_file, "--resume", "--layer", "6")
     assert calls == []
 
 

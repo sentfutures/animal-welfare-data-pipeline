@@ -45,11 +45,11 @@ def toy_step(policy=StepPolicy(), outcomes_by_document_id=None, **changes):
         return f"  {document['doc_id']}: {type(outcome).__name__}"
 
     fields = dict(
-        name="toy", folder_key=FOLDER_KEY, stage_tag="toy_stage", build_request=build_request, read_reply=read_reply,
+        name="toy", folder_key=FOLDER_KEY, build_request=build_request, read_reply=read_reply,
         records=one_record_per_accepted_document(
             TOY_RECORDS, lambda document, update, run: {"doc_id": document["doc_id"], "content": update}),
         writes=(TOY_RECORDS,), policy=policy,
-        applies=lambda document, run: document.get("applies", True), name_in_messages="toy",
+        applies=lambda document, run: document.get("applies", True), name_in_messages=lambda: "toy",
         progress_line=progress_line)
     return Step(**{**fields, **changes})
 

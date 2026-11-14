@@ -1,6 +1,6 @@
 """Generic combinatorial-matrix machinery shared by the pipeline composers.
 
-Extracted verbatim from sdf_pipeline/compose_prompts.py (which re-exports it,
+Extracted verbatim from sdf_pipeline/shared_step_machinery/compose_prompts.py (which re-exports it,
 so SDF callers are unchanged) when the DAD pipeline grew its own composer
 (dad_pipeline/compose_scenarios.py). Everything here is pipeline-agnostic:
 parsing a variables.txt file, validating weights, deck-sampling assignments

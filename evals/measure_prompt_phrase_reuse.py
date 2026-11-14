@@ -51,7 +51,7 @@ def load_phrase_file(path: Path) -> list[tuple[str, str]]:
 
 
 def load_considerations_phrases(prompts_dir: Path) -> list[tuple[str, str]]:
-    from sdf_pipeline.considerations_catalog import load_considerations
+    from sdf_pipeline.shared_step_machinery.considerations_catalog import load_considerations
     phrases = []
     for entry in load_considerations(prompts_dir).all_entries:
         phrases.append(("consideration_label", entry.label))

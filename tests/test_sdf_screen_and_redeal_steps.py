@@ -3,7 +3,7 @@
 Step unit tests call ``group``, ``read_reply`` and ``records`` with no stubbed API and no files. The
 runner and layer tests pin the requests, the stage files, the stop messages, resume (identical rounds,
 zero calls for finished batches).
-``layer1_screen.run`` is the layer's entry point (scripts and tests import it).
+``run_layer.run`` is the layer's entry point (scripts and tests import it).
 """
 
 import dataclasses
@@ -12,8 +12,9 @@ import random
 
 import pytest
 
-from sdf_pipeline import layer1_screen as screen
-from sdf_pipeline.shared_step_machinery.step_record import LAYER1
+from sdf_pipeline.layer1_deal_variables_and_screen import run_layer as screen_layer
+from sdf_pipeline.layer1_deal_variables_and_screen import screen
+from shared.sdf_run_layouts import DEAL_VARIABLES_AND_SCREEN
 from sdf_pipeline.shared_step_machinery.step_runner import run_step
 from sdf_pipeline.shared_step_machinery.update_steps import Accepted, Failed, FailureKind, ModelReply, Removed, StepProgress
 from sdf_step_and_command_line_test_helpers import run_of
@@ -35,7 +36,7 @@ def render_lines(hand):
 def screen_run_of(config, prompts_sdf, stage_dir, seed=0):
     """A run of the screen with batches of 3, a simple line renderer and the given shuffle seed."""
     sdf = {**config["sdf"], "screen_model": "screen-model", "screen_batch_size": 3, "seed": seed}
-    run = run_of({**config, "sdf": sdf}, prompts_sdf, LAYER1, stage_dir)
+    run = run_of({**config, "sdf": sdf}, prompts_sdf, DEAL_VARIABLES_AND_SCREEN, stage_dir)
     run.loaded[screen._render_variable_lines.__wrapped__] = render_lines
     return run
 
@@ -206,7 +207,7 @@ def test_the_loop_ends_after_the_round_limit_and_the_leftover_hands_are_dropped(
         screen_config, prompts_sdf, stage_dir, stub_claude):
     screen_config["sdf"]["screen_redeal_rounds"] = 2
     stub_claude(remove_the_first_three_hands_of_every_batch)
-    screen.run(screen_config, prompts_sdf, stage_dir)
+    screen_layer.run(screen_config, prompts_sdf, stage_dir)
     rounds = utils.load_jsonl(stage_dir / "screen_rounds.jsonl")
     assert [r["round"] for r in rounds] == [0, 1, 2]
     summary = json.loads((stage_dir / "screen_summary.json").read_text(encoding="utf-8"))
@@ -215,14 +216,14 @@ def test_the_loop_ends_after_the_round_limit_and_the_leftover_hands_are_dropped(
 
 def test_a_completed_screen_makes_no_calls_and_a_disabled_screen_writes_nothing(screen_config, prompts_sdf, stage_dir, stub_claude):
     stub_claude(no_removals)
-    screen.run(screen_config, prompts_sdf, stage_dir)
+    screen_layer.run(screen_config, prompts_sdf, stage_dir)
     calls = stub_claude(no_removals)
-    screen.run(screen_config, prompts_sdf, stage_dir)
+    screen_layer.run(screen_config, prompts_sdf, stage_dir)
     assert calls == []
     disabled = stage_dir.parent / "disabled" / "layer1"
     disabled.mkdir(parents=True)
     screen_config["sdf"]["screen_enabled"] = False
-    assert screen.run(screen_config, prompts_sdf, disabled) is None
+    assert screen_layer.run(screen_config, prompts_sdf, disabled) is None
     assert list(disabled.iterdir()) == [] and list(disabled.parent.iterdir()) == [disabled]
 
 

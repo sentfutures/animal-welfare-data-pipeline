@@ -13,8 +13,8 @@ import json
 import pytest
 
 from evals import audit_sdf
-from sdf_pipeline import compose_prompts as cp
-from sdf_pipeline import layer1_description_rewrite as rewrite
+from sdf_pipeline.shared_step_machinery import compose_prompts as cp
+from sdf_pipeline.layer2_description_write_and_description_rewrite import description_rewrite as rewrite
 from shared import utils
 
 
@@ -98,7 +98,7 @@ def test_rewrite_description_is_schema_constrained_and_shows_variables_and_descr
     result = rewrite.rewrite_description("Type: LINES-X", "A description.", prompts=prompts, model="m", item_id="p1")
     assert not result.rewrite_needed
     call = calls[0]
-    assert call["stage"] == "layer1_description_rewrite" and call["model"] == "m" and call["item_id"] == "p1"
+    assert call["stage"] == "layer2_description_rewrite" and call["model"] == "m" and call["item_id"] == "p1"
     assert "Type: LINES-X" in call["user_message"] and description_in(call["user_message"]) == "A description."
     assert call["json_schema"]["required"][:2] == ["reasoning", "rewrite_needed"]
     assert call["temperature"] is None and call["system_prompt"]
@@ -262,12 +262,12 @@ def test_resume_after_a_completed_stage_makes_zero_calls_and_reapplies_results(
     assert calls == []
 
 
-def test_model_falls_back_from_rewrite_to_plan_to_global(tiny_config, prompts_sdf, tmp_path, stub_claude, plans):
+def test_model_falls_back_from_description_rewrite_to_description_write_to_global(tiny_config, prompts_sdf, tmp_path, stub_claude, plans):
     calls = stub_claude(lambda user_message, **kw: answer())
     for name, knobs, expected in (
         ("first", {}, None),
-        ("second", {"plan_model": "plan-model-x"}, "plan-model-x"),
-        ("third", {"plan_model": "plan-model-x", "description_rewrite_model": "rewrite-model-x"}, "rewrite-model-x"),
+        ("second", {"description_write_model": "description-write-model-x"}, "description-write-model-x"),
+        ("third", {"description_write_model": "description-write-model-x", "description_rewrite_model": "rewrite-model-x"}, "rewrite-model-x"),
     ):
         directory = tmp_path / name
         directory.mkdir()

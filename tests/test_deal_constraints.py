@@ -11,8 +11,8 @@ from pathlib import Path
 
 import pytest
 
-from sdf_pipeline import compose_prompts as cp
-from sdf_pipeline import layer1_plan
+from sdf_pipeline.shared_step_machinery import compose_prompts as cp
+from sdf_pipeline.layer2_description_write_and_description_rewrite import description_write as layer1_description_write
 from shared import deal_constraints as dc
 from shared import matrix
 
@@ -441,7 +441,7 @@ def test_compose_dry_run_prints_per_rule_violations_and_swaps(capsys):
     assert re.search(r"hands violated before repair, \d+ swaps made, 0 violating after", output)
 
 
-def test_layer1_plan_applies_the_rules_file_in_its_prompts_directory(
+def test_layer1_description_write_applies_the_rules_file_in_its_prompts_directory(
     tmp_path, tiny_config, stub_claude
 ):
     prompts_directory = tmp_path / "prompts_copy"
@@ -455,7 +455,7 @@ def test_layer1_plan_applies_the_rules_file_in_its_prompts_directory(
     ))
     stage_directory = tmp_path / "stage"
     stage_directory.mkdir()
-    layer1_plan.run(tiny_config, prompts_directory, stage_directory)
+    layer1_description_write.run(tiny_config, prompts_directory, stage_directory)
 
     from shared import utils
     composed = utils.load_jsonl(stage_directory / "prompts.jsonl")
@@ -465,7 +465,7 @@ def test_layer1_plan_applies_the_rules_file_in_its_prompts_directory(
     assert no_stake and all("The main tradeoff with welfare" not in r["prompt"] for r in no_stake)
 
 
-def test_layer1_plan_refuses_a_variables_file_without_ids(tmp_path, tiny_config, stub_claude):
+def test_layer1_description_write_refuses_a_variables_file_without_ids(tmp_path, tiny_config, stub_claude):
     prompts_directory = tmp_path / "prompts_copy"
     shutil.copytree(PROMPTS_SDF, prompts_directory)
     text = (prompts_directory / "variables.txt").read_text(encoding="utf-8")
@@ -474,7 +474,7 @@ def test_layer1_plan_refuses_a_variables_file_without_ids(tmp_path, tiny_config,
     stage_directory = tmp_path / "stage"
     stage_directory.mkdir()
     with pytest.raises(ValueError, match=r"\{naming\} value has no \[id\] prefix"):
-        layer1_plan.run(tiny_config, prompts_directory, stage_directory)
+        layer1_description_write.run(tiny_config, prompts_directory, stage_directory)
     assert calls == []
 
 
