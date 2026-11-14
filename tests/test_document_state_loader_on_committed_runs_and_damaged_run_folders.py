@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 
+from shared import utils
 from sdf_pipeline.document_state import DocumentOutcome, RemovalReasonCode, RunLayout
 from sdf_pipeline.document_state_final_corpus import derive_final_corpus_records
 from sdf_pipeline.document_state_loader import (
@@ -33,10 +34,6 @@ COMMITTED_RUNS = {
 }
 
 
-def _records(path: Path) -> list:
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
-
-
 def test_the_committed_runs_cover_all_three_layouts_or_are_absent():
     present = {p.name for p in RUNS_ROOT.iterdir()} if RUNS_ROOT.is_dir() else set()
     assert set(COMMITTED_RUNS) <= present, "a committed run the test names is missing"
@@ -55,11 +52,11 @@ def test_counts_per_outcome_and_reason_code_match_the_runs_own_files(run_name):
                 (DocumentOutcome.REMOVED, RemovalReasonCode.BELOW_THRESHOLD_AT_GATE): below_threshold,
                 (DocumentOutcome.IN_PROGRESS, None): in_progress}
     assert counts == Counter({key: n for key, n in expected.items() if n})
-    assert final_count == len(_records(run / "final" / "sdf_corpus.jsonl"))
+    assert final_count == len(utils.load_jsonl(run / "final" / "sdf_corpus.jsonl"))
     # the gate count is the scores the manifest's threshold turns away, read off the files here
     threshold = json.loads((run / "run_manifest.json").read_text())["config"]["sdf"]["min_score_threshold"]
     scores_file = next(run.glob("layer*/scores.jsonl"))
-    scored_below = [r for r in _records(scores_file)
+    scored_below = [r for r in utils.load_jsonl(scores_file)
                     if not (r["scores"]["alignment"] >= threshold and r["scores"]["realism"] >= threshold)]
     assert len(scored_below) == below_threshold
     assert {s.document_id for s in states if s.removal} == {r["doc_id"] for r in scored_below}
@@ -70,7 +67,7 @@ def test_corpus_derived_from_the_states_equals_the_committed_final_corpus_record
     run = RUNS_ROOT / run_name
     states = load_document_states(run)
     derived = derive_final_corpus_records(states)
-    final = _records(run / "final" / "sdf_corpus.jsonl")
+    final = utils.load_jsonl(run / "final" / "sdf_corpus.jsonl")
     derived_by_id = {r["doc_id"]: r for r in derived}
     assert len(derived_by_id) == len(derived) and set(derived_by_id) == {r["doc_id"] for r in final}
     for record in final:
@@ -79,7 +76,7 @@ def test_corpus_derived_from_the_states_equals_the_committed_final_corpus_record
         assert list(derived_by_id[record["doc_id"]]["scores"]) == list(record["scores"])
     # Today's order is the score file's order, which is deal order unless the run was resumed.
     scores_file = next(run.glob("layer*/scores.jsonl"))
-    scored_ids = [r["doc_id"] for r in _records(scores_file) if r["doc_id"] in derived_by_id]
+    scored_ids = [r["doc_id"] for r in utils.load_jsonl(scores_file) if r["doc_id"] in derived_by_id]
     state_ids = [s.document_id for s in states if s.document_id in derived_by_id]
     if scored_ids == state_ids:
         assert [r["doc_id"] for r in derived] == [r["doc_id"] for r in final]

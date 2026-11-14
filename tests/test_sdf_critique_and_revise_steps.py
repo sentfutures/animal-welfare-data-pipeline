@@ -12,16 +12,13 @@ from sdf_pipeline import layer3_rewrite
 from sdf_pipeline.document_event_log import read_document_events
 from sdf_pipeline.layer3_rewrite import (
     CombinedReviewAndReviseStep, CritiqueStep, ReviseStep, RewrittenText)
-from sdf_pipeline.update_steps import Accepted, Failed, FailureKind, ModelReply
+from sdf_pipeline.update_steps import Accepted, Failed, FailureKind
+from sdf_step_and_command_line_test_helpers import reply
 from shared import utils
 from test_sdf_layers import make_draft, single_call_config, split_config
 
 GOOD_REVISE = "<improved_document>Better.</improved_document>"
 GOOD_CRITIQUE = "<review>Problem: the voice is flat.</review>"
-
-
-def reply(text, stop_reason="end_turn"):
-    return ModelReply(text=text, stop_reason=stop_reason)
 
 
 @pytest.fixture

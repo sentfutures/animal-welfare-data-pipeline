@@ -452,7 +452,7 @@ class ModelRequestRecorder:
         return sorted(self.records, key=lambda r: (r["stage"], r["item_id"], r["attempt"]))
 
 
-def _build_fake_anthropic_class(recorder: ModelRequestRecorder):
+def build_fake_anthropic_class(recorder):
     class FakeAnthropicMessages:
         def create(self, **keyword_arguments):
             text, stop_reason = recorder.handle_request("anthropic", keyword_arguments)
@@ -471,7 +471,7 @@ def _build_fake_anthropic_class(recorder: ModelRequestRecorder):
     return FakeAnthropic
 
 
-def _build_fake_openai_class(recorder: ModelRequestRecorder):
+def build_fake_openai_class(recorder):
     class FakeOpenAIResponses:
         def create(self, **keyword_arguments):
             text, stop_reason = recorder.handle_request("openai", keyword_arguments)
@@ -495,7 +495,7 @@ def _build_fake_openai_class(recorder: ModelRequestRecorder):
     return FakeOpenAI
 
 
-def _wrap_to_note_stage_and_item(recorder: ModelRequestRecorder, real_function):
+def wrap_to_note_stage_and_item(recorder, real_function):
     """The same function, but it first notes the call's stage tag and item id for the recorder."""
     signature = inspect.signature(real_function)
 
@@ -513,16 +513,16 @@ def _wrap_to_note_stage_and_item(recorder: ModelRequestRecorder, real_function):
     return wrapper
 
 
-def install_request_recording(monkeypatch, recorder: ModelRequestRecorder) -> None:
+def install_request_recording(monkeypatch, recorder) -> None:
     """Route every provider request of this process into ``recorder`` (see the module docstring)."""
-    monkeypatch.setattr(api.anthropic, "Anthropic", _build_fake_anthropic_class(recorder))
-    monkeypatch.setattr(openai_api.openai, "OpenAI", _build_fake_openai_class(recorder))
+    monkeypatch.setattr(api.anthropic, "Anthropic", build_fake_anthropic_class(recorder))
+    monkeypatch.setattr(openai_api.openai, "OpenAI", build_fake_openai_class(recorder))
     monkeypatch.setattr(api, "_call_with_retry", REAL_ANTHROPIC_CALL_WITH_RETRY)
     monkeypatch.setattr(openai_api, "_create_response", REAL_OPENAI_CREATE_RESPONSE)
     monkeypatch.setattr(api, "_client", None)
     monkeypatch.setattr(openai_api, "_client", None)
-    monkeypatch.setattr(api, "call_claude", _wrap_to_note_stage_and_item(recorder, api.call_claude))
-    monkeypatch.setattr(openai_api, "call_openai", _wrap_to_note_stage_and_item(recorder, openai_api.call_openai))
+    monkeypatch.setattr(api, "call_claude", wrap_to_note_stage_and_item(recorder, api.call_claude))
+    monkeypatch.setattr(openai_api, "call_openai", wrap_to_note_stage_and_item(recorder, openai_api.call_openai))
 
 
 # ---------------------------------------------------------------------------------- configuration
@@ -642,6 +642,11 @@ def _replace_run_directory_path(value, run_directory_text: str):
 FILES_APPENDED_IN_THREAD_COMPLETION_ORDER = ("consideration_scores.jsonl", "consideration_scoring_failures.jsonl")
 
 
+def stage_rows(run_directory: Path, layer_number: int, file_name: str) -> list:
+    """The records of one layer's stage file in a run folder."""
+    return utils.load_jsonl(utils.sdf_stage_dir(run_directory, layer_number) / file_name)
+
+
 def snapshot_stage_files(run_directory: Path) -> dict:
     """{relative path: parsed content} of every .jsonl and .json file under layer1..layer4 (see the
     module docstring for the normalisation)."""
@@ -744,6 +749,27 @@ def run_scenario(scenario: Scenario, working_directory: Path, monkeypatch,
     return ScenarioOutcome(scenario, recorder, run_directory, configs_used, exit_messages, final_lines, stage_files)
 
 
+def isolate_from_real_keys_and_global_state(monkeypatch, working_directory: Path) -> None:
+    """The isolation tests/conftest.py gives every test (fake keys, no real .env, shared.api globals
+    reset), for callers outside a test function (the regeneration scripts, module-scoped fixtures)."""
+    empty_repository_root = working_directory / "repository_root_without_dotenv"
+    empty_repository_root.mkdir(exist_ok=True)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test-not-a-real-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test-not-a-real-key")
+    monkeypatch.delenv("EMBEDDINGS_MODEL", raising=False)
+    monkeypatch.setattr(api_keys, "REPO_ROOT", empty_repository_root)
+    monkeypatch.setattr(api_keys, "_sources_already_announced", set())
+    monkeypatch.setattr(api_keys, "_api_key_source_mode", api_keys.SEARCH_UPWARD_THEN_ENVIRONMENT)
+    monkeypatch.setattr(api_keys, "_nearest_dotenv_path_searching_upward", lambda: None)
+    monkeypatch.setattr(api_keys, "set_api_key_source_mode", lambda mode: None)
+    for name, value in (("_config", {}), ("_client", None), ("_cost_log_path", None),
+                        ("_record_model_calls", True), ("_backend", "api"), ("_cc_demoted", None),
+                        ("_UNPRICED_WARNED", set()), ("_neutral_system_warned", False),
+                        ("_temperature_warned", False)):
+        monkeypatch.setattr(api, name, value)
+    monkeypatch.setattr(openai_api, "_client", None)
+
+
 def run_scenario_in_isolation(scenario: Scenario, working_directory: Path,
                               maximum_random_reply_delay_seconds: float = 0.0,
                               after_each_invocation: Callable | None = None) -> ScenarioOutcome:
@@ -752,21 +778,7 @@ def run_scenario_in_isolation(scenario: Scenario, working_directory: Path,
     and module-scoped fixtures)."""
     working_directory.mkdir(parents=True, exist_ok=True)
     with pytest.MonkeyPatch.context() as monkeypatch:
-        empty_repository_root = working_directory / "repository_root_without_dotenv"
-        empty_repository_root.mkdir()
-        monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test-not-a-real-key")
-        monkeypatch.setenv("OPENAI_API_KEY", "sk-test-not-a-real-key")
-        monkeypatch.setattr(api_keys, "REPO_ROOT", empty_repository_root)
-        monkeypatch.setattr(api_keys, "_sources_already_announced", set())
-        monkeypatch.setattr(api_keys, "_api_key_source_mode", api_keys.SEARCH_UPWARD_THEN_ENVIRONMENT)
-        monkeypatch.setattr(api_keys, "_nearest_dotenv_path_searching_upward", lambda: None)
-        monkeypatch.setattr(api_keys, "set_api_key_source_mode", lambda mode: None)
-        for name, value in (("_config", {}), ("_client", None), ("_cost_log_path", None),
-                            ("_record_model_calls", True), ("_backend", "api"), ("_cc_demoted", None),
-                            ("_UNPRICED_WARNED", set()), ("_neutral_system_warned", False),
-                            ("_temperature_warned", False)):
-            monkeypatch.setattr(api, name, value)
-        monkeypatch.setattr(openai_api, "_client", None)
+        isolate_from_real_keys_and_global_state(monkeypatch, working_directory)
         return run_scenario(scenario, working_directory, monkeypatch, maximum_random_reply_delay_seconds,
                             after_each_invocation)
 

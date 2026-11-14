@@ -24,7 +24,6 @@ import pytest
 
 import sdf_prompt_equivalence_fixture_support as support
 import sdf_prompt_equivalence_scenarios as scenarios
-from shared import utils
 
 SCENARIO_NAMES = [scenario.name for scenario in scenarios.all_scenarios()]
 MAIN = scenarios.MAIN_SCENARIO_NAME
@@ -108,10 +107,6 @@ def _requests_of(outcome, stage, item_id):
                   key=lambda r: r["attempt"])
 
 
-def _rows(outcome, layer_number, file_name):
-    return utils.load_jsonl(utils.sdf_stage_dir(outcome.run_directory, layer_number) / file_name)
-
-
 def _calls_in_invocation(outcome, invocation, stage):
     return sum(1 for r in outcome.recorder.records if r["invocation"] == invocation and r["stage"] == stage)
 
@@ -119,26 +114,26 @@ def _calls_in_invocation(outcome, invocation, stage):
 def test_main_scenario_exercises_every_removal_and_failure_case(outcome_of):
     outcome, s = outcome_of(MAIN), scenarios
     assert outcome.exit_messages_by_invocation == [None, None]
-    rejected_by_screen = {r["prompt_id"] for r in _rows(outcome, 1, "screen_rejections.jsonl")}
+    rejected_by_screen = {r["prompt_id"] for r in support.stage_rows(outcome.run_directory, 1, "screen_rejections.jsonl")}
     assert len(rejected_by_screen) == 2, "the screen removes two hands in round 0"
-    rounds = _rows(outcome, 1, "screen_rounds.jsonl")
+    rounds = support.stage_rows(outcome.run_directory, 1, "screen_rounds.jsonl")
     assert [r["round"] for r in rounds] == [0, 1] and len(rounds[1]["prompt_ids"]) == 2, "the two are redealt"
     assert _requests_of(outcome, "layer1_screen", "screen_round1_batch0000"), "the redealt hands are screened"
-    plans = {p["prompt_id"]: p for p in _rows(outcome, 1, "plans.jsonl")}
+    plans = {p["prompt_id"]: p for p in support.stage_rows(outcome.run_directory, 1, "plans.jsonl")}
     assert plans[s.HAND_INCOHERENT_PLAN]["incoherent"] and not plans[s.HAND_INCOHERENT_PLAN]["description"]
     assert plans[s.HAND_SCORE_ANSWER_DOES_NOT_PARSE]["description"].startswith("Planned description (old heading form)")
-    conflicts = {r["prompt_id"] for r in _rows(outcome, 1, "description_rewrite_rejections.jsonl")}
+    conflicts = {r["prompt_id"] for r in support.stage_rows(outcome.run_directory, 1, "description_rewrite_rejections.jsonl")}
     assert conflicts == {s.HAND_DEALT_VALUE_CONFLICT}
-    scores = {r["doc_id"]: r for r in _rows(outcome, 4, "scores.jsonl")}
+    scores = {r["doc_id"]: r for r in support.stage_rows(outcome.run_directory, 4, "scores.jsonl")}
     assert scores[s.HAND_BELOW_THRESHOLD_SCORE]["scores"]["alignment"] < 7
-    dropped = _rows(outcome, 4, "near_dup_dropped.jsonl")
+    dropped = support.stage_rows(outcome.run_directory, 4, "near_dup_dropped.jsonl")
     assert [(d["doc_id"], d["kept_doc_id"]) for d in dropped] == [
         (s.HAND_NEAR_DUPLICATE_OF_PLAIN, s.HAND_PLAIN_WITH_CONSIDERATIONS)]
     corpus = {doc["doc_id"]: doc for doc in json.loads(json.dumps(
         [json.loads(line) for line in outcome.final_corpus_lines_after_each_invocation[1]]))}
     assert not set(corpus) & {s.HAND_INCOHERENT_PLAN, s.HAND_DEALT_VALUE_CONFLICT,
                               s.HAND_BELOW_THRESHOLD_SCORE, s.HAND_NEAR_DUPLICATE_OF_PLAIN}
-    drafts_by_id = {r["doc_id"]: r for r in _rows(outcome, 2, "drafts.jsonl")}
+    drafts_by_id = {r["doc_id"]: r for r in support.stage_rows(outcome.run_directory, 2, "drafts.jsonl")}
     assert corpus[s.HAND_PLAIN_WITH_CONSIDERATIONS]["considerations_spec"].count("\n") == 3, \
         "four considerations: two moral and two epistemic"
     assert drafts_by_id[s.HAND_SCORE_ANSWER_DOES_NOT_PARSE]["considerations_spec"] == "", \
@@ -148,9 +143,9 @@ def test_main_scenario_exercises_every_removal_and_failure_case(outcome_of):
     assert not _requests_of(outcome, "layer1_select", s.HAND_NO_WELFARE_STAKE)
     assert [(r["invocation"], r["attempt"]) for r in _requests_of(outcome, "layer2_draft", s.HAND_TRUNCATED_DRAFT)] \
         == [(1, 1), (2, 2)]
-    attempts = {r["prompt_id"]: r["attempts"] for r in _rows(outcome, 1, "consideration_scores.jsonl")}
+    attempts = {r["prompt_id"]: r["attempts"] for r in support.stage_rows(outcome.run_directory, 1, "consideration_scores.jsonl")}
     assert attempts[s.HAND_PLAIN_WITH_CONSIDERATIONS] == 2
-    critiques = {r["doc_id"]: r["review"] for r in _rows(outcome, 3, "critiques.jsonl")}
+    critiques = {r["doc_id"]: r["review"] for r in support.stage_rows(outcome.run_directory, 3, "critiques.jsonl")}
     assert "No review tags" in critiques[s.HAND_NEAR_DUPLICATE_OF_PLAIN]
     revise = _requests_of(outcome, "layer3_revise", s.HAND_REVISE_FAILS_THEN_SUCCEEDS_ON_RESUME)
     assert [(r["invocation"], r["attempt"]) for r in revise] == [(1, 1), (2, 2)]
@@ -164,16 +159,16 @@ def test_main_scenario_exercises_every_removal_and_failure_case(outcome_of):
     catalog = support._consideration_catalog()
     entry_label = catalog.moral[4].label
     assert entry_label in drafts_by_id[s.HAND_REVISE_FAILS_THEN_SUCCEEDS_ON_RESUME]["considerations_spec"]
-    selections = {r["prompt_id"]: r["outcomes"] for r in _rows(outcome, 1, "consideration_selections.jsonl")}
+    selections = {r["prompt_id"]: r["outcomes"] for r in support.stage_rows(outcome.run_directory, 1, "consideration_selections.jsonl")}
     assert entry_label not in json.dumps(selections[s.HAND_REVISE_FAILS_THEN_SUCCEEDS_ON_RESUME])
     assert entry_label in json.dumps(selections[s.HAND_PLAN_FAILS_THEN_SUCCEEDS_ON_RESUME])
     assert entry_label in revise[1]["wire"]["messages"][0]["content"]
     # two documents have a rewritten description, one of them never redealt and never failing
-    rewritten = {r["doc_id"]: r for r in _rows(outcome, 3, "rewrites.jsonl")}
+    rewritten = {r["doc_id"]: r for r in support.stage_rows(outcome.run_directory, 3, "rewrites.jsonl")}
     for hand in (s.HAND_REVISE_FAILS_THEN_SUCCEEDS_ON_RESUME, s.HAND_PLAIN_WITH_CONSIDERATIONS):
         assert rewritten[hand]["description"].startswith("Rewritten description for")
     # ties between documents for one entry exist (the tie-break is by hash of the seed)
-    tied_scores = [r for r in _rows(outcome, 1, "consideration_scores.jsonl")]
+    tied_scores = [r for r in support.stage_rows(outcome.run_directory, 1, "consideration_scores.jsonl")]
     assert sum(1 for r in tied_scores if r["scores"]["moral"][catalog.moral[6].label]["score"] == 5) == 2
 
 
@@ -214,11 +209,11 @@ def test_each_failure_scenario_reaches_the_stops_and_retries_it_is_named_for(out
 
 def test_interrupted_runs_reuse_saved_state(outcome_of):
     screen = outcome_of("interrupted_screen_rounds_resume_with_a_different_batch_size")
-    batches = _rows(screen, 1, "screen_batches.jsonl")
+    batches = support.stage_rows(screen.run_directory, 1, "screen_batches.jsonl")
     assert [len(b["prompt_ids"]) for b in batches if b["round"] == 0] == [3, 3], "saved batches reused, not regrouped"
     assert len(screen.recorder.records) and _calls_in_invocation(screen, 4, "layer1_screen") == 0, \
         "the accepted hands win over a lost screen checkpoint"
-    assert [r["round"] for r in _rows(screen, 1, "screen_rounds.jsonl")] == [0, 1]
+    assert [r["round"] for r in support.stage_rows(screen.run_directory, 1, "screen_rounds.jsonl")] == [0, 1]
     records = outcome_of("interrupted_run_records_and_checkpoint_marks_disagree")
     assert not [r for r in records.recorder.records if r["invocation"] == 2], \
         "a record without a mark and a mark without a record both count as done"
@@ -238,13 +233,13 @@ def test_gate_and_cull_boundaries_are_on_both_sides_of_each_threshold(outcome_of
     outcome = outcome_of("gate_and_near_duplicate_boundaries")
     final = [json.loads(line)["doc_id"] for line in outcome.final_corpus_lines_after_each_invocation[0]]
     assert final == [scenarios._hand(n) for n in (0, 1, 2, 5, 7)]
-    dropped = _rows(outcome, 4, "near_dup_dropped.jsonl")
+    dropped = support.stage_rows(outcome.run_directory, 4, "near_dup_dropped.jsonl")
     assert [d["doc_id"] for d in dropped] == [scenarios._hand(6)] and 0.9 <= dropped[0]["similarity"] < 0.99
 
 
 def test_a_screen_removal_that_cannot_be_redealt_drops_the_cards(outcome_of):
     outcome = outcome_of("screen_removal_that_cannot_be_redealt")
-    rounds = _rows(outcome, 1, "screen_rounds.jsonl")
+    rounds = support.stage_rows(outcome.run_directory, 1, "screen_rounds.jsonl")
     assert rounds[-1]["prompt_ids"] == [] and "could not be redealt" in rounds[-1]["note"]
 
 
@@ -253,11 +248,11 @@ def test_code_defaults_are_used_when_the_config_names_nothing(outcome_of):
     models = {r["stage"]: r["wire"]["model"] for r in only_plan_model.recorder.records}
     assert models["layer1_screen"] == models["layer1_select"] == models["layer1_description_rewrite"] == "claude-haiku-4-5"
     assert models["layer2_draft"] == models["layer3_critique"] == models["layer4_score"] == "claude-sonnet-5"
-    assert [r["round"] for r in _rows(only_plan_model, 1, "screen_rounds.jsonl")] == [0, 1, 2, 3], \
+    assert [r["round"] for r in support.stage_rows(only_plan_model.run_directory, 1, "screen_rounds.jsonl")] == [0, 1, 2, 3], \
         "the default is three redeal rounds"
-    assert [b["prompt_ids"] and len(b["prompt_ids"]) for b in _rows(only_plan_model, 1, "screen_batches.jsonl")
+    assert [b["prompt_ids"] and len(b["prompt_ids"]) for b in support.stage_rows(only_plan_model.run_directory, 1, "screen_batches.jsonl")
             if b["round"] == 0] == [10, 2], "the default screen batch size is 10"
-    assert {r["prompt_id"]: r["attempts"] for r in _rows(only_plan_model, 1, "consideration_scores.jsonl")
+    assert {r["prompt_id"]: r["attempts"] for r in support.stage_rows(only_plan_model.run_directory, 1, "consideration_scores.jsonl")
             }[scenarios._hand(0)] == 3, "the default is three scoring attempts"
     openai_and_adaptive = outcome_of("minimal_config_with_openai_rewrite_and_adaptive_thinking_models")
     rewrite = next(r for r in openai_and_adaptive.recorder.records if r["stage"] == "layer1_description_rewrite")
@@ -304,7 +299,7 @@ def test_description_rewrite_routes(outcome_of):
 
 def test_deal_repair_scenario_repairs_five_no_stake_hands(outcome_of):
     outcome = outcome_of("deal_repair_of_five_no_stake_hands_with_every_plan_call_failing")
-    hands = _rows(outcome, 1, "screen_hands.jsonl")
+    hands = support.stage_rows(outcome.run_directory, 1, "screen_hands.jsonl")
     no_stake = [h for h in hands if "NO real welfare stake" in h["variables"]["resolution"]]
     assert len(hands) == 25 and len(no_stake) == 5
     assert not [h for h in no_stake if h["variables"]["centrality"].startswith(("the central subject", "not the central"))], \

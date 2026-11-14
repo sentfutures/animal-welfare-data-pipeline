@@ -53,7 +53,6 @@ import threading
 import zlib
 from dataclasses import dataclass, field
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Callable
 
 import numpy as np
@@ -62,7 +61,7 @@ import yaml
 
 import sdf_prompt_equivalence_fixture_support as sdf_support   # imported first: it captures the real network seams
 import sdf_prompt_equivalence_scenarios as sdf_scenarios
-from shared import api, api_keys, embeddings, openai_api
+from shared import api, embeddings, openai_api
 
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 FIXTURE_DIRECTORY = REPOSITORY_ROOT / "tests" / "fixtures" / "sdf_audit_equivalence"
@@ -305,66 +304,6 @@ class JudgeRequestRecorder:
         return canned_reply(stage, user_message, schema)
 
 
-def _build_fake_anthropic_class(recorder: JudgeRequestRecorder):
-    class FakeAnthropicMessages:
-        def create(self, **keyword_arguments):
-            text, stop_reason = recorder.handle_request("anthropic", keyword_arguments)
-            return SimpleNamespace(
-                usage=SimpleNamespace(input_tokens=1000, output_tokens=max(1, len(text) // 4)),
-                content=[SimpleNamespace(type="text", text=text)], stop_reason=stop_reason)
-
-    class FakeAnthropic:
-        def __init__(self, **constructor_keyword_arguments):
-            settings = {key: value for key, value in constructor_keyword_arguments.items() if key != "api_key"}
-            settings["api_key_supplied"] = bool(constructor_keyword_arguments.get("api_key"))
-            recorder.client_constructions.append({"route": "anthropic", "settings": _json_copy(settings)})
-            self.messages = FakeAnthropicMessages()
-
-    return FakeAnthropic
-
-
-def _build_fake_openai_class(recorder: JudgeRequestRecorder):
-    class FakeOpenAIResponses:
-        def create(self, **keyword_arguments):
-            text, stop_reason = recorder.handle_request("openai", keyword_arguments)
-            truncated = stop_reason != "end_turn"
-            return SimpleNamespace(
-                status="incomplete" if truncated else "completed",
-                incomplete_details=SimpleNamespace(reason=stop_reason) if truncated else None,
-                output=[SimpleNamespace(type="message", content=[SimpleNamespace(type="output_text", text=text)])],
-                usage=SimpleNamespace(
-                    input_tokens=1000, output_tokens=max(1, len(text) // 4),
-                    input_tokens_details=SimpleNamespace(cached_tokens=0),
-                    output_tokens_details=SimpleNamespace(reasoning_tokens=100)))
-
-    class FakeOpenAI:
-        def __init__(self, **constructor_keyword_arguments):
-            settings = {key: value for key, value in constructor_keyword_arguments.items() if key != "api_key"}
-            settings["api_key_supplied"] = bool(constructor_keyword_arguments.get("api_key"))
-            recorder.client_constructions.append({"route": "openai", "settings": _json_copy(settings)})
-            self.responses = FakeOpenAIResponses()
-
-    return FakeOpenAI
-
-
-def _wrap_to_note_stage_and_item(recorder: JudgeRequestRecorder, real_function):
-    """The same function, but it first notes the call's stage tag and item id for the recorder."""
-    import inspect
-    signature = inspect.signature(real_function)
-
-    def wrapper(*positional, **keyword):
-        bound = signature.bind(*positional, **keyword)
-        stack = recorder.call_context.__dict__.setdefault("stack", [])
-        stack.append((bound.arguments.get("stage"), bound.arguments.get("item_id")))
-        try:
-            return real_function(*positional, **keyword)
-        finally:
-            stack.pop()
-
-    wrapper.__name__ = real_function.__name__
-    return wrapper
-
-
 def _fake_embed_texts_recording_to(recorder: JudgeRequestRecorder):
     def fake_embed_texts(texts, model=embeddings.DEFAULT_MODEL):
         recorder.embedding_requests.append({
@@ -378,34 +317,13 @@ def _fake_embed_texts_recording_to(recorder: JudgeRequestRecorder):
 
 
 def _install_recording(monkeypatch, recorder: JudgeRequestRecorder) -> None:
-    monkeypatch.setattr(api.anthropic, "Anthropic", _build_fake_anthropic_class(recorder))
-    monkeypatch.setattr(openai_api.openai, "OpenAI", _build_fake_openai_class(recorder))
+    monkeypatch.setattr(api.anthropic, "Anthropic", sdf_support.build_fake_anthropic_class(recorder))
+    monkeypatch.setattr(openai_api.openai, "OpenAI", sdf_support.build_fake_openai_class(recorder))
     monkeypatch.setattr(api, "_call_with_retry", REAL_ANTHROPIC_CALL_WITH_RETRY)
     monkeypatch.setattr(openai_api, "_create_response", REAL_OPENAI_CREATE_RESPONSE)
-    monkeypatch.setattr(api, "call_claude", _wrap_to_note_stage_and_item(recorder, api.call_claude))
-    monkeypatch.setattr(openai_api, "call_openai", _wrap_to_note_stage_and_item(recorder, openai_api.call_openai))
+    monkeypatch.setattr(api, "call_claude", sdf_support.wrap_to_note_stage_and_item(recorder, api.call_claude))
+    monkeypatch.setattr(openai_api, "call_openai", sdf_support.wrap_to_note_stage_and_item(recorder, openai_api.call_openai))
     monkeypatch.setattr(embeddings, "embed_texts", _fake_embed_texts_recording_to(recorder))
-
-
-def _isolate_from_real_keys_and_global_state(monkeypatch, working_directory: Path) -> None:
-    """The isolation tests/conftest.py gives every test (fake keys, no real .env, shared.api globals
-    reset), for callers outside a test function (the regeneration script, module-scoped fixtures)."""
-    empty_repository_root = working_directory / "repository_root_without_dotenv"
-    empty_repository_root.mkdir(exist_ok=True)
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test-not-a-real-key")
-    monkeypatch.setenv("OPENAI_API_KEY", "sk-test-not-a-real-key")
-    monkeypatch.delenv("EMBEDDINGS_MODEL", raising=False)
-    monkeypatch.setattr(api_keys, "REPO_ROOT", empty_repository_root)
-    monkeypatch.setattr(api_keys, "_sources_already_announced", set())
-    monkeypatch.setattr(api_keys, "_api_key_source_mode", api_keys.SEARCH_UPWARD_THEN_ENVIRONMENT)
-    monkeypatch.setattr(api_keys, "_nearest_dotenv_path_searching_upward", lambda: None)
-    monkeypatch.setattr(api_keys, "set_api_key_source_mode", lambda mode: None)
-    for name, value in (("_config", {}), ("_client", None), ("_cost_log_path", None),
-                        ("_record_model_calls", True), ("_backend", "api"), ("_cc_demoted", None),
-                        ("_UNPRICED_WARNED", set()), ("_neutral_system_warned", False),
-                        ("_temperature_warned", False)):
-        monkeypatch.setattr(api, name, value)
-    monkeypatch.setattr(openai_api, "_client", None)
 
 
 # ------------------------------------------------------------------------------------- run folders
@@ -519,7 +437,7 @@ def run_audit_in_isolation(audit: Audit, layout: RunLayout, prepared_run_directo
     recorder = JudgeRequestRecorder()
     ended_with = "returned"
     with pytest.MonkeyPatch.context() as monkeypatch:
-        _isolate_from_real_keys_and_global_state(monkeypatch, working_directory)
+        sdf_support.isolate_from_real_keys_and_global_state(monkeypatch, working_directory)
         _install_recording(monkeypatch, recorder)
         module = importlib.import_module(audit.module_name)
         try:
@@ -631,30 +549,8 @@ def _short(value) -> str:
 
 
 def differences_between_values(recorded, current, path: str) -> list[str]:
-    """Every difference between two JSON-like values, as 'field path: recorded X, now Y'."""
-    if isinstance(recorded, dict) and isinstance(current, dict):
-        differences = []
-        for key in recorded:
-            if key not in current:
-                differences.append(f"{path}.{key}: recorded {_short(recorded[key])}, now absent")
-            else:
-                differences += differences_between_values(recorded[key], current[key], f"{path}.{key}")
-        for key in current:
-            if key not in recorded:
-                differences.append(f"{path}.{key}: recorded absent, now {_short(current[key])}")
-        if set(recorded) == set(current) and list(recorded) != list(current):
-            differences.append(f"{path}: key order differs: recorded {list(recorded)}, now {list(current)}")
-        return differences
-    if isinstance(recorded, list) and isinstance(current, list):
-        differences = []
-        if len(recorded) != len(current):
-            differences.append(f"{path}: recorded {len(recorded)} elements, now {len(current)}")
-        for index, (recorded_item, current_item) in enumerate(zip(recorded, current)):
-            differences += differences_between_values(recorded_item, current_item, f"{path}[{index}]")
-        return differences
-    if type(recorded) is not type(current) or recorded != current:
-        return [f"{path}: recorded {_short(recorded)}, now {_short(current)}"]
-    return []
+    """Every difference between two JSON-like values, key order included (see the prompt version)."""
+    return sdf_support.differences_between_values(recorded, current, path, ordered=True)
 
 
 def _request_label(request: dict) -> str:

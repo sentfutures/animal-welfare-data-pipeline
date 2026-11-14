@@ -56,7 +56,6 @@ import yaml
 import sdf_prompt_equivalence_fixture_support as support
 import sdf_prompt_equivalence_scenarios as scenarios
 from sdf_resume_from_main_interruption_points import CRASH_MESSAGE, FIXTURE_SCENARIO_NAME, InterruptionPoint
-from shared import api, api_keys, openai_api, utils
 import sdf_pipeline.run as sdf_run
 
 REPOSITORY_ROOT = support.REPOSITORY_ROOT
@@ -188,21 +187,7 @@ def isolated_process_environment(working_directory: Path):
     the same; this is for the regeneration script."""
     working_directory.mkdir(parents=True, exist_ok=True)
     with pytest.MonkeyPatch.context() as monkeypatch:
-        empty_repository_root = working_directory / "repository_root_without_dotenv"
-        empty_repository_root.mkdir(exist_ok=True)
-        monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test-not-a-real-key")
-        monkeypatch.setenv("OPENAI_API_KEY", "sk-test-not-a-real-key")
-        monkeypatch.setattr(api_keys, "REPO_ROOT", empty_repository_root)
-        monkeypatch.setattr(api_keys, "_sources_already_announced", set())
-        monkeypatch.setattr(api_keys, "_api_key_source_mode", api_keys.SEARCH_UPWARD_THEN_ENVIRONMENT)
-        monkeypatch.setattr(api_keys, "_nearest_dotenv_path_searching_upward", lambda: None)
-        monkeypatch.setattr(api_keys, "set_api_key_source_mode", lambda mode: None)
-        for name, value in (("_config", {}), ("_client", None), ("_cost_log_path", None),
-                            ("_record_model_calls", True), ("_backend", "api"), ("_cc_demoted", None),
-                            ("_UNPRICED_WARNED", set()), ("_neutral_system_warned", False),
-                            ("_temperature_warned", False)):
-            monkeypatch.setattr(api, name, value)
-        monkeypatch.setattr(openai_api, "_client", None)
+        support.isolate_from_real_keys_and_global_state(monkeypatch, working_directory)
         yield monkeypatch
 
 

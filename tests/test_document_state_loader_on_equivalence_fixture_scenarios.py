@@ -42,10 +42,6 @@ def _bytes_of_every_file(run_directory: Path) -> dict:
             for path in sorted(run_directory.rglob("*")) if path.is_file()}
 
 
-def _stage_rows(run_directory: Path, layer_number: int, file_name: str) -> list:
-    return utils.load_jsonl(utils.sdf_stage_dir(run_directory, layer_number) / file_name)
-
-
 class InvocationSnapshot:
     """What the loader returned after one invocation, with the raw stage files read independently."""
 
@@ -56,7 +52,7 @@ class InvocationSnapshot:
         assert _bytes_of_every_file(run_directory) == before, "the loader changed a file in the run folder"
         self.states = self.loaded.states
         self.by_id = {state.document_id: state for state in self.states}
-        self.raw = {name: _stage_rows(run_directory, layer, name) for layer, name in (
+        self.raw = {name: support.stage_rows(run_directory, layer, name) for layer, name in (
             (1, "screen_hands.jsonl"), (1, "screen_rounds.jsonl"), (1, "screen_rejections.jsonl"),
             (1, "screen_judgments.jsonl"), (1, "prompts.jsonl"), (1, "plans.jsonl"),
             (1, "description_rewrites.jsonl"), (1, "description_rewrite_rejections.jsonl"),

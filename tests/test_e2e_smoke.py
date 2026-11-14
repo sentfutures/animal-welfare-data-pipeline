@@ -5,6 +5,7 @@ PIPELINE_OUTPUT_ROOT redirects all run output into tmp_path so the repo's real
 outputs/ tree (and its `latest` symlinks) is never touched.
 """
 
+import functools
 import hashlib
 import json
 
@@ -15,6 +16,7 @@ import dad_pipeline.run as dad_run
 import sdf_pipeline.run as sdf_run
 from conftest import dad_scenario_plan_reply, dad_scenario_reply
 from shared import utils
+from sdf_step_and_command_line_test_helpers import run_main as run_pipeline_main
 
 N_DAD_PROMPTS = 2  # tiny_config dad.dilemmas.count
 
@@ -26,11 +28,8 @@ def outputs_root(tmp_path, monkeypatch):
     return root
 
 
-def _run_main(monkeypatch, main, config_file, *extra_args):
-    monkeypatch.setattr(
-        "sys.argv", ["run.py", "--config", str(config_file), "--label", "e2e", *extra_args]
-    )
-    main()
+run_sdf_main = functools.partial(run_pipeline_main, main=sdf_run.main, label="e2e")
+run_dad_main = functools.partial(run_pipeline_main, main=dad_run.main, label="e2e")
 
 
 # --- SDF ---------------------------------------------------------------
@@ -83,7 +82,7 @@ def _sdf_dispatch(user_message, **kw):
 
 def test_sdf_pipeline_end_to_end_offline(tiny_config_file, outputs_root, stub_claude, monkeypatch):
     calls = stub_claude(_sdf_dispatch)
-    _run_main(monkeypatch, sdf_run.main, tiny_config_file)
+    run_sdf_main(monkeypatch, tiny_config_file)
 
     runs = [d for d in (outputs_root / "sdf" / "runs").iterdir() if d.is_dir()]
     assert len(runs) == 1
@@ -129,7 +128,7 @@ def test_sdf_screen_removal_is_dropped_before_drafting(
         return _sdf_dispatch(user_message, **kw)
 
     calls = stub_claude(dispatch)
-    _run_main(monkeypatch, sdf_run.main, tiny_config_file)
+    run_sdf_main(monkeypatch, tiny_config_file)
     run_dir = outputs_root / "sdf" / "latest"
     rejections = utils.load_jsonl(run_dir / "layer1" / "screen_rejections.jsonl")
     assert len(rejections) == 1
@@ -157,7 +156,7 @@ def test_sdf_rewritten_description_and_dealt_value_conflict_reach_layer_2(
         return _sdf_dispatch(user_message, **kw)
 
     calls = stub_claude(dispatch)
-    _run_main(monkeypatch, sdf_run.main, tiny_config_file)
+    run_sdf_main(monkeypatch, tiny_config_file)
     run_dir = outputs_root / "sdf" / "latest"
     drafts = utils.load_jsonl(run_dir / "layer2" / "drafts.jsonl")
     assert [d["doc_id"] for d in drafts] == ["matrix_000000"]
@@ -170,16 +169,16 @@ def test_sdf_rewritten_description_and_dealt_value_conflict_reach_layer_2(
 
     # resuming at layer 2 re-applies the stored rewrite and drops the conflicted plan, with no layer 1 calls
     resumed = stub_claude([])
-    _run_main(monkeypatch, sdf_run.main, tiny_config_file, "--resume", "--layer", "2")
+    run_sdf_main(monkeypatch, tiny_config_file, "--resume", "--layer", "2")
     assert resumed == []
 
 
 def test_sdf_resume_at_last_layer_makes_no_calls(tiny_config_file, outputs_root, stub_claude, monkeypatch):
     stub_claude(_sdf_dispatch)
-    _run_main(monkeypatch, sdf_run.main, tiny_config_file)
+    run_sdf_main(monkeypatch, tiny_config_file)
 
     calls = stub_claude([])
-    _run_main(monkeypatch, sdf_run.main, tiny_config_file, "--resume", "--layer", "4")
+    run_sdf_main(monkeypatch, tiny_config_file, "--resume", "--layer", "4")
     assert calls == []
     corpus = utils.load_jsonl(outputs_root / "sdf" / "latest" / "final" / "sdf_corpus.jsonl")
     assert len(corpus) == 2
@@ -193,7 +192,7 @@ def test_sdf_rejects_a_pre_renumber_layer_number(tiny_config_file, stub_claude, 
     """
     calls = stub_claude([])
     with pytest.raises(SystemExit):
-        _run_main(monkeypatch, sdf_run.main, tiny_config_file, "--resume", "--layer", "5")
+        run_sdf_main(monkeypatch, tiny_config_file, "--resume", "--layer", "5")
     assert calls == []
 
 
@@ -238,7 +237,7 @@ def _dad_dispatch(user_message, **kw):
 
 def test_dad_pipeline_end_to_end_offline(tiny_config_file, outputs_root, stub_claude, monkeypatch):
     calls = stub_claude(_dad_dispatch)
-    _run_main(monkeypatch, dad_run.main, tiny_config_file)
+    run_dad_main(monkeypatch, tiny_config_file)
 
     runs = [d for d in (outputs_root / "dad" / "runs").iterdir() if d.is_dir()]
     assert len(runs) == 1
@@ -290,7 +289,7 @@ def test_dad_human_profile_end_to_end_offline(tiny_config, tmp_path, outputs_roo
     config_file = tmp_path / "config_human.yaml"
     config_file.write_text(yaml.safe_dump(human_cfg))
     calls = stub_claude(_dad_dispatch)
-    _run_main(monkeypatch, dad_run.main, config_file)
+    run_dad_main(monkeypatch, config_file)
 
     assert not (outputs_root / "dad").exists()
     runs = [d for d in (outputs_root / "dad_human" / "runs").iterdir() if d.is_dir()]
@@ -322,7 +321,7 @@ def test_dad_baseline_disabled_makes_no_baseline_calls(
     config_file.write_text(yaml.safe_dump(config))
 
     calls = stub_claude(_dad_dispatch)
-    _run_main(monkeypatch, dad_run.main, config_file)
+    run_dad_main(monkeypatch, config_file)
 
     run_dir = outputs_root / "dad" / "latest"
     assert not (run_dir / "baseline").exists()
@@ -332,10 +331,10 @@ def test_dad_baseline_disabled_makes_no_baseline_calls(
 
 def test_dad_resume_at_step3_makes_no_calls(tiny_config_file, outputs_root, stub_claude, monkeypatch):
     stub_claude(_dad_dispatch)
-    _run_main(monkeypatch, dad_run.main, tiny_config_file)
+    run_dad_main(monkeypatch, tiny_config_file)
 
     calls = stub_claude([])
-    _run_main(monkeypatch, dad_run.main, tiny_config_file, "--resume", "--step", "3")
+    run_dad_main(monkeypatch, tiny_config_file, "--resume", "--step", "3")
     assert calls == []
     corpus = utils.load_jsonl(outputs_root / "dad" / "latest" / "final" / "dad_corpus.jsonl")
     assert len(corpus) == N_DAD_PROMPTS
@@ -383,7 +382,7 @@ def test_dad_full_run_launches_both_evals(
     tiny_config, outputs_root, stub_claude, monkeypatch, tmp_path, record_subprocess
 ):
     stub_claude(_dad_dispatch)
-    _run_main(monkeypatch, dad_run.main, _evals_on_config(tiny_config, tmp_path))
+    run_dad_main(monkeypatch, _evals_on_config(tiny_config, tmp_path))
 
     run_dir = (outputs_root / "dad" / "latest").resolve()
     assert len(record_subprocess) == 2
@@ -403,7 +402,7 @@ def test_dad_auto_evals_off_launches_nothing(
     # tiny_config sets dad.evals.auto false — the committed default is on,
     # asserted separately on the raw knob below
     stub_claude(_dad_dispatch)
-    _run_main(monkeypatch, dad_run.main, tiny_config_file)
+    run_dad_main(monkeypatch, tiny_config_file)
     assert record_subprocess == []
 
 
@@ -416,7 +415,7 @@ def test_dad_partial_run_skips_evals(
     tiny_config, outputs_root, stub_claude, monkeypatch, tmp_path, record_subprocess
 ):
     stub_claude(_dad_dispatch)
-    _run_main(monkeypatch, dad_run.main, _evals_on_config(tiny_config, tmp_path),
+    run_dad_main(monkeypatch, _evals_on_config(tiny_config, tmp_path),
               "--stop-after", "1")
     assert record_subprocess == []
 
@@ -433,7 +432,7 @@ def test_dad_eval_failure_does_not_fail_the_run(
 
     monkeypatch.setattr(dad_run.subprocess, "run", failing_run)
     stub_claude(_dad_dispatch)
-    _run_main(monkeypatch, dad_run.main, _evals_on_config(tiny_config, tmp_path))
+    run_dad_main(monkeypatch, _evals_on_config(tiny_config, tmp_path))
 
     corpus = utils.load_jsonl(outputs_root / "dad" / "latest" / "final" / "dad_corpus.jsonl")
     assert len(corpus) == N_DAD_PROMPTS

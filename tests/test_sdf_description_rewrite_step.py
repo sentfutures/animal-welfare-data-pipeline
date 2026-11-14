@@ -13,7 +13,8 @@ from sdf_pipeline import layer1_description_rewrite as rewrite
 from sdf_pipeline.document_event_log import fold_document_events, read_document_events
 from sdf_pipeline.layer1_description_rewrite import DescriptionRewriteStep
 from sdf_pipeline.step_runner import send_model_request
-from sdf_pipeline.update_steps import Accepted, Failed, FailureKind, ModelReply, Removed, WhatAFailedDocumentDoes
+from sdf_pipeline.update_steps import Accepted, Failed, FailureKind, Removed, WhatAFailedDocumentDoes
+from sdf_step_and_command_line_test_helpers import reply
 from shared import api, openai_api, utils
 from test_layer1_description_rewrite import answer, make_plans
 
@@ -35,10 +36,6 @@ def make_step(config, prompts_sdf, tmp_path, plans, model):
 @pytest.fixture(params=[CLAUDE_MODEL, OPENAI_MODEL], ids=["claude_route", "openai_route"])
 def step(request, tiny_config, prompts_sdf, tmp_path, plans):
     return make_step(tiny_config, prompts_sdf, tmp_path, plans, request.param)
-
-
-def reply(text, stop_reason="end_turn"):
-    return ModelReply(text, stop_reason)
 
 
 # ---------------------------------------------------------------- interpret, both routes

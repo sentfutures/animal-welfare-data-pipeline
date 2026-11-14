@@ -12,6 +12,7 @@ Offline, with canned replies. The core claims:
 * ``--layer``, ``--resume`` and ``--run-id`` still behave as before.
 """
 
+import functools
 import json
 import shutil
 from pathlib import Path
@@ -22,6 +23,7 @@ import yaml
 import sdf_pipeline.run as sdf_run
 from sdf_pipeline import seeding
 from shared import utils
+from sdf_step_and_command_line_test_helpers import run_main as run_pipeline_main
 
 REQUEST_FIELDS = ("system_prompt", "user_message", "model", "max_tokens", "stage", "item_id", "cache_system",
                   "temperature", "json_schema", "injection")
@@ -90,9 +92,7 @@ def config_file(tiny_config, tmp_path):
     return path
 
 
-def run_main(monkeypatch, config_file, *arguments):
-    monkeypatch.setattr("sys.argv", ["run.py", "--config", str(config_file), *arguments])
-    sdf_run.main()
+run_main = functools.partial(run_pipeline_main, main=sdf_run.main)
 
 
 def comparable(calls):
