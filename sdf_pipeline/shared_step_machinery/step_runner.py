@@ -7,7 +7,7 @@ import time
 from dataclasses import dataclass, field, replace
 
 from shared import api, openai_api, utils
-from sdf_pipeline.compatibility_with_runs_made_by_earlier_code.checkpoint_marks import marked_as_finished
+from sdf_pipeline.compatibility_with_runs_made_by_earlier_code.checkpoint_marks import keep_marks_up_to_date, marked_as_finished
 from sdf_pipeline.shared_step_machinery.step_record import Run, Step, document_id_of
 from sdf_pipeline.shared_step_machinery.update_steps import (
     Failed, FailureKind, ModelReply, ModelRequest, OutcomeRecords, StepProgress, WhatAFailedDocumentDoes,
@@ -163,6 +163,8 @@ def _write_outcomes_and_print_line(
             utils.save_jsonl(kept, stage_directory / file_name)
     for file_name, record in outcome_records.records:
         utils.append_jsonl(record, stage_directory / file_name)
+    if step.finished_group_keys:
+        keep_marks_up_to_date(step.name, stage_directory, lambda: step.finished_group_keys(run))
     progress.record(outcomes.values(), seconds)
     line = step.progress_line(documents, outcomes, progress, run) if step.progress_line else None
     if line is not None:

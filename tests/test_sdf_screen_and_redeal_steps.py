@@ -201,6 +201,31 @@ def test_finished_batches_are_not_called_again(screen_run):
     assert calls == ["screen_round0_batch0000", "screen_round0_batch0001"]
 
 
+def test_a_run_with_the_marks_of_earlier_code_is_not_billed_again_for_batches_current_code_finished(screen_run, stage_dir):
+    """Earlier code resumed by its marks alone, so current code keeps the marks of such a run up to date: a batch it
+    finishes after the first resume is not sent again by the second."""
+    sent = []
+
+    def send(request):
+        sent.append(request.item_id)
+        if request.item_id.endswith("0001"):
+            raise RuntimeError("interrupted")
+        return ModelReply(screen_answer(3), "end_turn")
+
+    with pytest.raises(SystemExit):
+        run_step(screen.STEP, screen_run, round_zero_hands(), send=send)   # batch 0 finished, batch 1 not
+    utils.Checkpoint(stage_dir / "_screen_checkpoint.json").mark_done("screen_round0_batch0000")   # as earlier code left it
+    sent.clear()
+
+    run_step(screen.STEP, screen_run, round_zero_hands(), send=lambda request: (
+        sent.append(request.item_id), ModelReply(screen_answer(3), "end_turn"))[1])   # the first resume finishes batch 1
+    assert sent == ["screen_round0_batch0001"]
+    sent.clear()
+    run_step(screen.STEP, screen_run, round_zero_hands(), send=lambda request: (
+        sent.append(request.item_id), ModelReply(screen_answer(3), "end_turn"))[1])   # the second resume has nothing to send
+    assert sent == []
+
+
 # ---------------------------------------------------------------- the layer: loop, rounds
 
 def test_the_loop_ends_after_the_round_limit_and_the_leftover_hands_are_dropped(
