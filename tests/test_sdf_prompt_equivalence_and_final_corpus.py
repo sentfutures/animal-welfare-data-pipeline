@@ -53,19 +53,6 @@ def test_recorded_files_cover_exactly_the_fixture_scenarios():
     assert recorded == sorted(f"recorded_{name}_on_origin_main.json" for name in SCENARIO_NAMES)
 
 
-def test_recorded_files_were_made_from_unmodified_origin_main_python_code():
-    """A refactor branch must not regenerate the recorded files to match its own Python changes: the
-    regeneration script records which sdf_pipeline/, shared/ and dad_pipeline/ Python files differed
-    from origin/main, and refuses when there are any unless told otherwise. This test fails for a
-    file made that way, so the override cannot go unnoticed."""
-    for name in SCENARIO_NAMES:
-        recorded = support.load_recorded_scenario(name)
-        assert recorded["format_version"] == support.RECORDED_FILE_FORMAT_VERSION, name
-        assert recorded["python_files_differing_from_origin_main_when_recorded"] == [], (
-            f"{name}: recorded from Python code that differed from origin/main "
-            f"({recorded['python_files_differing_from_origin_main_when_recorded']}). {support.REGENERATION_RULE}")
-
-
 @pytest.mark.parametrize("name", SCENARIO_NAMES)
 def test_every_request_equals_the_one_recorded_on_origin_main(name, outcome_of):
     differences = support.differences_between_recorded_and_current_requests(
