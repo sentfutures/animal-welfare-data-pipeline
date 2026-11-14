@@ -10,6 +10,17 @@ cull before the final corpus is written.
 A scoring response that fails to parse is recorded as 5/5/5 "Parse error."
 and checkpointed — a re-run would re-bill without new information; the score
 report flags these for manual review instead.
+
+Scoring is a ``DocumentStep`` (``ScoreStep``) run by ``sdf_pipeline.step_runner.StepRunner``;
+the gate (``ScoreGateStep``) and the near-duplicate cull (``NearDuplicateCullStep``) are
+``CorpusStep``s run after it by ``run_corpus_step``. ``run`` keeps its signature and behaviour as a
+thin wrapper, because scripts import it.
+
+Document order before the cull is the order of ``results`` in ``run``: scores finished in earlier
+runs (in ``rewrites`` order) followed by the scores written in this run (in ``rewrites`` order).
+An uninterrupted run is therefore in ``rewrites`` order; a resumed run puts a document scored late
+after the ones scored before the interruption. The cull keeps the first of each near-duplicate
+pair in that order.
 """
 
 import json
@@ -18,8 +29,127 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from shared import api, constitution_loader, textstats, utils
+from shared import constitution_loader, textstats, utils
 from sdf_pipeline import compose_prompts as cp
+from sdf_pipeline.document_event_log import DOCUMENT_EVENT_LOG_FILE_NAME, DocumentEventLog
+from sdf_pipeline.step_runner import StepRunner, run_corpus_step
+from sdf_pipeline.update_steps import (
+    Accepted, CorpusStep, DocumentStep, Failed, ModelReply, ModelRequest, Removed, StepPolicy)
+
+PARSE_ERROR_SCORES = {"alignment": 5, "realism": 5, "spec_conformance": 5, "notes": "Parse error."}
+
+
+class ScoreStep(DocumentStep):
+    """Score one rewrite. The document is the rewrite record (``doc_id``, ``description``,
+    ``variables``, ``content``). An unparseable answer is accepted as 5/5/5 "Parse error."; only a
+    thrown call is left behind (and counts towards the systemic stop)."""
+
+    step_name = "score"
+    stage_file_name = "scores.jsonl"
+    policy = StepPolicy()
+    systemic_stop_message = (
+        "layer4_score: every pending API call failed — this is systemic "
+        "(auth, backend, or network), not per-document; fix and --resume."
+    )
+
+    def __init__(self, config: dict, prompts_dir: Path):
+        self.score_model = config["sdf"].get("score_model")
+        constitution_dir = utils.resolve_constitution_dir(prompts_dir)
+        self.constitution_claude = constitution_loader.load_constitution_claude(constitution_dir)
+        self.template_path = utils.sdf_template_path(prompts_dir, 4)
+        self.render_variable_lines = cp.render_variable_lines_for_template(
+            self.template_path.read_text(encoding="utf-8"), prompts_dir, config)
+
+    def document_id_of(self, rewrite: dict) -> str:
+        return rewrite["doc_id"]
+
+    def applies_to(self, rewrite: dict) -> bool:
+        return True
+
+    def build_request(self, rewrite: dict) -> ModelRequest:
+        system, user = cp.split_sections(utils.load_prompt(
+            self.template_path,
+            constitution_claude=self.constitution_claude,
+            document_description=rewrite["description"],
+            variable_lines=self.render_variable_lines(
+                {"prompt_id": rewrite["doc_id"], "variables": rewrite["variables"]}),
+            improved_document=rewrite["content"],
+        ))
+        return ModelRequest(
+            user_message=user,
+            system_prompt=system or "",
+            model=self.score_model,
+            stage="layer4_score",
+            item_id=rewrite["doc_id"],
+            cache_system=True,  # constitution + rubric are identical across scoring calls
+        )
+
+    def interpret(self, rewrite: dict, reply: ModelReply):
+        try:
+            scores = utils.extract_json_object(reply.text)
+        except json.JSONDecodeError:
+            scores = PARSE_ERROR_SCORES
+        return Accepted({
+            "alignment": scores.get("alignment", 0),
+            "realism": scores.get("realism", 0),
+            "spec_conformance": scores.get("spec_conformance", 0),
+            "notes": scores.get("notes", ""),
+        })
+
+    def stage_file_record(self, rewrite: dict, update: dict) -> dict:
+        return {"doc_id": rewrite["doc_id"], "variables": rewrite["variables"], "scores": update}
+
+    def progress_line(self, rewrite: dict, outcome) -> str | None:
+        doc_id = rewrite["doc_id"]
+        if isinstance(outcome, Failed):
+            reason = outcome.reason.removeprefix("error: ")
+            return f"  {doc_id}: API call failed ({reason}) — will retry on resume"
+        s = outcome.update
+        return f"  Scored {doc_id} A{s['alignment']} R{s['realism']} S{s['spec_conformance']}"
+
+
+class ScoreGateStep(CorpusStep):
+    """Keep documents with alignment AND realism >= the threshold. The documents are score records
+    (``doc_id``, ``scores``); spec_conformance is advisory and does not gate."""
+
+    step_name = "gate"
+
+    def __init__(self, threshold):
+        self.threshold = threshold
+
+    def apply(self, score_records: list) -> dict:
+        outcomes = {}
+        for record in score_records:
+            scores = record["scores"]
+            if scores["alignment"] >= self.threshold and scores["realism"] >= self.threshold:
+                outcomes[record["doc_id"]] = Accepted(None)
+            else:
+                outcomes[record["doc_id"]] = Removed(
+                    "below_score_threshold",
+                    f"alignment {scores['alignment']}, realism {scores['realism']}, threshold {self.threshold}")
+        return outcomes
+
+
+class NearDuplicateCullStep(CorpusStep):
+    """Greedy keep-first near-duplicate cull over the documents given, in the order given. The
+    documents are score records carrying ``content``. A falsy threshold, or fewer than two
+    documents, culls nothing. A removal's ``detail`` is {"kept_doc_id", "similarity"}."""
+
+    step_name = "near_duplicate_cull"
+
+    def __init__(self, near_duplicate_threshold):
+        self.near_duplicate_threshold = near_duplicate_threshold
+
+    def apply(self, records: list) -> dict:
+        outcomes = {record["doc_id"]: Accepted(None) for record in records}
+        if self.near_duplicate_threshold and len(records) > 1:
+            _, dropped = textstats.near_dup_filter(
+                [record["content"] for record in records], self.near_duplicate_threshold)
+            for entry in dropped:
+                outcomes[records[entry["index"]]["doc_id"]] = Removed(
+                    "near_duplicate",
+                    {"kept_doc_id": records[entry["kept_index"]]["doc_id"], "similarity": entry["similarity"]})
+        return outcomes
 
 
 def run(
@@ -29,112 +159,35 @@ def run(
     final_dir: Path,
     rewrites: list[dict],
 ) -> list[dict]:
-    output_path = output_dir / "scores.jsonl"
     final_path = final_dir / "sdf_corpus.jsonl"
-    checkpoint = utils.Checkpoint(output_dir / "_checkpoint.json")
     sdf = config["sdf"]
     threshold = sdf["min_score_threshold"]
 
-    constitution_dir = utils.resolve_constitution_dir(prompts_dir)
-    constitution_claude = constitution_loader.load_constitution_claude(constitution_dir)
-
-    template_path = utils.sdf_template_path(prompts_dir, 4)
-    render_variable_lines = cp.render_variable_lines_for_template(
-        template_path.read_text(encoding="utf-8"), prompts_dir, config)
-
-    existing = {r["doc_id"]: r for r in utils.load_jsonl(output_path)}
-    results = [existing[rw["doc_id"]] for rw in rewrites if rw["doc_id"] in existing]
-    pending = [
-        rw for rw in rewrites
-        if rw["doc_id"] not in existing and not checkpoint.is_done(rw["doc_id"])
-    ]
-
-    def score_one(rw: dict) -> dict | None:
-        system, user = cp.split_sections(utils.load_prompt(
-            template_path,
-            constitution_claude=constitution_claude,
-            document_description=rw["description"],
-            variable_lines=render_variable_lines(
-                {"prompt_id": rw["doc_id"], "variables": rw["variables"]}),
-            improved_document=rw["content"],
-        ))
-        try:
-            raw = api.call_claude(
-                user,
-                system_prompt=system or "",
-                model=sdf.get("score_model"),
-                stage="layer4_score",
-                item_id=rw["doc_id"],
-                cache_system=True,  # constitution + rubric are identical across scoring calls
-            )
-        except Exception as e:
-            # Per-item failures skip the doc instead of killing the layer;
-            # unmarked work is retried by --resume.
-            print(f"  {rw['doc_id']}: API call failed ({type(e).__name__}: {e}) — will retry on resume")
-            return None
-        try:
-            scores = utils.extract_json_object(raw)
-        except json.JSONDecodeError:
-            scores = {
-                "alignment": 5, "realism": 5, "spec_conformance": 5, "notes": "Parse error.",
-            }
-        return {
-            "doc_id": rw["doc_id"],
-            "variables": rw["variables"],
-            "scores": {
-                "alignment": scores.get("alignment", 0),
-                "realism": scores.get("realism", 0),
-                "spec_conformance": scores.get("spec_conformance", 0),
-                "notes": scores.get("notes", ""),
-            },
-        }
-
-    workers = config.get("workers", 1)
+    step = ScoreStep(config, prompts_dir)
+    # The event log sits in the run folder, beside the layer folders.
+    event_log = DocumentEventLog(output_dir.parent / DOCUMENT_EVENT_LOG_FILE_NAME)
+    runner = StepRunner(step, output_dir, event_log, workers=config.get("workers", 1))
+    results = runner.run(rewrites).records_in_input_order
     rewrites_by_id = {rw["doc_id"]: rw for rw in rewrites}
-    failed_calls = 0
-    for record in utils.parallel_map(score_one, pending, workers):
-        if record is None:
-            failed_calls += 1
-            continue
-        results.append(record)
-        utils.append_jsonl(record, output_path)
-        checkpoint.mark_done(record["doc_id"])
-        s = record["scores"]
-        print(f"  Scored {record['doc_id']} A{s['alignment']} R{s['realism']} S{s['spec_conformance']}")
-    if pending and failed_calls == len(pending):
-        raise SystemExit(
-            "layer4_score: every pending API call failed — this is systemic "
-            "(auth, backend, or network), not per-document; fix and --resume."
-        )
 
     # Gate on alignment + realism; spec_conformance is advisory (reported below).
-    passed = [
-        r for r in results
-        if r["scores"]["alignment"] >= threshold and r["scores"]["realism"] >= threshold
-    ]
+    gate_outcomes = run_corpus_step(ScoreGateStep(threshold), results, event_log)
+    passed = [r for r in results if isinstance(gate_outcomes[r["doc_id"]], Accepted)]
     failed = len(results) - len(passed)
     if failed:
         print(f"  {failed} document(s) below threshold {threshold} — dropped")
 
     # Deterministic near-duplicate cull over survivors (greedy keep-first).
-    dup_threshold = sdf.get("near_dup_threshold")
-    contents = [rewrites_by_id[r["doc_id"]]["content"] for r in passed]
-    if dup_threshold and len(passed) > 1:
-        keep_idx, dropped = textstats.near_dup_filter(contents, dup_threshold)
-        if dropped:
-            utils.save_jsonl(
-                [
-                    {
-                        "doc_id": passed[d["index"]]["doc_id"],
-                        "kept_doc_id": passed[d["kept_index"]]["doc_id"],
-                        "similarity": d["similarity"],
-                    }
-                    for d in dropped
-                ],
-                output_dir / "near_dup_dropped.jsonl",
-            )
-            print(f"  {len(dropped)} near-duplicate(s) culled")
-        passed = [passed[i] for i in keep_idx]
+    passed_with_content = [{**r, "content": rewrites_by_id[r["doc_id"]]["content"]} for r in passed]
+    cull_outcomes = run_corpus_step(
+        NearDuplicateCullStep(sdf.get("near_dup_threshold")), passed_with_content, event_log)
+    dropped = [
+        {"doc_id": r["doc_id"], **cull_outcomes[r["doc_id"]].detail}
+        for r in passed if isinstance(cull_outcomes[r["doc_id"]], Removed)]
+    if dropped:
+        utils.save_jsonl(dropped, output_dir / "near_dup_dropped.jsonl")
+        print(f"  {len(dropped)} near-duplicate(s) culled")
+    passed = [r for r in passed if isinstance(cull_outcomes[r["doc_id"]], Accepted)]
 
     # Final corpus records carry the eval-facing fields (audit_sdf/diversity
     # read content/type/language/register) alongside the full matrix lineage.

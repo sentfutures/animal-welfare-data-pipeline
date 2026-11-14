@@ -13,9 +13,9 @@ marked done in the checkpoint. ``Failed`` marks nothing done, so a resume retrie
 from dataclasses import dataclass, field
 
 from shared import api, utils
-from sdf_pipeline.document_event_log import DocumentEventLog
+from sdf_pipeline.document_event_log import DocumentEventLog, fold_document_events, read_document_events
 from sdf_pipeline.update_steps import (
-    Accepted, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, Removed, WhatAFailedDocumentDoes)
+    Accepted, CorpusStep, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, Removed, WhatAFailedDocumentDoes)
 
 
 @dataclass
@@ -136,3 +136,30 @@ class StepRunner:
             raise SystemExit(
                 f"{step.step_name}: {len(result.failed_document_ids)} document(s) failed; fix and --resume.")
         return result
+
+
+def run_corpus_step(step: CorpusStep, documents: list, event_log: DocumentEventLog) -> dict:
+    """Apply a corpus step (no model call) and record its outcomes: {document id: StepOutcome}.
+
+    The step runs every time (it is deterministic and cheap). An event is appended for a document
+    only when its outcome differs from the latest recorded one for this step, so a resume that
+    changes nothing appends nothing and a new threshold appends exactly the changed outcomes.
+    """
+    outcomes = step.apply(documents)
+    folded = fold_document_events(read_document_events(event_log.path))
+    for document_id, outcome in outcomes.items():
+        if isinstance(outcome, Accepted):
+            outcome_name, detail, latest = "accepted", {"update": outcome.update}, ("accepted", outcome.update)
+        elif isinstance(outcome, Removed):
+            outcome_name = "removed"
+            detail = {"reason_code": outcome.reason_code, "detail": outcome.detail}
+            latest = ("removed", {"reason_code": outcome.reason_code, "detail": outcome.detail})
+        else:
+            raise TypeError(f"{step.step_name}: a corpus step returned {type(outcome).__name__} for {document_id}")
+        recorded = folded.get(document_id)
+        if recorded is not None and recorded.latest_outcome_by_step.get(step.step_name) == latest:
+            continue
+        event_log.append_outcome_event(
+            document_id=document_id, step_name=step.step_name, outcome=outcome_name,
+            request_hash=None, stage=None, detail=detail)
+    return outcomes

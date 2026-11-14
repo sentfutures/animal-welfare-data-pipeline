@@ -67,9 +67,10 @@ class Accepted:
 
 @dataclass(frozen=True)
 class Removed:
-    """The document leaves the pipeline."""
+    """The document leaves the pipeline. ``detail`` is a short string, or a JSON-safe dict when the
+    step has structured facts to keep (the near-duplicate cull's kept document and similarity)."""
     reason_code: str
-    detail: str
+    detail: object
 
 
 @dataclass(frozen=True)
