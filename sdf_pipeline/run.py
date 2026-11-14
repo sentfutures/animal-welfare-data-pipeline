@@ -50,6 +50,7 @@ from sdf_pipeline import (
     layer2_draft,
     layer3_rewrite,
     layer4_score,
+    seeding,
 )
 
 
@@ -57,13 +58,37 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Run the SDF matrix pipeline.")
     parser.add_argument("--config", default="config.yaml")
     parser.add_argument("--resume", action="store_true", help="Resume from checkpoints.")
-    parser.add_argument("--layer", type=int, default=1,
-                        help="Start from this layer (1-4: plan, draft, rewrite, score).")
+    parser.add_argument("--layer", type=int, default=None,
+                        help="Start from this layer (1-4: plan, draft, rewrite, score). Default 1.")
     parser.add_argument("--label", default="dev", help="Run label, e.g. dev or full-scale.")
     parser.add_argument("--run-id", default=None, help="Run to resume (with --resume; defaults to latest).")
+    parser.add_argument("--seed-from", default=None, metavar="RUN",
+                        help="Start a NEW run from a chosen step of this earlier run (a run id, or a run folder). "
+                             "Needs --from-step.")
+    parser.add_argument("--from-step", default=None,
+                        help="With --seed-from: the step to start at (" + ", ".join(seeding.SEEDABLE_STEPS) + ").")
+    parser.add_argument("--document-ids", default=None,
+                        help="With --seed-from: comma-separated document ids to seed (default: every document the step can read).")
+    parser.add_argument("--use-current-prompts", action="store_true",
+                        help="With --seed-from: run on this checkout's current prompts and constitution instead of the "
+                             "source run's frozen inputs.")
+    parser.add_argument("--revision-override-file", default=None, type=Path,
+                        help="With --seed-from at critique or revise: a JSON file mapping document ids (or \"*\") to "
+                             "revision records ({\"cards\": {...}}) written into the seeded draft records.")
     add_api_key_source_flags(parser)
     args = parser.parse_args()
     apply_api_key_source_flags(args)
+
+    seeding_requested = args.seed_from is not None
+    if seeding_requested and (args.resume or args.layer is not None or args.run_id):
+        parser.error("--seed-from starts a new run at --from-step; it cannot be combined with --resume, --layer or --run-id.")
+    if seeding_requested and not args.from_step:
+        parser.error("--seed-from needs --from-step.")
+    if not seeding_requested and (args.from_step or args.document_ids or args.use_current_prompts
+                                  or args.revision_override_file):
+        parser.error("--from-step, --document-ids, --use-current-prompts and --revision-override-file need --seed-from.")
+    if args.layer is None:
+        args.layer = 1
 
     if not 1 <= args.layer <= 4:
         parser.error(
@@ -79,7 +104,24 @@ def main() -> None:
     outputs_root = Path(os.environ.get("PIPELINE_OUTPUT_ROOT", root / "outputs"))
     runs_root = outputs_root / "sdf" / "runs"
 
-    if args.resume:
+    start_layer = args.layer
+    if seeding_requested:
+        seeded_run = seeding.seed_run_from_chosen_step(
+            config=config,
+            source_run=seeding.resolve_source_run(args.seed_from, runs_root),
+            from_step=args.from_step,
+            document_ids=[d.strip() for d in args.document_ids.split(",") if d.strip()] if args.document_ids else None,
+            runs_root=runs_root,
+            label=args.label,
+            repository_root=root,
+            use_current_prompts=args.use_current_prompts,
+            revision_override_path=args.revision_override_file,
+        )
+        run_dir = seeded_run.run_directory
+        start_layer = seeded_run.start_layer
+        print(f"Seeded {run_dir.name} from {args.seed_from} at step {args.from_step} "
+              f"with {len(seeded_run.document_ids)} document(s); starting at layer {start_layer}")
+    elif args.resume:
         run_dir = utils.resolve_run_dir(runs_root, args.run_id)
         utils.warn_if_backend_changed(run_dir, config)
     else:
@@ -112,8 +154,6 @@ def main() -> None:
     final_dir = run_dir / "final"
     for d in [plan_dir, *layer_dirs.values(), final_dir]:
         utils.ensure_dir(d)
-
-    start_layer = args.layer
 
     print(f"=== SDF Matrix Pipeline — run {run_dir.name} ===")
     print(f"Outputs: {run_dir}")
