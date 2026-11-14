@@ -16,7 +16,7 @@ from sdf_pipeline.step_runner import send_model_request
 from sdf_pipeline.update_steps import Accepted, Failed, FailureKind, Removed, WhatAFailedDocumentDoes
 from sdf_step_and_command_line_test_helpers import reply
 from shared import api, openai_api, utils
-from test_layer1_description_rewrite import answer, make_plans
+from sdf_description_rewrite_test_builders import answer, make_plans
 
 CLAUDE_MODEL = "claude-sonnet-5"
 OPENAI_MODEL = "gpt-6.1-sol"

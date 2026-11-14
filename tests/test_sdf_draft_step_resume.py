@@ -9,7 +9,7 @@ import pytest
 from sdf_pipeline import layer2_draft
 from sdf_pipeline.document_event_log import read_document_events
 from shared import utils
-from test_sdf_layers import make_plan
+from sdf_plan_draft_rewrite_and_score_test_builders import make_plan
 
 
 def plans_for(*ids):

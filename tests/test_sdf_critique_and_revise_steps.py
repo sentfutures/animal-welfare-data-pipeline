@@ -15,7 +15,7 @@ from sdf_pipeline.layer3_rewrite import (
 from sdf_pipeline.update_steps import Accepted, Failed, FailureKind
 from sdf_step_and_command_line_test_helpers import reply
 from shared import utils
-from test_sdf_layers import make_draft, single_call_config, split_config
+from sdf_plan_draft_rewrite_and_score_test_builders import make_draft, single_call_config, split_config
 
 GOOD_REVISE = "<improved_document>Better.</improved_document>"
 GOOD_CRITIQUE = "<review>Problem: the voice is flat.</review>"

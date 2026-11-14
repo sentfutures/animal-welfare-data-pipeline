@@ -10,11 +10,11 @@ import pytest
 from sdf_pipeline import layer1_description_rewrite as rewrite
 from sdf_pipeline import layer1_screen as screen
 from sdf_pipeline import layer1_select_considerations as select
-from test_layer1_description_rewrite import answer as rewrite_answer
-from test_layer1_description_rewrite import make_plans as make_rewrite_plans
-from test_layer1_screen import no_removals
-from test_layer1_select_considerations import make_plans as make_select_plans
-from test_layer1_select_considerations import score_everything_five
+from sdf_consideration_selection_test_builders import make_plans as make_select_plans
+from sdf_consideration_selection_test_builders import score_everything_five
+from sdf_description_rewrite_test_builders import answer as rewrite_answer
+from sdf_description_rewrite_test_builders import make_plans as make_rewrite_plans
+from sdf_screen_test_builders import no_removals
 
 
 def stub_and_runner_for_screen(config, prompts, stub_claude):

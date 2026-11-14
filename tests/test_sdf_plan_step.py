@@ -7,7 +7,7 @@ from sdf_pipeline import layer1_plan
 from sdf_pipeline.document_event_log import read_document_events
 from sdf_pipeline.update_steps import Accepted, Failed, FailureKind, ModelReply, Removed
 from shared import utils
-from test_sdf_layers import plan_reply
+from sdf_plan_draft_rewrite_and_score_test_builders import plan_reply
 
 
 @pytest.fixture
