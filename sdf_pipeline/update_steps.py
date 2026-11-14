@@ -101,7 +101,8 @@ class StepPolicy:
 
     ``failure_kinds_counting_towards_the_systemic_stop``: the run stops when every pending call
     failed with a kind in this set. ``maximum_attempts_in_one_run`` is 1 except consideration
-    scoring (a later work item).
+    scoring: the runner sends the same request again after an ``UNUSABLE_ANSWER`` failure, up to
+    that many attempts in one run. A thrown call is never retried within the run.
     """
     maximum_attempts_in_one_run: int = 1
     failure_kinds_counting_towards_the_systemic_stop: frozenset = frozenset({FailureKind.THROWN_CALL})
@@ -123,6 +124,13 @@ class DocumentStep(ABC):
     # When True, an error raised while building the request is a thrown call (a ``Failed``
     # outcome) instead of ending the run. The description rewrite always treated it so.
     build_request_errors_count_as_thrown_calls: bool = False
+    # When True, the runner writes each outcome's stage file record, checkpoint mark, failure record
+    # and progress line from the worker, under a lock, the moment its answer arrives (completion
+    # order), instead of on the calling thread in input order. For a step whose stage file is its
+    # only checkpoint (consideration scoring): a crash must not lose finished paid answers.
+    writes_stage_file_as_replies_arrive: bool = False
+    # A second stage file for failed documents: the runner appends ``failure_record`` to it.
+    failure_file_name: str | None = None
 
     @abstractmethod
     def document_id_of(self, document) -> str: ...
@@ -149,6 +157,15 @@ class DocumentStep(ABC):
         removes a document (None writes nothing and marks nothing). The plan step uses it: an
         INCOHERENT plan is a finished plan whose record says so."""
         return None
+
+    def failure_record(self, document, failed: "Failed") -> dict | None:
+        """The record appended to ``failure_file_name`` (in the stage folder) when a document's
+        final outcome is a failure; None writes nothing."""
+        return None
+
+    def failure_when_no_attempt_is_allowed(self, document) -> "Failed":
+        """The failure for a document when the policy allows no attempt at all (zero calls)."""
+        return Failed(FailureKind.UNUSABLE_ANSWER, "no attempt allowed")
 
     def after_documents_are_processed(self, run_result) -> None:
         """Called once after every pending document is processed and the systemic stop check has
