@@ -86,12 +86,12 @@ def sdf_stage_dir_of_existing_run(run_dir: str | Path, layer: int) -> Path:
     return sdf_stage_dir(run_dir, layer)
 
 
-_SDF_TEMPLATES = {1: "layer1.txt", 2: "layer2.txt", 3: "layer3.txt", 4: "layer4.txt"}
+_SDF_TEMPLATES = {1: "layer1.txt", 2: "layer2.txt", 4: "layer4.txt"}
 
 
 def sdf_template_path(prompts_dir: str | Path, layer: int) -> Path:
     """One layer's prompt template (a run's frozen snapshot or ``prompts/sdf``). The template file names do not
-    change with the layers; ``layer`` is the number in their names (1 deal, 2 draft, 3 critique and revise, 4 score)."""
+    change with the layers; ``layer`` is the number in their names (1 deal, 2 draft, 4 score; layer 3's templates are named by the critique and revise steps)."""
     return Path(prompts_dir) / _SDF_TEMPLATES[layer]
 
 

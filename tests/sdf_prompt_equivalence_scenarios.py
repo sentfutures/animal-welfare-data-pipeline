@@ -417,13 +417,6 @@ def _configuration_scenarios() -> list[Scenario]:
             invocations=(Invocation(),), reply_behaviour=small_scores,
             sdf_config_overrides={"n_prompts": 3}, sdf_config_keys_to_remove=models_removed,
             top_level_config_overrides={"model": "claude-haiku-4-5", "temperature": 0.5}),
-        Scenario(
-            name="temperature_kept_on_every_stage_with_a_one_call_revision",
-            description="As above with sdf.revision.split false: the single-call revision keeps the temperature.",
-            invocations=(Invocation(),), reply_behaviour=small_scores,
-            sdf_config_overrides={"n_prompts": 3, "revision": {"split": False, "style_mode": "axes", "use_length": True}},
-            sdf_config_keys_to_remove=models_removed,
-            top_level_config_overrides={"model": "claude-haiku-4-5", "temperature": 0.5}),
     ]
 
 
@@ -468,8 +461,8 @@ def all_scenarios() -> list[Scenario]:
                         {"description_rewrite_enabled": False}),
         _small_scenario("consideration_selection_disabled", "sdf.select_enabled false: no considerations.",
                         {"select_enabled": False}),
-        _small_scenario("revision_in_one_call", "sdf.revision.split false: the single-call layer 3.",
-                        {"revision": {"split": False, "style_mode": "axes", "use_length": True}}),
+        _small_scenario("small_run_with_the_default_settings", "Three documents with the fixture's default settings (the audit recordings' current-layout run).",
+                        {"revision": {"style_mode": "axes", "use_length": True}}),
         _small_scenario("description_rewrite_on_a_claude_model",
                         "The description rewrite routed to a Claude model through call_claude.",
                         {"description_rewrite_model": "claude-sonnet-5"}),

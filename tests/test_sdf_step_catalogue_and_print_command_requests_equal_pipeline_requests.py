@@ -15,7 +15,7 @@ from sdf_pipeline.layer1_deal_variables_and_screen import shared_by_this_layers_
 from sdf_pipeline import pipeline_steps
 from sdf_pipeline import start_a_run_from_an_earlier_runs_step as seeding
 from sdf_pipeline.layer3_consideration_scoring_and_selection import consideration_scoring, consideration_selection
-from sdf_pipeline.layer4_draft_critique_and_revise import critique, critique_and_revise_in_one_call, draft, revise
+from sdf_pipeline.layer4_draft_critique_and_revise import critique, draft, revise
 from sdf_pipeline.layer1_deal_variables_and_screen import deal_variables, redeal, screen
 from sdf_pipeline.layer2_description_write_and_description_rewrite import description_rewrite, description_write
 from sdf_pipeline.layer5_score_and_final_selection import near_duplicate_removal, score, score_gate
@@ -33,7 +33,7 @@ ENTRIES = pipeline_steps.PIPELINE_STEPS
 
 # ------------------------------------------------------------------ the catalogue against the code
 
-def test_the_catalogue_lists_every_pipeline_step_in_order_and_the_single_call_step():
+def test_the_catalogue_lists_every_pipeline_step_in_order():
     names = [entry.name for entry in ENTRIES]
     assert len(set(names)) == len(names)
     for layout, layer_numbers in ((sdf_run_layouts.FIVE_NAMED_LAYERS, {1, 2, 3, 4, 5}),
@@ -47,8 +47,7 @@ def test_stage_tags_and_step_names_equal_the_step_files():
                     "score_gate": score_gate, "near_duplicate_removal": near_duplicate_removal}
     step_modules = {"screen": screen, "description_write": description_write, "description_rewrite": description_rewrite,
                     "consideration_scoring": consideration_scoring, "draft": draft, "critique": critique,
-                    "revise": revise, "critique_and_revise_in_one_call": critique_and_revise_in_one_call,
-                    "score": score}
+                    "revise": revise, "score": score}
     for name, module in step_modules.items():
         assert module.STEP.name == name
         assert pipeline_steps.entry_named(name) is module.STEP
@@ -95,9 +94,7 @@ def test_seeding_lists_the_steps_in_pipeline_order_and_names_the_reason_for_the_
     assert list(seeding.SEEDABLE_STEPS) == [
         "description_write", "description_rewrite", "consideration_scoring", "draft", "critique", "revise", "score"]
     assert set(seeding.UNSEEDABLE_STEPS) == {
-        "deal_variables", "screen", "redeal", "consideration_selection", "critique_and_revise_in_one_call", "score_gate", "near_duplicate_removal"}
-    assert "critique_and_revise_in_one_call" in seeding.UNSEEDABLE_STEPS and "critique" in seeding.UNSEEDABLE_STEPS[
-        "critique_and_revise_in_one_call"]
+        "deal_variables", "screen", "redeal", "consideration_selection", "score_gate", "near_duplicate_removal"}
 
 
 def test_the_print_command_stage_names_are_the_catalogue_s():
@@ -124,11 +121,10 @@ def test_a_run_whose_snapshot_lacks_a_template_of_an_active_step_is_refused_befo
 # ------------------------------------------------------------------ print command against the pipeline's own requests
 
 SCENARIOS = ["temperature_kept_on_every_stage_with_a_two_call_revision",
-             "temperature_kept_on_every_stage_with_a_one_call_revision",
              "minimal_config_with_openai_rewrite_and_adaptive_thinking_models"]
 STAGE_OF_TAG = {"layer1_screen": "screen", "layer2_description_write": "description_write", "layer2_description_rewrite": "description_rewrite",
                 "layer3_consideration_scoring": "consideration_scoring", "layer4_draft": "draft", "layer4_critique": "critique",
-                "layer4_revise": "revise", "layer4_critique_and_revise_in_one_call": "critique_and_revise_in_one_call", "layer5_score": "score"}
+                "layer4_revise": "revise", "layer5_score": "score"}
 
 
 @pytest.fixture(scope="module", params=SCENARIOS)
@@ -176,8 +172,7 @@ def test_the_print_command_builds_the_request_the_pipeline_sent_for_every_stage_
             recorded_schema = ((wire.get("text") or {}).get("format") or {}).get("schema")
         assert request.json_schema == recorded_schema, (stage, document_id)
         compared_stages.add(stage)
-    assert compared_stages >= {"description_write", "description_rewrite", "consideration_scoring", "draft", "score"}
-    assert ("critique_and_revise_in_one_call" in compared_stages) != ("critique" in compared_stages)
+    assert compared_stages >= {"description_write", "description_rewrite", "consideration_scoring", "draft", "critique", "revise", "score"}
 
 
 # ------------------------------------------------------------------ refusal messages worded from the catalogue
@@ -192,11 +187,9 @@ def _seed_refusal(from_step: str, config: dict) -> str:
 
 def test_seeding_refusals_name_the_step_the_reason_and_what_to_do_instead():
     config = utils.load_config(str(REPOSITORY_ROOT / "config.yaml"))
-    single_call = {**config, "sdf": {**config["sdf"], "revision": {"split": False}}}
-    revise = _seed_refusal("revise", single_call)
-    assert "step 'revise' cannot be seeded" in revise and "Seedable steps: description_write, description_rewrite" in revise
-    combined = _seed_refusal("critique_and_revise_in_one_call", config)
-    assert "step 'critique_and_revise_in_one_call' cannot be seeded; seed from 'critique' instead" in combined
+    consideration_selection = _seed_refusal("consideration_selection", config)
+    assert "step 'consideration_selection' cannot be seeded; seed from 'consideration_scoring' instead" in consideration_selection
+    assert "Seedable steps: description_write, description_rewrite" in _seed_refusal("score_gate", config)
     assert "unknown step 'no_such_step'" in _seed_refusal("no_such_step", config)
 
 
@@ -208,13 +201,6 @@ def test_print_command_refusals_name_the_stage_the_reason_and_the_input(tmp_path
         command.build_full_request(run_directory, switched_off, "description_rewrite", "matrix_000000")
     with pytest.raises(command.RequestCannotBeBuilt, match="consideration_scoring step does not run.*sdf.select_enabled: false"):
         command.build_full_request(run_directory, switched_off, "consideration_scoring", "matrix_000000")
-    one_call = {**config, "sdf": {**config["sdf"], "revision": {**config["sdf"].get("revision", {}), "split": False}}}
-    for stage in ("critique", "revise"):
-        with pytest.raises(command.RequestCannotBeBuilt, match=rf"{stage} step does not run.*sdf.revision.split: false"):
-            command.build_full_request(run_directory, one_call, stage, "matrix_000000")
-    two_calls = {**config, "sdf": {**config["sdf"], "revision": {**config["sdf"].get("revision", {}), "split": True}}}
-    with pytest.raises(command.RequestCannotBeBuilt, match="critique_and_revise_in_one_call step does not run.*sdf.revision.split is true"):
-        command.build_full_request(run_directory, two_calls, "critique_and_revise_in_one_call", "matrix_000000")
     screen_off = {**config, "sdf": {**config["sdf"], "screen_enabled": False}}
     with pytest.raises(command.RequestCannotBeBuilt, match=r"screen step does not run.*sdf.screen_enabled: false"):
         command.build_full_request(run_directory, screen_off, "screen", "matrix_000000")

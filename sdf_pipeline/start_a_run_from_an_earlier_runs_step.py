@@ -31,8 +31,7 @@ UNSEEDABLE_STEPS = {
 
 
 # Every stage file copied when seeding, with the step that writes it, in pipeline order. A file is copied
-# when the chosen step comes after the step that writes it. The single-call step writes the file the revise
-# does, so each file is listed once, under the first step that writes it.
+# when the chosen step comes after the step that writes it. Each file is listed once, under the first step that writes it.
 def _stage_files_in_pipeline_order() -> list:
     listed, seen = [], set()
     for step in pipeline_steps.PIPELINE_STEPS:
@@ -118,8 +117,6 @@ def seed_run_from_chosen_step(
     if from_step not in SEEDABLE_STEPS:
         _refuse(f"unknown step {from_step!r}. Seedable steps: {', '.join(SEEDABLE_STEPS)}")
     step = SEEDABLE_STEPS[from_step]
-    if from_step == "revise" and (reason_inactive := step.reason_inactive(config, None)):
-        _refuse(f"step {from_step!r} cannot be seeded: {reason_inactive}. Seedable steps: {', '.join(SEEDABLE_STEPS)}")
     source_run = Path(source_run)
     try:
         layout = sdf_run_layouts.detect_run_layout(source_run)

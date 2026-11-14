@@ -524,8 +524,8 @@ class TestSdfStageFile:
 
 class TestSdfTemplatePath:
     def test_the_current_template_names_are_returned_without_looking_at_the_folder(self, tmp_path):
-        assert [utils.sdf_template_path(tmp_path, n).name for n in (1, 2, 3, 4)] == [
-            "layer1.txt", "layer2.txt", "layer3.txt", "layer4.txt"]
+        assert [utils.sdf_template_path(tmp_path, n).name for n in (1, 2, 4)] == [
+            "layer1.txt", "layer2.txt", "layer4.txt"]
 
     def test_a_pre_renumber_snapshot_is_not_given_its_old_names(self, tmp_path):
         (tmp_path / "layers1-2.txt").write_text("x", encoding="utf-8")

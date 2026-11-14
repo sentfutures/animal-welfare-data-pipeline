@@ -19,7 +19,7 @@ from sdf_pipeline.layer4_draft_critique_and_revise import draft as draft_step
 from sdf_pipeline.layer4_draft_critique_and_revise import run_layer as draft_critique_and_revise_layer
 from shared import utils
 from sdf_plan_draft_rewrite_and_score_test_builders import (
-    make_plan, make_draft, split_config, single_call_config,
+    make_plan, make_draft, config_with_revision_settings,
 )
 
 
@@ -67,14 +67,13 @@ class TestCompleteDocumentsAreNotRejectedAsTruncated:
     def test_layer3_rejects_a_truncated_rewrite_and_retries_on_resume(
         self, tiny_config, prompts_sdf, stage_dir, stub_claude
     ):
-        config = single_call_config(tiny_config)
-        stub_claude(lambda user_message, **kw:
-                    ("Problems: none.\n<improved_document>Cut mid-sen", "max_tokens"))
+        config = tiny_config
+        stub_claude(lambda user_message, **kw: "<review>Problem.</review>" if kw.get("stage") == "layer4_critique"
+                    else ("<improved_document>Cut mid-sen", "max_tokens"))
         assert draft_critique_and_revise_layer.run_critique_and_revise(config, prompts_sdf, stage_dir, [make_draft()]) == []
         assert utils.load_jsonl(stage_dir / "rewrites.jsonl") == []
 
-        calls = stub_claude(lambda user_message, **kw:
-                            "r\n<improved_document>Recovered.</improved_document>")
+        calls = stub_claude(lambda user_message, **kw: "<improved_document>Recovered.</improved_document>")
         records = draft_critique_and_revise_layer.run_critique_and_revise(config, prompts_sdf, stage_dir, [make_draft()])
         assert len(calls) == 1
         assert records[0]["content"] == "Recovered."
@@ -108,7 +107,7 @@ class TestLayer3SplitRewrite:
         shutil.copytree(prompts_sdf, snapshot)
         (snapshot / "layer3a_critique.txt").unlink()
         with pytest.raises(SystemExit, match="layer3a_critique.txt"):
-            draft_critique_and_revise_layer.run_critique_and_revise(split_config(tiny_config), snapshot, stage_dir, [make_draft()])
+            draft_critique_and_revise_layer.run_critique_and_revise(config_with_revision_settings(tiny_config), snapshot, stage_dir, [make_draft()])
 
 
 class TestLayer3RevisionDirectives:

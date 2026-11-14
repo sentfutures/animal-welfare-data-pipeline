@@ -23,6 +23,7 @@ FOLDER_KEY_OF_STAGE_FILE = {
 }
 
 # Stage tag of each model-calling step: (four-layer tag, five-layer tag). ``layer1_screen`` is unchanged.
+# The one-call revision's tag stays so the cost logs and ``effort`` settings of runs made with it still read.
 STAGE_TAGS_BY_STEP = {
     "screen": ("layer1_screen", "layer1_screen"),
     "description_write": ("layer1_plan", "layer2_description_write"),
@@ -34,7 +35,7 @@ STAGE_TAGS_BY_STEP = {
     "critique_and_revise_in_one_call": ("layer3_rewrite", "layer4_critique_and_revise_in_one_call"),
     "score": ("layer4_score", "layer5_score"),
 }
-# The name the exit messages of the critique, the revise and the one-call step start with (the layer's name).
+# The name the exit messages of the critique and the revise start with (the layer's name).
 CRITIQUE_AND_REVISE_MESSAGE_LABELS = ("layer3_rewrite", "layer4_draft_critique_and_revise")
 
 

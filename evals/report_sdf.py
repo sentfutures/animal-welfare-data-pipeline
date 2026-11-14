@@ -808,9 +808,10 @@ for c in costs:
     stage_cost[pipeline_steps.canonical_stage_tag(c.get("stage", "?"))] += 1
 A("<section id='method'><h2>How this corpus was produced, and what to distrust</h2>")
 A(table(["stage", "model", "calls logged"],
-        [[esc(k), f"<code>{esc(models[k])}</code>", stage_cost.get(
-            {"plan": "layer2_description_write", "draft": "layer4_draft",
-             "rewrite": "layer4_critique_and_revise_in_one_call", "score": "layer5_score"}[k], 0)]
+        [[esc(k), f"<code>{esc(models[k])}</code>", sum(stage_cost.get(tag, 0) for tag in {
+            "plan": ("layer2_description_write",), "draft": ("layer4_draft",), "score": ("layer5_score",),
+            # a run made with the one-call revision logged its rewrite calls under the third tag
+            "rewrite": ("layer4_critique", "layer4_revise", "layer4_critique_and_revise_in_one_call")}[k])]
          for k in ("plan", "draft", "rewrite", "score")]))
 for para in excerpts.get("method_notes", []):
     A(f"<p>{esc(para)}</p>")

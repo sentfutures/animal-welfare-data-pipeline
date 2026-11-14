@@ -1,6 +1,6 @@
 {
  "format_version": 4,
- "recorded_from": "commit 03f3c3b4bf2ff63769ed097964efe8d45d89d04c on branch HEAD (clean)",
+ "recorded_from": "commit 4f9fbc7be4e335265437523aa484932713813aae on branch HEAD (clean)",
  "regeneration_rule": "The recorded files are rewritten only by `python scripts/regenerate_sdf_prompt_equivalence_recorded_requests.py`, and only when the pull request is meant to change requests: never to make a failing test pass. Regenerate and commit the files in that pull request, and say in its description that requests change and why. A pull request not meant to change them leaves the files alone, so a difference is a bug.",
  "description": "config.yaml exactly as committed except sdf.n_prompts (100 to 12): every stage model, effort and default as the real file has them, nothing else changed.",
  "configs_used_by_invocation": {
@@ -43,7 +43,7 @@
     "score_weights": {"3": 1, "4": 3, "5": 9},
     "extra_consideration_penalty": 2,
     "select_skip_no_stake": true,
-    "revision": {"split": true, "style_mode": "axes", "use_length": true}
+    "revision": {"style_mode": "axes", "use_length": true}
    },
    "language_distribution": {"en": 1.0}
   }

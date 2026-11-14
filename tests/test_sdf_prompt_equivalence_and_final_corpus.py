@@ -250,9 +250,8 @@ def test_code_defaults_are_used_when_the_config_names_nothing(outcome_of):
                 "NO real welfare stake" in r["wire"]["messages"][0]["content"]]
 
 
-@pytest.mark.parametrize("name", ["temperature_kept_on_every_stage_with_a_two_call_revision",
-                                  "temperature_kept_on_every_stage_with_a_one_call_revision"])
-def test_every_claude_request_carries_the_global_temperature(name, outcome_of):
+def test_every_claude_request_carries_the_global_temperature(outcome_of):
+    name = "temperature_kept_on_every_stage_with_a_two_call_revision"
     claude_requests = [r for r in outcome_of(name).recorder.records if r["route"] == "anthropic"]
     assert claude_requests and {r["wire"].get("temperature") for r in claude_requests} == {0.5}
     assert {r["stage"] for r in claude_requests} >= {"layer2_description_rewrite", "layer3_consideration_scoring", "layer4_draft"}
@@ -266,12 +265,7 @@ def test_every_claude_request_carries_the_global_temperature(name, outcome_of):
 def test_each_disabled_stage_makes_no_calls_while_the_others_run(name, stage_without_calls, outcome_of):
     stages_called = {r["stage"] for r in outcome_of(name).recorder.records}
     assert stage_without_calls not in stages_called
-    assert stages_called == set(support.STAGE_TAGS_OF_SDF_PIPELINE) - {stage_without_calls, "layer4_critique_and_revise_in_one_call"}
-
-
-def test_single_call_revision_uses_the_one_call_tag_only(outcome_of):
-    stages_called = {r["stage"] for r in outcome_of("revision_in_one_call").recorder.records}
-    assert "layer4_critique_and_revise_in_one_call" in stages_called and not stages_called & {"layer4_critique", "layer4_revise"}
+    assert stages_called == set(support.STAGE_TAGS_OF_SDF_PIPELINE) - {stage_without_calls}
 
 
 def test_description_rewrite_routes(outcome_of):

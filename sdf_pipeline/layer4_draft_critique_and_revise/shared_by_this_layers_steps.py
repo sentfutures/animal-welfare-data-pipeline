@@ -1,5 +1,5 @@
-"""Layer 4: what the critique, revise and one-call steps share: the prompt renderer (every value about the document comes from the draft record),
-the rewrite record and progress line, reading a rewrite reply, ``revision_is_split`` and the layer's name in exit messages."""
+"""Layer 4: what the critique and revise steps share: the prompt renderer (every value about the document comes from the draft record),
+the rewrite record and progress line, reading a rewrite reply and the layer's name in exit messages."""
 
 import re
 from dataclasses import dataclass
@@ -27,7 +27,7 @@ REVISE_TEMPLATE = "layer3b_revise.txt"
 
 
 def layer_name_in_messages() -> str:
-    """What the critique, the revise and the one-call step's exit messages start with: the layer's name in the
+    """What the critique and the revise steps' exit messages start with: the layer's name in the
     run's layout (``layer3_rewrite`` in a four-layer run)."""
     return sdf_run_layouts.active_layout().critique_and_revise_message_label
 
@@ -36,11 +36,7 @@ def require_two_call_templates(prompts_dir: Path) -> None:
     for name in (CRITIQUE_TEMPLATE, REVISE_TEMPLATE):
         if not (prompts_dir / name).exists():
             raise SystemExit(
-                f"{layer_name_in_messages()}: {name} is missing from {prompts_dir}. A run "
-                "snapshots its own templates at creation, so a run created before "
-                "the two-call layer 3 existed must be resumed with "
-                "sdf.revision.split: false."
-            )
+                f"{layer_name_in_messages()}: {name} is missing from {prompts_dir}.")
 
 
 @dataclass(frozen=True)
@@ -132,11 +128,6 @@ def interpret_rewrite_reply(reply: ModelReply):
     if not content:
         return Failed(FailureKind.UNUSABLE_ANSWER, "no <improved_document> tags")
     return content, reply.text[:m.start()].strip()
-
-
-def revision_is_split(config: dict) -> bool:
-    """True when the critique and the revise are two calls (the default); False for the single combined call."""
-    return bool((config["sdf"].get("revision") or {}).get("split", True))
 
 
 def load_critiques_by_document_id(output_dir: Path) -> dict:

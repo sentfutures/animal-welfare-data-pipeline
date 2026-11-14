@@ -86,7 +86,7 @@ def outputs_root(tmp_path, monkeypatch):
 @pytest.fixture
 def config_file(tiny_config, tmp_path):
     tiny_config["sdf"]["n_prompts"] = DOCUMENT_COUNT
-    tiny_config["sdf"]["revision"] = {"split": True, "style_mode": "axes", "use_length": True}
+    tiny_config["sdf"]["revision"] = {"style_mode": "axes", "use_length": True}
     path = tmp_path / "config.yaml"
     path.write_text(yaml.safe_dump(tiny_config))
     return path
@@ -640,7 +640,7 @@ def test_a_value_with_a_separator_is_a_path_not_a_run_id(tmp_path, monkeypatch):
     assert "no run folder at missing/run_a" in str(caught.value)
 
 
-def test_seeding_at_revise_under_the_single_call_configuration_is_refused_saying_to_seed_at_critique(
+def test_seeding_under_a_configuration_with_the_removed_one_call_revision_is_refused_at_start_up(
         source_run, tiny_config, outputs_root, stub_claude, monkeypatch, tmp_path):
     source_directory, _ = source_run
     tiny_config["sdf"]["revision"] = {"split": False}
@@ -651,8 +651,7 @@ def test_seeding_at_revise_under_the_single_call_configuration_is_refused_saying
     with pytest.raises(SystemExit) as caught:
         run_main(monkeypatch, one_call_config, "--seed-from", source_directory.name, "--from-step", "revise")
     message = str(caught.value)
-    assert "revises in one call together with the critique, so there is no separate revise step; seed from 'critique' instead" in message
-    assert "sdf.revision.split: false" in message
+    assert "one-call revision was removed" in message and "sdf.revision.split: false" in message
     assert calls == [] and run_names(outputs_root) == before
 
 

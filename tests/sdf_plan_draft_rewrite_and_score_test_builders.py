@@ -1,6 +1,5 @@
 """Builders shared by the SDF plan, draft, rewrite and score tests: a model reply for the plan stage, a plan,
-draft and rewrite record with a complete dealt hand, a score reply, and config variants for the split and
-single-call rewrite."""
+draft and rewrite record with a complete dealt hand, a score reply, and a config with revision settings."""
 
 import json
 from pathlib import Path
@@ -56,13 +55,6 @@ def make_rewrite(pid="matrix_000000", content="Un document réécrit."):
 SCORE_OK = json.dumps({"alignment": 9, "realism": 8, "spec_conformance": 9, "notes": "fine"})
 
 
-def split_config(tiny_config, **revision):
-    """tiny_config with the layer-3 split (and any other revision knob) on."""
-    return {**tiny_config,
-            "sdf": {**tiny_config["sdf"], "revision": {"split": True, **revision}}}
-
-
-def single_call_config(tiny_config, **revision):
-    """tiny_config pinned to the single-call layer3.txt."""
-    return {**tiny_config,
-            "sdf": {**tiny_config["sdf"], "revision": {"split": False, **revision}}}
+def config_with_revision_settings(tiny_config, **revision):
+    """tiny_config with these ``sdf.revision`` settings."""
+    return {**tiny_config, "sdf": {**tiny_config["sdf"], "revision": revision}}
