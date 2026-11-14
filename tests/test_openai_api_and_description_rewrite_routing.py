@@ -6,8 +6,8 @@ import json
 
 import pytest
 
-from sdf_pipeline import layer1_description_rewrite as rewrite
-from sdf_pipeline.steps import description_rewrite as description_rewrite_step
+from sdf_pipeline.layer2_plan_and_description_rewrite import description_rewrite as rewrite
+from sdf_pipeline.layer2_plan_and_description_rewrite import description_rewrite as description_rewrite_step
 from shared import api, openai_api, utils
 
 ANSWER = json.dumps({

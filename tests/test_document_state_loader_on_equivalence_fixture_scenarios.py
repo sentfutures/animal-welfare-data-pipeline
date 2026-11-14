@@ -18,11 +18,11 @@ import pytest
 
 import sdf_prompt_equivalence_fixture_support as support
 import sdf_prompt_equivalence_scenarios as scenarios
-from sdf_pipeline.document_state import (
+from sdf_pipeline.shared_step_machinery.document_state import (
     DescriptionRewriteVerdict, DescriptionVersionKind, DocumentOutcome, PipelineStep, RemovalReasonCode,
     RunLayout, TextVersionKind)
-from sdf_pipeline.document_state_final_corpus import derive_final_corpus_records
-from sdf_pipeline.document_state_loader import load_document_states_with_run_notes
+from sdf_pipeline.shared_step_machinery.document_state_final_corpus import derive_final_corpus_records
+from sdf_pipeline.shared_step_machinery.document_state_loader import load_document_states_with_run_notes
 from shared import utils
 
 SCENARIO_NAMES = [scenario.name for scenario in scenarios.all_scenarios()]

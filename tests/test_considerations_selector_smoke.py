@@ -21,8 +21,8 @@ import pytest
 import yaml
 
 import sdf_pipeline.run as sdf_run
-from sdf_pipeline import layer1_select_considerations as select
-from sdf_pipeline.considerations_catalog import load_considerations
+from sdf_pipeline.layer3_consideration_scoring_and_selection import run_layer as select
+from sdf_pipeline.shared_step_machinery.considerations_catalog import load_considerations
 from shared import utils
 from sdf_step_and_command_line_test_helpers import run_main as run_pipeline_main
 

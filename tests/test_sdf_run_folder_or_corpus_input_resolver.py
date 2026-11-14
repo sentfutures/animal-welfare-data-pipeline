@@ -3,7 +3,7 @@ file, the run folder and the folder an audit's ``audit/`` goes in, and the two e
 
 import pytest
 
-from sdf_pipeline.document_state_final_corpus import resolve_sdf_input, run_directory_of_corpus_file
+from sdf_pipeline.shared_step_machinery.document_state_final_corpus import resolve_sdf_input, run_directory_of_corpus_file
 
 
 def test_a_run_folder_names_its_final_corpus_itself_and_its_audit_folder(tmp_path):

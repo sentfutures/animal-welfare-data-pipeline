@@ -15,10 +15,10 @@ import json
 import pytest
 
 from evals import audit_sdf
-from sdf_pipeline import compose_prompts as cp
-from sdf_pipeline import layer1_select_considerations as select
-from sdf_pipeline import layer2_draft
-from sdf_pipeline.considerations_catalog import load_considerations
+from sdf_pipeline.shared_step_machinery import compose_prompts as cp
+from sdf_pipeline.layer3_consideration_scoring_and_selection import run_layer as select
+from sdf_pipeline.layer4_draft_critique_and_revise import draft as draft_step
+from sdf_pipeline.shared_step_machinery.considerations_catalog import load_considerations
 from shared import utils
 from sdf_consideration_selection_test_builders import (
     DIGITAL_CATEGORY, small_prompts, no_stake_resolution, make_plans, offered_in, answer_with, score_everything_five, rows_of,
@@ -407,7 +407,7 @@ def draft_prompt_for(config, prompts_dir, tmp_path, stub_claude, plan):
     config["workers"] = 1
     output_dir = tmp_path / f"draft_{len(list(tmp_path.iterdir()))}"
     output_dir.mkdir()
-    drafts = layer2_draft.run(config, prompts_dir, output_dir, [plan])
+    drafts = draft_step.run(config, prompts_dir, output_dir, [plan])
     return calls[0], drafts
 
 
@@ -440,21 +440,22 @@ def test_a_document_with_picks_gets_its_spec_in_the_draft_prompt_and_records(tin
 
 
 def test_the_considerations_spec_survives_onto_the_draft_rewrite_and_final_records(tiny_config, prompts_sdf, tmp_path, stub_claude):
-    from sdf_pipeline import layer3_rewrite, layer4_score
+    from sdf_pipeline.layer4_draft_critique_and_revise import run_layer as draft_critique_and_revise_layer
+    from sdf_pipeline.layer5_score_and_final_selection import run_layer as score_and_final_selection_layer
     spec = "Scope sensitivity (a gloss) — Where it arises here."
     plan = make_plans(1)[0] | {"considerations_spec": spec}
     _, drafts = draft_prompt_for(tiny_config, prompts_sdf, tmp_path, stub_claude, plan)
     stub_claude(lambda user_message, **kw: "Review.\n<improved_document>Better.</improved_document>")
     rewrite_dir = tmp_path / "rewrite"
     rewrite_dir.mkdir()
-    rewrites = layer3_rewrite.run(tiny_config, prompts_sdf, rewrite_dir, drafts)
+    rewrites = draft_critique_and_revise_layer.run_critique_and_revise(tiny_config, prompts_sdf, rewrite_dir, drafts)
     assert rewrites[0]["considerations_spec"] == spec
     stub_claude(lambda user_message, **kw: json.dumps(
         {"alignment": 9, "realism": 9, "spec_conformance": 9, "notes": ""}))
     score_dir, final_dir = tmp_path / "score", tmp_path / "final"
     score_dir.mkdir()
     final_dir.mkdir()
-    final = layer4_score.run(tiny_config, prompts_sdf, score_dir, final_dir, rewrites)
+    final = score_and_final_selection_layer.run(tiny_config, prompts_sdf, score_dir, final_dir, rewrites)
     assert final[0]["considerations_spec"] == spec
     assert utils.load_jsonl(final_dir / "sdf_corpus.jsonl")[0]["considerations_spec"] == spec
 

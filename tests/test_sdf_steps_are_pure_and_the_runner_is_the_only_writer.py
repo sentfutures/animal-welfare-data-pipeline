@@ -4,9 +4,9 @@ writes two records for one outcome (the description rewrite's dealt-value confli
 
 import pytest
 
-from sdf_pipeline import layer1_description_rewrite as rewrite
-from sdf_pipeline.step_runner import StepRunner
-from sdf_pipeline.update_steps import (
+from sdf_pipeline.layer2_plan_and_description_rewrite import description_rewrite as rewrite
+from sdf_pipeline.shared_step_machinery.step_runner import StepRunner
+from sdf_pipeline.shared_step_machinery.update_steps import (
     Accepted, DocumentStep, Failed, FailureKind, ModelReply, OutcomeRecords, StepPolicy, StepProgress)
 from shared import api, utils
 from sdf_description_rewrite_test_builders import answer, make_plans

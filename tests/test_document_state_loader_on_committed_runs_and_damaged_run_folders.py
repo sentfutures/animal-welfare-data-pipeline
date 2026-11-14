@@ -13,9 +13,9 @@ from pathlib import Path
 import pytest
 
 from shared import utils
-from sdf_pipeline.document_state import DocumentOutcome, RemovalReasonCode, RunLayout
-from sdf_pipeline.document_state_final_corpus import derive_final_corpus_records
-from sdf_pipeline.document_state_loader import (
+from sdf_pipeline.shared_step_machinery.document_state import DocumentOutcome, RemovalReasonCode, RunLayout
+from sdf_pipeline.shared_step_machinery.document_state_final_corpus import derive_final_corpus_records
+from sdf_pipeline.shared_step_machinery.document_state_loader import (
     StageFileCorruptError, UnknownRunLayoutError, detect_run_layout, load_document_states,
     load_document_states_with_run_notes)
 

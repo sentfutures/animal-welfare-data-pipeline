@@ -13,8 +13,8 @@ import json
 import pytest
 
 from evals import audit_sdf
-from sdf_pipeline import compose_prompts as cp
-from sdf_pipeline import layer1_description_rewrite as rewrite
+from sdf_pipeline.shared_step_machinery import compose_prompts as cp
+from sdf_pipeline.layer2_plan_and_description_rewrite import description_rewrite as rewrite
 from shared import utils
 from sdf_description_rewrite_test_builders import (
     answer, make_plans,

@@ -509,9 +509,9 @@ def test_document_without_reasoning_featured_renders_with_the_layer_two_fallback
     prompt = prompt_rendering.render_generation_prompt(variables, "doc_from_a_considerations_selector_run")
     assert "{" not in prompt and "}" not in prompt
     assert prompt.endswith("The AI's reasoning features any relevant principles from the constitution.")
-    # the fallback is the one sdf_pipeline/steps/draft.py uses
+    # the fallback is the one sdf_pipeline/layer4_draft_critique_and_revise/draft.py uses
     assert "any relevant principles from the constitution" in (
-        Path(__file__).resolve().parent.parent / "sdf_pipeline" / "steps" / "draft.py").read_text()
+        Path(__file__).resolve().parent.parent / "sdf_pipeline" / "layer4_draft_critique_and_revise" / "draft.py").read_text()
 
 
 def test_document_with_reasoning_featured_renders_unchanged_by_the_fallback():

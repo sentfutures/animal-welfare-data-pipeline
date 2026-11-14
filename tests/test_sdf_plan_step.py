@@ -1,17 +1,17 @@
 """The plan layer as a DocumentStep: interpret on every kind of reply, the request sent, resume
-behaviour, printed lines. ``layer1_plan.run`` keeps its signature and behaviour."""
+behaviour, printed lines. ``plan_step.run`` keeps its signature and behaviour."""
 
 import pytest
 
-from sdf_pipeline import layer1_plan
-from sdf_pipeline.update_steps import Accepted, Failed, FailureKind, ModelReply, Removed, StepProgress
+from sdf_pipeline.layer2_plan_and_description_rewrite import plan as plan_step_module
+from sdf_pipeline.shared_step_machinery.update_steps import Accepted, Failed, FailureKind, ModelReply, Removed, StepProgress
 from shared import utils
 from sdf_plan_draft_rewrite_and_score_test_builders import plan_reply
 
 
 @pytest.fixture
 def plan_step(tiny_config):
-    return layer1_plan.PlanStep(tiny_config)
+    return plan_step_module.PlanStep(tiny_config)
 
 
 PROMPT_RECORD = {"prompt_id": "matrix_000007", "variables": {"tone": "plain"}, "prompt": "PROMPT", "system": "SYS"}
@@ -34,7 +34,7 @@ def test_interpret_an_incoherent_plan_is_a_removal_with_todays_record(plan_step)
     records = plan_step.outcome_records(PROMPT_RECORD, outcome)
     assert records.finishes_the_document
     ((file_name, record),) = records.records
-    assert file_name == layer1_plan.PlanStep.stage_file_name
+    assert file_name == plan_step_module.PlanStep.stage_file_name
     assert record["incoherent"] is True and record["plan"] == reply_text
     assert list(record) == ["prompt_id", "variables", "plan", "description", "incoherent"]
     assert plan_step.progress_line(PROMPT_RECORD, outcome, StepProgress()) == "  Planned matrix_000007 (INCOHERENT)"
@@ -66,17 +66,17 @@ def test_a_thrown_call_prints_the_api_failure_line_and_counts_towards_the_system
         raise RuntimeError("boom")
     stub_claude(always_throws)
     with pytest.raises(SystemExit, match="layer2_plan: every pending API call failed"):
-        layer1_plan.run(tiny_config, prompts_sdf, stage_dir)
+        plan_step_module.run(tiny_config, prompts_sdf, stage_dir)
     assert "API call failed (error: RuntimeError: boom) — will retry on resume" in capsys.readouterr().out
     assert not (stage_dir / "plans.jsonl").exists() or utils.load_jsonl(stage_dir / "plans.jsonl") == []
 
 
 def test_resume_makes_zero_calls_and_changes_no_file(tiny_config, prompts_sdf, stage_dir, stub_claude):
     stub_claude(lambda user_message, **kw: plan_reply(f"Plan {kw['item_id']}."))
-    layer1_plan.run(tiny_config, prompts_sdf, stage_dir)
+    plan_step_module.run(tiny_config, prompts_sdf, stage_dir)
     before = {p.name: p.read_bytes() for p in stage_dir.iterdir()}
     calls = stub_claude([])
-    records = layer1_plan.run(tiny_config, prompts_sdf, stage_dir)
+    records = plan_step_module.run(tiny_config, prompts_sdf, stage_dir)
     assert calls == [] and len(records) == tiny_config["sdf"]["n_prompts"]
     assert {p.name: p.read_bytes() for p in stage_dir.iterdir()} == before
 
@@ -99,7 +99,7 @@ def test_resume_retries_exactly_the_failed_plans_and_keeps_incoherent_ones_done(
         return "no tags", "end_turn"
 
     stub_claude(first_attempt)
-    layer1_plan.run(config, prompts_sdf, stage_dir)
+    plan_step_module.run(config, prompts_sdf, stage_dir)
     ids_by_position = {position: item for item, position in behaviour_by_position.items()}
     printed = capsys.readouterr().out
     assert f"  {ids_by_position[1]}: API call failed (error: RuntimeError: thrown) — will retry on resume" in printed
@@ -114,7 +114,7 @@ def test_resume_retries_exactly_the_failed_plans_and_keeps_incoherent_ones_done(
     assert not any(checkpoint.is_done(ids_by_position[p]) for p in (1, 3, 4))
 
     calls = stub_claude(lambda user_message, **kw: plan_reply(f"Recovered {kw['item_id']}."))
-    records = layer1_plan.run(config, prompts_sdf, stage_dir)
+    records = plan_step_module.run(config, prompts_sdf, stage_dir)
     assert sorted(c["item_id"] for c in calls) == sorted(ids_by_position[p] for p in (1, 3, 4))
     assert len(records) == 5
     assert [r["prompt_id"] for r in utils.load_jsonl(stage_dir / "plans.jsonl")[:2]] == finished

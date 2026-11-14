@@ -2,16 +2,16 @@
 
 Interpretation of each reply shape (accepted, no review tags, unusable, thrown call), the request
 read from the draft record, resume (zero calls for finished work; a failed revise after an accepted
-critique resumes without a new critique call). ``layer3_rewrite.run`` keeps
+critique resumes without a new critique call). ``draft_critique_and_revise_layer.run`` keeps
 its signature and behaviour (scripts import it); test_sdf_layers.py pins the rest of that.
 """
 
 import pytest
 
-from sdf_pipeline import layer3_rewrite
-from sdf_pipeline.layer3_rewrite import (
+from sdf_pipeline.layer4_draft_critique_and_revise import run_layer as draft_critique_and_revise_layer
+from sdf_pipeline.layer4_draft_critique_and_revise.run_layer import (
     CritiqueAndReviseInOneCallStep, CritiqueStep, ReviseStep, RewrittenText)
-from sdf_pipeline.update_steps import Accepted, Failed, FailureKind
+from sdf_pipeline.shared_step_machinery.update_steps import Accepted, Failed, FailureKind
 from sdf_step_and_command_line_test_helpers import reply
 from shared import utils
 from sdf_plan_draft_rewrite_and_score_test_builders import make_draft, single_call_config, split_config
@@ -65,7 +65,7 @@ def test_critique_thrown_call_is_recorded_as_thrown_and_prints_the_old_line(
         raise RuntimeError("down")
     stub_claude(raise_always)
     with pytest.raises(SystemExit, match="systemic"):
-        layer3_rewrite.run(split_config(tiny_config), prompts_sdf, stage_dir, [make_draft()])
+        draft_critique_and_revise_layer.run_critique_and_revise(split_config(tiny_config), prompts_sdf, stage_dir, [make_draft()])
     assert "  matrix_000000: no rewrite (error: RuntimeError: down) — will retry on resume" in capsys.readouterr().out
 
 
@@ -99,7 +99,7 @@ def test_revise_and_combined_thrown_call_is_recorded_as_thrown(tiny_config, prom
     stub_claude(raise_on_revise)
     stage = tmp_path / "layer3"
     with pytest.raises(SystemExit, match="systemic"):
-        layer3_rewrite.run(split_config(tiny_config), prompts_sdf, stage, [make_draft()])
+        draft_critique_and_revise_layer.run_critique_and_revise(split_config(tiny_config), prompts_sdf, stage, [make_draft()])
     assert [r["doc_id"] for r in utils.load_jsonl(stage / "critiques.jsonl")] == ["matrix_000000"]
     assert not (stage / "rewrites.jsonl").exists()
     assert "  matrix_000000: no rewrite (error: RuntimeError: down) — will retry on resume" in capsys.readouterr().out
@@ -107,7 +107,7 @@ def test_revise_and_combined_thrown_call_is_recorded_as_thrown(tiny_config, prom
     stub_claude(raise_on_revise)
     single_stage = tmp_path / "single" / "layer3"
     with pytest.raises(SystemExit, match="systemic"):
-        layer3_rewrite.run(single_call_config(tiny_config), prompts_sdf, single_stage, [make_draft()])
+        draft_critique_and_revise_layer.run_critique_and_revise(single_call_config(tiny_config), prompts_sdf, single_stage, [make_draft()])
 
 
 # ---------------------------------------------------------------- requests
@@ -174,10 +174,10 @@ def test_resume_makes_zero_calls_and_changes_no_file(tiny_config, prompts_sdf, s
     config = split_config(tiny_config)
     drafts = [make_draft("matrix_000000"), make_draft("matrix_000001")]
     stub_claude(dispatch())
-    layer3_rewrite.run(config, prompts_sdf, stage_dir, drafts)
+    draft_critique_and_revise_layer.run_critique_and_revise(config, prompts_sdf, stage_dir, drafts)
     before = {p.name: p.read_bytes() for p in stage_dir.iterdir()}
     calls = stub_claude([])
-    records = layer3_rewrite.run(config, prompts_sdf, stage_dir, drafts)
+    records = draft_critique_and_revise_layer.run_critique_and_revise(config, prompts_sdf, stage_dir, drafts)
     assert calls == [] and [r["doc_id"] for r in records] == ["matrix_000000", "matrix_000001"]
     assert {p.name: p.read_bytes() for p in stage_dir.iterdir()} == before
 
@@ -187,12 +187,12 @@ def test_a_failed_revise_after_an_accepted_critique_resumes_without_a_new_critiq
     config = split_config(tiny_config)
     drafts = [make_draft("matrix_000000"), make_draft("matrix_000001")]
     stub_claude(dispatch(revise="no tags"))
-    assert layer3_rewrite.run(config, prompts_sdf, stage_dir, drafts) == []
+    assert draft_critique_and_revise_layer.run_critique_and_revise(config, prompts_sdf, stage_dir, drafts) == []
     assert [r["doc_id"] for r in utils.load_jsonl(stage_dir / "critiques.jsonl")] == ["matrix_000000", "matrix_000001"]
     assert not (stage_dir / "rewrites.jsonl").exists()
 
     calls = stub_claude(dispatch())
-    records = layer3_rewrite.run(config, prompts_sdf, stage_dir, drafts)
+    records = draft_critique_and_revise_layer.run_critique_and_revise(config, prompts_sdf, stage_dir, drafts)
     assert sorted((c["stage"], c["item_id"]) for c in calls) == [
         ("layer4_revise", "matrix_000000"), ("layer4_revise", "matrix_000001")]
     assert [r["review"] for r in records] == ["Problem: the voice is flat."] * 2
@@ -202,17 +202,17 @@ def test_a_failed_revise_after_an_accepted_critique_resumes_without_a_new_critiq
 def test_a_rewrite_already_on_disk_is_kept_and_costs_no_critique(tiny_config, prompts_sdf, stage_dir, stub_claude):
     drafts = [make_draft("matrix_000000"), make_draft("matrix_000001")]
     stub_claude(lambda user_message, **kw: "r\n" + GOOD_REVISE)
-    layer3_rewrite.run(single_call_config(tiny_config), prompts_sdf, stage_dir, drafts[:1])
+    draft_critique_and_revise_layer.run_critique_and_revise(single_call_config(tiny_config), prompts_sdf, stage_dir, drafts[:1])
     # a single-call run resumed as split: the finished draft has no critique on disk and needs none
     calls = stub_claude(dispatch())
-    records = layer3_rewrite.run(split_config(tiny_config), prompts_sdf, stage_dir, drafts)
+    records = draft_critique_and_revise_layer.run_critique_and_revise(split_config(tiny_config), prompts_sdf, stage_dir, drafts)
     assert [c["item_id"] for c in calls] == ["matrix_000001", "matrix_000001"]
     assert [r["doc_id"] for r in records] == ["matrix_000000", "matrix_000001"]
 
 
 def test_an_accepted_critique_does_not_finish_the_draft(tiny_config, prompts_sdf, stage_dir, stub_claude):
     stub_claude(dispatch(revise="no tags"))
-    layer3_rewrite.run(split_config(tiny_config), prompts_sdf, stage_dir, [make_draft()])
+    draft_critique_and_revise_layer.run_critique_and_revise(split_config(tiny_config), prompts_sdf, stage_dir, [make_draft()])
     assert not utils.Checkpoint(stage_dir / "_checkpoint.json").is_done("matrix_000000")
     assert utils.load_jsonl(stage_dir / "critiques.jsonl") == [
         {"doc_id": "matrix_000000", "review": "Problem: the voice is flat."}]
@@ -222,12 +222,12 @@ def test_resume_sends_nothing_for_a_draft_with_a_rewrite_but_no_critique_and_ret
         tiny_config, prompts_sdf, stage_dir, stub_claude):
     drafts = [make_draft("matrix_000000"), make_draft("matrix_000001")]
     stub_claude(lambda user_message, **kw: "r\n" + GOOD_REVISE)
-    layer3_rewrite.run(single_call_config(tiny_config), prompts_sdf, stage_dir, drafts[:1])
+    draft_critique_and_revise_layer.run_critique_and_revise(single_call_config(tiny_config), prompts_sdf, stage_dir, drafts[:1])
     assert not (stage_dir / "critiques.jsonl").exists()
     rewrite_on_disk = utils.load_jsonl(stage_dir / "rewrites.jsonl")[0]
     # the split resume critiques and revises only the second draft, and returns both rewrites in input order
     calls = stub_claude(dispatch())
-    records = layer3_rewrite.run(split_config(tiny_config), prompts_sdf, stage_dir, drafts)
+    records = draft_critique_and_revise_layer.run_critique_and_revise(split_config(tiny_config), prompts_sdf, stage_dir, drafts)
     assert {c["item_id"] for c in calls} == {"matrix_000001"}
     assert records[0] == rewrite_on_disk
     assert [r["doc_id"] for r in records] == ["matrix_000000", "matrix_000001"]

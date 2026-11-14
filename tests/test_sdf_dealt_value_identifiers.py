@@ -16,12 +16,13 @@ import pytest
 
 import sdf_prompt_equivalence_fixture_support as support
 import sdf_prompt_equivalence_scenarios as scenarios
-from sdf_pipeline import compose_prompts as cp
-from sdf_pipeline import layer1_plan, seeding
-from sdf_pipeline import layer1_screen as screen
-from sdf_pipeline.dealt_value_identifiers import (
+from sdf_pipeline.shared_step_machinery import compose_prompts as cp
+from sdf_pipeline.layer2_plan_and_description_rewrite import plan as plan_step
+from sdf_pipeline import start_a_run_from_an_earlier_runs_step as seeding
+from sdf_pipeline.layer1_deal_and_screen import run_layer as screen
+from sdf_pipeline.shared_step_machinery.dealt_value_identifiers import (
     RECORDS_VALUE_IDS_MANIFEST_KEY, load_frozen_value_ids, value_ids_of_dealt_hand)
-from sdf_pipeline.document_state_loader import load_document_states
+from sdf_pipeline.shared_step_machinery.document_state_loader import load_document_states
 from shared import utils
 from sdf_plan_draft_rewrite_and_score_test_builders import plan_reply
 from sdf_screen_test_builders import remove_first_hand_of_round_zero_batches, screen_config  # noqa: F401
@@ -114,7 +115,7 @@ def test_the_screen_on_and_off_paths_are_the_same_deal_and_work_out_the_same_ids
         template, values, weights, 12, screen_config["sdf"].get("seed", 0), rules, value_ids, True).apply([]).values()]
     (stage_dir.parent / "run_manifest.json").write_text(json.dumps({RECORDS_VALUE_IDS_MANIFEST_KEY: True}))
     stub_claude(lambda user_message, **kw: plan_reply())
-    layer1_plan.run(screen_config, prompts_sdf, stage_dir)   # no hands given: the screen is off, the plan layer deals
+    plan_step.run(screen_config, prompts_sdf, stage_dir)   # no hands given: the screen is off, the plan layer deals
     composed = utils.load_jsonl(stage_dir / "prompts.jsonl")
     assert [(h["prompt_id"], h["variables"], h["variable_value_ids"]) for h in screen_hands] == [
         (r["prompt_id"], r["variables"], r["variable_value_ids"]) for r in composed]
@@ -127,12 +128,12 @@ def test_a_run_without_the_manifest_key_gets_the_same_hands_and_no_ids_on_either
         screen_config, prompts_sdf, stage_dir, stub_claude):  # noqa: F811
     screen_config["sdf"]["n_prompts"] = 12
     stub_claude(lambda user_message, **kw: plan_reply())
-    layer1_plan.run(screen_config, prompts_sdf, stage_dir)
+    plan_step.run(screen_config, prompts_sdf, stage_dir)
     without = utils.load_jsonl(stage_dir / "prompts.jsonl")
     assert all("variable_value_ids" not in r for r in without)
     shutil.rmtree(stage_dir); stage_dir.mkdir()
     (stage_dir.parent / "run_manifest.json").write_text(json.dumps({RECORDS_VALUE_IDS_MANIFEST_KEY: True}))
-    layer1_plan.run(screen_config, prompts_sdf, stage_dir)
+    plan_step.run(screen_config, prompts_sdf, stage_dir)
     with_ids = utils.load_jsonl(stage_dir / "prompts.jsonl")
     assert [(r["prompt_id"], r["variables"], r["system"], r["prompt"]) for r in without] == [
         (r["prompt_id"], r["variables"], r["system"], r["prompt"]) for r in with_ids]

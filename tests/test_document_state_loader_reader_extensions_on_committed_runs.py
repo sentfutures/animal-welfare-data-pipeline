@@ -12,7 +12,7 @@ import pytest
 
 from evals import shoehorning_audit_postprocess_sdf as shoehorning_postprocess
 from shared import utils
-from sdf_pipeline.document_state_loader import (
+from sdf_pipeline.shared_step_machinery.document_state_loader import (
     load_document_states, load_document_states_or_empty_list_when_not_a_run_folder, plan_records_of_states)
 
 RUNS_ROOT = Path(__file__).resolve().parent.parent / "outputs" / "sdf" / "runs"

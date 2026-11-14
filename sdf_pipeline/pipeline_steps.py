@@ -1,4 +1,4 @@
-"""The step catalogue: one entry per SDF pipeline step, read by ``run.py``, ``seeding.py`` and the request
+"""The step catalogue: one entry per SDF pipeline step, read by ``run.py``, ``start_a_run_from_an_earlier_runs_step.py`` and the request
 print command. An entry holds what the pipeline knows about a step besides its request and reply: today's
 name, the folder key of the folder it writes to (``shared/sdf_run_layouts.py``: the ``--layer`` number, the folder
 and the cost-log tag of a step depend on the run's layout and are looked up from it), module, model setting keys
@@ -14,14 +14,15 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
-from sdf_pipeline import (
-    layer1_deal_and_screen as screen_layer, layer3_consideration_scoring_and_selection as selection_layer,
-    layer4_draft_critique_and_revise_shared as revision_layer)
-from sdf_pipeline.considerations_catalog import load_considerations
-from sdf_pipeline.renamed_model_settings import model_setting
-from sdf_pipeline.steps import (
-    consideration_scoring, critique, critique_and_revise_in_one_call, description_rewrite as rewrite_layer, draft, plan,
-    revise, score)
+from sdf_pipeline.layer1_deal_and_screen import run_layer as screen_layer
+from sdf_pipeline.layer3_consideration_scoring_and_selection import run_layer as selection_layer
+from sdf_pipeline.layer4_draft_critique_and_revise import shared_by_this_layers_steps as revision_layer
+from sdf_pipeline.shared_step_machinery.considerations_catalog import load_considerations
+from sdf_pipeline.shared_step_machinery.renamed_model_settings import model_setting
+from sdf_pipeline.layer3_consideration_scoring_and_selection import consideration_scoring
+from sdf_pipeline.layer4_draft_critique_and_revise import critique, critique_and_revise_in_one_call, draft, revise
+from sdf_pipeline.layer2_plan_and_description_rewrite import description_rewrite as rewrite_layer, plan
+from sdf_pipeline.layer5_score_and_final_selection import score
 from shared import sdf_run_layouts, utils
 from shared.sdf_run_layouts import (
     CONSIDERATION_SCORING_AND_SELECTION, CRITIQUE_AND_REVISE, DEAL_AND_SCREEN, DRAFT, PLAN_AND_DESCRIPTION_REWRITE, SCORE)
@@ -159,20 +160,20 @@ E = PipelineStepEntry
 
 # In pipeline order. The folder key says where the step's files live; its --layer number and cost-log tag come from the layout.
 PIPELINE_STEPS = (
-    E("deal", DEAL_AND_SCREEN, "steps.deal", required_prompt_files=lambda c, p: [*_template(1)(c, p), "variables.txt"],
+    E("deal", DEAL_AND_SCREEN, "layer1_deal_and_screen.deal", required_prompt_files=lambda c, p: [*_template(1)(c, p), "variables.txt"],
       reason_inactive=_SCREEN_OFF, reason_not_seedable="a run's hands come from its deal; start a normal run"),
-    E("screen", DEAL_AND_SCREEN, "steps.screen", makes_model_calls=True, shuffle_seed="layer1_screen",
+    E("screen", DEAL_AND_SCREEN, "layer1_deal_and_screen.screen", makes_model_calls=True, shuffle_seed="layer1_screen",
       model_setting_keys=("screen_model", "plan_model"), stage_files=(SCREENED_HANDS, PROMPTS),
       required_prompt_files=lambda c, p: [screen_layer.TEMPLATE_FILENAME, screen_layer.HAND_BLOCK_FILENAME, screen_layer.SCHEMA_FILENAME],
       reason_inactive=_SCREEN_OFF, print_command_name="screen",
       reason_not_seedable="the screen judges every hand of a run together; start a normal run"),
-    E("redeal", DEAL_AND_SCREEN, "steps.redeal", required_prompt_files=lambda c, p: [*_template(1)(c, p), "variables.txt"],
+    E("redeal", DEAL_AND_SCREEN, "layer1_deal_and_screen.redeal", required_prompt_files=lambda c, p: [*_template(1)(c, p), "variables.txt"],
       reason_inactive=_SCREEN_OFF, reason_not_seedable="the redeal follows the screen and cannot be started on its own"),
-    E("plan", PLAN_AND_DESCRIPTION_REWRITE, "steps.plan", makes_model_calls=True, model_setting_keys=("plan_model",),
+    E("plan", PLAN_AND_DESCRIPTION_REWRITE, "layer2_plan_and_description_rewrite.plan", makes_model_calls=True, model_setting_keys=("plan_model",),
       stage_files=(PLANS,), required_prompt_files=_layer_one_files, document_file=_plan_ids_seeding_reads,
       load_documents=_RECORDS(PROMPTS), build_step=lambda reading, documents, document_id: plan.PlanStep(reading.config),
       print_command_name="plan"),
-    E("description_rewrite", PLAN_AND_DESCRIPTION_REWRITE, "steps.description_rewrite", makes_model_calls=True,
+    E("description_rewrite", PLAN_AND_DESCRIPTION_REWRITE, "layer2_plan_and_description_rewrite.description_rewrite", makes_model_calls=True,
       model_setting_keys=("description_rewrite_model", "plan_model"),
       stage_files=(_file(PLAN_AND_DESCRIPTION_REWRITE, rewrite_layer.RESULTS_FILENAME, "prompt_id"),
                    _file(PLAN_AND_DESCRIPTION_REWRITE, rewrite_layer.REJECTIONS_FILENAME, "prompt_id")),
@@ -180,45 +181,45 @@ PIPELINE_STEPS = (
       reason_inactive=rewrite_layer.reason_description_rewrite_is_inactive, document_file=_FIXED(PLANS),
       load_documents=_RECORDS(PLANS), build_step=_build_description_rewrite, print_command_name="description_rewrite",
       print_refuses_when_inactive=True),
-    E("consideration_scoring", CONSIDERATION_SCORING_AND_SELECTION, "steps.consideration_scoring", makes_model_calls=True,
+    E("consideration_scoring", CONSIDERATION_SCORING_AND_SELECTION, "layer3_consideration_scoring_and_selection.consideration_scoring", makes_model_calls=True,
       shuffle_seed="layer1_select", model_setting_keys=("consideration_scoring_model", "plan_model"),
       stage_files=(_file(CONSIDERATION_SCORING_AND_SELECTION, selection_layer.SCORES_FILENAME, "prompt_id"),),
       required_prompt_files=lambda c, p: [*_layer_one_files(c, p), selection_layer.TEMPLATE_FILENAME, selection_layer.CONSIDERATIONS_FILENAME],
       reason_inactive=_SELECTION_OFF, document_file=_FIXED(PLANS), load_documents=_plans_after_description_rewrite,
       build_step=_build_consideration_scoring, print_command_name="consideration_scoring", print_refuses_when_inactive=True),
-    E("consideration_selection", CONSIDERATION_SCORING_AND_SELECTION, "steps.consideration_selection", reason_inactive=_SELECTION_OFF,
+    E("consideration_selection", CONSIDERATION_SCORING_AND_SELECTION, "layer3_consideration_scoring_and_selection.consideration_selection", reason_inactive=_SELECTION_OFF,
       stage_files=(_file(CONSIDERATION_SCORING_AND_SELECTION, selection_layer.SELECTIONS_FILENAME, "prompt_id"),),
       reason_not_seedable="the assignment is solved over every scored document at once, so seeding it for selected "
                           "documents would change it; seed at consideration_scoring instead"),
-    E("draft", DRAFT, "steps.draft", makes_model_calls=True, model_setting_keys=("draft_model",), stage_files=(DRAFTS,),
+    E("draft", DRAFT, "layer4_draft_critique_and_revise.draft", makes_model_calls=True, model_setting_keys=("draft_model",), stage_files=(DRAFTS,),
       required_prompt_files=_template(2), document_file=_FIXED(PLANS), load_documents=_plans_with_selections,
       build_step=_from_config_and_prompts(draft.DraftStep), print_command_name="draft"),
     # Seeding at the critique stays allowed under split false (the single call then runs in its place).
-    E("critique", CRITIQUE_AND_REVISE, "steps.critique", makes_model_calls=True,
+    E("critique", CRITIQUE_AND_REVISE, "layer4_draft_critique_and_revise.critique", makes_model_calls=True,
       model_setting_keys=("critique_model", "revise_model"),
       stage_files=(CRITIQUES,), reason_inactive=_NOT_SPLIT, checks_its_own_prompt_snapshot=True, document_file=_FIXED(DRAFTS),
       required_prompt_files=lambda c, p: [revision_layer.CRITIQUE_TEMPLATE] if _SPLIT(c) else _template(3)(c, p),
       load_documents=_RECORDS(DRAFTS), build_step=_from_config_and_prompts(critique.CritiqueStep),
       print_command_name="critique"),
-    E("revise", CRITIQUE_AND_REVISE, "steps.revise", makes_model_calls=True, model_setting_keys=("revise_model",),
+    E("revise", CRITIQUE_AND_REVISE, "layer4_draft_critique_and_revise.revise", makes_model_calls=True, model_setting_keys=("revise_model",),
       stage_files=(REWRITES,),
       required_prompt_files=lambda c, p: [revision_layer.REVISE_TEMPLATE], reason_inactive=_NOT_SPLIT,
       seeding_refuses_when_inactive=True, checks_its_own_prompt_snapshot=True, document_file=_FIXED(CRITIQUES),
       load_documents=_RECORDS(DRAFTS), build_step=_build_revise, print_command_name="revise"),
     # The single-call step while it exists.
-    E("critique_and_revise_in_one_call", CRITIQUE_AND_REVISE, "steps.critique_and_revise_in_one_call",
+    E("critique_and_revise_in_one_call", CRITIQUE_AND_REVISE, "layer4_draft_critique_and_revise.critique_and_revise_in_one_call",
       makes_model_calls=True, model_setting_keys=("revise_model",),
       stage_files=(REWRITES,), required_prompt_files=_template(3), reason_inactive=_SPLIT_ONLY,
       reason_not_seedable="it runs in place of the critique and the revise under sdf.revision.split: false; seed at 'critique' instead",
       document_file=_FIXED(DRAFTS), load_documents=_RECORDS(DRAFTS),
       build_step=_from_config_and_prompts(critique_and_revise_in_one_call.CritiqueAndReviseInOneCallStep),
       print_command_name="critique_and_revise_in_one_call"),
-    E("score", SCORE, "steps.score", makes_model_calls=True, model_setting_keys=("score_model",),
+    E("score", SCORE, "layer5_score_and_final_selection.score", makes_model_calls=True, model_setting_keys=("score_model",),
       required_prompt_files=_template(4), document_file=_FIXED(REWRITES), load_documents=_RECORDS(REWRITES),
       build_step=_from_config_and_prompts(score.ScoreStep), print_command_name="score"),
-    E("score_gate", SCORE, "steps.score_gate", print_command_name="score_gate",
+    E("score_gate", SCORE, "layer5_score_and_final_selection.score_gate", print_command_name="score_gate",
       reason_not_seedable="the score gate runs after scoring and makes no calls; resume the scoring run"),
-    E("near_duplicate_removal", SCORE, "steps.near_duplicate_removal", print_command_name="near_duplicate_removal",
+    E("near_duplicate_removal", SCORE, "layer5_score_and_final_selection.near_duplicate_removal", print_command_name="near_duplicate_removal",
       reason_not_seedable="the near-duplicate removal runs after the score gate and makes no calls; resume the scoring run"),
 )
 STEP_NAMES_IN_ORDER = tuple(entry.name for entry in PIPELINE_STEPS)

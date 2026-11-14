@@ -11,8 +11,8 @@ from pathlib import Path
 
 import pytest
 
-from sdf_pipeline import compose_prompts as cp
-from sdf_pipeline import layer1_plan
+from sdf_pipeline.shared_step_machinery import compose_prompts as cp
+from sdf_pipeline.layer2_plan_and_description_rewrite import plan as plan_step
 from shared import deal_constraints as dc
 from shared import matrix
 
@@ -455,7 +455,7 @@ def test_layer1_plan_applies_the_rules_file_in_its_prompts_directory(
     ))
     stage_directory = tmp_path / "stage"
     stage_directory.mkdir()
-    layer1_plan.run(tiny_config, prompts_directory, stage_directory)
+    plan_step.run(tiny_config, prompts_directory, stage_directory)
 
     from shared import utils
     composed = utils.load_jsonl(stage_directory / "prompts.jsonl")
@@ -474,7 +474,7 @@ def test_layer1_plan_refuses_a_variables_file_without_ids(tmp_path, tiny_config,
     stage_directory = tmp_path / "stage"
     stage_directory.mkdir()
     with pytest.raises(ValueError, match=r"\{naming\} value has no \[id\] prefix"):
-        layer1_plan.run(tiny_config, prompts_directory, stage_directory)
+        plan_step.run(tiny_config, prompts_directory, stage_directory)
     assert calls == []
 
 

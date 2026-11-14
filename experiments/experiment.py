@@ -28,8 +28,9 @@ import yaml
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from shared import api, costs, matrix, sdf_run_layouts, utils
-from sdf_pipeline import compose_prompts as cp
-from sdf_pipeline import layer4_draft_critique_and_revise, layer5_score_and_final_selection
+from sdf_pipeline.shared_step_machinery import compose_prompts as cp
+from sdf_pipeline.layer4_draft_critique_and_revise import run_layer as draft_critique_and_revise_layer
+from sdf_pipeline.layer5_score_and_final_selection import run_layer as score_and_final_selection_layer
 
 DEFAULT_ARMS_FILE = "experiments/arms.example.yaml"
 
@@ -204,9 +205,9 @@ def run_arm(
         print(f"    imported {n} donor rewrite(s) — no API calls")
         rewrites = utils.load_jsonl(revisions_dir / "rewrites.jsonl")
     else:
-        rewrites = layer4_draft_critique_and_revise.run_critique_and_revise(merged, prompts_dir, revisions_dir, drafts)
+        rewrites = draft_critique_and_revise_layer.run_critique_and_revise(merged, prompts_dir, revisions_dir, drafts)
 
-    final = layer5_score_and_final_selection.run(merged, prompts_dir, scores_dir, final_dir, rewrites)
+    final = score_and_final_selection_layer.run(merged, prompts_dir, scores_dir, final_dir, rewrites)
     print(f"    {len(final)} document(s) in {final_dir / 'sdf_corpus.jsonl'}")
     costs.report(run_dir / "cost_log.jsonl", title=f"Arm '{name}' cost",
                  n_done=len(drafts), project_to=project_to, since=cost_start)

@@ -32,7 +32,7 @@ Stages: screen (give a hand id; the request is that of the batch the hand belong
 saved batch plan, in the round given by --round), description_rewrite, plan, consideration_scoring (the consideration
 scoring), draft, critique, revise, critique_and_revise_in_one_call, score. The description rewrite's OpenAI route is shown with
 the max tokens and reasoning effort it sends, which skip ``call_claude``'s thinking headroom
-(``sdf_pipeline.step_runner.resolve_settings_of_model_request``). Not covered: the deal, the redeal, the
+(``sdf_pipeline.shared_step_machinery.step_runner.resolve_settings_of_model_request``). Not covered: the deal, the redeal, the
 consideration selection, the score gate and the near-duplicate removal, which make no model call.
 """
 
@@ -48,10 +48,11 @@ REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPOSITORY_ROOT))
 
 from shared import api, sdf_run_layouts, utils  # noqa: E402
-from sdf_pipeline import layer1_deal_and_screen, pipeline_steps  # noqa: E402
-from sdf_pipeline import compose_prompts  # noqa: E402
-from sdf_pipeline.step_runner import resolve_settings_of_model_request  # noqa: E402
-from sdf_pipeline.update_steps import ModelRequest  # noqa: E402
+from sdf_pipeline.layer1_deal_and_screen import run_layer as deal_and_screen_layer  # noqa: E402
+from sdf_pipeline import pipeline_steps  # noqa: E402
+from sdf_pipeline.shared_step_machinery import compose_prompts  # noqa: E402
+from sdf_pipeline.shared_step_machinery.step_runner import resolve_settings_of_model_request  # noqa: E402
+from sdf_pipeline.shared_step_machinery.update_steps import ModelRequest  # noqa: E402
 
 STAGES_THIS_COMMAND_COVERS = ("screen", "description_rewrite", "plan", "consideration_scoring", "draft", "critique", "revise",
                               "critique_and_revise_in_one_call", "score")
@@ -97,24 +98,24 @@ def _screen_step_and_batch(run_directory: Path, config: dict, prompts_directory:
                            hand_id: str, round_number: int | None):
     """The screen step and the batch (as the run planned it, from screen_batches.jsonl) holding the hand."""
     sdf = config["sdf"]
-    prompts = layer1_deal_and_screen.load_screen_prompts(prompts_directory)
+    prompts = deal_and_screen_layer.load_screen_prompts(prompts_directory)
     if prompts is None:
         raise RequestCannotBeBuilt("this run's prompt snapshot has no screen template")
-    batch_records = [record for record in utils.load_jsonl(layer_one_directory / layer1_deal_and_screen.BATCHES_FILENAME)
+    batch_records = [record for record in utils.load_jsonl(layer_one_directory / deal_and_screen_layer.BATCHES_FILENAME)
                      if hand_id in record["prompt_ids"] and (round_number is None or record["round"] == round_number)]
     if not batch_records:
         raise RequestCannotBeBuilt(
             f"no planned screen batch holds hand {hand_id!r}"
             + (f" in round {round_number}" if round_number is not None else "")
-            + f" in {layer_one_directory / layer1_deal_and_screen.BATCHES_FILENAME}")
+            + f" in {layer_one_directory / deal_and_screen_layer.BATCHES_FILENAME}")
     if len(batch_records) > 1:
         raise RequestCannotBeBuilt(
             f"hand {hand_id!r} is in batches of rounds {[r['round'] for r in batch_records]}; pass --round")
     hands_by_id = {hand["prompt_id"]: hand
-                   for hand in utils.load_jsonl(layer_one_directory / layer1_deal_and_screen.HANDS_FILENAME)}
-    step = layer1_deal_and_screen.ScreenStep(
+                   for hand in utils.load_jsonl(layer_one_directory / deal_and_screen_layer.HANDS_FILENAME)}
+    step = deal_and_screen_layer.ScreenStep(
         prompts, pipeline_steps.entry_named("screen").model_for(config),
-        int(sdf.get("screen_batch_size", layer1_deal_and_screen.DEFAULT_BATCH_SIZE)),
+        int(sdf.get("screen_batch_size", deal_and_screen_layer.DEFAULT_BATCH_SIZE)),
         compose_prompts.make_variable_line_renderer(
             prompts_directory, sdf.get("entity_pool_seed", compose_prompts.DEFAULT_ENTITY_SEED)))
     return step, step.batch_from_record(batch_records[0], hands_by_id)

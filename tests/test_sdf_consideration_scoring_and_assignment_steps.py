@@ -5,10 +5,10 @@ import json
 
 import pytest
 
-from sdf_pipeline import layer1_select_considerations as select
-from sdf_pipeline.considerations_catalog import load_considerations
-from sdf_pipeline.step_runner import run_corpus_step
-from sdf_pipeline.update_steps import Accepted, Failed, FailureKind, ModelReply, StepProgress
+from sdf_pipeline.layer3_consideration_scoring_and_selection import run_layer as select
+from sdf_pipeline.shared_step_machinery.considerations_catalog import load_considerations
+from sdf_pipeline.shared_step_machinery.step_runner import run_corpus_step
+from sdf_pipeline.shared_step_machinery.update_steps import Accepted, Failed, FailureKind, ModelReply, StepProgress
 from shared import utils
 from sdf_consideration_selection_test_builders import (
     answer_with, make_plans, no_stake_resolution, offered_in, rows_of, score_everything_five, small_prompts)  # noqa: F401
