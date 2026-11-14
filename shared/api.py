@@ -25,6 +25,7 @@ import sys
 import tempfile
 import threading
 import time
+from dataclasses import dataclass
 from pathlib import Path
 from datetime import datetime, UTC
 
@@ -92,13 +93,6 @@ _BACKENDS = ("api", "claude_code", "auto")
 # _HIDDEN_THINKING_EFFORT_BY_PREFIX for Claude, openai_api.DEFAULT_REASONING_EFFORT
 # for OpenAI, the model's own for Gemini.
 _EFFORT_LEVELS = ("low", "medium", "high", "xhigh", "max")
-
-
-def _effort_for(stage: str | None) -> str | None:
-    effort = _config.get("effort")
-    if isinstance(effort, dict):
-        return effort.get(stage)
-    return effort
 
 
 # Models whose reasoning cannot be turned off spend part of max_tokens on it, so
@@ -417,13 +411,14 @@ def _call_with_retry(
     # temperature/top_p/top_k are REMOVED on the Claude 5 family and Opus 4.7+ —
     # the API 400s if any is sent. Only send temperature to models that still
     # accept it; the rest run at default sampling (steer them via prompting).
-    if _accepts_sampling_params(model):
-        kwargs["temperature"] = temperature
+    temperature_on_the_wire = _temperature_for_the_wire(model, temperature)
+    if temperature_on_the_wire is not None:
+        kwargs["temperature"] = temperature_on_the_wire
     # "summarized" makes the API return a summary of the hidden thinking, so it
     # can be recorded in model_calls.jsonl; _response_text still strips it.
     kwargs["thinking"] = _thinking_config(model)
     output_config: dict = {}
-    effort = effort or _hidden_thinking_effort(model)
+    effort = _effort_for_the_wire(model, effort)
     if effort is not None:
         output_config["effort"] = effort
     if json_schema is not None:
@@ -475,6 +470,16 @@ _NO_SAMPLING_PREFIXES = (
     "claude-opus-4-8", "claude-opus-4-7", "claude-opus-5",
     "claude-sonnet-5",
 )
+
+
+def _temperature_for_the_wire(model: str, temperature: float) -> float | None:
+    """The temperature a Claude request carries: None (omitted) for a model that rejects it."""
+    return temperature if _accepts_sampling_params(model) else None
+
+
+def _effort_for_the_wire(model: str, configured_effort: str | None) -> str | None:
+    """The reasoning effort a Claude request carries: the configured one, else the model's default."""
+    return configured_effort or _hidden_thinking_effort(model)
 
 
 def _accepts_sampling_params(model: str) -> bool:
@@ -722,6 +727,86 @@ def _call_claude_code_with_retry(
     return _run_claude_code_query(model, system, user_message, json_schema=json_schema)
 
 
+@dataclass(frozen=True)
+class ResolvedRequestSettings:
+    """Everything ``call_claude`` decides about a request before sending it.
+
+    ``provider`` is "anthropic", "openai" or "gemini" (the route the model name selects).
+    ``model`` is the model after the config default. ``max_tokens`` already includes the thinking
+    headroom (``thinking_headroom_added``, 0 for a model that does not reason on every call).
+    ``requested_temperature`` is what the caller or the config asked for; ``temperature`` is what
+    reaches the wire (None = omitted, because a Claude model that rejects sampling parameters 400s
+    on it). ``effort`` is the reasoning effort that reaches the wire (None = none sent, the model's
+    own default); ``effort_configured`` is the part of it that came from the config alone, the
+    value ``call_claude`` hands to ``_call_with_retry``, which adds the per-model default itself.
+    ``thinking`` is the Anthropic ``thinking`` field (None for OpenAI and Gemini).
+    ``structured_output`` is whether a JSON schema constrains the answer; ``cache_system`` is the
+    caller's request to cache the system prompt (honoured on the Anthropic api backend when the
+    system prompt is not empty).
+    """
+    provider: str
+    model: str
+    max_tokens: int
+    thinking_headroom_added: int
+    requested_temperature: float
+    temperature: float | None
+    effort: str | None
+    effort_configured: str | None
+    thinking: dict | None
+    structured_output: bool
+    cache_system: bool
+
+
+def resolve_request_settings(
+    model: str | None,
+    stage_tag: str | None,
+    max_tokens: int | None,
+    temperature: float | None,
+    json_schema: dict | None = None,
+    cache_system: bool = False,
+    config: dict | None = None,
+) -> ResolvedRequestSettings:
+    """The lookups ``call_claude`` does before sending, in one place: the model default, the max
+    tokens default, the thinking headroom for models that reason on every call, the temperature
+    default, and the reasoning effort from the config's ``effort`` map keyed by ``stage_tag``
+    (falling back to the per-model default). Pure: it reads ``config`` (default: the loaded one)
+    and sends nothing, so a read-only command can print what a stage would send."""
+    from shared import gemini_api, openai_api
+    active_config = _config if config is None else config
+    resolved_model = model or active_config.get("model", "claude-sonnet-5")
+    resolved_max = max_tokens or active_config.get("max_tokens", 4000)
+    requested_temperature = temperature if temperature is not None else active_config.get("temperature", 1.0)
+    configured_effort = active_config.get("effort")
+    if isinstance(configured_effort, dict):
+        configured_effort = configured_effort.get(stage_tag)
+
+    headroom_added = 0
+    if (_requires_adaptive_thinking(resolved_model) or openai_api.is_openai_model(resolved_model)
+            or gemini_api.is_gemini_model(resolved_model)):
+        headroom_added = active_config.get("thinking_headroom", _DEFAULT_THINKING_HEADROOM)
+
+    if openai_api.is_openai_model(resolved_model):
+        provider = "openai"
+        wire_temperature = openai_api.SAMPLING_TEMPERATURE
+        wire_effort = configured_effort or openai_api.DEFAULT_REASONING_EFFORT
+        thinking = None
+    elif gemini_api.is_gemini_model(resolved_model):
+        provider = "gemini"
+        wire_temperature = gemini_api.SAMPLING_TEMPERATURE
+        wire_effort = configured_effort
+        thinking = None
+    else:
+        provider = "anthropic"
+        wire_temperature = _temperature_for_the_wire(resolved_model, requested_temperature)
+        wire_effort = _effort_for_the_wire(resolved_model, configured_effort)
+        thinking = _thinking_config(resolved_model)
+    return ResolvedRequestSettings(
+        provider=provider, model=resolved_model, max_tokens=resolved_max + headroom_added,
+        thinking_headroom_added=headroom_added, requested_temperature=requested_temperature,
+        temperature=wire_temperature, effort=wire_effort, effort_configured=configured_effort,
+        thinking=thinking, structured_output=json_schema is not None, cache_system=cache_system)
+
+
 def call_claude(
     user_message: str,
     system_prompt: str = "",
@@ -770,10 +855,12 @@ def call_claude(
         The assistant's response text, or (text, stop_reason) when
         return_stop_reason is True.
     """
-    resolved_model = model or _config.get("model", "claude-sonnet-5")
-    resolved_max = max_tokens or _config.get("max_tokens", 4000)
-    resolved_temp = temperature if temperature is not None else _config.get("temperature", 1.0)
-    effort = _effort_for(stage)
+    settings = resolve_request_settings(model, stage, max_tokens, temperature,
+                                        json_schema=json_schema, cache_system=cache_system)
+    resolved_model = settings.model
+    resolved_max = settings.max_tokens
+    resolved_temp = settings.requested_temperature
+    effort = settings.effort_configured
 
     full_system = system_prompt
     if injection:
@@ -784,16 +871,13 @@ def call_claude(
     # return contract. Both reason on every call, as do the adaptive-thinking
     # Claude models below, so all of them get the thinking headroom.
     from shared import gemini_api, openai_api
-    if (_requires_adaptive_thinking(resolved_model) or openai_api.is_openai_model(resolved_model)
-            or gemini_api.is_gemini_model(resolved_model)):
-        resolved_max += _config.get("thinking_headroom", _DEFAULT_THINKING_HEADROOM)
-    if openai_api.is_openai_model(resolved_model):
+    if settings.provider == "openai":
         text, stop_reason = openai_api.call_openai(
             user_message, full_system, model=resolved_model, max_output_tokens=resolved_max,
-            reasoning_effort=effort or openai_api.DEFAULT_REASONING_EFFORT,
+            reasoning_effort=settings.effort,
             stage=stage, item_id=item_id, json_schema=json_schema)
         return (text, stop_reason) if return_stop_reason else text
-    if gemini_api.is_gemini_model(resolved_model):
+    if settings.provider == "gemini":
         text, stop_reason = gemini_api.call_gemini(
             user_message, full_system, model=resolved_model, max_output_tokens=resolved_max,
             effort=effort, stage=stage, item_id=item_id, json_schema=json_schema)
