@@ -24,6 +24,7 @@ class ToyStep(DocumentStep):
 
     def __init__(self, policy=StepPolicy()):
         self.policy = policy
+        self.outcomes_by_document_id = {}   # what each processed document's outcome was, for the tests
 
     def document_id_of(self, document):
         return document["id"]
@@ -46,6 +47,7 @@ class ToyStep(DocumentStep):
         return {"doc_id": document["id"], "content": update}
 
     def progress_line(self, document, outcome):
+        self.outcomes_by_document_id[document["id"]] = outcome
         return f"  {document['id']}: {type(outcome).__name__}"
 
 
@@ -91,19 +93,22 @@ def test_progress_lines_in_input_order(tmp_path, capsys):
     assert capsys.readouterr().out.splitlines() == ["  a: Accepted", "  b: Accepted", "  c: Accepted"]
 
 
-def test_failed_marks_nothing_done_and_siblings_are_kept(tmp_path):
+def test_failed_marks_nothing_done_and_is_not_written_and_siblings_are_kept(tmp_path):
     def send(request):
         if request.item_id == "b":
             raise RuntimeError("usage policy")
         return ModelReply("FAIL" if request.item_id == "c" else "fine", "end_turn")
 
-    runner, stage_directory = make_runner(tmp_path, send=send)
+    step = ToyStep()
+    runner, stage_directory = make_runner(tmp_path, step=step, send=send)
     result = runner.run(docs("a", "b", "c"))
     assert result.failed_document_ids == ["b", "c"]
     checkpoint = utils.Checkpoint(stage_directory / "_checkpoint.json")
     assert checkpoint.is_done("a") and not checkpoint.is_done("b") and not checkpoint.is_done("c")
     assert [r["doc_id"] for r in utils.load_jsonl(stage_directory / "toy_records.jsonl")] == ["a"]
     assert result.thrown_call_document_ids == ["b"]
+    assert step.outcomes_by_document_id["b"] == Failed(FailureKind.THROWN_CALL, "error: RuntimeError: usage policy")
+    assert step.outcomes_by_document_id["c"] == Failed(FailureKind.UNUSABLE_ANSWER, "unusable")
     # a second run retries exactly the failed documents
     second_runner, _ = make_runner(tmp_path, send=lambda request: ModelReply("again", "end_turn"))
     assert [d["id"] for d in second_runner.select_pending(docs("a", "b", "c"))] == ["b", "c"]
@@ -156,9 +161,34 @@ def test_a_step_whose_failures_stop_the_run_writes_records_first_then_stops(tmp_
 
 
 def test_removed_writes_no_stage_record(tmp_path):
-    runner, stage_directory = make_runner(tmp_path, send=lambda request: ModelReply("REMOVE", "end_turn"))
+    step = ToyStep()
+    runner, stage_directory = make_runner(tmp_path, step=step, send=lambda request: ModelReply("REMOVE", "end_turn"))
     runner.run(docs("a"))
     assert utils.load_jsonl(stage_directory / "toy_records.jsonl") == []
+    assert step.outcomes_by_document_id["a"] == Removed("toy_removal", "removed for the test")
+
+
+def test_a_slow_reply_does_not_change_the_input_order_of_the_stage_file(tmp_path):
+    fast_reply_sent = threading.Event()
+
+    def send(request):
+        if request.item_id == "slow":
+            fast_reply_sent.wait(timeout=5)   # the slow reply arrives after the fast one
+        else:
+            fast_reply_sent.set()
+        return ModelReply(f"reply {request.item_id}", "end_turn")
+
+    runner, stage_directory = make_runner(tmp_path, send=send, workers=2)
+    runner.run(docs("slow", "fast"))
+    assert [r["doc_id"] for r in utils.load_jsonl(stage_directory / "toy_records.jsonl")] == ["slow", "fast"]
+
+
+def test_every_request_carries_the_steps_stage_tag_and_requests_differ_by_document(tmp_path):
+    seen = []
+    runner, _ = make_runner(tmp_path, send=lambda request: (seen.append(request), ModelReply("ok", "end_turn"))[1])
+    runner.run(docs("a", "b"))
+    assert [request.stage for request in seen] == ["toy_stage", "toy_stage"]
+    assert len({request.request_hash() for request in seen}) == 2
 
 
 def test_request_hash_changes_with_any_setting():
@@ -239,12 +269,14 @@ def test_a_prompt_building_error_is_a_recorded_failure_for_that_document_only(tm
         sent.append(request.item_id)
         return ModelReply("fine", "end_turn")
 
-    runner, stage_directory = make_runner(tmp_path, step=ToyStepWithBrokenAndFragileDocuments(), send=send)
+    step = ToyStepWithBrokenAndFragileDocuments()
+    runner, stage_directory = make_runner(tmp_path, step=step, send=send)
     result = runner.run([{"id": "a"}, {"id": "b", "broken_template": True}, {"id": "c"}])
     assert sent == ["a", "c"]
     assert result.failed_document_ids == ["b"] and result.thrown_call_document_ids == ["b"]
     assert [r["doc_id"] for r in utils.load_jsonl(stage_directory / "toy_records.jsonl")] == ["a", "c"]
     assert not utils.Checkpoint(stage_directory / "_checkpoint.json").is_done("b")
+    assert step.outcomes_by_document_id["b"] == Failed(FailureKind.THROWN_CALL, "error: KeyError: 'missing_placeholder'")
     assert "  b: Failed" in capsys.readouterr().out
 
 
@@ -280,10 +312,12 @@ def test_an_error_in_interpret_ends_the_run_unless_the_step_declares_it_a_thrown
         runner.run([{"id": "a"}])
     declared = StepPolicy(errors_counted_as_thrown_calls=(
         WhereAnErrorIsAThrownCall.BUILD | WhereAnErrorIsAThrownCall.SEND | WhereAnErrorIsAThrownCall.INTERPRET))
-    runner, _ = make_runner(
-        tmp_path / "declared", step=ToyStepWithBrokenAndFragileDocuments(declared), send=explode)
+    step = ToyStepWithBrokenAndFragileDocuments(declared)
+    runner, _ = make_runner(tmp_path / "declared", step=step, send=explode)
     with pytest.raises(SystemExit, match="systemic"):
         runner.run([{"id": "a"}, {"id": "b"}])
+    assert set(step.outcomes_by_document_id.values()) == {Failed(FailureKind.THROWN_CALL, "error: ValueError: parser bug")}
+    assert set(step.outcomes_by_document_id) == {"a", "b"}
 
 
 def test_a_place_the_step_does_not_declare_lets_the_exception_through(tmp_path):

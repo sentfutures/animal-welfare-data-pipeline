@@ -91,7 +91,7 @@ def test_combined_takes_the_text_before_the_tags_as_the_review(combined_step):
     assert outcome == Accepted(RewrittenText("Better.", "Problems: none."))
 
 
-def test_revise_and_combined_thrown_call_is_recorded_as_thrown(tiny_config, prompts_sdf, stub_claude, tmp_path):
+def test_revise_and_combined_thrown_call_is_recorded_as_thrown(tiny_config, prompts_sdf, stub_claude, tmp_path, capsys):
     def raise_on_revise(user_message, **kw):
         if kw.get("stage") == "layer3_critique":
             return GOOD_CRITIQUE
@@ -102,6 +102,7 @@ def test_revise_and_combined_thrown_call_is_recorded_as_thrown(tiny_config, prom
         layer3_rewrite.run(split_config(tiny_config), prompts_sdf, stage, [make_draft()])
     assert [r["doc_id"] for r in utils.load_jsonl(stage / "critiques.jsonl")] == ["matrix_000000"]
     assert not (stage / "rewrites.jsonl").exists()
+    assert "  matrix_000000: no rewrite (error: RuntimeError: down) — will retry on resume" in capsys.readouterr().out
 
     stub_claude(raise_on_revise)
     single_stage = tmp_path / "single" / "layer3"

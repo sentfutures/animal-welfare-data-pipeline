@@ -36,7 +36,14 @@ def test_resume_makes_zero_calls_and_changes_no_file(tiny_config, prompts_sdf, s
     assert {p.name: p.read_bytes() for p in stage_dir.iterdir()} == before
 
 
-def test_resume_retries_exactly_the_failed_documents(tiny_config, prompts_sdf, stage_dir, stub_claude):
+def test_the_records_returned_are_the_records_written_in_input_order(tiny_config, prompts_sdf, stage_dir, stub_claude):
+    stub_claude(lambda user_message, **kw: f"<document>Doc {kw['item_id']}.</document>")
+    records = layer2_draft.run(tiny_config, prompts_sdf, stage_dir, plans_for("matrix_000000", "matrix_000001"))
+    assert [r["doc_id"] for r in records] == ["matrix_000000", "matrix_000001"]
+    assert records == utils.load_jsonl(stage_dir / "drafts.jsonl")
+
+
+def test_resume_retries_exactly_the_failed_documents(tiny_config, prompts_sdf, stage_dir, stub_claude, capsys):
     def first_attempt(user_message, **kw):
         item = kw["item_id"]
         if item == "matrix_000001":
@@ -52,6 +59,10 @@ def test_resume_retries_exactly_the_failed_documents(tiny_config, prompts_sdf, s
     plans = plans_for(*(f"matrix_00000{i}" for i in range(5)))
     records = layer2_draft.run(tiny_config, prompts_sdf, stage_dir, plans)
     assert [r["doc_id"] for r in records] == ["matrix_000000", "matrix_000004"]
+    printed = capsys.readouterr().out   # a thrown call prints the API failure line; an unusable answer its reason
+    assert "  matrix_000001: API call failed (error: RuntimeError: thrown) — will retry on resume" in printed
+    assert "  matrix_000002: " in printed and "API call failed" not in printed.split("matrix_000002: ")[1].splitlines()[0]
+    assert "  matrix_000003: " in printed and "API call failed" not in printed.split("matrix_000003: ")[1].splitlines()[0]
     checkpoint = utils.Checkpoint(stage_dir / "_checkpoint.json")
     assert not any(checkpoint.is_done(f"matrix_00000{i}") for i in (1, 2, 3))
 

@@ -79,7 +79,7 @@ def test_resume_makes_zero_calls_and_changes_no_file(tiny_config, prompts_sdf, s
 
 
 def test_resume_retries_exactly_the_failed_plans_and_keeps_incoherent_ones_done(
-        tiny_config, prompts_sdf, stage_dir, stub_claude):
+        tiny_config, prompts_sdf, stage_dir, stub_claude, capsys):
     config = {**tiny_config, "sdf": {**tiny_config["sdf"], "n_prompts": 5}}
     behaviour_by_position = {}
 
@@ -98,6 +98,12 @@ def test_resume_retries_exactly_the_failed_plans_and_keeps_incoherent_ones_done(
     stub_claude(first_attempt)
     layer1_plan.run(config, prompts_sdf, stage_dir)
     ids_by_position = {position: item for item, position in behaviour_by_position.items()}
+    printed = capsys.readouterr().out
+    assert f"  {ids_by_position[1]}: API call failed (error: RuntimeError: thrown) — will retry on resume" in printed
+    assert f"  Planned {ids_by_position[2]} (INCOHERENT)" in printed
+    for position in (3, 4):
+        failure_line = [line for line in printed.splitlines() if line.startswith(f"  {ids_by_position[position]}: ")]
+        assert len(failure_line) == 1 and "API call failed" not in failure_line[0]
     finished = [r["prompt_id"] for r in utils.load_jsonl(stage_dir / "plans.jsonl")]
     assert sorted(finished) == sorted([ids_by_position[0], ids_by_position[2]])
     checkpoint = utils.Checkpoint(stage_dir / "_checkpoint.json")

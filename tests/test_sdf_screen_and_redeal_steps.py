@@ -254,12 +254,38 @@ def test_the_loop_ends_after_the_round_limit_and_the_leftover_hands_are_dropped(
     assert summary["leftover_dropped"] == len(rounds[2]["prompt_ids"]) > 0
 
 
+def test_the_saved_batches_of_each_round_hold_exactly_the_hands_of_that_round(
+        screen_config, prompts_sdf, stage_dir, stub_claude):
+    stub_claude(remove_first_hand_of_round_zero_batches)
+    screen.run(screen_config, prompts_sdf, stage_dir)
+    rounds = utils.load_jsonl(stage_dir / "screen_rounds.jsonl")
+    batches = utils.load_jsonl(stage_dir / "screen_batches.jsonl")
+    assert len(rounds) >= 2
+    for round_record in rounds:
+        of_round = [b for b in batches if b["round"] == round_record["round"]]
+        assert sorted(pid for b in of_round for pid in b["prompt_ids"]) == sorted(round_record["prompt_ids"])
+
+
+def test_the_rejections_are_the_judgments_marked_for_removal_with_their_reasons(
+        screen_config, prompts_sdf, stage_dir, stub_claude):
+    stub_claude(remove_first_hand_of_round_zero_batches)
+    screen.run(screen_config, prompts_sdf, stage_dir)
+    judgments = utils.load_jsonl(stage_dir / "screen_judgments.jsonl")
+    rejected = screen.load_rejections(stage_dir)
+    removed = {j["prompt_id"]: j for j in judgments if j["remove"]}
+    assert removed and set(rejected) == set(removed)
+    assert all(rejected[pid]["reason"] == removed[pid]["reason"] for pid in removed)
+
+
 def test_a_removal_that_cannot_be_redealt_is_saved_as_an_empty_round(screen_config, prompts_sdf, stage_dir, stub_claude):
     screen_config["sdf"]["n_prompts"] = 1
     stub_claude(remove_the_first_hand_of_every_batch)
     screen.run(screen_config, prompts_sdf, stage_dir)
     rounds = utils.load_jsonl(stage_dir / "screen_rounds.jsonl")
     assert rounds[1]["prompt_ids"] == [] and "could not be redealt" in rounds[1]["note"]
+    assert rounds[0]["prompt_ids"] == ["matrix_000000"]
+    assert set(screen.load_rejections(stage_dir)) == {"matrix_000000"}   # removed, and its cards dropped
+    assert utils.load_jsonl(stage_dir / "screened_hands.jsonl") == []   # no hand is left to plan
 
 
 def test_resume_repeats_the_identical_rounds_with_zero_calls_for_finished_batches(
@@ -277,6 +303,10 @@ def test_resume_repeats_the_identical_rounds_with_zero_calls_for_finished_batche
     screen.run(screen_config, prompts_sdf, stage_dir)
     assert resumed_calls and all("round1" in c["item_id"] for c in resumed_calls)
     assert utils.load_jsonl(stage_dir / "screen_batches.jsonl")[:len(batches_before)] == batches_before
+    # round 1's failed batches were retried: every hand of every round has its judgment
+    rounds = utils.load_jsonl(stage_dir / "screen_rounds.jsonl")
+    judged = {j["prompt_id"] for j in utils.load_jsonl(stage_dir / "screen_judgments.jsonl")}
+    assert judged == {pid for r in rounds for pid in r["prompt_ids"]}
 
 
 def test_a_completed_screen_makes_no_calls_and_a_disabled_screen_writes_nothing(screen_config, prompts_sdf, stage_dir, stub_claude):
