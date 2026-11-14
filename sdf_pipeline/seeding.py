@@ -51,7 +51,8 @@ class SeedingRefused(SystemExit):
 
 # Views of the step catalogue (sdf_pipeline/pipeline_steps.py): the steps that can be seeded, by name, in
 # pipeline order, and the reasons the others cannot.
-SEEDABLE_STEPS = {entry.name: entry for entry in pipeline_steps.PIPELINE_STEPS if entry.is_seedable}
+SEEDABLE_STEPS = {entry.name: entry for entry in pipeline_steps.PIPELINE_STEPS
+                  if entry.document_file and not entry.reason_not_seedable}
 UNSEEDABLE_STEPS = {entry.name: entry.reason_not_seedable for entry in pipeline_steps.PIPELINE_STEPS
                     if entry.reason_not_seedable}
 
@@ -147,10 +148,8 @@ def seed_run_from_chosen_step(
     if from_step not in SEEDABLE_STEPS:
         _refuse(f"unknown step {from_step!r}. Seedable steps: {', '.join(SEEDABLE_STEPS)}")
     step = SEEDABLE_STEPS[from_step]
-    if step.reason_not_seedable_under_config is not None:
-        reason_under_config = step.reason_not_seedable_under_config(config)
-        if reason_under_config:
-            _refuse(f"step {from_step!r} cannot be seeded {reason_under_config}")
+    if step.seeding_refuses_when_inactive and (reason_inactive := step.reason_inactive(config, None)):
+        _refuse(f"step {from_step!r} cannot be seeded: {reason_inactive}. Seedable steps: {', '.join(SEEDABLE_STEPS)}")
     source_run = Path(source_run)
     try:
         layout = detect_run_layout(source_run)
@@ -181,7 +180,7 @@ def seed_run_from_chosen_step(
                      for writer, layer_file in _stage_files_in_pipeline_order() if _position_of(writer) < step_position]
 
     # Which documents: those named, else every document the step has an input record for.
-    input_file = (step.seeding_documents_read_from or step.documents_read_from)(config, prompts_dir)
+    input_file = step.document_file(config, prompts_dir)
     input_layer, input_file_name, input_id_field = input_file.layer, input_file.file_name, input_file.id_field
     input_records = _records_by_id(stage_directory[input_layer], input_file_name, input_id_field)
     if not input_records:

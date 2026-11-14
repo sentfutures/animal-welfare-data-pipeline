@@ -57,8 +57,8 @@ STAGES_THIS_COMMAND_COVERS = ("screen", "description_rewrite", "plan", "select",
                               "combined", "score")
 # The steps the catalogue marks as showing no request, with the reason.
 STAGES_THIS_COMMAND_CANNOT_COVER_YET = {
-    entry.name: entry.reason_print_command_cannot_show
-    for entry in pipeline_steps.PIPELINE_STEPS if entry.reason_print_command_cannot_show}
+    entry.print_command_name: "makes no model call"
+    for entry in pipeline_steps.PIPELINE_STEPS if entry.print_command_name and entry.stage_tag is None}
 
 
 class RequestCannotBeBuilt(pipeline_steps.StepCannotBeBuilt):
@@ -133,15 +133,14 @@ def build_full_request(run_directory: Path, config: dict, stage: str, document_i
         # The one stage whose document is a batch of hands (from the saved batch plan), so it is built here.
         step, document = _screen_step_and_batch(run_directory, config, prompts_directory, layer_directory[1],
                                                 document_id, round_number)
-    elif entry is not None:
+    elif entry is not None and entry.build_step:
         reading = pipeline_steps.RunReading(config, prompts_directory, layer_directory)
-        if entry.message_when_inactive_in_print_command and entry.reason_inactive(config, prompts_directory):
-            raise RequestCannotBeBuilt(entry.message_when_inactive_in_print_command)
+        reason_inactive = entry.print_refuses_when_inactive and entry.reason_inactive(config, prompts_directory)
+        if reason_inactive:
+            raise RequestCannotBeBuilt(f"the {stage} step does not run in this run: {reason_inactive}")
         documents = entry.load_documents(reading)
-        file_of_documents = entry.documents_read_from(config, prompts_directory)
-        document = _record_with_id(
-            documents, file_of_documents.id_field, document_id,
-            entry.documents_description or str(layer_directory[file_of_documents.layer] / file_of_documents.file_name))
+        document = _record_with_id(documents, entry.document_file(config, prompts_directory).id_field, document_id,
+                                   f"the input documents of the {stage} step")
         try:
             step = entry.build_step(reading, documents, document_id)
         except pipeline_steps.StepCannotBeBuilt as problem:

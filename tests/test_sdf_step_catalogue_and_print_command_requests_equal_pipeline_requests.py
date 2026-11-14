@@ -98,12 +98,13 @@ def test_seeding_lists_the_steps_in_pipeline_order_and_names_the_reason_for_the_
     assert list(seeding.SEEDABLE_STEPS) == [
         "plan", "description_rewrite", "consideration_scoring", "draft", "critique", "revise", "score"]
     assert set(seeding.UNSEEDABLE_STEPS) == {
-        "deal", "screen", "redeal", "consideration_assignment", "gate", "near_duplicate_cull"}
-    assert "combined_review_and_revise" not in seeding.SEEDABLE_STEPS | seeding.UNSEEDABLE_STEPS
+        "deal", "screen", "redeal", "consideration_assignment", "combined_review_and_revise", "gate", "near_duplicate_cull"}
+    assert "combined_review_and_revise" in seeding.UNSEEDABLE_STEPS and "critique" in seeding.UNSEEDABLE_STEPS[
+        "combined_review_and_revise"]
 
 
 def test_the_print_command_stage_names_are_the_catalogue_s():
-    assert set(command.STAGES_THIS_COMMAND_COVERS) == {e.print_command_name for e in ENTRIES if e.print_command_name}
+    assert set(command.STAGES_THIS_COMMAND_COVERS) == {e.print_command_name for e in ENTRIES if e.build_step or e.name == "screen"}
     assert command.STAGES_THIS_COMMAND_CANNOT_COVER_YET == {"gate": "makes no model call",
                                                            "near_duplicate_cull": "makes no model call"}
 
@@ -177,3 +178,39 @@ def test_the_print_command_builds_the_request_the_pipeline_sent_for_every_stage_
         compared_stages.add(stage)
     assert compared_stages >= {"plan", "description_rewrite", "select", "draft", "score"}
     assert ("combined" in compared_stages) != ("critique" in compared_stages)
+
+
+# ------------------------------------------------------------------ refusal messages worded from the catalogue
+
+def _seed_refusal(from_step: str, config: dict) -> str:
+    with pytest.raises(seeding.SeedingRefused) as refusal:
+        seeding.seed_run_from_chosen_step(
+            config=config, source_run=Path("unused"), from_step=from_step, document_ids=None,
+            runs_root=Path("unused"), label="unused", repository_root=REPOSITORY_ROOT)
+    return str(refusal.value)
+
+
+def test_seeding_refusals_name_the_step_the_reason_and_what_to_do_instead():
+    config = utils.load_config(str(REPOSITORY_ROOT / "config.yaml"))
+    single_call = {**config, "sdf": {**config["sdf"], "revision": {"split": False}}}
+    revise = _seed_refusal("revise", single_call)
+    assert "step 'revise' cannot be seeded" in revise and "revises in one call" in revise
+    assert "seed from 'critique'" in revise and "Seedable steps: plan, description_rewrite" in revise
+    combined = _seed_refusal("combined_review_and_revise", config)
+    assert "step 'combined_review_and_revise' cannot be seeded" in combined and "in place of the critique and the revise" in combined
+    assert "seed at 'critique'" in combined
+    assert "unknown step 'no_such_step'" in _seed_refusal("no_such_step", config)
+
+
+def test_print_command_refusals_name_the_stage_the_reason_and_the_input(tmp_path):
+    run_directory, config = command._run_fixture_scenario_in_temporary_folder(
+        "temperature_kept_on_every_stage_with_a_two_call_revision", tmp_path)
+    switched_off = {**config, "sdf": {**config["sdf"], "description_rewrite_enabled": False, "select_enabled": False}}
+    with pytest.raises(command.RequestCannotBeBuilt, match=r"description_rewrite step does not run.*Description rewrite disabled \(sdf.description_rewrite_enabled: false\)"):
+        command.build_full_request(run_directory, switched_off, "description_rewrite", "matrix_000000")
+    with pytest.raises(command.RequestCannotBeBuilt, match="select step does not run.*sdf.select_enabled: false"):
+        command.build_full_request(run_directory, switched_off, "select", "matrix_000000")
+    with pytest.raises(command.RequestCannotBeBuilt, match="no record with prompt_id 'nope' in the input documents of the draft step"):
+        command.build_full_request(run_directory, config, "draft", "nope")
+    with pytest.raises(command.RequestCannotBeBuilt, match="no record with doc_id 'nope' in the input documents of the revise step"):
+        command.build_full_request(run_directory, config, "revise", "nope")
