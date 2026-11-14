@@ -231,7 +231,12 @@ and `report_sdf.py` writes to a path you pass it.
 python evals/audit_dad.py --input outputs/dad/latest
 python evals/audit_sdf.py --input outputs/sdf/latest
 python evals/diversity.py --input outputs/dad/latest
+python evals/audit_sdf.py --input outputs/sdf/latest --patterns   # adds the LLM templating scan (scan, consolidate, prevalence)
+python evals/score_sdf.py --input outputs/sdf/latest/final/sdf_corpus.jsonl
+python evals/diversity.py --input outputs/sdf/latest
 ```
+
+`diversity.py` embeds via `GEMINI_API_KEY` or `OPENAI_API_KEY` (cents per run, cached) and reads either pipeline's run; `audit_dad.py --judges` is the paid pass (welfare impact, delivery quality and showcase) on top of the offline tic, move and length audit. `latest` is a symlink to the most recent run.
 
 A full DAD run finishes by launching `audit_dad.py --judges` and `diversity.py`
 on its own run directory, so the commands above are for re-runs, partial runs,

@@ -11,7 +11,7 @@ and each step in ``sdf_pipeline/steps/<step name>.py``:
   4. ``layer4_draft_critique_and_revise``: draft, critique, revise
   5. ``layer5_score_and_final_selection``: score, score gate, near-duplicate removal, write ``final/``
 
-Steps a document goes through (full table with module detail in CLAUDE.md):
+Steps a document goes through (full table with module detail in sdf_pipeline/CLAUDE.md):
 
    1. Deal (compose_prompts, no model)                      cannot drop
    2. Implausibility screen (steps/screen.py), batches of 10,

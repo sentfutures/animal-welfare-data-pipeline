@@ -10,8 +10,8 @@ The directory holds two independent sets of prompts, one per dataset:
 - **`sdf/`** generates pretraining-style documents: blog posts, podcast
   transcripts, academic abstracts, news articles, fiction, internal memos, forum
   threads, and more. They depict a world where AI already reasons carefully about
-  the welfare of animals and other sentient beings. It runs in four stages,
-  called layers.
+  the welfare of animals and other sentient beings. It runs in five stages,
+  called layers (see `sdf_pipeline/CLAUDE.md`).
 - **`dad/`** generates chat transcripts: a user brings a real decision that has
   animal welfare implications, and an assistant reasons through it. It runs in
   three steps.
@@ -50,7 +50,7 @@ caching rewards.
 
 ## SDF Prompts
 
-Run in sequence. Each layer feeds into the next. (The template file names `layer1.txt` to `layer4.txt` and the `layer1_*` files keep their names: they number the templates, not the pipeline's five layers, which are named in `CLAUDE.md`.)
+Run in sequence. Each layer feeds into the next. (The template file names `layer1.txt` to `layer4.txt` and the `layer1_*` files keep their names: they number the templates, not the pipeline's five layers, which are named in `sdf_pipeline/CLAUDE.md`.)
 
 ### `sdf/preamble.txt`
 

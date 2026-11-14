@@ -199,7 +199,7 @@ pytest -x                           # stop at the first failure
 
 Expected result: all tests pass, in well under a minute, with no network access. Three safety layers guarantee the API is never hit (pytest-socket blocks all sockets, every test gets a fake `ANTHROPIC_API_KEY` and a repo root with no `.env`, and the API seam is replaced with a guard that raises), so a real key in your `.env` is never used by tests. Test outputs go to temp directories; the repo's `outputs/` tree is untouched.
 
-See the Testing section in `CLAUDE.md` for how the suite is structured and how to write tests for new stages.
+See `tests/CLAUDE.md` for how the suite is structured and how to write tests for new stages.
 
 ---
 

@@ -10,7 +10,7 @@ The original Claude constitution, verbatim. Never edited here.
 
 A section-by-section *reading* of the constitution for animal-welfare implications — it quotes the constitution and explains what each section already implies for the treatment of animals and other sentient beings; it does not modify or extend it. One `## ` header per section.
 
-The two markdown files are joined **in memory** (`load_full_constitution()`) wherever the full text is needed — the system prompt at SDF layers 4–5. They are never combined on disk.
+The two markdown files are joined **in memory** (`load_full_constitution()`) wherever the full text is needed — in practice only the viewer and legacy runs now, since no pipeline sends the full constitution plus reading (see "How the constitution reaches generation calls" below). They are never combined on disk.
 
 ## `charter_animal.md`, `charter_human.md` and their principles
 
@@ -31,4 +31,29 @@ This distillation was produced *from* the two documents above, with the full con
 A checklist of twelve recurring animal-welfare reasoning failures (not noticing a stake, mentioning welfare without weighing it, treating species or ecosystems as the unit of welfare, scale-blindness, and so on), each with the general principle it conflicts with and an observed model response where one is documented. It is deliberately written against no particular guiding document, so it applies unchanged when another constitution is swapped in. `load_failure_modes()` returns it verbatim; it is embedded as the `<failure_modes>` block of the SDF layer-3 rewrite prompt. The same twelve failures are the source of the SDF `{failure_mode_avoided}` variable. The DAD step-3 rewrite prompt embeds it the same way, as `{failure_modes}`.
 
 `failure_modes_human.md` is the human-ethics DAD profile's mirror of it, entry by entry, with the people a decision affects in place of the animals; the profile names it as `FAILURE_MODES_FILENAME`. It has no observed model responses yet.
+
+## How the constitution reaches generation calls
+
+(Moved from the repository's `CLAUDE.md`.) The sentient-beings reading is parsed by `## ` headers
+into 16 sections by `load_segments()`, each with a `principle_id` (0–15; ids 0, 14, and 15 are the
+`META_PRINCIPLE_IDS` meta sections — scope note, violation-typology appendix, closing humility
+note). It is not sent by any generation call — it was the source context for distilling the
+principles CSV; the viewer still renders the legacy runs that used its sections as per-example
+anchors. `load_principles()`/`format_principles()` render each principle with its welfare
+application and verbatim constitution excerpts as the principles half of the SDF prompts, and as
+the step-3 principles of DAD runs made before the charters. The DAD charters and their principles
+files are named by each profile as `PRINCIPLES_FILENAME` (`format_principles()` renders it as the
+`CHARTER PRINCIPLES` block in the step-3 rewrite prompt); a run snapshotted before the charters
+keeps its old principles file (`LEGACY_PRINCIPLES_FILENAMES`, read by step 3 and the viewer).
+
+The SDF draft, critique and revise templates embed the constitution (and the formatted principles
+CSV) in each template's labeled SYSTEM section via `{constitution_claude}` /
+`{constitution_principles}` (`load_constitution_claude()` + `format_principles()`); the score
+template embeds the constitution only. The pipeline splits the rendered file on the
+`=== SYSTEM PROMPT ===` / `=== USER PROMPT ===` markers and sends the sections as system prompt
+and user message. `load_constitution_with_principles()` remains for the viewer and legacy runs.
+`load_full_constitution()` (constitution + sentient-beings reading) is not sent by any pipeline;
+it remains for the viewer and legacy runs. The DAD pipeline never sends the full constitution —
+sending it per rewrite call was the dominant token cost of the step. The section count is pinned
+once, in `test_constitution_loader.py`.
 
