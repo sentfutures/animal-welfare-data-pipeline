@@ -682,6 +682,10 @@ cheapest way to exercise the degraded path — four of the appendix's inputs are
 it and each names itself. `page.MAKER_URL`
 is inferred from the team's domain.
 
+## SDF step catalogue
+
+`sdf_pipeline/pipeline_steps.py` holds one entry per SDF step (today's name, `run.py` layer, module, stage tag, model setting keys, stage files and id fields, required prompt files, inactivity reason, seedability, and functions that load a step's input documents from a run's stage files and build the step). `seeding.py`, `run.py`'s `--layer` restart and layer loop and the request print command read it, so none keeps its own table of steps. The stage tags `layer1_screen` and `layer1_select` are also random seeds; the entry's `shuffle_seed` keeps them literal if the tag is ever renamed.
+
 ## Directory Structure
 
 ```
