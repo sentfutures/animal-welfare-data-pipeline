@@ -6,13 +6,15 @@ output: ``sdf_pipeline/step_runner.py`` does the calling, the event log and the 
 ``ModelRequest`` carries everything a layer passes to ``shared.api.call_claude``. A step outcome
 is one of ``Accepted``, ``Removed``, ``Failed`` or ``Created``. The three step kinds are
 ``DocumentStep`` (one document, one model call per attempt), ``BatchStep`` (a group of documents,
-one call per group) and ``CorpusStep`` (every document, no call). Only ``DocumentStep`` is run by
-``StepRunner`` so far; ``BatchStep`` and ``CorpusStep`` are the interfaces the later work items
-move the screen, the redeal, the assignment, the gate and the cull onto.
+one call per group) and ``CorpusStep`` (every document, no call). ``StepRunner`` runs a ``DocumentStep``, ``BatchStepRunner``
+runs a ``BatchStep`` (the screen) and ``run_corpus_step`` runs a ``CorpusStep`` (the deal, the redeal,
+the considerations assignment, the score gate and the near-duplicate cull); all are in
+``sdf_pipeline/step_runner.py``.
 """
 
 import hashlib
 import json
+import time
 from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass, field
 from enum import Enum
@@ -45,6 +47,41 @@ class ModelRequest:
         reader can tell which request a reply answered."""
         canonical = json.dumps(asdict(self), sort_keys=True, ensure_ascii=False)
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+PROGRESS_INTERVAL_SECONDS = 180  # throttled progress lines are printed no more often than this
+
+
+class ThrottledProgressClock:
+    """The clock behind a throttled progress line: ``is_due`` once ``PROGRESS_INTERVAL_SECONDS`` have
+    passed since the last line, ``mark_printed`` (returns the seconds since the start) when one is
+    printed, ``restart`` at the start of each run."""
+
+    def __init__(self):
+        self.restart()
+
+    def restart(self) -> None:
+        self.started_at = self.last_printed_at = time.monotonic()
+
+    def is_due(self) -> bool:
+        return time.monotonic() - self.last_printed_at >= PROGRESS_INTERVAL_SECONDS
+
+    def mark_printed(self) -> float:
+        self.last_printed_at = time.monotonic()
+        return self.last_printed_at - self.started_at
+
+    def seconds_since_start(self) -> float:
+        return time.monotonic() - self.started_at
+
+
+def reason_without_error_prefix(reason: str) -> str:
+    """A thrown call's failure reason without its leading ``error: ``."""
+    return reason.removeprefix("error: ")
+
+
+def line_for_document_left_to_retry(document_id: str, problem: str, ending: str = "will retry on resume") -> str:
+    """The progress line for a document (or batch) whose call failed and which a resume runs again."""
+    return f"  {document_id}: {problem} — {ending}"
 
 
 @dataclass(frozen=True)
@@ -113,12 +150,15 @@ class DocumentStep(ABC):
     """A step that sees one document and makes one model call per attempt.
 
     The "document" is whatever object the step's layer works with (a plan record for the draft
-    step, a ``DocumentState`` once the later work items move the other layers over); the step
+    step, a draft record for the critique step); the step
     names its id with ``document_id_of``.
     """
 
     step_name: str
     stage_file_name: str
+    # The field of a stage file record that holds the document's id (what ``document_id_of`` returns),
+    # so the runner can find the documents already in the stage file.
+    stage_file_id_field: str = "doc_id"
     policy: StepPolicy = StepPolicy()
     systemic_stop_message: str
     # When True, an error raised while building the request is a thrown call (a ``Failed``

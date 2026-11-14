@@ -20,49 +20,11 @@ from evals import audit_sdf
 from sdf_pipeline import compose_prompts as cp
 from sdf_pipeline import layer1_screen as screen
 from shared import utils
+from sdf_screen_test_builders import (
+    numbers_in, screen_answer, no_removals, remove_first_hand_of_round_zero_batches, remove_the_first_hand_of_every_batch, remove_the_first_three_hands_of_every_batch, screen_config,
+)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-
-
-def numbers_in(user_message):
-    """(number, text) for every <hand> block the screen prompt shows."""
-    return [(int(n), body) for n, body in re.findall(
-        r'<hand number="(\d+)">\n(.*?)\n</hand>', user_message, re.DOTALL)]
-
-
-def screen_answer(count, remove=(), reasons=None, **overrides):
-    """A schema-shaped answer for a batch of ``count`` hands."""
-    entries = [
-        {"number": n, "reasoning": f"Considered hand {n}.", "remove": n in remove,
-         "reason": (reasons or {}).get(n, "No realistic document could satisfy this hand.") if n in remove else ""}
-        for n in range(1, count + 1)
-    ]
-    return json.dumps({"specifications": entries, **overrides})
-
-
-def no_removals(user_message, **kw):
-    return screen_answer(len(numbers_in(user_message)))
-
-
-def remove_first_hand_of_round_zero_batches(user_message, **kw):
-    """Removes hand 1 of every round-0 batch; keeps everything in later rounds."""
-    count = len(numbers_in(user_message))
-    return screen_answer(count, remove={1} if "round0" in kw["item_id"] else ())
-
-
-def remove_the_first_hand_of_every_batch(user_message, **kw):
-    return screen_answer(len(numbers_in(user_message)), remove={1})
-
-
-def remove_the_first_three_hands_of_every_batch(user_message, **kw):
-    return screen_answer(len(numbers_in(user_message)), remove={1, 2, 3})
-
-
-@pytest.fixture
-def screen_config(tiny_config):
-    tiny_config["sdf"]["n_prompts"] = 25
-    tiny_config["sdf"]["screen_batch_size"] = 10
-    return tiny_config
 
 
 def column_counts(hands):
@@ -191,21 +153,6 @@ def test_screen_shows_the_planner_variable_lines_in_numbered_batches_of_ten(
     assert not any("matrix_0" in c["user_message"] for c in calls)  # numbers only, never ids
 
 
-def test_numbers_map_back_to_the_right_hands_and_rejections_carry_the_round(
-    screen_config, prompts_sdf, stage_dir, stub_claude
-):
-    stub_claude(remove_first_hand_of_round_zero_batches)
-    screen.run(screen_config, prompts_sdf, stage_dir)
-    batches = [b for b in utils.load_jsonl(stage_dir / "screen_batches.jsonl") if b["round"] == 0]
-    first_of_each_batch = {b["prompt_ids"][0] for b in batches}
-    rejections = utils.load_jsonl(stage_dir / "screen_rejections.jsonl")
-    assert {r["prompt_id"] for r in rejections} == first_of_each_batch
-    assert all(r["round"] == 0 and r["reason"] and r["variable_lines"] and r["variables"] for r in rejections)
-    judgments = utils.load_jsonl(stage_dir / "screen_judgments.jsonl")
-    assert all(j["reasoning"] and j["batch_id"].startswith("screen_round") for j in judgments)
-    assert {j["prompt_id"] for j in judgments if j["remove"]} >= first_of_each_batch
-
-
 def test_out_of_range_numbers_are_rejected_and_not_checkpointed(
     screen_config, prompts_sdf, stage_dir, stub_claude
 ):
@@ -275,19 +222,6 @@ def test_batch_size_knob(screen_config, prompts_sdf, stage_dir, stub_claude):
     assert len(calls) == 3  # 4 + 4 + 2
 
 
-def test_batches_are_seeded_and_input_order_independent(screen_config, prompts_sdf, tmp_path, stub_claude):
-    stub_claude(no_removals)
-    batches = []
-    for name, seed in (("a", 0), ("b", 0), ("c", 1)):
-        directory = tmp_path / name
-        directory.mkdir()
-        screen_config["sdf"]["seed"] = seed
-        screen.run(screen_config, prompts_sdf, directory)
-        batches.append(utils.load_jsonl(directory / "screen_batches.jsonl"))
-    assert batches[0] == batches[1]
-    assert batches[0] != batches[2]
-
-
 # --- redeal rounds ---
 
 def test_removed_hands_are_redealt_and_every_columns_counts_stay_exact(
@@ -344,11 +278,6 @@ def test_redeal_is_deterministic_per_seed_and_round(prompts_sdf):
     assert same[0] == same[1]
     assert screen.redeal_removed_hands(hands, 2, 0, rules) != same[0]
     assert screen.redeal_removed_hands(hands, 1, 1, rules) != same[0]
-
-
-def test_a_lone_removed_hand_cannot_be_redealt_into_a_different_hand(prompts_sdf):
-    hand = {"prompt_id": "matrix_000000", "variables": {"tone": "a", "culture": "b"}}
-    assert screen.redeal_removed_hands([hand], 1, 0, []) is None
 
 
 def test_screen_terminates_after_the_maximum_rounds_and_reports_leftovers(

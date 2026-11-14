@@ -1,11 +1,10 @@
 """Routing of gpt-/gemini- models through call_claude, the Gemini wrapper's
 request and response handling, per-stage effort and the thinking headroom."""
 
-import json
 
 import pytest
 
-from shared import api, gemini_api
+from shared import api, gemini_api, utils
 
 # The real network seam, captured before the autouse guard in conftest replaces it.
 _REAL_GENERATE = gemini_api._generate
@@ -41,10 +40,6 @@ def run_log(tmp_path, monkeypatch):
     return path
 
 
-def _records(path):
-    return [json.loads(line) for line in path.read_text().splitlines()]
-
-
 class TestGeminiRouting:
     def test_gemini_model_routes_to_gemini_with_system_and_thinking_level(self, stub_gemini, run_log, monkeypatch):
         monkeypatch.setattr(api, "_config", {"max_tokens": 4000, "effort": {"response_draft": "high"}})
@@ -66,7 +61,7 @@ class TestGeminiRouting:
     def test_thinking_tokens_are_billed_as_output(self, stub_gemini, run_log):
         stub_gemini(_gemini_reply(prompt=1_000_000, candidates=500_000, thoughts=500_000))
         api.call_claude("u", model="gemini-3.1-pro-preview", stage="response_draft")
-        record = _records(run_log)[0]
+        record = utils.load_jsonl(run_log)[0]
         assert record["backend"] == "gemini"
         assert record["output_tokens"] == 1_000_000
         assert record["reasoning_tokens"] == 500_000

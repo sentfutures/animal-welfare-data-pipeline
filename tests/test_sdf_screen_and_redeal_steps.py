@@ -18,8 +18,9 @@ from sdf_pipeline.document_event_log import (
 from sdf_pipeline.layer1_screen import DealStep, RedealStep, ScreenBatch, ScreenStep
 from sdf_pipeline.step_runner import BatchStepRunner
 from sdf_pipeline.update_steps import Accepted, Created, Failed, FailureKind, ModelReply, ModelRequest, Removed
+from sdf_step_and_command_line_test_helpers import events_of
 from shared import utils
-from test_layer1_screen import (
+from sdf_screen_test_builders import (
     no_removals, numbers_in, remove_first_hand_of_round_zero_batches, remove_the_first_hand_of_every_batch,
     remove_the_first_three_hands_of_every_batch,
     screen_answer, screen_config)  # noqa: F401  (screen_config is a fixture)
@@ -43,10 +44,6 @@ def batch_of(screen_step, hand_indexes, batch_id="screen_round0_batch0000"):
     hands = {h["prompt_id"]: h for h in (make_hand(i) for i in hand_indexes)}
     return screen_step.batch_from_record(
         {"batch_id": batch_id, "round": 0, "prompt_ids": list(hands)}, hands)
-
-
-def events_of(stage_dir):
-    return read_document_events(stage_dir.parent / "document_events.jsonl")
 
 
 # ---------------------------------------------------------------- grouping

@@ -130,7 +130,7 @@ def build_full_request(run_directory: Path, config: dict, stage: str, document_i
     batch the hand belongs to in ``round_number`` (any round holding it, when None and only one does)."""
     run_directory = Path(run_directory)
     prompts_directory = _prompts_directory_of_run(run_directory)
-    layer_directory = {number: utils.sdf_stage_dir(run_directory, number) for number in (1, 2, 3, 4)}
+    layer_directory = {number: utils.sdf_stage_dir_of_existing_run(run_directory, number) for number in (1, 2, 3, 4)}
     if stage == "screen":
         step, document = _screen_step_and_batch(run_directory, config, prompts_directory, layer_directory[1],
                                                 document_id, round_number)

@@ -16,7 +16,8 @@ The layer is three ``DocumentStep`` classes run by ``sdf_pipeline.step_runner.St
 ``CritiqueStep`` and ``ReviseStep`` (the two-call path) and ``CombinedReviewAndReviseStep``
 (the legacy single call, ``sdf.revision.split: false``). Each reads the description, variables
 and considerations from the draft record, that is, from what the text was written from.
-``run`` keeps its signature and behaviour as a thin wrapper, because scripts import it.
+``run`` is the layer's entry point, called by ``sdf_pipeline/run.py`` and ``experiments/experiment.py``:
+it picks the steps for the config, runs them in order and returns the rewrite records in input order.
 """
 
 import re
@@ -29,10 +30,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from shared import constitution_loader, deal_constraints, utils
 from sdf_pipeline import compose_prompts as cp
 from sdf_pipeline import revision_style
-from sdf_pipeline.document_event_log import DOCUMENT_EVENT_LOG_FILE_NAME, DocumentEventLog
 from sdf_pipeline.step_runner import StepRunner, send_model_request
 from sdf_pipeline.update_steps import (
-    Accepted, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, StepPolicy)
+    Accepted, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, StepPolicy,
+    line_for_document_left_to_retry)
 
 IMPROVED_TAG_RE = re.compile(r"<improved_document>(.*?)</improved_document>", re.DOTALL)
 REVIEW_TAG_RE = re.compile(r"<review>(.*?)</review>", re.DOTALL)
@@ -137,8 +138,8 @@ def _rewrite_progress_line(draft: dict, outcome) -> str:
     if isinstance(outcome, Accepted):
         return f"  Rewrote {did} ({len(outcome.update.content)} chars)"
     if outcome.kind is FailureKind.THROWN_CALL:
-        return f"  {did}: no rewrite ({outcome.reason}) — will retry on resume"
-    return f"  {did}: {outcome.reason} — will retry on resume"
+        return line_for_document_left_to_retry(did, f"no rewrite ({outcome.reason})")
+    return line_for_document_left_to_retry(did, outcome.reason)
 
 
 def _interpret_rewrite_reply(reply: ModelReply):
@@ -202,7 +203,7 @@ class CritiqueStep(DocumentStep):
 
     def progress_line(self, draft: dict, outcome) -> str | None:
         if isinstance(outcome, Failed):  # an accepted critique prints nothing: the revise prints the result
-            return f"  {draft['doc_id']}: no rewrite ({outcome.reason}) — will retry on resume"
+            return line_for_document_left_to_retry(draft["doc_id"], f"no rewrite ({outcome.reason})")
         return None
 
 
@@ -308,27 +309,9 @@ class CombinedReviewAndReviseStep(DocumentStep):
         return _rewrite_progress_line(draft, outcome)
 
 
-class _CritiqueCheckpointView:
-    """The critique step's view of the layer's checkpoint. A draft is finished (and gets no
-    critique) when the checkpoint marks it done or its rewrite is already on disk; accepting a
-    critique marks nothing, because only an accepted rewrite finishes a draft."""
-
-    def __init__(self, checkpoint: utils.Checkpoint, finished_document_ids: set):
-        self.checkpoint = checkpoint
-        self.finished_document_ids = finished_document_ids
-
-    def is_done(self, document_id) -> bool:
-        return document_id in self.finished_document_ids or self.checkpoint.is_done(document_id)
-
-    def mark_done(self, document_id) -> None:
-        pass
-
-
 def run(config: dict, prompts_dir: Path, output_dir: Path, drafts: list[dict]) -> list[dict]:
     split = bool((config["sdf"].get("revision") or {}).get("split", True))
     workers = config.get("workers", 1)
-    # The event log sits in the run folder, beside the layer folders.
-    event_log = DocumentEventLog(output_dir.parent / DOCUMENT_EVENT_LOG_FILE_NAME)
     checkpoint = utils.Checkpoint(output_dir / "_checkpoint.json")
     existing_rewrite_ids = {r["doc_id"] for r in utils.load_jsonl(output_dir / "rewrites.jsonl")}
     pending_ids = [
@@ -350,9 +333,11 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, drafts: list[dict]) -
 
     if split:
         critique_step = CritiqueStep(config, prompts_dir)
+        # A draft is finished, and gets no critique, when its rewrite is already on disk; accepting a
+        # critique marks nothing, because only an accepted rewrite finishes a draft.
         critique_runner = StepRunner(
-            critique_step, output_dir, event_log, workers=workers, send=send_noting_thrown_calls,
-            checkpoint=_CritiqueCheckpointView(checkpoint, existing_rewrite_ids))
+            critique_step, output_dir, workers=workers, send=send_noting_thrown_calls,
+            checkpoint=checkpoint, marks_nothing_done=True, also_finished_document_ids=existing_rewrite_ids)
         critique_runner.run(drafts)
         # Critiques are banked separately from rewrites (the critique runner appended each as it
         # was accepted): a revise call that fails must not re-bill the critique that fed it.
@@ -361,7 +346,7 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, drafts: list[dict]) -
     else:
         rewrite_step = CombinedReviewAndReviseStep(config, prompts_dir)
     rewrite_runner = StepRunner(
-        rewrite_step, output_dir, event_log, workers=workers, send=send_noting_thrown_calls, checkpoint=checkpoint)
+        rewrite_step, output_dir, workers=workers, send=send_noting_thrown_calls, checkpoint=checkpoint)
     result = rewrite_runner.run(drafts)
 
     if pending_ids and len(documents_with_thrown_call) == len(pending_ids):

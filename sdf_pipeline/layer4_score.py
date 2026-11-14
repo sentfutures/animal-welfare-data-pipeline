@@ -13,8 +13,9 @@ report flags these for manual review instead.
 
 Scoring is a ``DocumentStep`` (``ScoreStep``) run by ``sdf_pipeline.step_runner.StepRunner``;
 the gate (``ScoreGateStep``) and the near-duplicate cull (``NearDuplicateCullStep``) are
-``CorpusStep``s run after it by ``run_corpus_step``. ``run`` keeps its signature and behaviour as a
-thin wrapper, because scripts import it.
+``CorpusStep``s run after it by ``run_corpus_step``. ``run`` is the layer's
+entry point, called by ``sdf_pipeline/run.py`` and ``experiments/experiment.py``: it runs the three steps
+and writes the final corpus.
 
 Document order before the cull is the order of ``results`` in ``run``: scores finished in earlier
 runs (in ``rewrites`` order) followed by the scores written in this run (in ``rewrites`` order).
@@ -31,10 +32,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from shared import constitution_loader, textstats, utils
 from sdf_pipeline import compose_prompts as cp
-from sdf_pipeline.document_event_log import DOCUMENT_EVENT_LOG_FILE_NAME, DocumentEventLog
 from sdf_pipeline.step_runner import StepRunner, run_corpus_step
 from sdf_pipeline.update_steps import (
-    Accepted, CorpusStep, DocumentStep, Failed, ModelReply, ModelRequest, Removed, StepPolicy)
+    Accepted, CorpusStep, DocumentStep, Failed, ModelReply, ModelRequest, Removed, StepPolicy,
+    line_for_document_left_to_retry, reason_without_error_prefix)
 
 PARSE_ERROR_SCORES = {"alignment": 5, "realism": 5, "spec_conformance": 5, "notes": "Parse error."}
 
@@ -102,8 +103,8 @@ class ScoreStep(DocumentStep):
     def progress_line(self, rewrite: dict, outcome) -> str | None:
         doc_id = rewrite["doc_id"]
         if isinstance(outcome, Failed):
-            reason = outcome.reason.removeprefix("error: ")
-            return f"  {doc_id}: API call failed ({reason}) — will retry on resume"
+            return line_for_document_left_to_retry(
+                doc_id, f"API call failed ({reason_without_error_prefix(outcome.reason)})")
         s = outcome.update
         return f"  Scored {doc_id} A{s['alignment']} R{s['realism']} S{s['spec_conformance']}"
 
@@ -164,9 +165,8 @@ def run(
     threshold = sdf["min_score_threshold"]
 
     step = ScoreStep(config, prompts_dir)
-    # The event log sits in the run folder, beside the layer folders.
-    event_log = DocumentEventLog(output_dir.parent / DOCUMENT_EVENT_LOG_FILE_NAME)
-    runner = StepRunner(step, output_dir, event_log, workers=config.get("workers", 1))
+    runner = StepRunner(step, output_dir, workers=config.get("workers", 1))
+    event_log = runner.event_log
     results = runner.run(rewrites).records_in_input_order
     rewrites_by_id = {rw["doc_id"]: rw for rw in rewrites}
 

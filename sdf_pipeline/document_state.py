@@ -8,8 +8,7 @@ against it, and its outcome (in progress, final, or removed with a reason code).
 
 The module only defines the data. ``sdf_pipeline/document_state_loader.py`` builds it from a
 run folder's stage files, and ``sdf_pipeline/document_state_final_corpus.py`` derives today's
-``final/sdf_corpus.jsonl`` records from it. Nothing here reads or writes a file, so the later
-event log and step runner can build the same records by folding events.
+``final/sdf_corpus.jsonl`` records from it. Nothing here reads or writes a file.
 
 The id
 ------

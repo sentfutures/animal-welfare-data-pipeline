@@ -487,10 +487,19 @@ class TestSdfStageFile:
     def test_an_empty_run_reports_through_the_current_layout(self, tmp_path):
         assert utils.sdf_stage_file(tmp_path, "score") == tmp_path / "layer4" / "scores.jsonl"
 
-    def test_stage_dir_writes_beside_a_resumed_old_runs_own_dirs(self, tmp_path):
+    def test_the_reader_resolves_an_old_runs_stage_directories(self, tmp_path):
         run = self._old_run(tmp_path)
-        assert utils.sdf_stage_dir(run, 1) == run / "layer12"
-        assert utils.sdf_stage_dir(run, 4) == run / "layer5"
+        assert utils.sdf_stage_dir_of_existing_run(run, 1) == run / "layer12"
+        assert utils.sdf_stage_dir_of_existing_run(run, 4) == run / "layer5"
+
+    def test_the_reader_resolves_a_current_runs_stage_directories(self, tmp_path):
+        run = self._new_run(tmp_path)
+        assert utils.sdf_stage_dir_of_existing_run(run, 2) == run / "layer2"
+
+    def test_stage_dir_for_writing_names_the_current_layout_even_beside_an_old_runs_folders(self, tmp_path):
+        run = self._old_run(tmp_path)
+        assert utils.sdf_stage_dir(run, 1) == run / "layer1"
+        assert utils.sdf_stage_dir(run, 4) == run / "layer4"
 
     def test_stage_dir_gives_a_fresh_run_the_new_names(self, tmp_path):
         assert utils.sdf_stage_dir(tmp_path, 1) == tmp_path / "layer1"
@@ -498,17 +507,10 @@ class TestSdfStageFile:
 
 
 class TestSdfTemplatePath:
-    def test_a_pre_renumber_snapshot_reads_its_own_template_names(self, tmp_path):
-        for n in ("layers1-2.txt", "layer3.txt", "layer4.txt", "layer5.txt"):
-            (tmp_path / n).write_text("x", encoding="utf-8")
-        assert utils.sdf_template_path(tmp_path, 1).name == "layers1-2.txt"
-        assert utils.sdf_template_path(tmp_path, 2).name == "layer3.txt"
-        assert utils.sdf_template_path(tmp_path, 3).name == "layer4.txt"
-        assert utils.sdf_template_path(tmp_path, 4).name == "layer5.txt"
+    def test_the_current_template_names_are_returned_without_looking_at_the_folder(self, tmp_path):
+        assert [utils.sdf_template_path(tmp_path, n).name for n in (1, 2, 3, 4)] == [
+            "layer1.txt", "layer2.txt", "layer3.txt", "layer4.txt"]
 
-    def test_a_current_snapshot_reads_the_new_names(self, tmp_path):
-        for n in ("layer1.txt", "layer2.txt", "layer3.txt", "layer4.txt"):
-            (tmp_path / n).write_text("x", encoding="utf-8")
+    def test_a_pre_renumber_snapshot_is_not_given_its_old_names(self, tmp_path):
+        (tmp_path / "layers1-2.txt").write_text("x", encoding="utf-8")
         assert utils.sdf_template_path(tmp_path, 1).name == "layer1.txt"
-        assert utils.sdf_template_path(tmp_path, 2).name == "layer2.txt"
-        assert utils.sdf_template_path(tmp_path, 4).name == "layer4.txt"

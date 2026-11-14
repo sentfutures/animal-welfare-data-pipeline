@@ -16,31 +16,13 @@ from evals import audit_sdf
 from sdf_pipeline import compose_prompts as cp
 from sdf_pipeline import layer1_description_rewrite as rewrite
 from shared import utils
-
-
-def answer(rewrite_needed=False, description="", checks=("plausibility_organisation",), conflict=False,
-           conflict_reason="", **overrides):
-    changes = [{"check": c, "reason": f"Fixed under {c}."} for c in checks] if rewrite_needed else []
-    return json.dumps({
-        "reasoning": "Read it against the dealt values.", "rewrite_needed": rewrite_needed,
-        "rewritten_description": description, "changes": changes,
-        "dealt_value_conflict": conflict, "conflict_reason": conflict_reason, **overrides})
+from sdf_description_rewrite_test_builders import (
+    answer, make_plans,
+)
 
 
 def description_in(user_message):
     return user_message.split("<description>\n")[1].split("\n</description>")[0]
-
-
-def make_plans(prompts_sdf, count=6):
-    template = (prompts_sdf / "layer1.txt").read_text(encoding="utf-8")
-    values, weights, value_ids = cp.load_variables(prompts_sdf / "variables.txt")
-    rules = cp.load_deal_rules(prompts_sdf / "deal_constraints.txt", value_ids)
-    hands = cp.hand_records(cp.deal_hands(template, values, weights, count, 0, rules))
-    return [
-        {"prompt_id": h["prompt_id"], "variables": h["variables"], "plan": "…",
-         "description": f"Original description {i}.", "incoherent": False}
-        for i, h in enumerate(hands)
-    ]
 
 
 @pytest.fixture
@@ -174,38 +156,11 @@ def test_the_model_sees_the_planners_variable_lines_and_the_description(
         assert description_in(call["user_message"]) == plan["description"]
 
 
-def test_a_dealt_value_conflict_drops_the_plan_and_logs_it(tiny_config, prompts_sdf, stage_dir, stub_claude, plans):
-    doomed = plans[1]["prompt_id"]
-    stub_claude(lambda user_message, **kw: answer(conflict=True, conflict_reason="The dealt scale cannot occur.")
-                if kw["item_id"] == doomed else answer())
-    kept = rewrite.run(tiny_config, prompts_sdf, stage_dir, plans)
-    assert doomed not in {p["prompt_id"] for p in kept} and len(kept) == len(plans) - 1
-    rejections = utils.load_jsonl(stage_dir / "description_rewrite_rejections.jsonl")
-    assert [(r["prompt_id"], r["conflict_reason"]) for r in rejections] == [(doomed, "The dealt scale cannot occur.")]
-    assert rejections[0]["description"] == "Original description 1." and rejections[0]["variables"]
-
-
 def test_incoherent_plans_are_not_sent_and_pass_through(tiny_config, prompts_sdf, stage_dir, stub_claude, plans):
     plans[3].update(description=None, incoherent=True)
     calls = stub_claude(lambda user_message, **kw: answer())
     kept = rewrite.run(tiny_config, prompts_sdf, stage_dir, plans)
     assert len(calls) == len(plans) - 1 and kept == plans
-
-
-def test_a_malformed_answer_is_not_checkpointed_and_resume_retries_exactly_that_plan(
-    tiny_config, prompts_sdf, stage_dir, stub_claude, plans
-):
-    broken = plans[4]["prompt_id"]
-    stub_claude(lambda user_message, **kw: "not json" if kw["item_id"] == broken else answer())
-    with pytest.raises(SystemExit, match="1 descriptions held out"):
-        rewrite.run(tiny_config, prompts_sdf, stage_dir, plans)
-    checkpoint = utils.Checkpoint(stage_dir / "_description_rewrite_checkpoint.json")
-    assert checkpoint.done_count == len(plans) - 1 and not checkpoint.is_done(broken)
-    assert broken not in by_id(utils.load_jsonl(stage_dir / "description_rewrites.jsonl"))
-    resumed = stub_claude(lambda user_message, **kw: answer(True, "Fixed on retry.", ("organisation_naming",)))
-    kept = by_id(rewrite.run(tiny_config, prompts_sdf, stage_dir, plans))
-    assert [c["item_id"] for c in resumed] == [broken]
-    assert kept[broken]["description"] == "Fixed on retry."
 
 
 def test_a_conflict_with_rewrite_needed_true_is_stored_and_drops_the_plan(
@@ -242,12 +197,6 @@ def test_an_unusable_answer_stops_the_stage_and_a_resume_retries_then_includes_t
 
 def test_a_run_with_no_stored_results_passes_every_plan_through_on_reload(tiny_config, stage_dir, plans):
     assert rewrite.load_rewritten_plans(tiny_config, stage_dir, plans) == plans
-
-
-def test_every_call_failing_is_systemic(tiny_config, prompts_sdf, stage_dir, stub_claude, plans):
-    stub_claude(lambda user_message, **kw: "not json")
-    with pytest.raises(SystemExit, match="every pending call failed"):
-        rewrite.run(tiny_config, prompts_sdf, stage_dir, plans)
 
 
 def test_resume_after_a_completed_stage_makes_zero_calls_and_reapplies_results(

@@ -120,7 +120,7 @@ def test_truncated_or_refused_openai_answers_are_rejected(stub_openai_responses,
 
 def test_stage_does_not_checkpoint_truncated_openai_answers_and_resume_retries_them(
         tiny_config, prompts_sdf, tmp_path, stub_openai_responses, openai_response, cost_log):
-    from tests.test_layer1_description_rewrite import make_plans
+    from tests.sdf_description_rewrite_test_builders import make_plans
     stage_dir = tmp_path / "layer1"
     stage_dir.mkdir()
     plans = make_plans(prompts_sdf, count=3)

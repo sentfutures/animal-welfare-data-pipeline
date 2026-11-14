@@ -7,7 +7,8 @@ anything else — missing tags, truncation — is not checkpointed, so --resume
 retries exactly the failed calls (temperature 1.0 makes retries productive).
 
 The layer is a ``DocumentStep`` (``DraftStep``) run by ``sdf_pipeline.step_runner.StepRunner``;
-``run`` keeps its signature and behaviour as a thin wrapper, because scripts import it.
+``run`` is the layer's entry point, called by ``sdf_pipeline/run.py`` and ``experiments/experiment.py``:
+it builds the step and the runner and returns the draft records in input order.
 """
 
 import re
@@ -18,10 +19,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from shared import constitution_loader, deal_constraints, utils
 from sdf_pipeline import compose_prompts as cp
-from sdf_pipeline.document_event_log import DOCUMENT_EVENT_LOG_FILE_NAME, DocumentEventLog
 from sdf_pipeline.step_runner import StepRunner
 from sdf_pipeline.update_steps import (
-    Accepted, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, StepPolicy)
+    Accepted, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, StepPolicy,
+    line_for_document_left_to_retry)
 
 DOC_TAG_RE = re.compile(r"<document>(.*?)</document>", re.DOTALL)
 
@@ -117,13 +118,11 @@ class DraftStep(DocumentStep):
         if isinstance(outcome, Accepted):
             return f"  Drafted {pid} ({len(outcome.update)} chars)"
         if outcome.kind is FailureKind.THROWN_CALL:
-            return f"  {pid}: API call failed ({outcome.reason}) — will retry on resume"
-        return f"  {pid}: {outcome.reason} — will retry on resume"
+            return line_for_document_left_to_retry(pid, f"API call failed ({outcome.reason})")
+        return line_for_document_left_to_retry(pid, outcome.reason)
 
 
 def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) -> list[dict]:
     step = DraftStep(config, prompts_dir)
-    # The event log sits in the run folder, beside the layer folders.
-    event_log = DocumentEventLog(output_dir.parent / DOCUMENT_EVENT_LOG_FILE_NAME)
-    runner = StepRunner(step, output_dir, event_log, workers=config.get("workers", 1))
+    runner = StepRunner(step, output_dir, workers=config.get("workers", 1))
     return runner.run(plans).records_in_input_order

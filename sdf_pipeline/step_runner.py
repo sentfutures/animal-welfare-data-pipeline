@@ -16,7 +16,8 @@ import time
 from dataclasses import dataclass, field
 
 from shared import api, openai_api, utils
-from sdf_pipeline.document_event_log import DocumentEventLog, fold_document_events, read_document_events
+from sdf_pipeline.document_event_log import (
+    DOCUMENT_EVENT_LOG_FILE_NAME, DocumentEventLog, fold_document_events, read_document_events)
 from sdf_pipeline.update_steps import (
     Accepted, BatchStep, CorpusStep, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, Removed,
     WhatAFailedDocumentDoes)
@@ -27,8 +28,6 @@ class StepRunResult:
     """``records_in_input_order``: the stage-file records of documents finished before this run
     (in input order) followed by the ones written in this run (in input order)."""
     records_in_input_order: list = field(default_factory=list)
-    accepted_document_ids: list = field(default_factory=list)
-    removed_document_ids: list = field(default_factory=list)
     failed_document_ids: list = field(default_factory=list)
     pending_document_ids: list = field(default_factory=list)
 
@@ -88,22 +87,60 @@ def resolve_settings_of_model_request(request: ModelRequest, config: dict | None
         thinking=None, structured_output=request.json_schema is not None, cache_system=False)
 
 
+def outcome_name_and_event_detail(outcome, update_as_recorded=lambda update: update) -> tuple[str, dict]:
+    """The ``outcome`` name and the detail fields of the event an accepted, removed or failed outcome
+    is recorded as. ``update_as_recorded`` turns an accepted update into what the event keeps (a
+    document step records the stage file record; a batch or corpus step records the update itself)."""
+    if isinstance(outcome, Accepted):
+        return "accepted", {"update": update_as_recorded(outcome.update)}
+    if isinstance(outcome, Removed):
+        return "removed", {"reason_code": outcome.reason_code, "detail": outcome.detail}
+    return "failed", {"failure_kind": outcome.kind.value, "reason": outcome.reason}
+
+
 class StepRunner:
-    def __init__(self, step: DocumentStep, stage_directory, event_log: DocumentEventLog,
+    """Runs a ``DocumentStep`` over a stage directory. The event log is the run folder's
+    ``document_events.jsonl``, beside the layer folders, unless ``event_log`` is given.
+    ``existing_records_by_document_id`` defaults to the stage file's records keyed by the step's
+    ``stage_file_id_field``. The checkpoint defaults to the stage directory's ``_checkpoint.json``;
+    the options for a step that does things differently:
+
+    * ``uses_checkpoint=False``: no checkpoint is read or written (the stage file is the only record);
+    * ``marks_nothing_done=True``: the checkpoint is read but an outcome never marks a document done
+      (only a later step finishes the document);
+    * ``also_finished_document_ids``: documents treated as finished, so they are not pending.
+    """
+
+    def __init__(self, step: DocumentStep, stage_directory, event_log: DocumentEventLog | None = None,
                  workers: int = 1, send=send_model_request, existing_records_by_document_id: dict | None = None,
-                 checkpoint: utils.Checkpoint | None = None):
+                 checkpoint: utils.Checkpoint | None = None, uses_checkpoint: bool = True,
+                 marks_nothing_done: bool = False, also_finished_document_ids=frozenset()):
         self.step = step
         self._write_lock = threading.Lock()
         self._removal_record_by_document_id: dict = {}
         self.stage_directory = stage_directory
-        self.event_log = event_log
+        self.event_log = (
+            event_log if event_log is not None
+            else DocumentEventLog(stage_directory.parent / DOCUMENT_EVENT_LOG_FILE_NAME))
         self.workers = workers
         self.send = send
         self.stage_file_path = stage_directory / step.stage_file_name
-        self.checkpoint = checkpoint if checkpoint is not None else utils.Checkpoint(stage_directory / "_checkpoint.json")
+        self.checkpoint = (
+            None if not uses_checkpoint
+            else checkpoint if checkpoint is not None else utils.Checkpoint(stage_directory / "_checkpoint.json"))
+        self.marks_nothing_done = marks_nothing_done
+        self.also_finished_document_ids = also_finished_document_ids
         self.existing_records_by_document_id = (
             existing_records_by_document_id if existing_records_by_document_id is not None
-            else {record["doc_id"]: record for record in utils.load_jsonl(self.stage_file_path)})
+            else {record[step.stage_file_id_field]: record for record in utils.load_jsonl(self.stage_file_path)})
+
+    def _is_finished_by_checkpoint(self, document_id) -> bool:
+        return document_id in self.also_finished_document_ids or (
+            self.checkpoint is not None and self.checkpoint.is_done(document_id))
+
+    def _mark_done(self, document_id) -> None:
+        if self.checkpoint is not None and not self.marks_nothing_done:
+            self.checkpoint.mark_done(document_id)
 
     def select_pending(self, documents: list) -> list:
         step = self.step
@@ -111,7 +148,7 @@ class StepRunner:
             document for document in documents
             if step.applies_to(document)
             and step.document_id_of(document) not in self.existing_records_by_document_id
-            and not self.checkpoint.is_done(step.document_id_of(document))
+            and not self._is_finished_by_checkpoint(step.document_id_of(document))
         ]
 
     def _answer_one(self, document):
@@ -175,19 +212,15 @@ class StepRunner:
             record = self._removal_record(document, outcome)
             if record is not None:
                 utils.append_jsonl(record, self.stage_file_path)
-                self.checkpoint.mark_done(document_id)
+                self._mark_done(document_id)
         elif isinstance(outcome, Accepted):
             utils.append_jsonl(step.stage_file_record(document, outcome.update), self.stage_file_path)
-            self.checkpoint.mark_done(document_id)
+            self._mark_done(document_id)
 
     def _append_event(self, document, request, request_hash, outcome):
         step = self.step
-        if isinstance(outcome, Accepted):
-            outcome_name, detail = "accepted", {"update": step.stage_file_record(document, outcome.update)}
-        elif isinstance(outcome, Removed):
-            outcome_name, detail = "removed", {"reason_code": outcome.reason_code, "detail": outcome.detail}
-        else:
-            outcome_name, detail = "failed", {"failure_kind": outcome.kind.value, "reason": outcome.reason}
+        outcome_name, detail = outcome_name_and_event_detail(
+            outcome, lambda update: step.stage_file_record(document, update))
         self.event_log.append_outcome_event(
             document_id=step.document_id_of(document), step_name=step.step_name, outcome=outcome_name,
             request_hash=request_hash, stage=request.stage if request is not None else None, detail=detail)
@@ -211,13 +244,11 @@ class StepRunner:
                 if outcome.kind in policy.failure_kinds_counting_towards_the_systemic_stop:
                     counted_failures += 1
             elif isinstance(outcome, Removed):
-                result.removed_document_ids.append(document_id)
                 record = self._removal_record(document, outcome)
                 if record is not None:
                     result.records_in_input_order.append(record)
             elif isinstance(outcome, Accepted):
                 result.records_in_input_order.append(step.stage_file_record(document, outcome.update))
-                result.accepted_document_ids.append(document_id)
             if not writes_as_replies_arrive:  # otherwise the worker wrote its files and printed its line
                 self._write_outcome_files(document, outcome)
                 line = step.progress_line(document, outcome)
@@ -241,14 +272,10 @@ def run_corpus_step(step: CorpusStep, documents: list, event_log: DocumentEventL
     outcomes = step.apply(documents)
     folded = fold_document_events(read_document_events(event_log.path))
     for document_id, outcome in outcomes.items():
-        if isinstance(outcome, Accepted):
-            outcome_name, detail, latest = "accepted", {"update": outcome.update}, ("accepted", outcome.update)
-        elif isinstance(outcome, Removed):
-            outcome_name = "removed"
-            detail = {"reason_code": outcome.reason_code, "detail": outcome.detail}
-            latest = ("removed", {"reason_code": outcome.reason_code, "detail": outcome.detail})
-        else:
+        if not isinstance(outcome, (Accepted, Removed)):
             raise TypeError(f"{step.step_name}: a corpus step returned {type(outcome).__name__} for {document_id}")
+        outcome_name, detail = outcome_name_and_event_detail(outcome)
+        latest = (outcome_name, detail["update"] if isinstance(outcome, Accepted) else detail)
         recorded = folded.get(document_id)
         if recorded is not None and recorded.latest_outcome_by_step.get(step.step_name) == latest:
             continue
@@ -256,15 +283,6 @@ def run_corpus_step(step: CorpusStep, documents: list, event_log: DocumentEventL
             document_id=document_id, step_name=step.step_name, outcome=outcome_name,
             request_hash=None, stage=None, detail=detail)
     return outcomes
-
-
-@dataclass
-class BatchRunResult:
-    """``finished_batch_ids``: batches whose outcomes were written and checkpointed in this run, in
-    order; ``failed_batch_ids``: batches left for a resume (not checkpointed)."""
-    pending_batch_ids: list = field(default_factory=list)
-    finished_batch_ids: list = field(default_factory=list)
-    failed_batch_ids: list = field(default_factory=list)
 
 
 class BatchStepRunner:
@@ -316,27 +334,20 @@ class BatchStepRunner:
         return outcomes, seconds
 
     def _append_event(self, document_id, request_hash, outcome):
-        if isinstance(outcome, Accepted):
-            outcome_name, detail = "accepted", {"update": outcome.update}
-        elif isinstance(outcome, Removed):
-            outcome_name, detail = "removed", {"reason_code": outcome.reason_code, "detail": outcome.detail}
-        else:
-            outcome_name, detail = "failed", {"failure_kind": outcome.kind.value, "reason": outcome.reason}
+        outcome_name, detail = outcome_name_and_event_detail(outcome)
         self.event_log.append_outcome_event(
             document_id=document_id, step_name=self.step.step_name, outcome=outcome_name,
             request_hash=request_hash, stage=self.step.stage, detail=detail)
 
-    def run(self, batches: list) -> BatchRunResult:
+    def run(self, batches: list) -> None:
         step = self.step
         pending = self.select_pending(batches)
-        result = BatchRunResult(pending_batch_ids=[batch.batch_id for batch in pending])
         counted_failures = 0
         failed_batches = []
         for done, (batch, (outcomes, seconds)) in enumerate(
                 zip(pending, utils.parallel_map(self._answer_one, pending, self.workers)), 1):
             failures = [outcome for outcome in outcomes.values() if isinstance(outcome, Failed)]
             if failures:
-                result.failed_batch_ids.append(batch.batch_id)
                 failed_batches.append(batch)
                 if failures[0].kind in step.policy.failure_kinds_counting_towards_the_systemic_stop:
                     counted_failures += 1
@@ -344,10 +355,8 @@ class BatchStepRunner:
                 continue
             self.write_batch_outcomes(batch, outcomes)
             self.checkpoint.mark_done(batch.batch_id)
-            result.finished_batch_ids.append(batch.batch_id)
             print(step.progress_line(batch, outcomes, done, len(pending), seconds))
         if pending and counted_failures == len(pending):
             raise SystemExit(step.systemic_stop_message)
         if failed_batches and step.policy.failed_document is WhatAFailedDocumentDoes.STOPS_THE_RUN_AFTER_THE_STEP:
             raise SystemExit(step.stop_message_for_failed_batches(len(failed_batches), failed_batches))
-        return result

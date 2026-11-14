@@ -16,7 +16,7 @@ from sdf_pipeline.dealt_value_identifiers import load_frozen_value_ids, value_id
 from sdf_pipeline.document_event_log import fold_dealt_value_ids, read_document_events
 from sdf_pipeline.document_state_loader import load_document_states
 from shared import utils
-from test_layer1_screen import remove_first_hand_of_round_zero_batches, screen_config  # noqa: F401
+from sdf_screen_test_builders import remove_first_hand_of_round_zero_batches, screen_config  # noqa: F401
 
 RUNS_ROOT = Path(__file__).resolve().parent.parent / "outputs" / "sdf" / "runs"
 

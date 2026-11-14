@@ -12,6 +12,7 @@ picks reach each document's draft prompt and records, targets are never
 exceeded, and a resume at layer 2 hands the drafter the same picks.
 """
 
+import functools
 import json
 import re
 import zlib
@@ -23,6 +24,7 @@ import sdf_pipeline.run as sdf_run
 from sdf_pipeline import layer1_select_considerations as select
 from sdf_pipeline.considerations_catalog import load_considerations
 from shared import utils
+from sdf_step_and_command_line_test_helpers import run_main as run_pipeline_main
 
 N_DOCUMENTS = 40
 
@@ -43,9 +45,7 @@ def outputs_root(tmp_path, monkeypatch):
     return root
 
 
-def run_main(monkeypatch, config_file, *extra_args):
-    monkeypatch.setattr("sys.argv", ["run.py", "--config", str(config_file), "--label", "smoke", *extra_args])
-    sdf_run.main()
+run_main = functools.partial(run_pipeline_main, main=sdf_run.main, label="smoke")
 
 
 def offered_labels(user_message):

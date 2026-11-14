@@ -49,8 +49,8 @@ plan's ``variables`` also gains ``moral_considerations`` and
 Scoring is a ``DocumentStep`` (``ConsiderationScoringStep``) run by
 ``sdf_pipeline.step_runner.StepRunner`` with ``sdf.max_scoring_attempts`` attempts per run, and the
 assignment is a ``CorpusStep`` (``ConsiderationAssignmentStep``) run by ``run_corpus_step`` after it;
-``run`` keeps its signature and behaviour as a thin wrapper, because scripts import it.
-``score_document`` stays as the standalone one-document function the scripts use.
+``run`` is the layer's entry point, called by ``sdf_pipeline/run.py``: it runs the scoring step, then the
+assignment, and returns the plans with their selections attached.
 
 Config (``sdf`` section): ``select_enabled`` (default true), ``select_model``
 (falls back to ``plan_model``, then the global model), ``select_skip_no_stake``
@@ -64,18 +64,16 @@ Config (``sdf`` section): ``select_enabled`` (default true), ``select_model``
 import json
 import random
 import sys
-import time
 from dataclasses import dataclass
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sdf_pipeline import considerations_assignment as assignment
-from sdf_pipeline.document_event_log import DOCUMENT_EVENT_LOG_FILE_NAME, DocumentEventLog
 from sdf_pipeline.step_runner import StepRunner, run_corpus_step
 from sdf_pipeline.update_steps import (
     Accepted, CorpusStep, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, StepPolicy,
-    WhatAFailedDocumentDoes)
+    ThrottledProgressClock, WhatAFailedDocumentDoes, line_for_document_left_to_retry, reason_without_error_prefix)
 from sdf_pipeline.considerations_catalog import (
     CONSIDERATIONS_FILENAME, EPISTEMIC_LIST, LIST_NAMES, MORAL_LIST,
     Consideration, ConsiderationCatalog, load_considerations,
@@ -92,7 +90,6 @@ FAILURES_FILENAME = "consideration_scoring_failures.jsonl"
 SELECTIONS_FILENAME = "consideration_selections.jsonl"
 COVERAGE_FILENAME = "consideration_coverage.json"
 DEFAULT_MAX_SCORING_ATTEMPTS = 3
-PROGRESS_INTERVAL_SECONDS = 180   # progress lines are printed no more often than this
 _BASE_MAX_TOKENS = 400
 _TOKENS_PER_ENTRY = 120           # label, score and one short sentence; bounds api-backend cost
 
@@ -249,42 +246,6 @@ def scoring_max_tokens(offered: dict[str, list[Consideration]]) -> int:
     return _BASE_MAX_TOKENS + _TOKENS_PER_ENTRY * sum(len(entries) for entries in offered.values())
 
 
-def score_document(
-    facts: DocumentFacts,
-    offered: dict[str, list[Consideration]],
-    *,
-    template: str,
-    model: str | None = None,
-    item_id: str | None = None,
-    max_attempts: int = DEFAULT_MAX_SCORING_ATTEMPTS,
-) -> tuple[dict[str, dict[str, dict]], int]:
-    """Ask the model to score one document's offered entries; return (scores, attempts used).
-
-    An unusable answer (truncated, malformed, a label missing or repeated, a bad score)
-    is retried up to ``max_attempts`` times, then ScoringAnswerError is raised with the
-    last problem. API errors propagate. Tags the call ``layer1_select`` for the cost log."""
-    system, user = build_scoring_prompt(template, facts, offered)
-    schema = build_scoring_schema(offered)
-    problem = ""
-    for attempt in range(1, max_attempts + 1):
-        raw, stop_reason = api.call_claude(
-            user,
-            system_prompt=system or "",
-            model=model,
-            max_tokens=scoring_max_tokens(offered),
-            stage=STAGE_TAG,
-            item_id=item_id,
-            return_stop_reason=True,
-            json_schema=schema,
-        )
-        try:
-            structured_answers.raise_if_answer_was_truncated(stop_reason, ScoringAnswerError)
-            return parse_scoring_answer(raw, offered), attempt
-        except ScoringAnswerError as error:
-            problem = str(error)
-    raise ScoringAnswerError(f"{problem} (after {max_attempts} attempts)")
-
-
 # ---------------------------------------------------------------- the considerations spec
 
 def assemble_considerations_spec(picks: list) -> str:
@@ -299,16 +260,6 @@ def assemble_considerations_spec(picks: list) -> str:
 
 # ---------------------------------------------------------------- steps
 
-class _NoCheckpoint:
-    """Scoring has no checkpoint file: ``consideration_scores.jsonl`` is the checkpoint."""
-
-    def is_done(self, document_id) -> bool:
-        return False
-
-    def mark_done(self, document_id) -> None:
-        pass
-
-
 class ConsiderationScoringStep(DocumentStep):
     """Score one plan's offered entries. The document is the plan record (``prompt_id``,
     ``description``, ``variables``). One call per attempt: an unusable answer (truncated,
@@ -319,6 +270,7 @@ class ConsiderationScoringStep(DocumentStep):
 
     step_name = "consideration_scoring"
     stage_file_name = SCORES_FILENAME
+    stage_file_id_field = "prompt_id"
     failure_file_name = FAILURES_FILENAME
     writes_stage_file_as_replies_arrive = True   # the scores file is the checkpoint: write each row the moment it arrives
     systemic_stop_message = (
@@ -341,6 +293,7 @@ class ConsiderationScoringStep(DocumentStep):
             failed_document=WhatAFailedDocumentDoes.STOPS_THE_RUN_AFTER_THE_STEP)
         self._offered_by_document_id: dict = {}
         self._attempts_by_document_id: dict = {}
+        self._clock = ThrottledProgressClock()
         self.begin_run(0)
 
     def begin_run(self, pending_count: int) -> None:
@@ -348,7 +301,7 @@ class ConsiderationScoringStep(DocumentStep):
         self._pending_count = pending_count
         self._answered = 0
         self._failed = 0
-        self._started = self._last_progress = time.monotonic()
+        self._clock.restart()
 
     def document_id_of(self, plan: dict) -> str:
         return plan["prompt_id"]
@@ -403,7 +356,7 @@ class ConsiderationScoringStep(DocumentStep):
     def _problem_text(failed: Failed) -> str:
         if failed.kind is FailureKind.UNUSABLE_ANSWER:
             return f"unusable answer ({failed.reason})"
-        return f"API call failed ({failed.reason.removeprefix('error: ')})"
+        return f"API call failed ({reason_without_error_prefix(failed.reason)})"
 
     def failure_record(self, plan: dict, failed: Failed) -> dict:
         return {"prompt_id": plan["prompt_id"], "problem": self._problem_text(failed)}
@@ -412,13 +365,14 @@ class ConsiderationScoringStep(DocumentStep):
         lines = []
         if isinstance(outcome, Failed):
             self._failed += 1
-            lines.append(f"  {plan['prompt_id']}: {self._problem_text(outcome)} — will be rescored on resume")
+            lines.append(line_for_document_left_to_retry(
+                plan["prompt_id"], self._problem_text(outcome), ending="will be rescored on resume"))
         else:
             self._answered += 1
-        if time.monotonic() - self._last_progress >= PROGRESS_INTERVAL_SECONDS:
-            self._last_progress = time.monotonic()
+        if self._clock.is_due():
+            elapsed_seconds = self._clock.mark_printed()
             lines.append(f"  Scoring progress: {self._answered} answered, {self._failed} failed of "
-                         f"{self._pending_count} ({self._last_progress - self._started:.1f}s elapsed)")
+                         f"{self._pending_count} ({elapsed_seconds:.1f}s elapsed)")
         return "\n".join(lines) if lines else None
 
     def after_documents_are_processed(self, run_result) -> None:
@@ -426,7 +380,7 @@ class ConsiderationScoringStep(DocumentStep):
         unusable). Nothing is printed for a run with nothing to score."""
         if not run_result.pending_document_ids:
             return
-        print(f"  Scoring: {self._answered} answered, {self._failed} failed ({time.monotonic() - self._started:.1f}s)")
+        print(f"  Scoring: {self._answered} answered, {self._failed} failed ({self._clock.seconds_since_start():.1f}s)")
         if len(run_result.failed_document_ids) == len(run_result.pending_document_ids):
             raise SystemExit(self.systemic_stop_message)
 
@@ -569,17 +523,14 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
 
     eligible = eligible_plans(config, catalog, plans)
     plan_by_id = {p["prompt_id"]: p for p in eligible}
-    score_rows = {r["prompt_id"]: r for r in utils.load_jsonl(scores_path) if r["prompt_id"] in plan_by_id}
     step = ConsiderationScoringStep(config, catalog, template)
-    # The event log sits in the run folder, beside the layer folders.
-    event_log = DocumentEventLog(output_dir.parent / DOCUMENT_EVENT_LOG_FILE_NAME)
-    runner = StepRunner(
-        step, output_dir, event_log, workers=workers, checkpoint=_NoCheckpoint(),
-        existing_records_by_document_id=score_rows)
+    # Scoring has no checkpoint file: ``consideration_scores.jsonl`` is the checkpoint.
+    runner = StepRunner(step, output_dir, workers=workers, uses_checkpoint=False)
+    event_log = runner.event_log
     documents_in_scoring_order = [plan_by_id[prompt_id] for prompt_id in sorted(plan_by_id)]
     pending = runner.select_pending(documents_in_scoring_order)
     print(f"  Scoring considerations for {len(eligible)} specifications: "
-          f"{len(score_rows)} already scored, {len(pending)} to score")
+          f"{len(eligible) - len(pending)} already scored, {len(pending)} to score")
     step.begin_run(len(pending))
     runner.run(documents_in_scoring_order)  # stops the run before the assignment if any document failed
 

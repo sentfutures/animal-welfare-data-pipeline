@@ -11,13 +11,10 @@ from sdf_pipeline.considerations_catalog import load_considerations
 from sdf_pipeline.document_event_log import DocumentEventLog, fold_document_events, read_document_events
 from sdf_pipeline.step_runner import run_corpus_step
 from sdf_pipeline.update_steps import Accepted, Failed, FailureKind, ModelReply
+from sdf_step_and_command_line_test_helpers import events_of
 from shared import utils
-from test_layer1_select_considerations import (
+from sdf_consideration_selection_test_builders import (
     answer_with, make_plans, no_stake_resolution, offered_in, rows_of, score_everything_five, small_prompts)  # noqa: F401
-
-
-def events_of(stage_dir, step_name):
-    return [e for e in read_document_events(stage_dir.parent / "document_events.jsonl") if e["step"] == step_name]
 
 
 @pytest.fixture

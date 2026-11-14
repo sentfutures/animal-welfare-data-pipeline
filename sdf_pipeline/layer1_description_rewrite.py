@@ -35,8 +35,8 @@ macaque whole-brain emulation as working technology. Do not use Claude for plaus
 judgment without re-validating.
 
 The stage is a ``DocumentStep`` (``DescriptionRewriteStep``) run by
-``sdf_pipeline.step_runner.StepRunner``; ``run`` keeps its signature and behaviour as a thin
-wrapper, and ``rewrite_description`` stays for scripts that call it directly.
+``sdf_pipeline.step_runner.StepRunner``; ``run`` is the layer's entry point, called by
+``sdf_pipeline/run.py``, and ``rewrite_description`` stays for scripts that call it directly.
 
 Checkpoint semantics (protects paid work): one result per plan, appended to
 description_rewrites.jsonl before the plan is checkpointed; a malformed,
@@ -49,7 +49,6 @@ later stages assign over the whole plan set and a resume retries them.
 
 import copy
 import sys
-import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -59,11 +58,10 @@ from shared import api, openai_api, utils
 from shared.api_keys import FIND_DOTENV_FLAG, load_optional_api_key
 from sdf_pipeline import compose_prompts as cp
 from sdf_pipeline import structured_answers
-from sdf_pipeline.document_event_log import DOCUMENT_EVENT_LOG_FILE_NAME, DocumentEventLog
 from sdf_pipeline.step_runner import StepRunner
 from sdf_pipeline.update_steps import (
     Accepted, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, Removed, StepPolicy,
-    WhatAFailedDocumentDoes)
+    ThrottledProgressClock, WhatAFailedDocumentDoes, line_for_document_left_to_retry, reason_without_error_prefix)
 
 STAGE_TAG = "layer1_description_rewrite"
 TEMPLATE_FILENAME = "layer1_description_rewrite.txt"
@@ -72,7 +70,6 @@ RESULTS_FILENAME = "description_rewrites.jsonl"
 REJECTIONS_FILENAME = "description_rewrite_rejections.jsonl"
 CHECKPOINT_FILENAME = "_description_rewrite_checkpoint.json"
 _MAX_TOKENS = 8000  # for OpenAI models this includes reasoning tokens; reasoning, a description under 300 words and one-line reasons; non-English descriptions and long reasoning overran 3000
-PROGRESS_INTERVAL_SECONDS = 180
 
 
 class RewriteAnswerError(ValueError):
@@ -290,6 +287,7 @@ class DescriptionRewriteStep(DocumentStep):
 
     step_name = "description_rewrite"
     stage_file_name = RESULTS_FILENAME
+    stage_file_id_field = "prompt_id"
     policy = StepPolicy(
         failure_kinds_counting_towards_the_systemic_stop=frozenset(FailureKind),
         failed_document=WhatAFailedDocumentDoes.STOPS_THE_RUN_AFTER_THE_STEP)
@@ -309,6 +307,7 @@ class DescriptionRewriteStep(DocumentStep):
             prompts_dir, sdf.get("entity_pool_seed", cp.DEFAULT_ENTITY_SEED))
         self.stage_directory = stage_directory
         self.plans = plans
+        self.clock = ThrottledProgressClock()
         self.begin_session(pending_count=0)
         self.held_out_count = 0
 
@@ -316,7 +315,7 @@ class DescriptionRewriteStep(DocumentStep):
         """Reset the counters the progress and summary lines use; called just before the run."""
         self.pending_count = pending_count
         self.documents_seen = self.rewritten_count = self.conflict_count = 0
-        self.session_started_at = self.last_progress_at = time.monotonic()
+        self.clock.restart()
 
     def document_id_of(self, plan: dict) -> str:
         return plan["prompt_id"]
@@ -371,20 +370,19 @@ class DescriptionRewriteStep(DocumentStep):
         self.documents_seen += 1
         if isinstance(outcome, Failed):
             if outcome.kind is FailureKind.THROWN_CALL:
-                problem = f"API call failed ({outcome.reason.removeprefix('error: ')})"
+                problem = f"API call failed ({reason_without_error_prefix(outcome.reason)})"
             else:
                 problem = outcome.reason
-            return f"  {plan['prompt_id']}: {problem} — will retry on resume"
+            return line_for_document_left_to_retry(plan["prompt_id"], problem)
         if isinstance(outcome, Removed):
             self.conflict_count += 1
         else:
             self.rewritten_count += outcome.update.rewrite_needed
-        if (time.monotonic() - self.last_progress_at >= PROGRESS_INTERVAL_SECONDS
-                or self.documents_seen == self.pending_count):
-            self.last_progress_at = time.monotonic()
+        if self.clock.is_due() or self.documents_seen == self.pending_count:
+            elapsed_seconds = self.clock.mark_printed()
             return (f"  Description rewrite {self.documents_seen}/{self.pending_count}: {self.rewritten_count} "
                     f"rewritten, {self.conflict_count} dropped for a dealt-value conflict "
-                    f"({self.last_progress_at - self.session_started_at:.1f}s)")
+                    f"({elapsed_seconds:.1f}s)")
         return None
 
     def after_documents_are_processed(self, run_result) -> None:
@@ -397,7 +395,7 @@ class DescriptionRewriteStep(DocumentStep):
         print(f"  Description rewrite: {sum(r['rewrite_needed'] for r in results.values())} of "
               f"{len(described)} descriptions rewritten, "
               f"{sum(r['dealt_value_conflict'] for r in results.values())} dropped for a dealt-value "
-              f"conflict ({time.monotonic() - self.session_started_at:.1f}s this session)")
+              f"conflict ({self.clock.seconds_since_start():.1f}s this session)")
 
     def message_when_failed_documents_stop_the_run(self, run_result) -> str:
         return self._held_out_stop_message()
@@ -420,11 +418,8 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
         return plans
 
     step = DescriptionRewriteStep(config, prompts, prompts_dir, output_dir, plans)
-    # The event log sits in the run folder, beside the layer folders.
-    event_log = DocumentEventLog(output_dir.parent / DOCUMENT_EVENT_LOG_FILE_NAME)
     runner = StepRunner(
-        step, output_dir, event_log, workers=config.get("workers", 1),
-        existing_records_by_document_id=load_results(output_dir),
+        step, output_dir, workers=config.get("workers", 1),
         checkpoint=utils.Checkpoint(output_dir / CHECKPOINT_FILENAME))
     described = [p for p in plans if p.get("description")]
     pending = runner.select_pending(plans)

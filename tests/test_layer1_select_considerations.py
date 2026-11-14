@@ -1,5 +1,5 @@
 """Behavior tests for the layer-1 considerations selector (the model scores, code assigns), driven
-through layer1_select_considerations.run() and score_document() with a stubbed
+through layer1_select_considerations.run() with a stubbed
 shared.api.call_claude (no test here may reach the API; see conftest). The real
 selector template stays in play. Most stage tests use a small considerations
 file written to tmp_path (so exact counts are knowable); the checks about the
@@ -11,8 +11,6 @@ failure on any call stops the stage before it assigns anything.
 """
 
 import json
-import re
-from pathlib import Path
 
 import pytest
 
@@ -22,94 +20,13 @@ from sdf_pipeline import layer1_select_considerations as select
 from sdf_pipeline import layer2_draft
 from sdf_pipeline.considerations_catalog import load_considerations
 from shared import utils
-
-SMALL_CONSIDERATIONS = """\
-{moral_considerations}
-    0.2 :: Alpha moral: the first moral gloss
-    0.9 :: Beta moral: the second moral gloss
-
-{epistemic_considerations}
-    0.1 :: Gamma epistemic: the epistemic gloss
-
-{epistemic_considerations_digital_minds_only}
-    0.5 :: Delta digital: the digital-minds gloss
-
-{digital_mind_categories}
-    large_language_models
-
-{skipped_resolutions}
-    no_stake
-"""
-
-DIGITAL_CATEGORY = "LLMs whose moral state is uncertain"
-
-
-@pytest.fixture
-def small_prompts(prompts_sdf, tmp_path):
-    """A prompts dir with the real selector template and variables but a small considerations file."""
-    directory = tmp_path / "prompts_small"
-    directory.mkdir()
-    for name in ("variables.txt", select.TEMPLATE_FILENAME):
-        (directory / name).write_text((prompts_sdf / name).read_text(encoding="utf-8"), encoding="utf-8")
-    (directory / "considerations.txt").write_text(SMALL_CONSIDERATIONS, encoding="utf-8")
-    return directory
-
-
-def no_stake_resolution(prompts_dir):
-    return sorted(load_considerations(prompts_dir).skipped_resolutions)[0]
-
-
-_REAL_VARIABLES = cp.load_variables(Path(__file__).resolve().parent.parent / "prompts" / "sdf" / "variables.txt")[0]
-COMPLETE_HAND = {name: cards[0] for name, cards in _REAL_VARIABLES.items()}   # the later stages render every dealt variable
-
-
-def make_plans(count=10, digital=(), no_stake=(), incoherent=(), resolution=None):
-    plans = []
-    for i in range(count):
-        variables = {
-            **COMPLETE_HAND,
-            "document_type": "a news article",
-            "centrality": "the central subject of the document",
-            "sentient_category": DIGITAL_CATEGORY if i in digital else "farmed fishes",
-            "resolution": resolution if i in no_stake else "a creative solution",
-        }
-        plans.append({
-            "prompt_id": f"matrix_{i:06d}", "variables": variables, "plan": "…",
-            "description": None if i in incoherent else f"Spec {i}.",
-            "incoherent": i in incoherent,
-        })
-    return plans
-
-
-def offered_in(user_message):
-    """{'moral': [labels], 'epistemic': [labels]} in the order the scoring prompt showed them."""
-    shown = {}
-    for name in ("moral", "epistemic"):
-        body = re.search(rf"<{name}_list>\n(.*?)\n</{name}_list>", user_message, re.DOTALL).group(1)
-        shown[name] = [line[2:].split(": ")[0] for line in body.splitlines() if line.startswith("- ")]
-    return shown
-
-
-def answer_with(user_message, score_of):
-    """A well-formed answer scoring every shown label with ``score_of(label)``."""
-    shown = offered_in(user_message)
-    return json.dumps({
-        name: [{"label": label, "score": score_of(label),
-                "where_it_arises": f"Where {label} arises." if score_of(label) >= 3 else ""}
-               for label in labels]
-        for name, labels in shown.items() if labels})
-
-
-def score_everything_five(user_message, **kw):
-    return answer_with(user_message, lambda label: 5)
+from sdf_consideration_selection_test_builders import (
+    DIGITAL_CATEGORY, small_prompts, no_stake_resolution, make_plans, offered_in, answer_with, score_everything_five, rows_of,
+)
 
 
 def score_everything_one(user_message, **kw):
     return answer_with(user_message, lambda label: 1)
-
-
-def rows_of(stage_dir, filename=select.SELECTIONS_FILENAME):
-    return utils.load_jsonl(stage_dir / filename)
 
 
 def picks_by_document(plans):
@@ -233,30 +150,6 @@ def test_scores_for_a_list_that_was_not_offered_are_rejected(small_prompts):
     answer = good_answer(offered)
     with pytest.raises(select.ScoringAnswerError, match="not offered"):
         select.parse_scoring_answer(json.dumps(answer), {"moral": offered["moral"], "epistemic": []})
-
-
-FACTS = select.DocumentFacts("A scenario.", "a news article", "central", "farmed fishes")
-
-
-def test_score_document_retries_an_unusable_answer_then_succeeds(stub_claude, small_prompts):
-    _, offered = small_offer(small_prompts)
-    calls = stub_claude(["not json", (answer_with_labels(offered), "max_tokens"), answer_with_labels(offered)])
-    scores, attempts = select.score_document(
-        FACTS, offered, template=select.load_selection_template(small_prompts), item_id="doc", max_attempts=3)
-    assert attempts == 3 and len(calls) == 3 and scores["moral"]["Beta moral"]["score"] == 4
-    assert calls[0]["stage"] == "layer1_select" and calls[0]["json_schema"] == select.build_scoring_schema(offered)
-
-
-def answer_with_labels(offered):
-    return json.dumps(good_answer(offered))
-
-
-def test_score_document_gives_up_after_the_attempt_limit(stub_claude, small_prompts):
-    _, offered = small_offer(small_prompts)
-    calls = stub_claude(["not json"] * 5)
-    with pytest.raises(select.ScoringAnswerError, match="after 2 attempts"):
-        select.score_document(FACTS, offered, template=select.load_selection_template(small_prompts), max_attempts=2)
-    assert len(calls) == 2
 
 
 # --- the stage ---
@@ -385,15 +278,6 @@ def test_one_unusable_document_stops_the_stage_before_assigning_and_is_rescored_
     result = select.run(tiny_config, small_prompts, stage_dir, plans)
     assert [c["item_id"] for c in calls] == [bad_id]
     assert all(p["considerations_spec"] for p in result)
-
-
-def test_a_failure_on_every_call_exits_as_systemic(tiny_config, small_prompts, stage_dir, stub_claude):
-    def raising(user_message, **kw):
-        raise RuntimeError("backend down")
-    stub_claude(raising)
-    with pytest.raises(SystemExit, match="every pending scoring call failed"):
-        select.run(tiny_config, small_prompts, stage_dir, make_plans(3))
-
 
 
 # --- switches and the snapshot ---

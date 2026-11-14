@@ -15,7 +15,7 @@ from sdf_pipeline.layer4_score import NearDuplicateCullStep, ScoreGateStep, Scor
 from sdf_pipeline.step_runner import run_corpus_step
 from sdf_pipeline.update_steps import Accepted, FailureKind, Failed, ModelReply, Removed
 from shared import utils
-from test_sdf_layers import SCORE_OK, make_rewrite
+from sdf_plan_draft_rewrite_and_score_test_builders import SCORE_OK, make_rewrite
 
 LONG_TEXT = ("Le même document mot pour mot, assez long pour produire des shingles "
              "stables et un cosinus de similarité fiable entre les deux copies.")

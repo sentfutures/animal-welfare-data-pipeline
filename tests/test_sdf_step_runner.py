@@ -123,7 +123,6 @@ def test_failed_marks_nothing_done_but_is_recorded_and_siblings_are_kept(tmp_pat
 
     runner, stage_directory, log = make_runner(tmp_path, send=send)
     result = runner.run(docs("a", "b", "c"))
-    assert result.accepted_document_ids == ["a"]
     assert result.failed_document_ids == ["b", "c"]
     checkpoint = utils.Checkpoint(stage_directory / "_checkpoint.json")
     assert checkpoint.is_done("a") and not checkpoint.is_done("b") and not checkpoint.is_done("c")
@@ -184,8 +183,7 @@ def test_a_step_whose_failures_stop_the_run_writes_records_first_then_stops(tmp_
 
 def test_removed_is_recorded_in_the_log_but_writes_no_stage_record(tmp_path):
     runner, stage_directory, log = make_runner(tmp_path, send=lambda request: ModelReply("REMOVE", "end_turn"))
-    result = runner.run(docs("a"))
-    assert result.removed_document_ids == ["a"]
+    runner.run(docs("a"))
     assert utils.load_jsonl(stage_directory / "toy_records.jsonl") == []
     (event,) = read_document_events(log.path)
     assert (event["outcome"], event["reason_code"]) == ("removed", "toy_removal")
