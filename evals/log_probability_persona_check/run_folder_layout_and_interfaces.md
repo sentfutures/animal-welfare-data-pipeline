@@ -198,6 +198,23 @@ Original corpus documents have `rewrite_direction: null` and `source_document_id
 - `run_configuration_<timestamp>.json`: the subset run's configuration with the full condition count, `condition_subset: null` and a `merged_from` record naming both source runs (folders, formats, configuration files, models, counts). No `scoring_environment_*.json` is written.
 `B` may be a legacy-format run (read through `legacy_run_format_compatibility_reader.py`).
 
+## Which tokens are scored (`prompt_rendering.py`)
+
+Only the document content tokens are scored, the first conditioned on the end of the prompt; the final end-of-turn token never is.
+
+- **Instruct models:** the sequence is the chat template (system turn if any, user turn, then the assistant header as the
+  model sees it about to generate) + the document + whatever the template writes after an assistant message. With Gemma 4
+  and thinking off, the generation prompt ends with an empty thought channel (`<|turn>model\n<|channel>thought\n<channel|>`)
+  that a finished-message rendering omits, so we score under the generation prompt and take only the text after the
+  assistant content from the finished-message rendering.
+- **Base models** have no chat template: the sequence is the tokenizer's bos token (if any) + a preamble + `"\n\n"` + the
+  document, with nothing after it. The preamble is "The following text was written by <author>, in response to this
+  request: <generation prompt>" (author "an AI assistant" for generic, "an AI assistant who <persona description>" for
+  persona conditions; "The following text was written in response to this request: ..." for `no_system_prompt`), from
+  `prompts/tools/persona_checks/model_type_framing/base_model_*.txt`.
+- Conditions, ids and groups are identical across model types; only the rendering differs, and scores from the two model
+  types are not comparable.
+
 ## Scoring outputs (written by the scorer, `score_document_log_probabilities_on_pod.py`)
 
 ```
