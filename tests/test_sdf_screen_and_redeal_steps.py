@@ -3,7 +3,7 @@
 Step unit tests call ``group``, ``read_reply`` and ``records`` with no stubbed API and no files. The
 runner and layer tests pin the requests, the stage files, the stop messages, resume (identical rounds,
 zero calls for finished batches).
-``layer1_screen.run`` is the layer's entry point (scripts and tests import it).
+``run_layer.run`` is the layer's entry point (scripts and tests import it).
 """
 
 import dataclasses
@@ -198,7 +198,7 @@ def test_finished_batches_are_not_called_again(screen_run):
 
     run_step(screen.STEP, screen_run, round_zero_hands(), send=send)
     run_step(screen.STEP, screen_run, round_zero_hands(), send=send)   # a resume: every batch is finished
-    assert calls == ["screen_round0_batch0000", "screen_round0_batch0001"]
+    assert sorted(calls) == ["screen_round0_batch0000", "screen_round0_batch0001"]   # workers answer in any order
 
 
 def test_a_run_with_the_marks_of_earlier_code_is_not_billed_again_for_batches_current_code_finished(screen_run, stage_dir):
