@@ -249,42 +249,6 @@ def scoring_max_tokens(offered: dict[str, list[Consideration]]) -> int:
     return _BASE_MAX_TOKENS + _TOKENS_PER_ENTRY * sum(len(entries) for entries in offered.values())
 
 
-def score_document(
-    facts: DocumentFacts,
-    offered: dict[str, list[Consideration]],
-    *,
-    template: str,
-    model: str | None = None,
-    item_id: str | None = None,
-    max_attempts: int = DEFAULT_MAX_SCORING_ATTEMPTS,
-) -> tuple[dict[str, dict[str, dict]], int]:
-    """Ask the model to score one document's offered entries; return (scores, attempts used).
-
-    An unusable answer (truncated, malformed, a label missing or repeated, a bad score)
-    is retried up to ``max_attempts`` times, then ScoringAnswerError is raised with the
-    last problem. API errors propagate. Tags the call ``layer1_select`` for the cost log."""
-    system, user = build_scoring_prompt(template, facts, offered)
-    schema = build_scoring_schema(offered)
-    problem = ""
-    for attempt in range(1, max_attempts + 1):
-        raw, stop_reason = api.call_claude(
-            user,
-            system_prompt=system or "",
-            model=model,
-            max_tokens=scoring_max_tokens(offered),
-            stage=STAGE_TAG,
-            item_id=item_id,
-            return_stop_reason=True,
-            json_schema=schema,
-        )
-        try:
-            structured_answers.raise_if_answer_was_truncated(stop_reason, ScoringAnswerError)
-            return parse_scoring_answer(raw, offered), attempt
-        except ScoringAnswerError as error:
-            problem = str(error)
-    raise ScoringAnswerError(f"{problem} (after {max_attempts} attempts)")
-
-
 # ---------------------------------------------------------------- the considerations spec
 
 def assemble_considerations_spec(picks: list) -> str:

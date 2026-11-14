@@ -1,5 +1,5 @@
 """Behavior tests for the layer-1 considerations selector (the model scores, code assigns), driven
-through layer1_select_considerations.run() and score_document() with a stubbed
+through layer1_select_considerations.run() with a stubbed
 shared.api.call_claude (no test here may reach the API; see conftest). The real
 selector template stays in play. Most stage tests use a small considerations
 file written to tmp_path (so exact counts are knowable); the checks about the
@@ -233,30 +233,6 @@ def test_scores_for_a_list_that_was_not_offered_are_rejected(small_prompts):
     answer = good_answer(offered)
     with pytest.raises(select.ScoringAnswerError, match="not offered"):
         select.parse_scoring_answer(json.dumps(answer), {"moral": offered["moral"], "epistemic": []})
-
-
-FACTS = select.DocumentFacts("A scenario.", "a news article", "central", "farmed fishes")
-
-
-def test_score_document_retries_an_unusable_answer_then_succeeds(stub_claude, small_prompts):
-    _, offered = small_offer(small_prompts)
-    calls = stub_claude(["not json", (answer_with_labels(offered), "max_tokens"), answer_with_labels(offered)])
-    scores, attempts = select.score_document(
-        FACTS, offered, template=select.load_selection_template(small_prompts), item_id="doc", max_attempts=3)
-    assert attempts == 3 and len(calls) == 3 and scores["moral"]["Beta moral"]["score"] == 4
-    assert calls[0]["stage"] == "layer1_select" and calls[0]["json_schema"] == select.build_scoring_schema(offered)
-
-
-def answer_with_labels(offered):
-    return json.dumps(good_answer(offered))
-
-
-def test_score_document_gives_up_after_the_attempt_limit(stub_claude, small_prompts):
-    _, offered = small_offer(small_prompts)
-    calls = stub_claude(["not json"] * 5)
-    with pytest.raises(select.ScoringAnswerError, match="after 2 attempts"):
-        select.score_document(FACTS, offered, template=select.load_selection_template(small_prompts), max_attempts=2)
-    assert len(calls) == 2
 
 
 # --- the stage ---

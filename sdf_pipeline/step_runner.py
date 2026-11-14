@@ -27,8 +27,6 @@ class StepRunResult:
     """``records_in_input_order``: the stage-file records of documents finished before this run
     (in input order) followed by the ones written in this run (in input order)."""
     records_in_input_order: list = field(default_factory=list)
-    accepted_document_ids: list = field(default_factory=list)
-    removed_document_ids: list = field(default_factory=list)
     failed_document_ids: list = field(default_factory=list)
     pending_document_ids: list = field(default_factory=list)
 
@@ -211,13 +209,11 @@ class StepRunner:
                 if outcome.kind in policy.failure_kinds_counting_towards_the_systemic_stop:
                     counted_failures += 1
             elif isinstance(outcome, Removed):
-                result.removed_document_ids.append(document_id)
                 record = self._removal_record(document, outcome)
                 if record is not None:
                     result.records_in_input_order.append(record)
             elif isinstance(outcome, Accepted):
                 result.records_in_input_order.append(step.stage_file_record(document, outcome.update))
-                result.accepted_document_ids.append(document_id)
             if not writes_as_replies_arrive:  # otherwise the worker wrote its files and printed its line
                 self._write_outcome_files(document, outcome)
                 line = step.progress_line(document, outcome)
@@ -256,15 +252,6 @@ def run_corpus_step(step: CorpusStep, documents: list, event_log: DocumentEventL
             document_id=document_id, step_name=step.step_name, outcome=outcome_name,
             request_hash=None, stage=None, detail=detail)
     return outcomes
-
-
-@dataclass
-class BatchRunResult:
-    """``finished_batch_ids``: batches whose outcomes were written and checkpointed in this run, in
-    order; ``failed_batch_ids``: batches left for a resume (not checkpointed)."""
-    pending_batch_ids: list = field(default_factory=list)
-    finished_batch_ids: list = field(default_factory=list)
-    failed_batch_ids: list = field(default_factory=list)
 
 
 class BatchStepRunner:
@@ -326,17 +313,15 @@ class BatchStepRunner:
             document_id=document_id, step_name=self.step.step_name, outcome=outcome_name,
             request_hash=request_hash, stage=self.step.stage, detail=detail)
 
-    def run(self, batches: list) -> BatchRunResult:
+    def run(self, batches: list) -> None:
         step = self.step
         pending = self.select_pending(batches)
-        result = BatchRunResult(pending_batch_ids=[batch.batch_id for batch in pending])
         counted_failures = 0
         failed_batches = []
         for done, (batch, (outcomes, seconds)) in enumerate(
                 zip(pending, utils.parallel_map(self._answer_one, pending, self.workers)), 1):
             failures = [outcome for outcome in outcomes.values() if isinstance(outcome, Failed)]
             if failures:
-                result.failed_batch_ids.append(batch.batch_id)
                 failed_batches.append(batch)
                 if failures[0].kind in step.policy.failure_kinds_counting_towards_the_systemic_stop:
                     counted_failures += 1
@@ -344,10 +329,8 @@ class BatchStepRunner:
                 continue
             self.write_batch_outcomes(batch, outcomes)
             self.checkpoint.mark_done(batch.batch_id)
-            result.finished_batch_ids.append(batch.batch_id)
             print(step.progress_line(batch, outcomes, done, len(pending), seconds))
         if pending and counted_failures == len(pending):
             raise SystemExit(step.systemic_stop_message)
         if failed_batches and step.policy.failed_document is WhatAFailedDocumentDoes.STOPS_THE_RUN_AFTER_THE_STEP:
             raise SystemExit(step.stop_message_for_failed_batches(len(failed_batches), failed_batches))
-        return result
