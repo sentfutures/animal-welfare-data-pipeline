@@ -55,6 +55,19 @@ def loaded_once_per_run(function: Callable) -> Callable:
     return load
 
 
+def description_write_prompt_files(config: dict, prompts_directory: Path) -> list:
+    """The prompt files the planning prompts and everything built on the dealt variables need."""
+    return [utils.sdf_template_path(prompts_directory, 1).name, "variables.txt", "preamble.txt"]
+
+
+def _no_files(config: dict, prompts_directory: Path) -> list:
+    return []
+
+
+def _active(config: dict, prompts_directory: Path) -> None:
+    return None
+
+
 def one_record_per_accepted_document(stage_file: StageFile, record_of: Callable) -> Callable:
     """A step's ``records`` for the step that takes one document per call: an accepted document is the one record
     ``record_of(document, update, run)`` in ``stage_file``; any other outcome writes nothing."""
@@ -77,10 +90,13 @@ def _never(document: dict, run: Run) -> bool:
 
 @dataclass(frozen=True)
 class Step:
-    """Everything about one model-calling step."""
+    """Everything about one step. A step with no model call sets only ``name`` and ``folder_key``."""
     name: str
-    folder_key: str                               # ``shared/sdf_run_layouts.py``: the folder and the cost-log tag come from the run's layout
+    folder_key: str                               # ``shared/sdf_run_layouts.py``: the layer, folder and cost-log tag come from the layout
     model_setting_keys: tuple = ()                # ``sdf.<key>``; the first one set wins
+    required_prompt_files: Callable = _no_files   # (config, prompts_directory) -> files
+    reason_inactive: Callable = _active           # (config, prompts_directory) -> the printed reason, or None
+    reads: Callable | None = None                 # run -> the step's documents
     applies: Callable = _always                   # (document, run) -> False when the step skips the document
     finished_elsewhere: Callable = _never         # (document, run) -> True when another step finished it
     group: Callable | None = None                 # (documents, run) -> {group key: list}; None: groups of one document
@@ -99,13 +115,21 @@ class Step:
     stop_message: Callable | None = None          # (documents, result, run) -> the exit message when a failed group stops the run
 
     @property
-    def stage_tag(self) -> str:
-        """The cost-log tag of the step's calls in the layout of the run being written."""
+    def makes_model_calls(self) -> bool:
+        return self.build_request is not None
+
+    @property
+    def stage_tag(self) -> str | None:
+        """The cost-log tag of the step's calls in the layout of the run being written; None for a step with no call."""
         return self.stage_tag_in(sdf_run_layouts.active_layout())
 
-    def stage_tag_in(self, layout) -> str:
-        """The cost-log tag of the step's calls in a layout."""
-        return layout.stage_tag(self.name)
+    def stage_tag_in(self, layout) -> str | None:
+        """The cost-log tag of the step's calls in a layout; None for a step with no call."""
+        return layout.stage_tag(self.name) if self.makes_model_calls else None
+
+    def layer_in(self, layout) -> int:
+        """The ``--layer`` number of the step in a layout."""
+        return layout.layer_number_of_key[self.folder_key]
 
     def model_for(self, config: dict):
         """The model the step is configured with (the first setting key that is set; a renamed key also under its old name)."""

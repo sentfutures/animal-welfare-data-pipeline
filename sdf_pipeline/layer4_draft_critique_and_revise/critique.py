@@ -2,13 +2,15 @@
 A critique is banked in critiques.jsonl before the revise runs; a reply with no ``<review>`` tags is accepted whole. A draft whose rewrite is on disk needs
 no critique, and accepting a critique finishes nothing: only an accepted rewrite finishes a draft."""
 
+from sdf_pipeline.layer4_draft_critique_and_revise.draft import DRAFTS
 from sdf_pipeline.layer4_draft_critique_and_revise.shared_by_this_layers_steps import (
     CRITIQUE_MAX_TOKENS, CRITIQUE_TEMPLATE, CRITIQUES, REVIEW_TAG_RE, ReviewPromptRenderer, is_rewritten,
-    layer_name_in_messages)
+    layer_name_in_messages, revision_is_split)
 from sdf_pipeline.shared_step_machinery.step_record import Run, Step, loaded_once_per_run, one_record_per_accepted_document
 from sdf_pipeline.shared_step_machinery.update_steps import (
     Accepted, Failed, FailureKind, ModelReply, ModelRequest, StepPolicy, StepProgress, WhereAnErrorIsAThrownCall,
     line_for_document_left_to_retry)
+from shared import utils
 from shared.sdf_run_layouts import CRITIQUE_AND_REVISE
 
 
@@ -46,6 +48,9 @@ def progress_line(documents: list, outcomes: dict, progress: StepProgress, run: 
 # neither step stops the run on its own.
 STEP = Step(
     name="critique", folder_key=CRITIQUE_AND_REVISE, model_setting_keys=("critique_model", "revise_model"),
+    required_prompt_files=lambda config, prompts_directory: [CRITIQUE_TEMPLATE] if revision_is_split(config)
+    else [utils.sdf_template_path(prompts_directory, 3).name],
+    reads=lambda run: run.records(DRAFTS),
     finished_elsewhere=lambda draft, run: is_rewritten(draft["doc_id"], run),
     build_request=build_request, read_reply=read_reply,
     records=one_record_per_accepted_document(CRITIQUES, lambda draft, critique, run: {"doc_id": draft["doc_id"], "review": critique}),

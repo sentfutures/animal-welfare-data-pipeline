@@ -8,7 +8,10 @@ from sdf_pipeline.shared_step_machinery.considerations_catalog import (
     CONSIDERATIONS_FILENAME, EPISTEMIC_LIST, LIST_NAMES, MORAL_LIST, ConsiderationCatalog, load_considerations)
 from sdf_pipeline.layer3_consideration_scoring_and_selection.shared_by_this_layers_steps import (
     SELECTIONS_FILENAME, STATUS_ACCEPTED, STATUS_NONE, load_selection_template, selection_enabled)
+from sdf_pipeline.layer2_description_write_and_description_rewrite.description_rewrite import plans_after_description_rewrite
+from sdf_pipeline.shared_step_machinery.step_record import Run
 from shared import utils
+from shared.sdf_run_layouts import CONSIDERATION_SCORING_AND_SELECTION
 
 
 def assign_considerations_to_documents(
@@ -95,3 +98,10 @@ def assemble_considerations_spec(picks: list) -> str:
         f"{entry.label} ({entry.gloss}) — {reason}" if entry.gloss else f"{entry.label} — {reason}"
         for entry, reason in picks
     )
+
+
+def plans_with_selections(run: Run) -> list[dict]:
+    """The plans after the description rewrite with the saved selections attached, no calls."""
+    return attach_selections(
+        run.config, run.prompts_directory, run.stage_directories[CONSIDERATION_SCORING_AND_SELECTION],
+        plans_after_description_rewrite(run))

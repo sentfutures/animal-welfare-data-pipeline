@@ -37,6 +37,16 @@ def eligible_plans(config: dict, catalog: ConsiderationCatalog, plans: list[dict
 
 
 
+def reason_consideration_selection_is_inactive(config: dict, prompts_dir: Path) -> str | None:
+    """Why the consideration scoring and assignment do not run, as the line ``run`` prints; None when they run."""
+    if not selection_enabled(config):
+        return "Consideration selection disabled (sdf.select_enabled: false)"
+    if load_selection_template(prompts_dir) is None or not (Path(prompts_dir) / CONSIDERATIONS_FILENAME).is_file():
+        return (f"No {TEMPLATE_FILENAME} or {CONSIDERATIONS_FILENAME} in this run's prompt snapshot "
+                "— consideration selection skipped")
+    return None
+
+
 def print_coverage_report(report: dict) -> None:
     print(f"  Considerations coverage over {report['eligible_documents']} eligible documents "
           f"({report['digital_mind_documents']} digital-mind):")

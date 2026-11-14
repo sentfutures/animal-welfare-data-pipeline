@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 from shared import sdf_run_layouts, utils
+from sdf_pipeline.shared_step_machinery.step_record import StageFile
 
 # The shuffles of the screen's batches and of the redeal are seeded with this text (with the run seed and the
 # round). Kept literal: deriving it from a layout's tag would change every batch.
@@ -20,6 +21,8 @@ REJECTIONS_FILENAME = "screen_rejections.jsonl"
 CHECKPOINT_FILENAME = "_screen_checkpoint.json"
 SCREENED_HANDS_FILENAME = "screened_hands.jsonl"
 SUMMARY_FILENAME = "screen_summary.json"
+# The composed planning prompts, which live in the plan's folder.
+PROMPTS = StageFile(sdf_run_layouts.DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE, "prompts.jsonl", "prompt_id")
 DEFAULT_BATCH_SIZE = 10
 DEFAULT_REDEAL_ROUNDS = 3
 MAX_REDEAL_ATTEMPTS = 25  # reshuffles tried per round before the removed cards are given up on

@@ -4,11 +4,11 @@ The selection is global, so it runs only once every eligible document is scored 
 import json
 from pathlib import Path
 
-from sdf_pipeline.shared_step_machinery.considerations_catalog import CONSIDERATIONS_FILENAME, load_considerations
+from sdf_pipeline.shared_step_machinery.considerations_catalog import load_considerations
 from sdf_pipeline.layer3_consideration_scoring_and_selection.shared_by_this_layers_steps import *  # noqa: F401,F403  (names, readers)
 from sdf_pipeline.layer3_consideration_scoring_and_selection.shared_by_this_layers_steps import (
-    COVERAGE_FILENAME, SCORES_FILENAME, SELECTIONS_FILENAME, TEMPLATE_FILENAME, eligible_plans, load_selection_template,
-    print_coverage_report, selection_enabled)
+    COVERAGE_FILENAME, SCORES_FILENAME, SELECTIONS_FILENAME, eligible_plans, load_selection_template,
+    print_coverage_report, reason_consideration_selection_is_inactive)
 from sdf_pipeline.layer3_consideration_scoring_and_selection.consideration_scoring import *  # noqa: F401,F403  (the scoring prompt and parsing helpers)
 from sdf_pipeline.layer3_consideration_scoring_and_selection import consideration_scoring
 from sdf_pipeline.layer3_consideration_scoring_and_selection.consideration_selection import *  # noqa: F401,F403
@@ -22,12 +22,9 @@ from shared.sdf_run_layouts import CONSIDERATION_SCORING_AND_SELECTION
 
 def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) -> list[dict]:
     """Score, assign and return ``plans`` with the entries attached; no calls and ``plans`` unchanged when disabled or the snapshot lacks the template or catalogue."""
-    if not selection_enabled(config):
-        print("  Consideration selection disabled (sdf.select_enabled: false)")
-        return plans
-    if load_selection_template(prompts_dir) is None or not (Path(prompts_dir) / CONSIDERATIONS_FILENAME).is_file():
-        print(f"  No {TEMPLATE_FILENAME} or {CONSIDERATIONS_FILENAME} in this run's prompt snapshot "
-              "— consideration selection skipped")
+    reason_inactive = reason_consideration_selection_is_inactive(config, prompts_dir)
+    if reason_inactive is not None:
+        print(f"  {reason_inactive}")
         return plans
     catalog = load_considerations(prompts_dir)
     utils.ensure_dir(output_dir)

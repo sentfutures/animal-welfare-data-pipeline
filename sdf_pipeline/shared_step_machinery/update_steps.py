@@ -2,8 +2,10 @@
 ``Failed``), what the runner records (``OutcomeRecords``) and its stop rules and counts (``StepPolicy``, ``StepProgress``).
 The step record is in ``step_record.py``; the runner is in ``step_runner.py``."""
 
+import hashlib
+import json
 import time
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from enum import Enum, Flag, auto
 
 
@@ -22,6 +24,12 @@ class ModelRequest:
     json_schema: dict | None = None
     openai_reasoning_effort: str | None = None   # the description rewrite's OpenAI route only; None for Claude
     openai_schema_name: str | None = None        # likewise
+
+    def request_hash(self) -> str:
+        """SHA-256 of the request as a canonical JSON string, to tell requests apart (used by the
+        request print command)."""
+        canonical = json.dumps(asdict(self), sort_keys=True, ensure_ascii=False)
+        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 PROGRESS_INTERVAL_SECONDS = 180  # throttled progress lines are printed no more often than this

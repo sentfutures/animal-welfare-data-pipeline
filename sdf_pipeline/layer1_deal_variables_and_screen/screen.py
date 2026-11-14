@@ -267,6 +267,8 @@ def stop_message(hands: list, result: StepRunResult, run: Run) -> str:
 
 STEP = Step(
     name="screen", folder_key=DEAL_VARIABLES_AND_SCREEN, model_setting_keys=("screen_model", "description_write_model"),
+    required_prompt_files=lambda config, prompts_directory: [TEMPLATE_FILENAME, HAND_BLOCK_FILENAME, SCHEMA_FILENAME],
+    reason_inactive=lambda config, prompts_directory: reason_screen_is_inactive(config, prompts_directory),
     group=group_hands_into_seeded_batches,
     build_request=build_request, read_reply=read_reply, records=records,
     checkpoint_file_name=CHECKPOINT_FILENAME,
@@ -277,3 +279,13 @@ STEP = Step(
         | WhereAnErrorIsAThrownCall.INTERPRET),
     call_noun="screen call", unit_noun="batch",
     progress_line=progress_line, stop_message=stop_message)
+
+
+def reason_screen_is_inactive(config: dict, prompts_dir: Path) -> str | None:
+    """Why the screen (and the deal and redeal it carries) does not run under this configuration and
+    prompt snapshot, as the line ``run`` prints; None when it runs."""
+    if not config["sdf"].get("screen_enabled", True):
+        return "Screen disabled (sdf.screen_enabled: false)"
+    if load_screen_prompts(prompts_dir) is None:
+        return f"No {TEMPLATE_FILENAME} in this run's prompt snapshot — screen skipped"
+    return None

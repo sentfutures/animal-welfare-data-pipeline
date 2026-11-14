@@ -11,11 +11,13 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from sdf_pipeline.shared_step_machinery import considerations_assignment as assignment
 from sdf_pipeline.shared_step_machinery.considerations_catalog import (
-    EPISTEMIC_LIST, LIST_NAMES, MORAL_LIST, Consideration, ConsiderationCatalog, load_considerations)
+    CONSIDERATIONS_FILENAME, EPISTEMIC_LIST, LIST_NAMES, MORAL_LIST, Consideration, ConsiderationCatalog, load_considerations)
 from sdf_pipeline.shared_step_machinery import structured_answers
 from sdf_pipeline.layer3_consideration_scoring_and_selection.shared_by_this_layers_steps import (
-    FAILURES_FILENAME, SCORES_FILENAME, load_selection_template)
-from sdf_pipeline.shared_step_machinery.step_record import Run, StageFile, Step, loaded_once_per_run
+    FAILURES_FILENAME, SCORES_FILENAME, TEMPLATE_FILENAME, load_selection_template,
+    reason_consideration_selection_is_inactive)
+from sdf_pipeline.layer2_description_write_and_description_rewrite.description_rewrite import plans_after_description_rewrite
+from sdf_pipeline.shared_step_machinery.step_record import Run, StageFile, Step, loaded_once_per_run, description_write_prompt_files
 from sdf_pipeline.shared_step_machinery.step_runner import maximum_attempts
 from sdf_pipeline.shared_step_machinery.update_steps import (
     Accepted, Failed, FailureKind, ModelReply, ModelRequest, OutcomeRecords, StepPolicy, StepProgress,
@@ -276,6 +278,10 @@ def stop_message(plans: list, run_result, run: Run) -> str:
 STEP = Step(
     name="consideration_scoring", folder_key=CONSIDERATION_SCORING_AND_SELECTION,
     model_setting_keys=("consideration_scoring_model", "description_write_model"),
+    required_prompt_files=lambda config, prompts_directory: [
+        *description_write_prompt_files(config, prompts_directory), TEMPLATE_FILENAME, CONSIDERATIONS_FILENAME],
+    reason_inactive=lambda config, prompts_directory: reason_consideration_selection_is_inactive(config, prompts_directory),
+    reads=plans_after_description_rewrite,
     applies=applies, build_request=build_request, read_reply=read_reply, records=records, writes=(SCORES,),
     writes_as_replies_arrive=True,
     policy=StepPolicy(
