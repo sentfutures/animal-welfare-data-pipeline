@@ -33,8 +33,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from sdf_pipeline import layer1_description_rewrite, layer1_screen, layer1_select_considerations  # noqa: E402
-from sdf_pipeline.document_state_loader import (  # noqa: E402
+from sdf_pipeline.layer1_deal_and_screen import run_layer as deal_and_screen_layer  # noqa: E402
+from sdf_pipeline.layer3_consideration_scoring_and_selection import run_layer as consideration_scoring_and_selection_layer  # noqa: E402
+from sdf_pipeline import pipeline_steps  # noqa: E402
+from sdf_pipeline.layer2_plan_and_description_rewrite import description_rewrite  # noqa: E402
+from sdf_pipeline.shared_step_machinery.document_state_loader import (  # noqa: E402
     load_document_states_or_empty_list_when_not_a_run_folder, plan_records_of_states)
 
 RUN = Path(sys.argv[1])
@@ -290,7 +293,7 @@ sdf_cfg = cfg.get("sdf", {}) or {}
 models = {
     "plan": sdf_cfg.get("plan_model") or cfg.get("model", "?"),
     "draft": sdf_cfg.get("draft_model") or cfg.get("model", "?"),
-    "rewrite": sdf_cfg.get("rewrite_model") or cfg.get("model", "?"),
+    "rewrite": sdf_cfg.get("revise_model") or sdf_cfg.get("rewrite_model") or cfg.get("model", "?"),
     "score": sdf_cfg.get("score_model") or cfg.get("model", "?"),
 }
 comp = (audit.get("composition") or {})
@@ -324,11 +327,11 @@ A(stat(f"{clean_frac:.0%}" if clean_frac is not None else "—",
 A("</div></section>")
 
 # ---- layer-1 implausibility screen (absent on runs made before it existed)
-screen = layer1_screen.load_screen_outputs(RUN)
+screen = deal_and_screen_layer.load_screen_outputs(RUN)
 if screen is not None:
-    screen_rows = layer1_screen.removal_rate_rows(screen)
-    screen_round_rows = layer1_screen.round_rows(screen)
-    shift_rows = layer1_screen.share_shift_rows(screen)
+    screen_rows = deal_and_screen_layer.removal_rate_rows(screen)
+    screen_round_rows = deal_and_screen_layer.round_rows(screen)
+    shift_rows = deal_and_screen_layer.share_shift_rows(screen)
     screened_n, removed_n = len(screen["screened_ids"]), len(screen["removed"])
     leftover_n = len(screen["leftover_ids"])
     corpus_rate = removed_n / screened_n if screened_n else 0.0
@@ -367,9 +370,9 @@ if screen is not None:
     A("</section>")
 
 # ---- layer-1 description rewrite (absent on runs made before it existed)
-rewrite_outputs = layer1_description_rewrite.load_description_rewrite_outputs(RUN)
+rewrite_outputs = description_rewrite.load_description_rewrite_outputs(RUN)
 if rewrite_outputs is not None:
-    rewrite_shares = layer1_description_rewrite.rewrite_share_rows(plans, rewrite_outputs)
+    rewrite_shares = description_rewrite.rewrite_share_rows(plans, rewrite_outputs)
     checked_n = rewrite_shares["checked"]
     A("<section id='description-rewrite'><h2>Description rewrite</h2>")
     A("<p>After planning, each description was checked for plausibility, for conformance to every dealt "
@@ -395,9 +398,9 @@ if rewrite_outputs is not None:
     A("</section>")
 
 # ---- layer-1 considerations selector (absent on runs made before it existed)
-considerations_outputs = layer1_select_considerations.load_considerations_outputs(RUN)
+considerations_outputs = consideration_scoring_and_selection_layer.load_considerations_outputs(RUN)
 if considerations_outputs is not None:
-    coverage = layer1_select_considerations.corpus_coverage_report(considerations_outputs, corpus)
+    coverage = consideration_scoring_and_selection_layer.corpus_coverage_report(considerations_outputs, corpus)
     coverage_total = coverage["eligible_documents"]
     A("<section id='considerations'><h2>Considerations</h2>")
     A("<p>After the description rewrite, a selector scored every consideration on an ordered moral list and "
@@ -831,14 +834,14 @@ for para in excerpts.get("weakness_notes", []):
 A("</section>")
 
 # ---- method
-stage_cost = collections.Counter()
+stage_cost = collections.Counter()   # by the five-layer layout's tag, so runs made in either layout line up
 for c in costs:
-    stage_cost[c.get("stage", "?")] += 1
+    stage_cost[pipeline_steps.canonical_stage_tag(c.get("stage", "?"))] += 1
 A("<section id='method'><h2>How this corpus was produced, and what to distrust</h2>")
 A(table(["stage", "model", "calls logged"],
         [[esc(k), f"<code>{esc(models[k])}</code>", stage_cost.get(
-            {"plan": "layer1_plan", "draft": "layer2_draft",
-             "rewrite": "layer3_rewrite", "score": "layer4_score"}[k], 0)]
+            {"plan": "layer2_plan", "draft": "layer4_draft",
+             "rewrite": "layer4_critique_and_revise_in_one_call", "score": "layer5_score"}[k], 0)]
          for k in ("plan", "draft", "rewrite", "score")]))
 for para in excerpts.get("method_notes", []):
     A(f"<p>{esc(para)}</p>")

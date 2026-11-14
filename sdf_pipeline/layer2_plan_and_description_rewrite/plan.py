@@ -1,4 +1,4 @@
-"""Layer 1: compose the prompt matrix (offline), then plan each document.
+"""Layer 2 step: compose the prompt matrix (offline), then plan each document.
 
 The composition half replaces the old LLM layers entirely: a deck sample
 of the variables matrix (prompts/sdf/variables.txt x layer1.txt) yields one
@@ -9,7 +9,7 @@ the combination INCOHERENT). Only the extracted description travels
 downstream; the working notes are scaffolding.
 
 Checkpoint semantics (protects paid work):
-- The implausibility screen (layer1_screen.py) runs before this module and hands
+- The implausibility screen (layer1_deal_and_screen.py) runs before this module and hands
   it the accepted hands; removed hands are never planned.
 - prompts.jsonl is composed once per run and reloaded on --resume (the deck
   sample is seeded, but reusing the file guarantees identity even if the
@@ -22,14 +22,14 @@ Checkpoint semantics (protects paid work):
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from shared import utils
-from sdf_pipeline import compose_prompts as cp
-from sdf_pipeline.dealt_value_identifiers import (
+from sdf_pipeline.shared_step_machinery import compose_prompts as cp
+from sdf_pipeline.shared_step_machinery.dealt_value_identifiers import (
     deal_hand_records_with_value_ids, run_records_value_ids, value_ids_field_of, value_ids_of_hands)
-from sdf_pipeline.step_runner import StepRunner
-from sdf_pipeline.update_steps import (
+from sdf_pipeline.shared_step_machinery.step_runner import StepRunner
+from sdf_pipeline.shared_step_machinery.update_steps import (
     Accepted, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, OutcomeRecords, Removed,
     StepPolicy, StepProgress, line_for_document_left_to_retry)
 
@@ -45,7 +45,6 @@ class PlanStep(DocumentStep):
     stage_file_id_field = "prompt_id"
     # Only a thrown call counts towards the systemic stop; an unusable answer is left behind.
     policy = StepPolicy()
-    stage_tag = "layer1_plan"
 
     def __init__(self, config: dict):
         self.plan_model = config["sdf"].get("plan_model")

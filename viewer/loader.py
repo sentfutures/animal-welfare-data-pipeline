@@ -30,21 +30,24 @@ def _runs_roots(outputs_root: Path, pipeline: str) -> list[Path]:
     return [Path(outputs_root) / sub / "runs" for sub in subdirs]
 
 # A stage maps to one relative path, or to several tried in order — the first
-# that exists wins. SDF needs the fallbacks because the layers were renumbered
-# from 1-2/3/4/5 to 1/2/3/4 and runs made before that keep the old directories.
+# that exists wins. SDF needs the fallbacks because its layouts differ: the five
+# named layers (layer1_deal_and_screen ... layer5_score_and_final_selection, every
+# new run), the four numbered layers (layer1 to layer4) and the pre-renumber
+# layout (layer12, layer3 to layer5); runs keep the layout they were made in.
 #
 # SDF stages are keyed by NAME, not number, and resolved by the output
-# FILENAME, because the numbers moved and three layouts now overlap on disk:
-# "layer3" is drafts in a pre-renumber run but rewrites in a current one, and
+# FILENAME, because the numbers moved and the old layouts overlap on disk:
+# "layer3" is drafts in a pre-renumber run but rewrites in a four-layer one, and
 # "layer1"/"layer2" are the legacy pre-matrix pipeline's document types and
-# subtypes. Only the filename identifies a stage unambiguously.
+# subtypes. Only the filename identifies a stage unambiguously. The five-layer
+# layout's folder names equal none of the older ones, so its entries cannot be mistaken for them.
 STAGE_FILES = {
     "sdf": {
-        "dealt": ("layer1/prompts.jsonl", "layer12/prompts.jsonl"),
-        "plan": ("layer1/plans.jsonl", "layer12/plans.jsonl"),
-        "draft": ("layer2/drafts.jsonl", "layer3/drafts.jsonl"),
-        "rewrite": ("layer3/rewrites.jsonl", "layer4/rewrites.jsonl"),
-        "score": ("layer4/scores.jsonl", "layer5/scores.jsonl"),
+        "dealt": ("layer2_plan_and_description_rewrite/prompts.jsonl", "layer1/prompts.jsonl", "layer12/prompts.jsonl"),
+        "plan": ("layer2_plan_and_description_rewrite/plans.jsonl", "layer1/plans.jsonl", "layer12/plans.jsonl"),
+        "draft": ("layer4_draft_critique_and_revise/drafts.jsonl", "layer2/drafts.jsonl", "layer3/drafts.jsonl"),
+        "rewrite": ("layer4_draft_critique_and_revise/rewrites.jsonl", "layer3/rewrites.jsonl", "layer4/rewrites.jsonl"),
+        "score": ("layer5_score_and_final_selection/scores.jsonl", "layer4/scores.jsonl", "layer5/scores.jsonl"),
         # Legacy pre-matrix pipeline (two LLM layers stood where layer 1 is now)
         "document_types": "layer1/document_types.jsonl",
         "subtypes": "layer2/subtypes.jsonl",

@@ -40,9 +40,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from sdf_pipeline import layer1_description_rewrite, layer1_screen, layer1_select_considerations
-from sdf_pipeline.document_state_final_corpus import resolve_sdf_input
-from sdf_pipeline.document_state_loader import (
+from sdf_pipeline.layer1_deal_and_screen import run_layer as deal_and_screen_layer
+from sdf_pipeline.layer3_consideration_scoring_and_selection import run_layer as consideration_scoring_and_selection_layer
+from sdf_pipeline.layer2_plan_and_description_rewrite import description_rewrite
+from sdf_pipeline.shared_step_machinery.document_state_final_corpus import resolve_sdf_input
+from sdf_pipeline.shared_step_machinery.document_state_loader import (
     load_document_states_or_empty_list_when_not_a_run_folder, plan_records_of_states)
 from shared import api, textstats, utils
 from shared.api_keys import add_api_key_source_flags, apply_api_key_source_flags
@@ -181,13 +183,13 @@ def audit_screen(run_dir: Path, report: dict) -> None:
     screen that quietly removes (say) every skeptical or non-English hand is
     visible. Runs made before the screen existed (or before it moved ahead of
     planning) have no screen_hands file and are skipped."""
-    screen = layer1_screen.load_screen_outputs(run_dir)
+    screen = deal_and_screen_layer.load_screen_outputs(run_dir)
     if screen is None:
         print("LAYER-1 SCREEN\n  (no screen files in this run — it predates the screen or had it disabled)")
         return
-    rows = layer1_screen.removal_rate_rows(screen)
-    rounds = layer1_screen.round_rows(screen)
-    shifts = layer1_screen.share_shift_rows(screen)
+    rows = deal_and_screen_layer.removal_rate_rows(screen)
+    rounds = deal_and_screen_layer.round_rows(screen)
+    shifts = deal_and_screen_layer.share_shift_rows(screen)
     screened = len(screen["screened_ids"])
     removed = len(screen["removed"])
     leftover = len(screen["leftover_ids"])
@@ -232,13 +234,13 @@ def audit_description_rewrite(run_dir: Path, report: dict) -> None:
     """Layer-1 description rewrite: the share of descriptions rewritten, per check
     and per variable value, and the plans dropped for a dealt-value conflict. Runs
     made before the stage existed are skipped."""
-    outputs = layer1_description_rewrite.load_description_rewrite_outputs(run_dir)
+    outputs = description_rewrite.load_description_rewrite_outputs(run_dir)
     if outputs is None:
         print("LAYER-1 DESCRIPTION REWRITE\n  (no description rewrite files in this run — it predates "
               "the stage or had it disabled)")
         return
     plans = plan_records_of_states(load_document_states_or_empty_list_when_not_a_run_folder(run_dir))
-    shares = layer1_description_rewrite.rewrite_share_rows(plans, outputs)
+    shares = description_rewrite.rewrite_share_rows(plans, outputs)
     checked = shares["checked"]
     print("LAYER-1 DESCRIPTION REWRITE")
     print(_fmt("descriptions rewritten", f"{shares['rewritten']} of {checked} checked "
@@ -259,11 +261,11 @@ def audit_considerations(run_dir: Path, records: list[dict], report: dict) -> No
     share of documents with no consideration, and how many carry two or more from
     one list. Drafting failures and the score gate shift these after selection.
     Runs made before the selector have no selection files and are skipped."""
-    outputs = layer1_select_considerations.load_considerations_outputs(run_dir)
+    outputs = consideration_scoring_and_selection_layer.load_considerations_outputs(run_dir)
     if outputs is None:
         print("CONSIDERATIONS\n  (no selection files in this run — it predates the selector or had it disabled)")
         return
-    coverage = layer1_select_considerations.corpus_coverage_report(outputs, records)
+    coverage = consideration_scoring_and_selection_layer.corpus_coverage_report(outputs, records)
     total = coverage["eligible_documents"]
     print("CONSIDERATIONS")
     print(_fmt("documents measured", f"{total} ({coverage['digital_mind_documents']} on digital minds)"))

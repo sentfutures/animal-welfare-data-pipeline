@@ -15,13 +15,11 @@ import shutil
 
 import pytest
 
-from sdf_pipeline import (
-    compose_prompts as cp,
-    layer1_plan,
-    layer2_draft,
-    layer3_rewrite,
-    layer4_score,
-)
+from sdf_pipeline.shared_step_machinery import compose_prompts as cp
+from sdf_pipeline.layer2_plan_and_description_rewrite import plan as plan_step
+from sdf_pipeline.layer4_draft_critique_and_revise import draft as draft_step
+from sdf_pipeline.layer4_draft_critique_and_revise import run_layer as draft_critique_and_revise_layer
+from sdf_pipeline.layer5_score_and_final_selection import run_layer as score_and_final_selection_layer
 from shared import utils
 from sdf_plan_draft_rewrite_and_score_test_builders import (
     REPO_ROOT, make_plan, make_draft, make_rewrite, SCORE_OK, split_config, single_call_config,
@@ -42,11 +40,11 @@ class TestLayer12Plan:
     ):
         stub_claude(lambda user_message, **kw:
                     "<document_description>INCOHERENT: no such document.</document_description>")
-        records = layer1_plan.run(tiny_config, prompts_sdf, stage_dir)
+        records = plan_step.run(tiny_config, prompts_sdf, stage_dir)
         assert all(r["incoherent"] and r["description"] is None for r in records)
 
         calls = stub_claude([])
-        layer1_plan.run(tiny_config, prompts_sdf, stage_dir)
+        plan_step.run(tiny_config, prompts_sdf, stage_dir)
         assert calls == []  # rejected combos are done, not retried
 
     def test_all_plan_calls_failing_is_a_systemic_error(
@@ -57,7 +55,7 @@ class TestLayer12Plan:
 
         stub_claude(dispatch)
         with pytest.raises(SystemExit, match="systemic"):
-            layer1_plan.run(tiny_config, prompts_sdf, stage_dir)
+            plan_step.run(tiny_config, prompts_sdf, stage_dir)
 
 
 class TestLayer4Rewrite:
@@ -66,7 +64,7 @@ class TestLayer4Rewrite:
         config = {**tiny_config, "sdf": {**tiny_config["sdf"], "rewrite_model": "claude-fable-5"}}
         calls = stub_claude(lambda user_message, **kw:
                             "r\n<improved_document>B.</improved_document>")
-        layer3_rewrite.run(config, prompts_sdf, stage_dir, [make_draft()])
+        draft_critique_and_revise_layer.run_critique_and_revise(config, prompts_sdf, stage_dir, [make_draft()])
         assert calls[0]["model"] == "claude-fable-5"
 
 
@@ -101,7 +99,7 @@ class TestCompleteDocumentsAreNotRejectedAsTruncated:
     ):
         body = f"Le comité a examiné les normes de bien-être animal.\n\n{ending}"
         stub_claude(lambda user_message, **kw: f"notes\n<document>{body}</document>")
-        records = layer2_draft.run(tiny_config, prompts_sdf, stage_dir, [make_plan()])
+        records = draft_step.run(tiny_config, prompts_sdf, stage_dir, [make_plan()])
 
         assert len(records) == 1
         assert records[0]["content"] == body  # sign-off intact, nothing trimmed
@@ -113,11 +111,11 @@ class TestCompleteDocumentsAreNotRejectedAsTruncated:
         stub_claude(lambda user_message, **kw:
                     ("notes\n<document>The inspector noted that the stocking den",
                      "max_tokens"))
-        assert layer2_draft.run(tiny_config, prompts_sdf, stage_dir, [make_plan()]) == []
+        assert draft_step.run(tiny_config, prompts_sdf, stage_dir, [make_plan()]) == []
         assert utils.load_jsonl(stage_dir / "drafts.jsonl") == []  # not checkpointed
 
         calls = stub_claude(lambda user_message, **kw: "n\n<document>Recovered.</document>")
-        records = layer2_draft.run(tiny_config, prompts_sdf, stage_dir, [make_plan()])
+        records = draft_step.run(tiny_config, prompts_sdf, stage_dir, [make_plan()])
         assert len(calls) == 1
         assert records[0]["content"] == "Recovered."
 
@@ -128,7 +126,7 @@ class TestCompleteDocumentsAreNotRejectedAsTruncated:
         body = f"Le comité a revu les normes, avec des corrections.\n\n{ending}"
         stub_claude(lambda user_message, **kw:
                     f"Problems: none.\n<improved_document>{body}</improved_document>")
-        records = layer3_rewrite.run(tiny_config, prompts_sdf, stage_dir, [make_draft()])
+        records = draft_critique_and_revise_layer.run_critique_and_revise(tiny_config, prompts_sdf, stage_dir, [make_draft()])
 
         assert len(records) == 1
         assert records[0]["content"] == body
@@ -140,12 +138,12 @@ class TestCompleteDocumentsAreNotRejectedAsTruncated:
         config = single_call_config(tiny_config)
         stub_claude(lambda user_message, **kw:
                     ("Problems: none.\n<improved_document>Cut mid-sen", "max_tokens"))
-        assert layer3_rewrite.run(config, prompts_sdf, stage_dir, [make_draft()]) == []
+        assert draft_critique_and_revise_layer.run_critique_and_revise(config, prompts_sdf, stage_dir, [make_draft()]) == []
         assert utils.load_jsonl(stage_dir / "rewrites.jsonl") == []
 
         calls = stub_claude(lambda user_message, **kw:
                             "r\n<improved_document>Recovered.</improved_document>")
-        records = layer3_rewrite.run(config, prompts_sdf, stage_dir, [make_draft()])
+        records = draft_critique_and_revise_layer.run_critique_and_revise(config, prompts_sdf, stage_dir, [make_draft()])
         assert len(calls) == 1
         assert records[0]["content"] == "Recovered."
 
@@ -159,7 +157,7 @@ class TestLayer5Score:
 
         calls = stub_claude(dispatch)
         rewrites = [make_rewrite("matrix_000000"), make_rewrite("matrix_000001", "Autre document.")]
-        corpus = layer4_score.run(tiny_config, prompts_sdf, stage_dir, final_dir, rewrites)
+        corpus = score_and_final_selection_layer.run(tiny_config, prompts_sdf, stage_dir, final_dir, rewrites)
 
         assert [r["doc_id"] for r in corpus] == ["matrix_000000"]  # A4 gated out
         rec = corpus[0]
@@ -180,7 +178,7 @@ def test_derive_language():
 
 def revise_call(calls: list[dict]) -> dict:
     """The call the directives ride on, under either layer-3 shape."""
-    return next(c for c in calls if c["stage"] in ("layer3_revise", "layer3_rewrite"))
+    return next(c for c in calls if c["stage"] in ("layer4_revise", "layer3_rewrite"))
 
 
 class TestLayer3SplitRewrite:
@@ -195,14 +193,14 @@ class TestLayer3SplitRewrite:
     def _dispatch(revise="<improved_document>Better.</improved_document>",
                   critique="<review>Problem: the voice is flat.</review>"):
         def fake(user_message, **kw):
-            return critique if kw.get("stage") == "layer3_critique" else revise
+            return critique if kw.get("stage") == "layer4_critique" else revise
         return fake
 
     def test_two_calls_with_distinct_stage_tags(self, tiny_config, prompts_sdf, stage_dir, stub_claude):
         calls = stub_claude(self._dispatch())
-        records = layer3_rewrite.run(split_config(tiny_config), prompts_sdf, stage_dir, [make_draft()])
+        records = draft_critique_and_revise_layer.run_critique_and_revise(split_config(tiny_config), prompts_sdf, stage_dir, [make_draft()])
 
-        assert [c["stage"] for c in calls] == ["layer3_critique", "layer3_revise"]
+        assert [c["stage"] for c in calls] == ["layer4_critique", "layer4_revise"]
         assert records[0]["content"] == "Better."
         # the critique becomes the review record, and reaches the revise prompt
         assert records[0]["review"] == "Problem: the voice is flat."
@@ -212,7 +210,7 @@ class TestLayer3SplitRewrite:
     def test_a_truncated_critique_is_not_banked(self, tiny_config, prompts_sdf, stage_dir, stub_claude):
         stub_claude(lambda user_message, **kw: ("<review>half a th", "max_tokens"))
         config = split_config(tiny_config)
-        assert layer3_rewrite.run(config, prompts_sdf, stage_dir, [make_draft()]) == []
+        assert draft_critique_and_revise_layer.run_critique_and_revise(config, prompts_sdf, stage_dir, [make_draft()]) == []
         assert not (stage_dir / "critiques.jsonl").exists()
 
     def test_critique_model_falls_back_to_the_rewrite_model(
@@ -220,7 +218,7 @@ class TestLayer3SplitRewrite:
         config = split_config(tiny_config)
         config["sdf"]["rewrite_model"] = "claude-opus-4-8"
         calls = stub_claude(self._dispatch())
-        layer3_rewrite.run(config, prompts_sdf, stage_dir, [make_draft()])
+        draft_critique_and_revise_layer.run_critique_and_revise(config, prompts_sdf, stage_dir, [make_draft()])
         assert [c["model"] for c in calls] == ["claude-opus-4-8", "claude-opus-4-8"]
 
     def test_split_without_the_templates_refuses_rather_than_guessing(
@@ -230,7 +228,7 @@ class TestLayer3SplitRewrite:
         shutil.copytree(prompts_sdf, snapshot)
         (snapshot / "layer3a_critique.txt").unlink()
         with pytest.raises(SystemExit, match="layer3a_critique.txt"):
-            layer3_rewrite.run(split_config(tiny_config), snapshot, stage_dir, [make_draft()])
+            draft_critique_and_revise_layer.run_critique_and_revise(split_config(tiny_config), snapshot, stage_dir, [make_draft()])
 
 
 class TestLayer3RevisionDirectives:
@@ -240,7 +238,7 @@ class TestLayer3RevisionDirectives:
             self, tiny_config, prompts_sdf, stage_dir, stub_claude):
         calls = stub_claude(lambda user_message, **kw:
                             "r\n<improved_document>B.</improved_document>")
-        layer3_rewrite.run(tiny_config, prompts_sdf, stage_dir, [make_draft()])
+        draft_critique_and_revise_layer.run_critique_and_revise(tiny_config, prompts_sdf, stage_dir, [make_draft()])
         for call in calls:
             user = call["user_message"]
             assert "VOICE." not in user and "LENGTH." not in user
@@ -261,9 +259,9 @@ class TestLayer3RevisionDirectives:
                                 "culture": "China, written in Mandarin Chinese"}
         calls = stub_claude(lambda user_message, **kw:
                             "r\n<improved_document>B.</improved_document>")
-        layer3_rewrite.run(config, prompts_sdf, stage_dir, [french, chinese])
+        draft_critique_and_revise_layer.run_critique_and_revise(config, prompts_sdf, stage_dir, [french, chinese])
 
-        revises = [c for c in calls if c["stage"] in ("layer3_revise", "layer3_rewrite")]
+        revises = [c for c in calls if c["stage"] in ("layer4_revise", "layer3_rewrite")]
         sent = {m: c["user_message"] for c in revises
                 for m in ("MARKER-FR", "MARKER-ZH") if m in c["user_message"]}
         for marker in ("MARKER-FR", "MARKER-ZH"):
@@ -279,7 +277,7 @@ class TestLayer3RevisionDirectives:
                                               "personas": []}}
         calls = stub_claude(lambda user_message, **kw:
                             "r\n<improved_document>B.</improved_document>")
-        layer3_rewrite.run(config, prompts_sdf, stage_dir, [draft])
+        draft_critique_and_revise_layer.run_critique_and_revise(config, prompts_sdf, stage_dir, [draft])
         assert "much shorter than it is now" in revise_call(calls)["user_message"]
 
     def test_dealt_cards_reach_the_rewriter_when_the_arm_asks_for_them(
@@ -291,14 +289,14 @@ class TestLayer3RevisionDirectives:
                               "personas": []}}
         calls = stub_claude(lambda user_message, **kw:
                             "r\n<improved_document>B.</improved_document>")
-        records = layer3_rewrite.run(config, prompts_sdf, stage_dir, [draft])
+        records = draft_critique_and_revise_layer.run_critique_and_revise(config, prompts_sdf, stage_dir, [draft])
 
         user = revise_call(calls)["user_message"]
         assert "more clipped than a typical" in user
         assert "about 900 words" in user
         # the critique is held fixed, so no directive may reach it
         for call in calls:
-            if call["stage"] == "layer3_critique":
+            if call["stage"] == "layer4_critique":
                 assert "more clipped" not in call["user_message"]
         # the deal is recorded on the output, so an arm's rewrites are self-describing
         assert records[0]["revision"]["cards"]["voice_pace"] == "clipped"
@@ -317,7 +315,7 @@ class TestDealtVariablesReachLaterStages:
         plan = self.no_stake_plan()
         tradeoff, scale = plan["variables"]["tradeoff"], plan["variables"]["decision_scale"]
         calls = stub_claude(lambda user_message, **kw: "<document>Doc.</document>")
-        drafts = layer2_draft.run(tiny_config, prompts_sdf, stage_dir, [plan])
+        drafts = draft_step.run(tiny_config, prompts_sdf, stage_dir, [plan])
         draft_message = calls[0]["user_message"]
         assert plan["variables"]["domain"] in draft_message and "The task arises from" in draft_message
         assert tradeoff not in draft_message and scale not in draft_message  # omitted for no-stake hands
@@ -326,7 +324,7 @@ class TestDealtVariablesReachLaterStages:
         rewrite_dir = tmp_path / "rewrite"
         rewrite_dir.mkdir()
         rewrite_calls = stub_claude(lambda user_message, **kw: "r\n<improved_document>Better.</improved_document>")
-        rewrites = layer3_rewrite.run(tiny_config, prompts_sdf, rewrite_dir, drafts)
+        rewrites = draft_critique_and_revise_layer.run_critique_and_revise(tiny_config, prompts_sdf, rewrite_dir, drafts)
         assert "The task arises from" in rewrite_calls[0]["user_message"]
         assert tradeoff not in rewrite_calls[0]["user_message"]
 
@@ -334,7 +332,7 @@ class TestDealtVariablesReachLaterStages:
         score_dir.mkdir()
         final_dir.mkdir()
         score_calls = stub_claude(lambda user_message, **kw: SCORE_OK)
-        layer4_score.run(tiny_config, prompts_sdf, score_dir, final_dir, rewrites)
+        score_and_final_selection_layer.run(tiny_config, prompts_sdf, score_dir, final_dir, rewrites)
         assert "The task arises from" in score_calls[0]["user_message"]
         assert scale not in score_calls[0]["user_message"]
 
@@ -354,4 +352,4 @@ class TestDealtVariablesReachLaterStages:
         ]
         (old / "variables.txt").write_text("\n".join(variable_lines_without_ids), encoding="utf-8")
         stub_claude(lambda user_message, **kw: "<document>Doc.</document>")
-        assert layer2_draft.run(tiny_config, old, stage_dir, [make_plan()])
+        assert draft_step.run(tiny_config, old, stage_dir, [make_plan()])

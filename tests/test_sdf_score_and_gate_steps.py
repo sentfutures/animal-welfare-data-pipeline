@@ -2,17 +2,17 @@
 
 Step unit tests call ``interpret`` and ``apply`` with no stubbed API and no files. The layer tests
 pin the request, the document order before the cull and resume.
-``layer4_score.run`` keeps its signature and behaviour (scripts import it).
+``score_and_final_selection_layer.run`` keeps its signature and behaviour (scripts import it).
 """
 
 import json
 
 import pytest
 
-from sdf_pipeline import layer4_score
-from sdf_pipeline.layer4_score import NearDuplicateCullStep, ScoreGateStep, ScoreStep
-from sdf_pipeline.step_runner import run_corpus_step
-from sdf_pipeline.update_steps import Accepted, FailureKind, Failed, ModelReply, Removed, StepProgress
+from sdf_pipeline.layer5_score_and_final_selection import run_layer as score_and_final_selection_layer
+from sdf_pipeline.layer5_score_and_final_selection.run_layer import NearDuplicateRemovalStep, ScoreGateStep, ScoreStep
+from sdf_pipeline.shared_step_machinery.step_runner import run_corpus_step
+from sdf_pipeline.shared_step_machinery.update_steps import Accepted, FailureKind, Failed, ModelReply, Removed, StepProgress
 from shared import utils
 from sdf_plan_draft_rewrite_and_score_test_builders import SCORE_OK, make_rewrite
 
@@ -73,9 +73,9 @@ def test_a_thrown_call_is_left_behind_and_prints_todays_line(score_step):
 def test_request_sent_has_exactly_the_arguments_the_layer_always_passed(
         tiny_config, prompts_sdf, stage_dir, final_dir, stub_claude):
     calls = stub_claude(lambda user_message, **kw: SCORE_OK)
-    layer4_score.run(tiny_config, prompts_sdf, stage_dir, final_dir, [make_rewrite()])
+    score_and_final_selection_layer.run(tiny_config, prompts_sdf, stage_dir, final_dir, [make_rewrite()])
     (call,) = calls
-    assert call["max_tokens"] is None and call["stage"] == "layer4_score" and call["item_id"] == "matrix_000000"
+    assert call["max_tokens"] is None and call["stage"] == "layer5_score" and call["item_id"] == "matrix_000000"
     assert call["cache_system"] is True and call["temperature"] is None and call["json_schema"] is None
     assert call["model"] == tiny_config["sdf"].get("score_model")
     assert call["system_prompt"] and call["user_message"]
@@ -103,20 +103,20 @@ def test_gate_ignores_spec_conformance():
 def test_cull_keeps_the_first_of_a_near_duplicate_pair_in_the_order_given():
     records = [score_record("second_in_deal", 9, 9, LONG_TEXT), score_record("other", 9, 9, "Tout autre chose, un texte sans rapport."),
                score_record("first_in_deal", 9, 9, LONG_TEXT)]
-    outcomes = NearDuplicateCullStep(0.90).apply(records)
+    outcomes = NearDuplicateRemovalStep(0.90).apply(records)
     assert isinstance(outcomes["second_in_deal"], Accepted) and isinstance(outcomes["other"], Accepted)
     assert outcomes["first_in_deal"].reason_code == "near_duplicate"
     assert outcomes["first_in_deal"].detail["kept_doc_id"] == "second_in_deal"
     # the order given decides: reversed, the other copy is kept
-    reversed_outcomes = NearDuplicateCullStep(0.90).apply(list(reversed(records)))
+    reversed_outcomes = NearDuplicateRemovalStep(0.90).apply(list(reversed(records)))
     assert reversed_outcomes["second_in_deal"].detail["kept_doc_id"] == "first_in_deal"
 
 
 def test_cull_does_nothing_without_a_threshold_or_with_one_document():
     twins = [score_record("a", 9, 9, LONG_TEXT), score_record("b", 9, 9, LONG_TEXT)]
-    assert all(isinstance(o, Accepted) for o in NearDuplicateCullStep(None).apply(twins).values())
-    assert all(isinstance(o, Accepted) for o in NearDuplicateCullStep(0).apply(twins).values())
-    assert all(isinstance(o, Accepted) for o in NearDuplicateCullStep(0.9).apply(twins[:1]).values())
+    assert all(isinstance(o, Accepted) for o in NearDuplicateRemovalStep(None).apply(twins).values())
+    assert all(isinstance(o, Accepted) for o in NearDuplicateRemovalStep(0).apply(twins).values())
+    assert all(isinstance(o, Accepted) for o in NearDuplicateRemovalStep(0.9).apply(twins[:1]).values())
 
 
 def test_run_corpus_step_returns_the_outcomes_of_the_step_each_time_it_runs(tmp_path):
@@ -144,7 +144,7 @@ def test_document_order_before_the_cull_is_input_order_uninterrupted_and_scored_
     rewrites = [make_rewrite(i, LONG_TEXT) for i in ids]
 
     stub_claude(lambda user_message, **kw: SCORE_OK)
-    corpus = layer4_score.run(config, prompts_sdf, stage_dir, final_dir, rewrites)
+    corpus = score_and_final_selection_layer.run(config, prompts_sdf, stage_dir, final_dir, rewrites)
     assert [r["doc_id"] for r in corpus] == ["matrix_000000"]  # uninterrupted: rewrites order, first kept
 
     # resumed: the first document's call throws, so the later ones are scored before it
@@ -158,9 +158,9 @@ def test_document_order_before_the_cull_is_input_order_uninterrupted_and_scored_
         return SCORE_OK
 
     stub_claude(first_attempt)
-    layer4_score.run(config, prompts_sdf, stage_dir_2, final_dir_2, rewrites)
+    score_and_final_selection_layer.run(config, prompts_sdf, stage_dir_2, final_dir_2, rewrites)
     stub_claude(lambda user_message, **kw: SCORE_OK)
-    corpus = layer4_score.run(config, prompts_sdf, stage_dir_2, final_dir_2, rewrites)
+    corpus = score_and_final_selection_layer.run(config, prompts_sdf, stage_dir_2, final_dir_2, rewrites)
     assert [r["doc_id"] for r in utils.load_jsonl(stage_dir_2 / "scores.jsonl")] == [
         "matrix_000001", "matrix_000002", "matrix_000000"]
     assert [r["doc_id"] for r in corpus] == ["matrix_000001"]  # the resumed run keeps a different twin (risk 11)
@@ -171,14 +171,14 @@ def test_resume_makes_zero_calls_and_changes_no_file(tiny_config, prompts_sdf, s
     rewrites = [make_rewrite("matrix_000000", LONG_TEXT), make_rewrite("matrix_000001", LONG_TEXT),
                 make_rewrite("matrix_000002", "Un autre texte tout à fait différent des deux premiers.")]
     stub_claude(lambda user_message, **kw: SCORE_OK)
-    layer4_score.run(config, prompts_sdf, stage_dir, final_dir, rewrites)
+    score_and_final_selection_layer.run(config, prompts_sdf, stage_dir, final_dir, rewrites)
 
     def snapshot():
         return {str(p.relative_to(stage_dir.parent)): p.read_bytes() for p in stage_dir.parent.rglob("*") if p.is_file()}
 
     before = snapshot()
     calls = stub_claude([])
-    corpus = layer4_score.run(config, prompts_sdf, stage_dir, final_dir, rewrites)
+    corpus = score_and_final_selection_layer.run(config, prompts_sdf, stage_dir, final_dir, rewrites)
     assert calls == [] and [r["doc_id"] for r in corpus] == ["matrix_000000", "matrix_000002"]
     assert snapshot() == before  # no stage file changes
 
@@ -193,13 +193,13 @@ def test_resume_retries_exactly_the_failed_documents(tiny_config, prompts_sdf, s
         return SCORE_OK
 
     stub_claude(first_attempt)
-    corpus = layer4_score.run(tiny_config, prompts_sdf, stage_dir, final_dir, rewrites)
+    corpus = score_and_final_selection_layer.run(tiny_config, prompts_sdf, stage_dir, final_dir, rewrites)
     assert [r["doc_id"] for r in corpus] == ["matrix_000000", "matrix_000002"]  # the gate does not wait for them
     checkpoint = utils.Checkpoint(stage_dir / "_checkpoint.json")
     assert not checkpoint.is_done("matrix_000001") and not checkpoint.is_done("matrix_000003")
 
     calls = stub_claude(lambda user_message, **kw: SCORE_OK)
-    corpus = layer4_score.run(tiny_config, prompts_sdf, stage_dir, final_dir, rewrites)
+    corpus = score_and_final_selection_layer.run(tiny_config, prompts_sdf, stage_dir, final_dir, rewrites)
     assert sorted(c["item_id"] for c in calls) == ["matrix_000001", "matrix_000003"]
     assert [r["doc_id"] for r in corpus] == ["matrix_000000", "matrix_000002", "matrix_000001", "matrix_000003"]
 
@@ -209,8 +209,8 @@ def test_every_call_failing_stops_the_run_with_todays_message(tiny_config, promp
         raise RuntimeError("down")
 
     stub_claude(always_throws)
-    with pytest.raises(SystemExit, match="layer4_score: every pending API call failed"):
-        layer4_score.run(tiny_config, prompts_sdf, stage_dir, final_dir, [make_rewrite()])
+    with pytest.raises(SystemExit, match="layer5_score: every pending API call failed"):
+        score_and_final_selection_layer.run(tiny_config, prompts_sdf, stage_dir, final_dir, [make_rewrite()])
     assert not (final_dir / "sdf_corpus.jsonl").exists()
 
 
@@ -219,7 +219,7 @@ def test_printed_lines_are_todays(tiny_config, prompts_sdf, stage_dir, final_dir
     stub_claude(lambda user_message, **kw: scores_reply(4, 9, 3) if kw["item_id"] == "matrix_000002" else scores_reply(9, 8, 3))
     rewrites = [make_rewrite("matrix_000000", LONG_TEXT), make_rewrite("matrix_000001", LONG_TEXT),
                 make_rewrite("matrix_000002", "Texte à part.")]
-    layer4_score.run(config, prompts_sdf, stage_dir, final_dir, rewrites)
+    score_and_final_selection_layer.run(config, prompts_sdf, stage_dir, final_dir, rewrites)
     assert capsys.readouterr().out.splitlines() == [
         "  Scored matrix_000000 A9 R8 S3", "  Scored matrix_000001 A9 R8 S3", "  Scored matrix_000002 A4 R9 S3",
         "  1 document(s) below threshold 7 — dropped", "  1 near-duplicate(s) culled",
@@ -232,7 +232,7 @@ def test_scores_hold_every_document_and_the_corpus_only_the_ones_through_the_gat
     stub_claude(lambda user_message, **kw: scores_reply(4, 9) if kw["item_id"] == "matrix_000002" else SCORE_OK)
     rewrites = [make_rewrite("matrix_000000", LONG_TEXT), make_rewrite("matrix_000001", LONG_TEXT),
                 make_rewrite("matrix_000002", "Texte à part.")]
-    corpus = layer4_score.run(config, prompts_sdf, stage_dir, final_dir, rewrites)
+    corpus = score_and_final_selection_layer.run(config, prompts_sdf, stage_dir, final_dir, rewrites)
     scored = {r["doc_id"]: r for r in utils.load_jsonl(stage_dir / "scores.jsonl")}
     assert set(scored) == {"matrix_000000", "matrix_000001", "matrix_000002"}
     assert scored["matrix_000002"]["scores"]["alignment"] == 4   # below the gate

@@ -19,7 +19,7 @@ import time
 from dataclasses import dataclass, field, replace
 
 from shared import api, openai_api, utils
-from sdf_pipeline.update_steps import (
+from sdf_pipeline.shared_step_machinery.update_steps import (
     Accepted, BatchStep, CorpusStep, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, Removed,
     StepProgress, WhatAFailedDocumentDoes, WhereAnErrorIsAThrownCall)
 

@@ -7,9 +7,9 @@ from pathlib import Path
 
 import pytest
 
-from sdf_pipeline import compose_prompts as cp
-from sdf_pipeline import layer1_select_considerations as select
-from sdf_pipeline.considerations_catalog import load_considerations
+from sdf_pipeline.shared_step_machinery import compose_prompts as cp
+from sdf_pipeline.layer3_consideration_scoring_and_selection import run_layer as select
+from sdf_pipeline.shared_step_machinery.considerations_catalog import load_considerations
 from shared import utils
 
 

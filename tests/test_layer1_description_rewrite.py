@@ -13,8 +13,8 @@ import json
 import pytest
 
 from evals import audit_sdf
-from sdf_pipeline import compose_prompts as cp
-from sdf_pipeline import layer1_description_rewrite as rewrite
+from sdf_pipeline.shared_step_machinery import compose_prompts as cp
+from sdf_pipeline.layer2_plan_and_description_rewrite import description_rewrite as rewrite
 from shared import utils
 from sdf_description_rewrite_test_builders import (
     answer, make_plans,
@@ -80,7 +80,7 @@ def test_rewrite_description_is_schema_constrained_and_shows_variables_and_descr
     result = rewrite.rewrite_description("Type: LINES-X", "A description.", prompts=prompts, model="m", item_id="p1")
     assert not result.rewrite_needed
     call = calls[0]
-    assert call["stage"] == "layer1_description_rewrite" and call["model"] == "m" and call["item_id"] == "p1"
+    assert call["stage"] == "layer2_description_rewrite" and call["model"] == "m" and call["item_id"] == "p1"
     assert "Type: LINES-X" in call["user_message"] and description_in(call["user_message"]) == "A description."
     assert call["json_schema"]["required"][:2] == ["reasoning", "rewrite_needed"]
     assert call["temperature"] is None and call["system_prompt"]

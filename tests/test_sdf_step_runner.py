@@ -9,8 +9,8 @@ import threading
 
 import pytest
 
-from sdf_pipeline.step_runner import StepRunner, send_model_request
-from sdf_pipeline.update_steps import (
+from sdf_pipeline.shared_step_machinery.step_runner import StepRunner, send_model_request
+from sdf_pipeline.shared_step_machinery.update_steps import (
     Accepted, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, Removed, StepPolicy,
     WhatAFailedDocumentDoes, WhereAnErrorIsAThrownCall)
 from shared import api, utils

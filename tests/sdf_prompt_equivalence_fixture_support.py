@@ -85,8 +85,8 @@ from typing import Callable
 import pytest
 import yaml
 
-from shared import api, api_keys, entity_pools, openai_api, utils
-from sdf_pipeline import considerations_catalog
+from shared import sdf_run_layouts, api, api_keys, entity_pools, openai_api, utils
+from sdf_pipeline.shared_step_machinery import considerations_catalog
 import sdf_pipeline.run as sdf_run
 
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
@@ -125,8 +125,8 @@ assert REAL_ANTHROPIC_CALL_WITH_RETRY.__name__ != "_blocked", (
     "replaced shared.api._call_with_retry; import it at module level of a test file")
 
 STAGE_TAGS_OF_SDF_PIPELINE = (
-    "layer1_screen", "layer1_plan", "layer1_description_rewrite", "layer1_select",
-    "layer2_draft", "layer3_critique", "layer3_revise", "layer3_rewrite", "layer4_score",
+    "layer1_screen", "layer2_plan", "layer2_description_rewrite", "layer3_consideration_scoring",
+    "layer4_draft", "layer4_critique", "layer4_revise", "layer4_critique_and_revise_in_one_call", "layer5_score",
 )
 
 # One distinct reasoning effort per stage tag, so a renamed or mistyped tag changes the request.
@@ -134,13 +134,19 @@ STAGE_TAGS_OF_SDF_PIPELINE = (
 # all so that the lookup from stage tag to effort is observable. The real-config scenario does not.)
 REASONING_EFFORT_BY_STAGE_TAG = {
     "layer1_screen": "low",
-    "layer1_plan": "medium",
-    "layer1_description_rewrite": "high",
-    "layer1_select": "xhigh",
-    "layer2_draft": "max",
-    "layer3_critique": "low",
-    "layer3_revise": "medium",
-    "layer3_rewrite": "high",
+    "layer2_plan": "medium",
+    "layer2_description_rewrite": "high",
+    "layer3_consideration_scoring": "xhigh",
+    "layer4_draft": "max",
+    "layer4_critique": "low",
+    "layer4_revise": "medium",
+    "layer4_critique_and_revise_in_one_call": "high",
+    "layer5_score": "xhigh",
+}
+# The same efforts under the four-layer layout's tags, for the runs started on main (resume-from-main recordings).
+REASONING_EFFORT_BY_FOUR_LAYER_STAGE_TAG = {
+    "layer1_screen": "low", "layer1_plan": "medium", "layer1_description_rewrite": "high", "layer1_select": "xhigh",
+    "layer2_draft": "max", "layer3_critique": "low", "layer3_revise": "medium", "layer3_rewrite": "high",
     "layer4_score": "xhigh",
 }
 
@@ -308,13 +314,14 @@ def revised_text_for(behaviour: ReplyBehaviour, item_id: str) -> str:
 
 def canned_reply(behaviour: ReplyBehaviour, request: RequestView) -> tuple[str, str]:
     """(reply text, stop reason) for one request; raises for a simulated failed call."""
-    override = behaviour.overrides.get((request.stage, request.item_id, request.attempt))
+    # A run in the four-layer layout sends the old tags; the replies are written against the five-layer tags.
+    override = behaviour.overrides.get((sdf_run_layouts.five_layer_tag_of(request.stage), request.item_id, request.attempt))
     if override is not None:
         if override.raise_error_message is not None:
             raise RuntimeError(override.raise_error_message)
         return override.text, override.stop_reason
     item = request.item_id
-    stage = request.stage
+    stage = sdf_run_layouts.five_layer_tag_of(request.stage)
     if stage == "layer1_screen":
         numbers = request.json_schema["properties"]["specifications"]["items"]["properties"]["number"]["enum"]
         removed = set(behaviour.screen_removals.get(item, ()))
@@ -323,7 +330,7 @@ def canned_reply(behaviour: ReplyBehaviour, request: RequestView) -> tuple[str, 
              "remove": number in removed,
              "reason": "\n No realistic document could satisfy every dealt value. " if number in removed else ""}
             for number in numbers]}), "end_turn"
-    if stage == "layer1_plan":
+    if stage == "layer2_plan":
         kind = behaviour.plan_kind_by_item.get(item)
         if kind == "incoherent":
             return (f"<document_planning>Working notes for {item}: the values cannot fit together."
@@ -335,7 +342,7 @@ def canned_reply(behaviour: ReplyBehaviour, request: RequestView) -> tuple[str, 
         return (f"\n<document_planning>\n  Working notes for {item}.\n</document_planning>\n\n"
                 f"<document_description>\n\n   Planned description for {item}. "
                 f"{stable_pseudo_text('plan ' + item, 30)}  \n\n</document_description>\n"), "end_turn"
-    if stage == "layer1_description_rewrite":
+    if stage == "layer2_description_rewrite":
         kind = behaviour.description_rewrite_kind_by_item.get(item)
         check_names = request.json_schema["properties"]["changes"]["items"]["properties"]["check"]["enum"]
         answer = {"reasoning": f"\n  Checked the description of {item}. ", "rewrite_needed": False,
@@ -350,7 +357,7 @@ def canned_reply(behaviour: ReplyBehaviour, request: RequestView) -> tuple[str, 
             answer.update(dealt_value_conflict=True,
                           conflict_reason=f"  The only plausible fix for {item} would change a dealt value.\n")
         return json.dumps(answer), "end_turn"
-    if stage == "layer1_select":
+    if stage == "layer3_consideration_scoring":
         catalog = _consideration_catalog()
         favoured = behaviour.consideration_scores_by_item.get(item, {})
         answer = {}
@@ -363,14 +370,14 @@ def canned_reply(behaviour: ReplyBehaviour, request: RequestView) -> tuple[str, 
                  "where_it_arises": f" It  arises   in\n {item}.  " if favoured_labels.get(label, 1) >= 3 else ""}
                 for label in list_schema["items"]["properties"]["label"]["enum"]]
         return json.dumps(answer), "end_turn"
-    if stage == "layer2_draft":
+    if stage == "layer4_draft":
         return f"Here is the document.\n<document>\n\n   {stable_pseudo_text('draft ' + item)}  \n\n</document>\n", "end_turn"
-    if stage == "layer3_critique":
+    if stage == "layer4_critique":
         return f"<review>\n\n  Problems found in the draft of {item}: the opening is generic.  \n</review>\n", "end_turn"
-    if stage in ("layer3_revise", "layer3_rewrite"):
+    if stage in ("layer4_revise", "layer4_critique_and_revise_in_one_call"):
         notes = "" if item in behaviour.revise_without_review_notes else f"  Review notes for {item}.  \n\n"
         return f"{notes}<improved_document>\n\n   {revised_text_for(behaviour, item)}  \n\n</improved_document>\nDone.", "end_turn"
-    if stage == "layer4_score":
+    if stage == "layer5_score":
         alignment, realism = behaviour.scores_by_item.get(item, (9, 9))
         return ("Scores follow.\n" + json.dumps({"alignment": alignment, "realism": realism,
                                                  "spec_conformance": 8, "notes": f"Scored {item}."})), "end_turn"
@@ -644,9 +651,26 @@ def _replace_run_directory_path(value, run_directory_text: str):
 FILES_APPENDED_IN_THREAD_COMPLETION_ORDER = ("consideration_scores.jsonl", "consideration_scoring_failures.jsonl")
 
 
-def stage_rows(run_directory: Path, layer_number: int, file_name: str) -> list:
-    """The records of one layer's stage file in a run folder."""
-    return utils.load_jsonl(utils.sdf_stage_dir(run_directory, layer_number) / file_name)
+def folder_key_of_stage_file(file_name: str) -> str:
+    """The folder key (``shared/sdf_run_layouts.py``) of the folder a stage file lives in."""
+    if file_name.startswith(("screen", "_screen")):
+        return sdf_run_layouts.DEAL_AND_SCREEN
+    if file_name.startswith("consideration"):
+        return sdf_run_layouts.CONSIDERATION_SCORING_AND_SELECTION
+    if file_name.startswith(("prompts", "plans", "description_rewrite")):
+        return sdf_run_layouts.PLAN_AND_DESCRIPTION_REWRITE
+    if file_name.startswith("drafts"):
+        return sdf_run_layouts.DRAFT
+    if file_name.startswith(("critiques", "rewrites")):
+        return sdf_run_layouts.CRITIQUE_AND_REVISE
+    if file_name.startswith(("scores", "near_dup")):
+        return sdf_run_layouts.SCORE
+    raise KeyError(file_name)
+
+
+def stage_rows(run_directory: Path, file_name: str) -> list:
+    """The records of one stage file in a run folder, wherever the run's layout keeps it."""
+    return utils.load_jsonl(utils.sdf_stage_folder(run_directory, folder_key_of_stage_file(file_name)) / file_name)
 
 
 def snapshot_stage_files(run_directory: Path) -> dict:
@@ -654,14 +678,14 @@ def snapshot_stage_files(run_directory: Path) -> dict:
     module docstring for the normalisation)."""
     snapshot = {}
     run_directory_text = str(run_directory)
-    for layer_number in (1, 2, 3, 4):
+    for layer_number in utils.sdf_layout_of_run(run_directory).layer_numbers:
         stage_directory = utils.sdf_stage_dir(run_directory, layer_number)
         if not stage_directory.is_dir():
             continue
         for path in sorted(stage_directory.iterdir()):
             if path.suffix not in (".json", ".jsonl"):
                 continue
-            relative = f"layer{layer_number}/{path.name}"
+            relative = f"{stage_directory.name}/{path.name}"
             if path.suffix == ".jsonl":
                 content = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
                 if path.name in FILES_APPENDED_IN_THREAD_COMPLETION_ORDER:

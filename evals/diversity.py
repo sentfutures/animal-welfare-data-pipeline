@@ -60,7 +60,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from sdf_pipeline.compose_prompts import record_language
+from sdf_pipeline.shared_step_machinery.compose_prompts import record_language
 from shared import embeddings, textstats, utils
 from shared.api_keys import add_api_key_source_flags, apply_api_key_source_flags
 from dad_pipeline.id_registry import prompt_key, prompt_keys

@@ -17,8 +17,9 @@ from pathlib import Path
 import pytest
 
 from evals import audit_sdf
-from sdf_pipeline import compose_prompts as cp
-from sdf_pipeline import layer1_screen as screen
+from sdf_pipeline.shared_step_machinery import compose_prompts as cp
+from sdf_pipeline.layer1_deal_and_screen import run_layer as screen
+from sdf_pipeline.layer1_deal_and_screen import redeal as redeal_step
 from shared import utils
 from sdf_screen_test_builders import (
     numbers_in, screen_answer, no_removals, remove_first_hand_of_round_zero_batches, remove_the_first_hand_of_every_batch, remove_the_first_three_hands_of_every_batch, screen_config,
@@ -105,7 +106,7 @@ def test_screen_hands_maps_numbers_to_judgments_through_the_public_function(stub
 
 
 def test_no_model_facing_prose_lives_in_the_python_module():
-    source = (REPO_ROOT / "sdf_pipeline" / "layer1_screen.py").read_text(encoding="utf-8")
+    source = (REPO_ROOT / "sdf_pipeline" / "layer1_deal_and_screen" / "screen.py").read_text(encoding="utf-8")
     for phrase in ("Judge against how the world actually is", "These are not reasons", "competent planner"):
         assert phrase not in source
 
@@ -261,7 +262,7 @@ def test_redeal_applies_deal_rule_repair_only_among_the_new_hands(prompts_sdf):
     hands = [{"prompt_id": f"matrix_{i:06d}", "variables": v}
              for i, v in enumerate(cp.deal_hands(template, values, weights, 60, 0, rules))]
     removed = hands[:12]
-    new_hands = screen.redeal_removed_hands(removed, 1, 0, rules)
+    new_hands = redeal_step.redeal_removed_hands(removed, 1, 0, rules)
     assert new_hands is not None and len(new_hands) == 12
     assert column_counts([{"variables": h} for h in new_hands]) == column_counts(removed)
     from shared import deal_constraints
@@ -274,10 +275,10 @@ def test_redeal_is_deterministic_per_seed_and_round(prompts_sdf):
     template = (prompts_sdf / "layer1.txt").read_text(encoding="utf-8")
     hands = [{"prompt_id": f"matrix_{i:06d}", "variables": v}
              for i, v in enumerate(cp.deal_hands(template, values, weights, 40, 0, rules))][:10]
-    same = [screen.redeal_removed_hands(hands, 1, 0, rules) for _ in range(2)]
+    same = [redeal_step.redeal_removed_hands(hands, 1, 0, rules) for _ in range(2)]
     assert same[0] == same[1]
-    assert screen.redeal_removed_hands(hands, 2, 0, rules) != same[0]
-    assert screen.redeal_removed_hands(hands, 1, 1, rules) != same[0]
+    assert redeal_step.redeal_removed_hands(hands, 2, 0, rules) != same[0]
+    assert redeal_step.redeal_removed_hands(hands, 1, 1, rules) != same[0]
 
 
 def test_screen_terminates_after_the_maximum_rounds_and_reports_leftovers(

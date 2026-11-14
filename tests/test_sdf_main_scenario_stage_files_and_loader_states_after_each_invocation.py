@@ -14,7 +14,7 @@ import pytest
 
 import sdf_prompt_equivalence_fixture_support as support
 import sdf_prompt_equivalence_scenarios as scenarios
-from sdf_pipeline.document_state_loader import load_document_states
+from sdf_pipeline.shared_step_machinery.document_state_loader import load_document_states
 from shared import utils
 
 
@@ -24,23 +24,23 @@ def main_scenario():
     collected = []
     with tempfile.TemporaryDirectory() as base_directory:
         def capture(number, run_directory):
-            def records(layer_number, file_name):
-                return utils.load_jsonl(utils.sdf_stage_dir(run_directory, layer_number) / file_name)
+            def records(file_name):
+                return support.stage_rows(run_directory, file_name)
             collected.append({
                 "states": load_document_states(run_directory),
-                "plan_records": records(1, "plans.jsonl"),
-                "draft_records": records(2, "drafts.jsonl"),
-                "score_records": records(4, "scores.jsonl"),
+                "plan_records": records("plans.jsonl"),
+                "draft_records": records("drafts.jsonl"),
+                "score_records": records("scores.jsonl"),
                 "final_corpus": utils.load_jsonl(run_directory / "final" / "sdf_corpus.jsonl"),
-                "critique_records": records(3, "critiques.jsonl"),
-                "rewrite_records": records(3, "rewrites.jsonl"),
-                "description_rewrite_records": records(1, "description_rewrites.jsonl"),
-                "consideration_score_records": records(1, "consideration_scores.jsonl"),
-                "consideration_selection_rows": records(1, "consideration_selections.jsonl"),
-                "screen_rounds": records(1, "screen_rounds.jsonl"),
-                "screen_batches": records(1, "screen_batches.jsonl"),
-                "screen_judgments": records(1, "screen_judgments.jsonl"),
-                "screen_rejections": records(1, "screen_rejections.jsonl"),
+                "critique_records": records("critiques.jsonl"),
+                "rewrite_records": records("rewrites.jsonl"),
+                "description_rewrite_records": records("description_rewrites.jsonl"),
+                "consideration_score_records": records("consideration_scores.jsonl"),
+                "consideration_selection_rows": records("consideration_selections.jsonl"),
+                "screen_rounds": records("screen_rounds.jsonl"),
+                "screen_batches": records("screen_batches.jsonl"),
+                "screen_judgments": records("screen_judgments.jsonl"),
+                "screen_rejections": records("screen_rejections.jsonl"),
             })
         outcome = support.run_scenario_in_isolation(
             scenarios.scenario_named(scenarios.MAIN_SCENARIO_NAME), Path(base_directory) / "run",
@@ -118,7 +118,7 @@ def test_the_resume_finishes_the_draft_that_was_cut_off_and_keeps_the_first_invo
     hand = scenarios.HAND_TRUNCATED_DRAFT
     assert hand not in _ids(first, "doc_id") and hand in _ids(second, "doc_id")
     assert _ids(first, "doc_id") <= _ids(second, "doc_id")
-    assert [r["invocation"] for r in requests if r["stage"] == "layer2_draft" and r["item_id"] == hand] == [1, 2]
+    assert [r["invocation"] for r in requests if r["stage"] == "layer4_draft" and r["item_id"] == hand] == [1, 2]
 
 
 def test_the_resume_finishes_the_revise_that_failed_without_sending_the_accepted_critique_again(main_scenario):
@@ -127,9 +127,9 @@ def test_the_resume_finishes_the_revise_that_failed_without_sending_the_accepted
     hand = scenarios.HAND_REVISE_FAILS_THEN_SUCCEEDS_ON_RESUME
     assert hand in _ids(first["critique_records"], "doc_id") and hand not in _ids(first["rewrite_records"], "doc_id")
     assert hand in _ids(second["rewrite_records"], "doc_id")
-    assert [r["invocation"] for r in requests if r["stage"] == "layer3_critique" and r["item_id"] == hand] == [1], (
+    assert [r["invocation"] for r in requests if r["stage"] == "layer4_critique" and r["item_id"] == hand] == [1], (
         "an accepted critique is kept, not paid for again")
-    assert [r["invocation"] for r in requests if r["stage"] == "layer3_revise" and r["item_id"] == hand] == [1, 2]
+    assert [r["invocation"] for r in requests if r["stage"] == "layer4_revise" and r["item_id"] == hand] == [1, 2]
 
 
 def test_the_consideration_scores_and_selections_after_every_invocation(main_scenario):

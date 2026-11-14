@@ -16,12 +16,13 @@ import pytest
 
 import sdf_prompt_equivalence_fixture_support as support
 import sdf_prompt_equivalence_scenarios as scenarios
-from sdf_pipeline import compose_prompts as cp
-from sdf_pipeline import layer1_plan, seeding
-from sdf_pipeline import layer1_screen as screen
-from sdf_pipeline.dealt_value_identifiers import (
+from sdf_pipeline.shared_step_machinery import compose_prompts as cp
+from sdf_pipeline.layer2_plan_and_description_rewrite import plan as plan_step
+from sdf_pipeline import start_a_run_from_an_earlier_runs_step as seeding
+from sdf_pipeline.layer1_deal_and_screen import run_layer as screen
+from sdf_pipeline.shared_step_machinery.dealt_value_identifiers import (
     RECORDS_VALUE_IDS_MANIFEST_KEY, load_frozen_value_ids, value_ids_of_dealt_hand)
-from sdf_pipeline.document_state_loader import load_document_states
+from sdf_pipeline.shared_step_machinery.document_state_loader import load_document_states
 from shared import utils
 from sdf_plan_draft_rewrite_and_score_test_builders import plan_reply
 from sdf_screen_test_builders import remove_first_hand_of_round_zero_batches, screen_config  # noqa: F401
@@ -91,8 +92,8 @@ def test_a_new_run_writes_ids_beside_variables_in_every_stage_file_and_the_final
     assert manifest[RECORDS_VALUE_IDS_MANIFEST_KEY] is True
     records = records_carrying_variables(outcome)
     files = {file_name for file_name, _ in records}
-    expected = {"layer1/plans.jsonl", "layer2/drafts.jsonl", "layer3/rewrites.jsonl", "layer4/scores.jsonl",
-                "final/sdf_corpus.jsonl", "layer1/screen_hands.jsonl" if name != SCREEN_OFF_SCENARIO else "layer1/prompts.jsonl"}
+    expected = {"layer2_plan_and_description_rewrite/plans.jsonl", "layer4_draft_critique_and_revise/drafts.jsonl", "layer4_draft_critique_and_revise/rewrites.jsonl", "layer5_score_and_final_selection/scores.jsonl",
+                "final/sdf_corpus.jsonl", "layer1_deal_and_screen/screen_hands.jsonl" if name != SCREEN_OFF_SCENARIO else "layer2_plan_and_description_rewrite/prompts.jsonl"}
     assert expected <= files, expected - files
     for file_name, record in records:
         keys = list(record)
@@ -114,7 +115,7 @@ def test_the_screen_on_and_off_paths_are_the_same_deal_and_work_out_the_same_ids
         template, values, weights, 12, screen_config["sdf"].get("seed", 0), rules, value_ids, True).apply([]).values()]
     (stage_dir.parent / "run_manifest.json").write_text(json.dumps({RECORDS_VALUE_IDS_MANIFEST_KEY: True}))
     stub_claude(lambda user_message, **kw: plan_reply())
-    layer1_plan.run(screen_config, prompts_sdf, stage_dir)   # no hands given: the screen is off, the plan layer deals
+    plan_step.run(screen_config, prompts_sdf, stage_dir)   # no hands given: the screen is off, the plan layer deals
     composed = utils.load_jsonl(stage_dir / "prompts.jsonl")
     assert [(h["prompt_id"], h["variables"], h["variable_value_ids"]) for h in screen_hands] == [
         (r["prompt_id"], r["variables"], r["variable_value_ids"]) for r in composed]
@@ -127,12 +128,12 @@ def test_a_run_without_the_manifest_key_gets_the_same_hands_and_no_ids_on_either
         screen_config, prompts_sdf, stage_dir, stub_claude):  # noqa: F811
     screen_config["sdf"]["n_prompts"] = 12
     stub_claude(lambda user_message, **kw: plan_reply())
-    layer1_plan.run(screen_config, prompts_sdf, stage_dir)
+    plan_step.run(screen_config, prompts_sdf, stage_dir)
     without = utils.load_jsonl(stage_dir / "prompts.jsonl")
     assert all("variable_value_ids" not in r for r in without)
     shutil.rmtree(stage_dir); stage_dir.mkdir()
     (stage_dir.parent / "run_manifest.json").write_text(json.dumps({RECORDS_VALUE_IDS_MANIFEST_KEY: True}))
-    layer1_plan.run(screen_config, prompts_sdf, stage_dir)
+    plan_step.run(screen_config, prompts_sdf, stage_dir)
     with_ids = utils.load_jsonl(stage_dir / "prompts.jsonl")
     assert [(r["prompt_id"], r["variables"], r["system"], r["prompt"]) for r in without] == [
         (r["prompt_id"], r["variables"], r["system"], r["prompt"]) for r in with_ids]
@@ -195,11 +196,13 @@ def test_a_document_with_no_deal_record_gets_no_notes_about_its_consideration_li
     copy = tmp_path / "run_without_deal_records"
     shutil.copytree(outcome.run_directory, copy)
     layer1_directory = utils.sdf_stage_dir(copy, 1)
+    plan_directory = utils.sdf_stage_dir(copy, 2)
     for name in ("screen_hands.jsonl", "screened_hands.jsonl", "screen_rounds.jsonl", "prompts.jsonl"):
         (layer1_directory / name).unlink(missing_ok=True)
-    plans = utils.load_jsonl(layer1_directory / "plans.jsonl")
+        (plan_directory / name).unlink(missing_ok=True)
+    plans = utils.load_jsonl(plan_directory / "plans.jsonl")
     plans[0]["variables"] = {**plans[0]["variables"], "moral_considerations": ["a label"], "epistemic_considerations": []}
-    utils.save_jsonl(plans, layer1_directory / "plans.jsonl")
+    utils.save_jsonl(plans, plan_directory / "plans.jsonl")
     states = [s for s in load_document_states(copy) if s.document_id == plans[0]["prompt_id"]]
     assert states and states[0].dealt_variables is not None and "moral_considerations" in states[0].dealt_variables
     assert states[0].dealt_value_id_notes == ()

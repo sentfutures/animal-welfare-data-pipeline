@@ -1,4 +1,4 @@
-"""Layer 2: draft one document per plan, from its DOCUMENT DESCRIPTION spec.
+"""Layer 4 step: draft one document per plan, from its DOCUMENT DESCRIPTION spec.
 
 The layer2.txt template carries the constitution and principles in its SYSTEM
 section (rendered from the run's constitution snapshot) and the per-document
@@ -6,7 +6,7 @@ spec in its USER section. The draft must come back inside <document> tags;
 anything else — missing tags, truncation — is not checkpointed, so --resume
 retries exactly the failed calls (temperature 1.0 makes retries productive).
 
-The layer is a ``DocumentStep`` (``DraftStep``) run by ``sdf_pipeline.step_runner.StepRunner``;
+The layer is a ``DocumentStep`` (``DraftStep``) run by ``sdf_pipeline.shared_step_machinery.step_runner.StepRunner``;
 ``run`` is the layer's entry point, called by ``sdf_pipeline/run.py`` and ``experiments/experiment.py``:
 it builds the step and the runner and returns the draft records in input order.
 """
@@ -15,13 +15,13 @@ import re
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from shared import constitution_loader, deal_constraints, utils
-from sdf_pipeline import compose_prompts as cp
-from sdf_pipeline.dealt_value_identifiers import value_ids_field_of
-from sdf_pipeline.step_runner import StepRunner
-from sdf_pipeline.update_steps import (
+from sdf_pipeline.shared_step_machinery import compose_prompts as cp
+from sdf_pipeline.shared_step_machinery.dealt_value_identifiers import value_ids_field_of
+from sdf_pipeline.shared_step_machinery.step_runner import StepRunner
+from sdf_pipeline.shared_step_machinery.update_steps import (
     Accepted, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, StepPolicy, StepProgress,
     line_for_document_left_to_retry)
 
@@ -38,7 +38,6 @@ class DraftStep(DocumentStep):
     stage_file_name = "drafts.jsonl"
     # Only a thrown call counts towards the systemic stop; an unusable answer is left behind.
     policy = StepPolicy()
-    stage_tag = "layer2_draft"
     document_id_field = "prompt_id"   # the documents are plans; the drafts file's ids are doc_id
 
     def __init__(self, config: dict, prompts_dir: Path):
@@ -115,7 +114,11 @@ class DraftStep(DocumentStep):
         return line_for_document_left_to_retry(pid, outcome.reason)
 
 
-def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) -> list[dict]:
+def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict],
+        checkpoint_file_name: str = "_checkpoint.json") -> list[dict]:
+    """Draft every plan. ``checkpoint_file_name`` is the checkpoint's name in ``output_dir``: the layer driver passes the
+    layout's (``_draft_checkpoint.json`` where the draft shares its folder with the critique and revise)."""
     step = DraftStep(config, prompts_dir)
-    runner = StepRunner(step, output_dir, workers=config.get("workers", 1))
+    runner = StepRunner(step, output_dir, workers=config.get("workers", 1),
+                        checkpoint=utils.Checkpoint(output_dir / checkpoint_file_name))
     return runner.run(plans).records_in_input_order

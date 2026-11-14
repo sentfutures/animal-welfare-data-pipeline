@@ -26,7 +26,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from sdf_pipeline import compose_prompts as cp
+from sdf_pipeline.shared_step_machinery import compose_prompts as cp
 from shared import utils
 # Imported rather than reimplemented: the blinded side assignment has to match
 # what the rating app and its tests already assume, and a second copy of a

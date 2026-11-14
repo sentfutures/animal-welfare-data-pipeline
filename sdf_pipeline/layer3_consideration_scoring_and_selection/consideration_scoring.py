@@ -1,7 +1,7 @@
-"""Layer 1 selector: the model scores, code assigns.
+"""Layer 3 step: the consideration scoring, where the model scores and code assigns (``consideration_selection.py``).
 
 Runs after the implausibility screen, planning and the description rewrite, and
-before drafting. The planner writes a scenario description with no consideration
+before drafting (layer 3). The planner writes a scenario description with no consideration
 attached; this stage then makes ONE scoring call per eligible document. The model
 sees every eligible entry of both lists (moral and epistemic, from
 prompts/sdf/considerations.txt; label plus gloss), in an order shuffled per
@@ -25,34 +25,18 @@ a valid score. Arbitrary labels are deliberately NOT used as JSON property names
 (spaces and typographic quotes in property names are not guaranteed to be
 supported). The model never reproduces ids.
 
-Files in the layer 1 stage folder:
-- consideration_scores.jsonl: one row per scored document ({prompt_id, scores:
-  {list: {label: {score, where_it_arises}}}, attempts}), appended as each answer
-  arrives; it is the checkpoint, and a rerun or ``--resume`` scores only the
-  documents without a row. An unusable answer is retried up to
-  ``sdf.max_scoring_attempts`` times (default 3) and then recorded in
-  consideration_scoring_failures.jsonl; the stage then stops before assigning (the
-  assignment is global, so it only runs once every eligible document is scored) and
-  that document is scored on the next resume.
-- consideration_selections.jsonl: the assignment, rewritten after every run, one
-  row per scored document ({prompt_id, outcomes: [{list, label, reason, status,
-  score}]}); this is what ``attach_selections`` reads when a run resumes past layer 1.
-- consideration_coverage.json: per entry target_count, achieved, documents
-  scoring at or above the threshold and score histogram, plus documents with no consideration.
+Files in the layer's folder (``layer3_consideration_scoring_and_selection``): see
+``sdf_pipeline/layer3_consideration_scoring_and_selection/run_layer.py``. This step writes consideration_scores.jsonl: one
+row per scored document ({prompt_id, scores: {list: {label: {score, where_it_arises}}}, attempts}), appended as
+each answer arrives; it is the checkpoint, and a rerun or ``--resume`` scores only the documents without a row. An
+unusable answer is retried up to ``sdf.max_scoring_attempts`` times (default 3) and then recorded in
+consideration_scoring_failures.jsonl; the layer then stops before assigning and that document is scored on the
+next resume.
 
-The assigned entries are assembled in code into ``considerations_spec``, a text
-block stored on the plan record next to ``description`` and carried through the
-draft, rewrite and final records (empty string when a document has none). Each
-plan's ``variables`` also gains ``moral_considerations`` and
-``epistemic_considerations``: lists of the assigned labels, for analysis.
+Scoring is a ``DocumentStep`` (``ConsiderationScoringStep``) run by ``sdf_pipeline.shared_step_machinery.step_runner.StepRunner`` with
+``sdf.max_scoring_attempts`` attempts per run.
 
-Scoring is a ``DocumentStep`` (``ConsiderationScoringStep``) run by
-``sdf_pipeline.step_runner.StepRunner`` with ``sdf.max_scoring_attempts`` attempts per run, and the
-assignment is a ``CorpusStep`` (``ConsiderationAssignmentStep``) run by ``run_corpus_step`` after it;
-``run`` is the layer's entry point, called by ``sdf_pipeline/run.py``: it runs the scoring step, then the
-assignment, and returns the plans with their selections attached.
-
-Config (``sdf`` section): ``select_enabled`` (default true), ``select_model``
+Config (``sdf`` section): ``select_enabled`` (default true), ``consideration_scoring_model`` (old name ``select_model``)
 (falls back to ``plan_model``, then the global model), ``select_skip_no_stake``
 (default true), ``max_scoring_attempts`` (3), ``minimum_assignable_score`` (3),
 ``max_moral_considerations_per_document`` (3),
@@ -61,41 +45,27 @@ Config (``sdf`` section): ``select_enabled`` (default true), ``select_model``
 ``extra_consideration_penalty`` (2); the calls use ``workers`` threads.
 """
 
-import json
 import random
-import sys
 from dataclasses import dataclass
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from sdf_pipeline import considerations_assignment as assignment
-from sdf_pipeline.step_runner import StepRunner, run_corpus_step
-from sdf_pipeline.update_steps import (
-    Accepted, CorpusStep, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, OutcomeRecords,
-    StepPolicy, StepProgress, WhatAFailedDocumentDoes, WhereAnErrorIsAThrownCall, line_for_document_left_to_retry, reason_without_error_prefix)
-from sdf_pipeline.considerations_catalog import (
-    CONSIDERATIONS_FILENAME, EPISTEMIC_LIST, LIST_NAMES, MORAL_LIST,
-    Consideration, ConsiderationCatalog, load_considerations,
-)
-from sdf_pipeline import structured_answers
-from sdf_pipeline.considerations_coverage import corpus_coverage
-from shared import api, utils
+from sdf_pipeline.shared_step_machinery import considerations_assignment as assignment
+from sdf_pipeline.shared_step_machinery.update_steps import (
+    Accepted, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, OutcomeRecords, StepPolicy, StepProgress,
+    WhatAFailedDocumentDoes, WhereAnErrorIsAThrownCall, line_for_document_left_to_retry, reason_without_error_prefix)
+from sdf_pipeline.shared_step_machinery.considerations_catalog import (
+    EPISTEMIC_LIST, LIST_NAMES, MORAL_LIST, Consideration, ConsiderationCatalog)
+from sdf_pipeline.shared_step_machinery import structured_answers
+from sdf_pipeline.layer3_consideration_scoring_and_selection.shared_by_this_layers_steps import FAILURES_FILENAME, SCORES_FILENAME
+from sdf_pipeline.shared_step_machinery.renamed_model_settings import model_setting
 from shared.matrix import split_sections
 
-STAGE_TAG = "layer1_select"
-TEMPLATE_FILENAME = "layer1_select_considerations.txt"
-SCORES_FILENAME = "consideration_scores.jsonl"
-FAILURES_FILENAME = "consideration_scoring_failures.jsonl"
-SELECTIONS_FILENAME = "consideration_selections.jsonl"
-COVERAGE_FILENAME = "consideration_coverage.json"
+# The shuffle of the entries offered to a document is seeded with this text (with the run seed, the document and
+# the list). It is the old stage tag, kept literal: deriving it from a layout's tag would change every request.
+SHUFFLE_SEED_NAME = "layer1_select"
 DEFAULT_MAX_SCORING_ATTEMPTS = 3
 _BASE_MAX_TOKENS = 400
 _TOKENS_PER_ENTRY = 120           # label, score and one short sentence; bounds api-backend cost
 
 NO_ENTRIES_MARKER = "(no entries offered)"
-STATUS_ACCEPTED = "accepted"
-STATUS_NONE = "none"
 
 
 class ScoringAnswerError(ValueError):
@@ -121,11 +91,7 @@ class DocumentFacts:
             sentient_category=variables.get("sentient_category", ""))
 
 
-# ---------------------------------------------------------------- eligibility, prompt and schema
 
-def load_selection_template(prompts_dir: Path) -> str | None:
-    """The selector template, or None for a run whose snapshot predates the selector."""
-    return structured_answers.read_template_if_present(prompts_dir, TEMPLATE_FILENAME)
 
 
 def eligible_entries_for_document(catalog: ConsiderationCatalog, variables: dict) -> dict[str, list[Consideration]]:
@@ -142,7 +108,7 @@ def shuffled_offer(offered: dict[str, list[Consideration]], seed, prompt_id: str
     shuffled = {}
     for list_name in LIST_NAMES:
         entries = list(offered.get(list_name) or [])
-        random.Random(f"{seed}:{STAGE_TAG}:{prompt_id}:{list_name}").shuffle(entries)
+        random.Random(f"{seed}:{SHUFFLE_SEED_NAME}:{prompt_id}:{list_name}").shuffle(entries)
         shuffled[list_name] = entries
     return shuffled
 
@@ -248,17 +214,7 @@ def scoring_max_tokens(offered: dict[str, list[Consideration]]) -> int:
 
 # ---------------------------------------------------------------- the considerations spec
 
-def assemble_considerations_spec(picks: list) -> str:
-    """The text block handed to later prompts: one line per pick, 'Label (gloss) —
-    the selector's sentence on where it arises', moral picks first and each list
-    in catalog order. Empty string when there are no picks."""
-    return "\n".join(
-        f"{entry.label} ({entry.gloss}) — {reason}" if entry.gloss else f"{entry.label} — {reason}"
-        for entry, reason in picks
-    )
 
-
-# ---------------------------------------------------------------- steps
 
 class ConsiderationScoringStep(DocumentStep):
     """Score one plan's offered entries. The document is the plan record (``prompt_id``,
@@ -272,14 +228,13 @@ class ConsiderationScoringStep(DocumentStep):
     stage_file_name = SCORES_FILENAME
     stage_file_id_field = "prompt_id"
     writes_stage_file_as_replies_arrive = True   # the scores file is the checkpoint: write each row the moment it arrives
-    stage_tag = STAGE_TAG
     call_noun = "scoring call"
 
     def __init__(self, config: dict, catalog: ConsiderationCatalog, template: str):
         sdf = config["sdf"]
         self.catalog = catalog
         self.template = template
-        self.model = sdf.get("select_model") or sdf.get("plan_model")
+        self.model = model_setting(sdf, "consideration_scoring_model") or sdf.get("plan_model")
         self.seed = sdf.get("seed", 0)
         self.maximum_attempts = int(sdf.get("max_scoring_attempts", DEFAULT_MAX_SCORING_ATTEMPTS))
         self.skip_no_stake = bool(sdf.get("select_skip_no_stake", True))
@@ -361,206 +316,7 @@ class ConsiderationScoringStep(DocumentStep):
             raise SystemExit(self.systemic_stop_message)
 
     def message_when_failed_documents_stop_the_run(self, run_result) -> str:
-        return (f"layer1_select: {len(run_result.failed_document_ids)} of {len(run_result.pending_document_ids)} "
+        return (f"{self.stage_tag}: {len(run_result.failed_document_ids)} of {len(run_result.pending_document_ids)} "
                 "scoring calls failed — stopping before the "
                 "assignment, because the assignment is solved over every document together and a "
                 "document drafted without scores would be reassigned on resume; fix and --resume.")
-
-
-class ConsiderationAssignmentStep(CorpusStep):
-    """The global linear programme over every scored document (no model call). The documents are
-    score rows (``prompt_id``, ``scores``); each gets an ``Accepted`` outcome whose update is its
-    selection outcomes. The programme is solved again over every document each time it runs, as it
-    always was, so a plan that arrives late changes other documents' outcomes. After ``apply``, ``selection_rows``, ``flat_scores`` and
-    ``assigned_labels_by_document_id`` hold what the layer writes and reports."""
-
-    step_name = "consideration_assignment"
-
-    def __init__(self, config: dict, catalog: ConsiderationCatalog, eligible: list[dict]):
-        self.catalog = catalog
-        self.seed = config["sdf"].get("seed", 0)
-        self.limits = assignment.limits_from_config(config)
-        self.document_is_digital = digital_mind_flags(catalog, eligible)
-        self.selection_rows: list[dict] = []
-        self.flat_scores: dict = {}
-        self.assigned_labels_by_document_id: dict = {}
-
-    def apply(self, score_rows: list) -> dict:
-        rows_by_document_id = {row["prompt_id"]: row for row in score_rows}
-        self.flat_scores = assignment.flat_scores(rows_by_document_id)
-        self.assigned_labels_by_document_id = assignment.assign_considerations(
-            self.flat_scores, self.catalog, self.document_is_digital, self.limits, self.seed)
-        self.selection_rows = _selection_rows(self.catalog, rows_by_document_id, self.assigned_labels_by_document_id)
-        return {row["prompt_id"]: Accepted({"outcomes": row["outcomes"]}) for row in self.selection_rows}
-
-    def coverage_report(self) -> dict:
-        return assignment.coverage_report(
-            self.flat_scores, self.catalog, self.document_is_digital, self.assigned_labels_by_document_id, self.limits)
-
-
-# ---------------------------------------------------------------- stage
-
-def selection_enabled(config: dict) -> bool:
-    return bool(config["sdf"].get("select_enabled", True))
-
-
-def eligible_plans(config: dict, catalog: ConsiderationCatalog, plans: list[dict]) -> list[dict]:
-    """Plans with a description, minus the skipped (no-welfare-stake) resolutions."""
-    skip_no_stake = bool(config["sdf"].get("select_skip_no_stake", True))
-    return [
-        p for p in plans
-        if p.get("description") and not (skip_no_stake and catalog.is_skipped_resolution(p["variables"]))
-    ]
-
-
-def digital_mind_flags(catalog: ConsiderationCatalog, eligible: list[dict]) -> dict[str, bool]:
-    return {p["prompt_id"]: catalog.is_digital_mind_document(p["variables"]) for p in eligible}
-
-
-def _selection_rows(
-    catalog: ConsiderationCatalog, score_rows: dict[str, dict], assigned: dict[str, list[str]],
-) -> list[dict]:
-    """One row per scored document: one accepted outcome per assigned entry, or a single
-    "none" outcome per list with nothing assigned."""
-    rows = []
-    for prompt_id in sorted(score_rows):
-        scores = score_rows[prompt_id]["scores"]
-        outcomes = []
-        for list_name in LIST_NAMES:
-            labels = [label for label in assigned.get(prompt_id, []) if label in scores.get(list_name, {})]
-            for label in labels:
-                item = scores[list_name][label]
-                outcomes.append({"list": list_name, "label": label, "reason": item["where_it_arises"],
-                                 "status": STATUS_ACCEPTED, "score": item["score"]})
-            if not labels:
-                outcomes.append({"list": list_name, "label": None, "reason": "", "status": STATUS_NONE})
-        rows.append({"prompt_id": prompt_id, "outcomes": outcomes})
-    return rows
-
-
-def _attach(catalog: ConsiderationCatalog, selection_rows: list[dict], plans: list[dict]) -> list[dict]:
-    """Copies of ``plans`` with each described plan's assigned entries attached (plans without a
-    description are INCOHERENT and pass through unchanged)."""
-    by_document = {row["prompt_id"]: row["outcomes"] for row in selection_rows}
-    attached = []
-    for plan in plans:
-        if not plan.get("description"):
-            attached.append(plan)
-            continue
-        entries = sorted(
-            ((catalog.entry_by_label(o["label"]), o["reason"])
-             for o in by_document.get(plan["prompt_id"], []) if o["status"] == STATUS_ACCEPTED),
-            key=lambda pair: (LIST_NAMES.index(pair[0].list_name),
-                              catalog.entries_of(pair[0].list_name).index(pair[0])),
-        )
-        variables = {
-            **plan["variables"],
-            "moral_considerations": [e.label for e, _ in entries if e.list_name == MORAL_LIST],
-            "epistemic_considerations": [e.label for e, _ in entries if e.list_name == EPISTEMIC_LIST],
-        }
-        attached.append({**plan, "variables": variables, "considerations_spec": assemble_considerations_spec(entries)})
-    return attached
-
-
-def attach_selections(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) -> list[dict]:
-    """Plans with the saved selections attached, without any calls. Used when a run
-    resumes past layer 1 and plans are re-read from disk. A disabled selector, a
-    snapshot without the selector files, or a run with no saved selections returns
-    ``plans`` unchanged."""
-    if not selection_enabled(config):
-        return plans
-    if load_selection_template(prompts_dir) is None or not (Path(prompts_dir) / CONSIDERATIONS_FILENAME).is_file():
-        return plans
-    rows = utils.load_jsonl(Path(output_dir) / SELECTIONS_FILENAME)
-    if not rows:
-        return plans
-    return _attach(load_considerations(prompts_dir), rows, plans)
-
-
-def reason_consideration_selection_is_inactive(config: dict, prompts_dir: Path) -> str | None:
-    """Why the consideration scoring and assignment do not run, as the line ``run`` prints; None when they run."""
-    if not selection_enabled(config):
-        return "Consideration selection disabled (sdf.select_enabled: false)"
-    if load_selection_template(prompts_dir) is None or not (Path(prompts_dir) / CONSIDERATIONS_FILENAME).is_file():
-        return (f"No {TEMPLATE_FILENAME} or {CONSIDERATIONS_FILENAME} in this run's prompt snapshot "
-                "— consideration selection skipped")
-    return None
-
-
-def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) -> list[dict]:
-    """Score every eligible document, assign considerations in code, and return ``plans``
-    with the assigned entries attached. A disabled selector, or a run whose prompt
-    snapshot lacks the template or the considerations file, makes no calls and returns
-    ``plans`` unchanged."""
-    reason_inactive = reason_consideration_selection_is_inactive(config, prompts_dir)
-    if reason_inactive is not None:
-        print(f"  {reason_inactive}")
-        return plans
-    template = load_selection_template(prompts_dir)
-
-    catalog = load_considerations(prompts_dir)
-    workers = max(1, int(config.get("workers", 1)))
-    utils.ensure_dir(output_dir)
-    scores_path = output_dir / SCORES_FILENAME
-
-    eligible = eligible_plans(config, catalog, plans)
-    plan_by_id = {p["prompt_id"]: p for p in eligible}
-    step = ConsiderationScoringStep(config, catalog, template)
-    # Scoring has no checkpoint file: ``consideration_scores.jsonl`` is the checkpoint.
-    runner = StepRunner(step, output_dir, workers=workers, uses_checkpoint=False)
-    documents_in_scoring_order = [plan_by_id[prompt_id] for prompt_id in sorted(plan_by_id)]
-    pending = runner.select_pending(documents_in_scoring_order)
-    print(f"  Scoring considerations for {len(eligible)} specifications: "
-          f"{len(eligible) - len(pending)} already scored, {len(pending)} to score")
-    runner.run(documents_in_scoring_order)  # stops the run before the assignment if any document failed
-
-    score_rows = {r["prompt_id"]: r for r in utils.load_jsonl(scores_path) if r["prompt_id"] in plan_by_id}
-    assignment_step = ConsiderationAssignmentStep(config, catalog, eligible)
-    run_corpus_step(assignment_step, list(score_rows.values()))
-    selection_rows = assignment_step.selection_rows
-    (output_dir / SELECTIONS_FILENAME).write_text(
-        "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in selection_rows), encoding="utf-8")
-    report = assignment_step.coverage_report()
-    (output_dir / COVERAGE_FILENAME).write_text(json.dumps(report, indent=2), encoding="utf-8")
-    print_coverage_report(report)
-    return _attach(catalog, selection_rows, plans)
-
-
-# ---------------------------------------------------------------- reporting
-
-def print_coverage_report(report: dict) -> None:
-    print(f"  Considerations coverage over {report['eligible_documents']} eligible documents "
-          f"({report['digital_mind_documents']} digital-mind):")
-    for entry in report["entries"]:
-        scoring = entry.get("documents_scoring_at_least_threshold")
-        suffix = f", {scoring} documents scored at or above the threshold" if scoring is not None else ""
-        print(f"    [{entry['list']}] {entry['label']}: {entry['achieved']}/{entry['target_count']}{suffix}")
-    total = report["eligible_documents"]
-    print(f"    no consideration: {report['documents_with_no_consideration']}/{total}, "
-          f"one list only: {report['documents_with_only_one_list']}/{total}, "
-          f"both lists: {report['documents_with_both_lists']}/{total}, "
-          f"two or more from one list: {report['documents_with_two_or_more_in_one_list']}")
-
-
-def load_considerations_outputs(run_dir: Path) -> dict | None:
-    """The selector's results for a run, or None when it never ran (older runs).
-
-    Returns {"catalog", "rows", "report"}: the catalog loaded from the run's own
-    prompt snapshot, the saved selection rows, and the coverage report written at
-    the end of layer 1 (None if the stage never finished)."""
-    stage_dir = utils.sdf_stage_dir(run_dir, 1)
-    rows = utils.load_jsonl(stage_dir / SELECTIONS_FILENAME)
-    snapshot = Path(run_dir) / "inputs" / "prompts"
-    if not rows or not (snapshot / CONSIDERATIONS_FILENAME).is_file():
-        return None
-    report_path = stage_dir / COVERAGE_FILENAME
-    return {
-        "catalog": load_considerations(snapshot),
-        "rows": rows,
-        "report": json.loads(report_path.read_text(encoding="utf-8")) if report_path.is_file() else None,
-    }
-
-
-def corpus_coverage_report(outputs: dict, corpus: list[dict]) -> dict:
-    """The coverage report measured on the final corpus documents."""
-    return corpus_coverage(outputs["catalog"], [r["variables"] for r in corpus])

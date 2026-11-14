@@ -57,7 +57,7 @@ def deal_hand_records_with_value_ids(
     ``hands`` are ``{"prompt_id", "variables"}`` records exactly as ``compose_prompts.hand_records``
     makes them from ``compose_prompts.deal_hands``; ``ids_by_hand`` is ``{hand id: {axis: value id}}``
     and ``notes_by_hand`` ``{hand id: [note]}`` for the hands with a value that has no id."""
-    from sdf_pipeline import compose_prompts
+    from sdf_pipeline.shared_step_machinery import compose_prompts
     hands = compose_prompts.hand_records(
         compose_prompts.deal_hands(template, values, weights, hand_count, seed, deal_rules), first_index)
     ids_by_hand, notes_by_hand = value_ids_of_hands(hands, value_ids_by_axis)

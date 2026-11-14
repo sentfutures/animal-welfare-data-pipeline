@@ -6,8 +6,8 @@ considerations assigned to it, every version of its text (each revision paired w
 critique that produced it), its scores, the furthest step it reached, the failures recorded
 against it, and its outcome (in progress, final, or removed with a reason code).
 
-The module only defines the data. ``sdf_pipeline/document_state_loader.py`` builds it from a
-run folder's stage files, and ``sdf_pipeline/document_state_final_corpus.py`` derives today's
+The module only defines the data. ``sdf_pipeline/shared_step_machinery/document_state_loader.py`` builds it from a
+run folder's stage files, and ``sdf_pipeline/shared_step_machinery/document_state_final_corpus.py`` derives today's
 ``final/sdf_corpus.jsonl`` records from it. Nothing here reads or writes a file.
 
 The id
@@ -20,7 +20,7 @@ drafted, and they have no deal, plan or screen.
 
 Where each field comes from, per layout
 ---------------------------------------
-Layouts (``RunLayout``): ``CURRENT`` (stage folders layer1 to layer4), ``MATRIX_BEFORE_LAYER_RENUMBERING``
+Layouts (``RunLayout``): ``FIVE_NAMED_LAYERS`` (decision 17: layer1_deal_and_screen to layer5_score_and_final_selection), ``FOUR_NUMBERED_LAYERS`` (stage folders layer1 to layer4), ``MATRIX_BEFORE_LAYER_RENUMBERING``
 (layer12, layer3, layer4, layer5; the website's pinned run) and ``FIVE_LAYER_BEFORE_VARIABLES_MATRIX``
 (layer1 document types, layer2 subtypes, layer3 drafts, layer4 rewrites, layer5 scores). In the
 table "plan folder" is layer1 (current) or layer12 (matrix before renumbering), "draft folder" is
@@ -76,8 +76,8 @@ import re
 from dataclasses import dataclass, field
 from enum import Enum
 
-from sdf_pipeline.compose_prompts import REVISION_AXES
-from sdf_pipeline.considerations_catalog import SECTION_EPISTEMIC, SECTION_MORAL
+from sdf_pipeline.shared_step_machinery.compose_prompts import REVISION_AXES
+from sdf_pipeline.shared_step_machinery.considerations_catalog import SECTION_EPISTEMIC, SECTION_MORAL
 
 # The two keys the consideration assignment adds to a plan's ``variables``
 # (``layer1_select_considerations`` writes them: lists of the assigned labels).
@@ -85,10 +85,11 @@ ASSIGNED_CONSIDERATION_KEYS = (SECTION_MORAL, SECTION_EPISTEMIC)
 
 
 class RunLayout(Enum):
-    """The three on-disk layouts of an SDF run folder."""
+    """The four on-disk layouts of an SDF run folder (``shared/sdf_run_layouts.py`` names the last three)."""
     FIVE_LAYER_BEFORE_VARIABLES_MATRIX = "five_layer_before_variables_matrix"
     MATRIX_BEFORE_LAYER_RENUMBERING = "matrix_before_layer_renumbering"
-    CURRENT = "current"
+    FOUR_NUMBERED_LAYERS = "four_numbered_layers"
+    FIVE_NAMED_LAYERS = "five_named_layers"
 
 
 class PipelineStep(Enum):
@@ -100,13 +101,13 @@ class PipelineStep(Enum):
     PLAN = "plan"
     DESCRIPTION_REWRITE = "description_rewrite"
     CONSIDERATION_SCORING = "consideration_scoring"
-    CONSIDERATION_ASSIGNMENT = "consideration_assignment"
+    CONSIDERATION_SELECTION = "consideration_selection"
     DRAFT = "draft"
     CRITIQUE = "critique"
     REVISE = "revise"
     SCORE = "score"
-    GATE = "gate"
-    NEAR_DUPLICATE_CULL = "near_duplicate_cull"
+    SCORE_GATE = "score_gate"
+    NEAR_DUPLICATE_REMOVAL = "near_duplicate_removal"
 
 
 PIPELINE_STEPS_IN_ORDER = tuple(PipelineStep)

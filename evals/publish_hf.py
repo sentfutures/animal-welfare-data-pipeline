@@ -87,7 +87,7 @@ from shared.api_keys import (add_api_key_source_flags, apply_api_key_source_flag
 # dad_pipeline.id_registry). Cheap: compose_prompts pulls only shared.matrix
 # and shared.entity_pools, and entity_pools imports faker lazily inside a
 # function, so nothing heavy loads.
-from sdf_pipeline.compose_prompts import derive_language
+from sdf_pipeline.shared_step_machinery.compose_prompts import derive_language
 # The offline composer, not step1_dilemmas: see dad_dealt_cards on why this
 # script must not reach anything that pulls shared.api -> anthropic.
 from dad_pipeline.compose_scenarios import dealt_variables
@@ -114,7 +114,7 @@ STAGING_MARKER = ".publish_hf_staging"
 STAGING_LEGACY_ENTRIES = {"README.md", "sdf", "dad"}
 
 # Both spellings the corpora actually use: the full name derive_language
-# produces (written into every SDF record by sdf_pipeline/layer4_score.py) and
+# produces (written into every SDF record by sdf_pipeline/layer5_score_and_final_selection/score.py) and
 # the bare ISO code four early SDF runs carry instead. evals/audit_sdf.py
 # already accepts both when it filters to English-only documents.
 ENGLISH_SPELLINGS = frozenset({"en", "english"})
@@ -300,7 +300,7 @@ SDF_COLUMN_ORDER = ["content", "description", "language", "type_name",
 def reorder_sdf_corpus(src: Path, dst: Path) -> int:
     """Write the published form of an SDF corpus: the same records as src, one
     JSON object per line, with each object's keys reordered to
-    SDF_COLUMN_ORDER instead of sdf_pipeline/layer4_score.py's write order.
+    SDF_COLUMN_ORDER instead of sdf_pipeline/layer5_score_and_final_selection/score.py's write order.
 
     Every SDF_COLUMN_ORDER key present on a record is emitted in that order;
     anything else on the record — a legacy field like subtype_id or role that

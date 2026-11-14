@@ -2,7 +2,7 @@
 
 import sys
 
-from sdf_pipeline.update_steps import ModelReply
+from sdf_pipeline.shared_step_machinery.update_steps import ModelReply
 
 
 def reply(text, stop_reason="end_turn"):

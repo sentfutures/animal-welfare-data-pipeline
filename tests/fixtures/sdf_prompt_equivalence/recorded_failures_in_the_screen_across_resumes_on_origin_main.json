@@ -1,31 +1,56 @@
 {
  "format_version": 4,
- "recorded_from": "commit e7f2f6f951424f1b63929303694da5c5ac64b93f on branch william/sdf-one-deal-path-and-dealt-value-ids-in-stage-files (clean)",
+ "recorded_from": "commit f4445907f3a4f56db373527744ad25d80f8ad501 on branch william/sdf-five-layers-and-step-renames (clean)",
  "python_files_differing_from_origin_main_when_recorded": [
   "sdf_pipeline/compose_prompts.py",
   "sdf_pipeline/dealt_value_identifiers.py",
-  "sdf_pipeline/document_event_log.py",
   "sdf_pipeline/document_state.py",
   "sdf_pipeline/document_state_final_corpus.py",
   "sdf_pipeline/document_state_loader.py",
+  "sdf_pipeline/layer1_deal_and_screen.py",
+  "sdf_pipeline/layer1_deal_and_screen_shared.py",
   "sdf_pipeline/layer1_description_rewrite.py",
   "sdf_pipeline/layer1_plan.py",
   "sdf_pipeline/layer1_screen.py",
   "sdf_pipeline/layer1_select_considerations.py",
   "sdf_pipeline/layer2_draft.py",
+  "sdf_pipeline/layer2_plan_and_description_rewrite.py",
+  "sdf_pipeline/layer3_consideration_scoring_and_selection.py",
+  "sdf_pipeline/layer3_consideration_scoring_and_selection_shared.py",
   "sdf_pipeline/layer3_rewrite.py",
+  "sdf_pipeline/layer4_draft_critique_and_revise.py",
+  "sdf_pipeline/layer4_draft_critique_and_revise_shared.py",
   "sdf_pipeline/layer4_score.py",
+  "sdf_pipeline/layer5_score_and_final_selection.py",
+  "sdf_pipeline/pipeline_steps.py",
+  "sdf_pipeline/renamed_model_settings.py",
   "sdf_pipeline/run.py",
   "sdf_pipeline/seeding.py",
   "sdf_pipeline/step_runner.py",
+  "sdf_pipeline/steps/__init__.py",
+  "sdf_pipeline/steps/consideration_scoring.py",
+  "sdf_pipeline/steps/consideration_selection.py",
+  "sdf_pipeline/steps/critique.py",
+  "sdf_pipeline/steps/critique_and_revise_in_one_call.py",
+  "sdf_pipeline/steps/deal.py",
+  "sdf_pipeline/steps/description_rewrite.py",
+  "sdf_pipeline/steps/draft.py",
+  "sdf_pipeline/steps/near_duplicate_removal.py",
+  "sdf_pipeline/steps/plan.py",
+  "sdf_pipeline/steps/redeal.py",
+  "sdf_pipeline/steps/revise.py",
+  "sdf_pipeline/steps/score.py",
+  "sdf_pipeline/steps/score_gate.py",
+  "sdf_pipeline/steps/screen.py",
   "sdf_pipeline/structured_answers.py",
   "sdf_pipeline/update_steps.py",
   "shared/api.py",
+  "shared/sdf_run_layouts.py",
   "shared/utils.py"
  ],
  "regeneration_rule": "The recorded files are rewritten only by `python scripts/regenerate_sdf_prompt_equivalence_recorded_requests.py`, and only when the pull request is meant to change requests: never to make a failing test pass. Regenerate and commit the files in that pull request, and say in its description that requests change and why. A pull request not meant to change them leaves the files alone, so a difference is a bug.",
  "description": "Three single-hand screen batches: an exception, a truncated answer and an unusable answer, each stopping the run before the redeal, then a clean resume.",
- "configs_used_by_invocation": {"1": "repeated_value:e622e0abe00e553d", "2": "repeated_value:e622e0abe00e553d", "3": "repeated_value:e622e0abe00e553d"},
+ "configs_used_by_invocation": {"1": "repeated_value:9981dac1f1fa3983", "2": "repeated_value:9981dac1f1fa3983", "3": "repeated_value:9981dac1f1fa3983"},
  "exit_messages_by_invocation": {
   "1": "layer1_screen: 2 batch(es) of round 0 failed; the next round cannot be dealt until the round is complete — --resume retries them.",
   "2": "layer1_screen: 1 batch(es) of round 0 failed; the next round cannot be dealt until the round is complete — --resume retries them.",
@@ -49,111 +74,9 @@
  "calls_per_stage_per_invocation": {
   "1": {"layer1_screen": 3},
   "2": {"layer1_screen": 2},
-  "3": {"layer1_description_rewrite": 3, "layer1_plan": 3, "layer1_screen": 1, "layer1_select": 3, "layer2_draft": 3, "layer3_critique": 3, "layer3_revise": 3, "layer4_score": 3}
+  "3": {"layer1_screen": 1, "layer2_description_rewrite": 3, "layer2_plan": 3, "layer3_consideration_scoring": 3, "layer4_critique": 3, "layer4_draft": 3, "layer4_revise": 3, "layer5_score": 3}
  },
  "requests": [
-  {
-   "invocation": 3,
-   "stage": "layer1_description_rewrite",
-   "item_id": "matrix_000000",
-   "attempt": 1,
-   "route": "openai",
-   "wire": {
-    "model": "gpt-6.1-sol",
-    "input": "sha256:70a2cfe548235750d6ee3f654cbac4eb3d518de63013e302cae04bae3ed605d5 (7544 characters)",
-    "max_output_tokens": 8000,
-    "temperature": 1.0,
-    "reasoning": {"effort": "low"},
-    "text": "repeated_value:c0bc440f64c8651e",
-    "instructions": "repeated_value:bb71341654010a8a"
-   }
-  },
-  {
-   "invocation": 3,
-   "stage": "layer1_description_rewrite",
-   "item_id": "matrix_000001",
-   "attempt": 1,
-   "route": "openai",
-   "wire": {
-    "model": "gpt-6.1-sol",
-    "input": "sha256:68ba667cad6735fa8b0f7fc235dbd3667ecf31c4bfda14fb77697d3f9e0c3b0c (7583 characters)",
-    "max_output_tokens": 8000,
-    "temperature": 1.0,
-    "reasoning": {"effort": "low"},
-    "text": "repeated_value:c0bc440f64c8651e",
-    "instructions": "repeated_value:bb71341654010a8a"
-   }
-  },
-  {
-   "invocation": 3,
-   "stage": "layer1_description_rewrite",
-   "item_id": "matrix_000002",
-   "attempt": 1,
-   "route": "openai",
-   "wire": {
-    "model": "gpt-6.1-sol",
-    "input": "sha256:e829970ee1d1c899ff5134f4b16d3bd53f87df3375cef86149c3f414cabd1651 (7479 characters)",
-    "max_output_tokens": 8000,
-    "temperature": 1.0,
-    "reasoning": {"effort": "low"},
-    "text": "repeated_value:c0bc440f64c8651e",
-    "instructions": "repeated_value:bb71341654010a8a"
-   }
-  },
-  {
-   "invocation": 3,
-   "stage": "layer1_plan",
-   "item_id": "matrix_000000",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-haiku-4-5",
-    "max_tokens": 4000,
-    "messages": [
-     {"role": "user", "content": "sha256:8ab246560f782a28002d4014622ed7d5ca0ee761f3ac43ebc28d430c6031b153 (4079 characters)"}
-    ],
-    "temperature": 0.7,
-    "thinking": {"type": "disabled"},
-    "output_config": {"effort": "medium"},
-    "system": "repeated_value:06def3280e3ec4f3"
-   }
-  },
-  {
-   "invocation": 3,
-   "stage": "layer1_plan",
-   "item_id": "matrix_000001",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-haiku-4-5",
-    "max_tokens": 4000,
-    "messages": [
-     {"role": "user", "content": "sha256:89672fcc6d5ce77d5947269641fb6db803ffc1c3a84f69a985f483ccb4f032d4 (4192 characters)"}
-    ],
-    "temperature": 0.7,
-    "thinking": {"type": "disabled"},
-    "output_config": {"effort": "medium"},
-    "system": "repeated_value:06def3280e3ec4f3"
-   }
-  },
-  {
-   "invocation": 3,
-   "stage": "layer1_plan",
-   "item_id": "matrix_000002",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-haiku-4-5",
-    "max_tokens": 4000,
-    "messages": [
-     {"role": "user", "content": "sha256:07267864eda6ed7084528256327d217983684096995a6b7c0784b80912d10a6c (4111 characters)"}
-    ],
-    "temperature": 0.7,
-    "thinking": {"type": "disabled"},
-    "output_config": {"effort": "medium"},
-    "system": "repeated_value:06def3280e3ec4f3"
-   }
-  },
   {"invocation": 1, "stage": "layer1_screen", "item_id": "screen_round0_batch0000", "attempt": 1, "route": "anthropic", "wire": "repeated_value:d89390d6be63d2cc"},
   {"invocation": 2, "stage": "layer1_screen", "item_id": "screen_round0_batch0000", "attempt": 2, "route": "anthropic", "wire": "repeated_value:d89390d6be63d2cc"},
   {"invocation": 3, "stage": "layer1_screen", "item_id": "screen_round0_batch0000", "attempt": 3, "route": "anthropic", "wire": "repeated_value:d89390d6be63d2cc"},
@@ -179,7 +102,109 @@
   },
   {
    "invocation": 3,
-   "stage": "layer1_select",
+   "stage": "layer2_description_rewrite",
+   "item_id": "matrix_000000",
+   "attempt": 1,
+   "route": "openai",
+   "wire": {
+    "model": "gpt-6.1-sol",
+    "input": "sha256:70a2cfe548235750d6ee3f654cbac4eb3d518de63013e302cae04bae3ed605d5 (7544 characters)",
+    "max_output_tokens": 8000,
+    "temperature": 1.0,
+    "reasoning": {"effort": "low"},
+    "text": "repeated_value:c0bc440f64c8651e",
+    "instructions": "repeated_value:bb71341654010a8a"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer2_description_rewrite",
+   "item_id": "matrix_000001",
+   "attempt": 1,
+   "route": "openai",
+   "wire": {
+    "model": "gpt-6.1-sol",
+    "input": "sha256:68ba667cad6735fa8b0f7fc235dbd3667ecf31c4bfda14fb77697d3f9e0c3b0c (7583 characters)",
+    "max_output_tokens": 8000,
+    "temperature": 1.0,
+    "reasoning": {"effort": "low"},
+    "text": "repeated_value:c0bc440f64c8651e",
+    "instructions": "repeated_value:bb71341654010a8a"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer2_description_rewrite",
+   "item_id": "matrix_000002",
+   "attempt": 1,
+   "route": "openai",
+   "wire": {
+    "model": "gpt-6.1-sol",
+    "input": "sha256:e829970ee1d1c899ff5134f4b16d3bd53f87df3375cef86149c3f414cabd1651 (7479 characters)",
+    "max_output_tokens": 8000,
+    "temperature": 1.0,
+    "reasoning": {"effort": "low"},
+    "text": "repeated_value:c0bc440f64c8651e",
+    "instructions": "repeated_value:bb71341654010a8a"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer2_plan",
+   "item_id": "matrix_000000",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-haiku-4-5",
+    "max_tokens": 4000,
+    "messages": [
+     {"role": "user", "content": "sha256:8ab246560f782a28002d4014622ed7d5ca0ee761f3ac43ebc28d430c6031b153 (4079 characters)"}
+    ],
+    "temperature": 0.7,
+    "thinking": {"type": "disabled"},
+    "output_config": {"effort": "medium"},
+    "system": "repeated_value:06def3280e3ec4f3"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer2_plan",
+   "item_id": "matrix_000001",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-haiku-4-5",
+    "max_tokens": 4000,
+    "messages": [
+     {"role": "user", "content": "sha256:89672fcc6d5ce77d5947269641fb6db803ffc1c3a84f69a985f483ccb4f032d4 (4192 characters)"}
+    ],
+    "temperature": 0.7,
+    "thinking": {"type": "disabled"},
+    "output_config": {"effort": "medium"},
+    "system": "repeated_value:06def3280e3ec4f3"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer2_plan",
+   "item_id": "matrix_000002",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-haiku-4-5",
+    "max_tokens": 4000,
+    "messages": [
+     {"role": "user", "content": "sha256:07267864eda6ed7084528256327d217983684096995a6b7c0784b80912d10a6c (4111 characters)"}
+    ],
+    "temperature": 0.7,
+    "thinking": {"type": "disabled"},
+    "output_config": {"effort": "medium"},
+    "system": "repeated_value:06def3280e3ec4f3"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer3_consideration_scoring",
    "item_id": "matrix_000000",
    "attempt": 1,
    "route": "anthropic",
@@ -199,7 +224,7 @@
   },
   {
    "invocation": 3,
-   "stage": "layer1_select",
+   "stage": "layer3_consideration_scoring",
    "item_id": "matrix_000001",
    "attempt": 1,
    "route": "anthropic",
@@ -219,7 +244,7 @@
   },
   {
    "invocation": 3,
-   "stage": "layer1_select",
+   "stage": "layer3_consideration_scoring",
    "item_id": "matrix_000002",
    "attempt": 1,
    "route": "anthropic",
@@ -239,58 +264,7 @@
   },
   {
    "invocation": 3,
-   "stage": "layer2_draft",
-   "item_id": "matrix_000000",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-sonnet-5-5",
-    "max_tokens": 11000,
-    "messages": [
-     {"role": "user", "content": "sha256:9ac036138325145afa6f1705901ad2394e2d6d37a38f6b916e28af9749f9a18a (2561 characters)"}
-    ],
-    "thinking": {"type": "adaptive", "display": "summarized"},
-    "output_config": {"effort": "max"},
-    "system": "repeated_value:dcf2de373521caef"
-   }
-  },
-  {
-   "invocation": 3,
-   "stage": "layer2_draft",
-   "item_id": "matrix_000001",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-sonnet-5-5",
-    "max_tokens": 11000,
-    "messages": [
-     {"role": "user", "content": "sha256:03abb4347ba2807ef49ada43ac5b8a64dd0a1f958df31f67a9bdaa6d8873418a (2600 characters)"}
-    ],
-    "thinking": {"type": "adaptive", "display": "summarized"},
-    "output_config": {"effort": "max"},
-    "system": "repeated_value:dcf2de373521caef"
-   }
-  },
-  {
-   "invocation": 3,
-   "stage": "layer2_draft",
-   "item_id": "matrix_000002",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-sonnet-5-5",
-    "max_tokens": 11000,
-    "messages": [
-     {"role": "user", "content": "sha256:0c7860273c6ff81eab6c52ffc470219d1a76c81f4bf2d5d187d508b620f133d9 (2496 characters)"}
-    ],
-    "thinking": {"type": "adaptive", "display": "summarized"},
-    "output_config": {"effort": "max"},
-    "system": "repeated_value:dcf2de373521caef"
-   }
-  },
-  {
-   "invocation": 3,
-   "stage": "layer3_critique",
+   "stage": "layer4_critique",
    "item_id": "matrix_000000",
    "attempt": 1,
    "route": "anthropic",
@@ -307,7 +281,7 @@
   },
   {
    "invocation": 3,
-   "stage": "layer3_critique",
+   "stage": "layer4_critique",
    "item_id": "matrix_000001",
    "attempt": 1,
    "route": "anthropic",
@@ -324,7 +298,7 @@
   },
   {
    "invocation": 3,
-   "stage": "layer3_critique",
+   "stage": "layer4_critique",
    "item_id": "matrix_000002",
    "attempt": 1,
    "route": "anthropic",
@@ -341,7 +315,58 @@
   },
   {
    "invocation": 3,
-   "stage": "layer3_revise",
+   "stage": "layer4_draft",
+   "item_id": "matrix_000000",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-sonnet-5-5",
+    "max_tokens": 11000,
+    "messages": [
+     {"role": "user", "content": "sha256:9ac036138325145afa6f1705901ad2394e2d6d37a38f6b916e28af9749f9a18a (2561 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "max"},
+    "system": "repeated_value:dcf2de373521caef"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer4_draft",
+   "item_id": "matrix_000001",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-sonnet-5-5",
+    "max_tokens": 11000,
+    "messages": [
+     {"role": "user", "content": "sha256:03abb4347ba2807ef49ada43ac5b8a64dd0a1f958df31f67a9bdaa6d8873418a (2600 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "max"},
+    "system": "repeated_value:dcf2de373521caef"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer4_draft",
+   "item_id": "matrix_000002",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-sonnet-5-5",
+    "max_tokens": 11000,
+    "messages": [
+     {"role": "user", "content": "sha256:0c7860273c6ff81eab6c52ffc470219d1a76c81f4bf2d5d187d508b620f133d9 (2496 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "max"},
+    "system": "repeated_value:dcf2de373521caef"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer4_revise",
    "item_id": "matrix_000000",
    "attempt": 1,
    "route": "anthropic",
@@ -358,7 +383,7 @@
   },
   {
    "invocation": 3,
-   "stage": "layer3_revise",
+   "stage": "layer4_revise",
    "item_id": "matrix_000001",
    "attempt": 1,
    "route": "anthropic",
@@ -375,7 +400,7 @@
   },
   {
    "invocation": 3,
-   "stage": "layer3_revise",
+   "stage": "layer4_revise",
    "item_id": "matrix_000002",
    "attempt": 1,
    "route": "anthropic",
@@ -392,7 +417,7 @@
   },
   {
    "invocation": 3,
-   "stage": "layer4_score",
+   "stage": "layer5_score",
    "item_id": "matrix_000000",
    "attempt": 1,
    "route": "anthropic",
@@ -410,7 +435,7 @@
   },
   {
    "invocation": 3,
-   "stage": "layer4_score",
+   "stage": "layer5_score",
    "item_id": "matrix_000001",
    "attempt": 1,
    "route": "anthropic",
@@ -428,7 +453,7 @@
   },
   {
    "invocation": 3,
-   "stage": "layer4_score",
+   "stage": "layer5_score",
    "item_id": "matrix_000002",
    "attempt": 1,
    "route": "anthropic",
@@ -492,39 +517,142 @@
  },
  "stage_files_by_invocation": {
   "1": {
-   "layer1/_screen_checkpoint.json": {
+   "layer1_deal_and_screen/_screen_checkpoint.json": {
     "completed": ["screen_round0_batch0002"],
     "last_updated": "<timestamp>"
    },
-   "layer1/screen_batches.jsonl": "repeated_value:2a7ced89d5adfc9b",
-   "layer1/screen_hands.jsonl": "repeated_value:e082a6eb6e4313ef",
-   "layer1/screen_judgments.jsonl": ["repeated_value:dbaa312f2af256a2"],
-   "layer1/screen_rounds.jsonl": "repeated_value:d73a97edd9e7175b"
+   "layer1_deal_and_screen/screen_batches.jsonl": "repeated_value:2a7ced89d5adfc9b",
+   "layer1_deal_and_screen/screen_hands.jsonl": "repeated_value:e082a6eb6e4313ef",
+   "layer1_deal_and_screen/screen_judgments.jsonl": ["repeated_value:dbaa312f2af256a2"],
+   "layer1_deal_and_screen/screen_rounds.jsonl": "repeated_value:d73a97edd9e7175b"
   },
   "2": {
-   "layer1/_screen_checkpoint.json": {
+   "layer1_deal_and_screen/_screen_checkpoint.json": {
     "completed": ["screen_round0_batch0001", "screen_round0_batch0002"],
     "last_updated": "<timestamp>"
    },
-   "layer1/screen_batches.jsonl": "repeated_value:2a7ced89d5adfc9b",
-   "layer1/screen_hands.jsonl": "repeated_value:e082a6eb6e4313ef",
-   "layer1/screen_judgments.jsonl": ["repeated_value:dbaa312f2af256a2", "repeated_value:faf8a0a28190e00e"],
-   "layer1/screen_rounds.jsonl": "repeated_value:d73a97edd9e7175b"
+   "layer1_deal_and_screen/screen_batches.jsonl": "repeated_value:2a7ced89d5adfc9b",
+   "layer1_deal_and_screen/screen_hands.jsonl": "repeated_value:e082a6eb6e4313ef",
+   "layer1_deal_and_screen/screen_judgments.jsonl": ["repeated_value:dbaa312f2af256a2", "repeated_value:faf8a0a28190e00e"],
+   "layer1_deal_and_screen/screen_rounds.jsonl": "repeated_value:d73a97edd9e7175b"
   },
   "3": {
-   "layer1/_checkpoint.json": {
-    "completed": ["matrix_000000", "matrix_000001", "matrix_000002"],
-    "last_updated": "<timestamp>"
-   },
-   "layer1/_description_rewrite_checkpoint.json": {
-    "completed": ["matrix_000000", "matrix_000001", "matrix_000002"],
-    "last_updated": "<timestamp>"
-   },
-   "layer1/_screen_checkpoint.json": {
+   "layer1_deal_and_screen/_screen_checkpoint.json": {
     "completed": ["screen_round0_batch0000", "screen_round0_batch0001", "screen_round0_batch0002"],
     "last_updated": "<timestamp>"
    },
-   "layer1/consideration_coverage.json": {
+   "layer1_deal_and_screen/screen_batches.jsonl": "repeated_value:2a7ced89d5adfc9b",
+   "layer1_deal_and_screen/screen_hands.jsonl": "repeated_value:e082a6eb6e4313ef",
+   "layer1_deal_and_screen/screen_judgments.jsonl": [
+    "repeated_value:dbaa312f2af256a2",
+    "repeated_value:faf8a0a28190e00e",
+    {"prompt_id": "matrix_000000", "round": 0, "batch_id": "screen_round0_batch0000", "number": 1, "reasoning": "Considered hand 1.", "remove": false, "reason": ""}
+   ],
+   "layer1_deal_and_screen/screen_rounds.jsonl": "repeated_value:d73a97edd9e7175b",
+   "layer1_deal_and_screen/screen_summary.json": {
+    "dealt": 3,
+    "accepted": 3,
+    "leftover_dropped": 0,
+    "leftover_prompt_ids": [],
+    "rounds": [
+     {"round": 0, "hands": 3, "removed": 0, "note": "original deal"}
+    ]
+   },
+   "layer1_deal_and_screen/screened_hands.jsonl": [
+    {"prompt_id": "matrix_000000", "variables": "dealt_hand:a239bd9bc83cc75b", "variable_value_ids": "repeated_value:38224f417d2237d4"},
+    {"prompt_id": "matrix_000001", "variables": "dealt_hand:39137258bf3ae81b", "variable_value_ids": "repeated_value:870b37eef4fadef8"},
+    {"prompt_id": "matrix_000002", "variables": "dealt_hand:7e99c4afaa9bab8c", "variable_value_ids": "repeated_value:6f34b587673440a2"}
+   ],
+   "layer2_plan_and_description_rewrite/_checkpoint.json": {
+    "completed": ["matrix_000000", "matrix_000001", "matrix_000002"],
+    "last_updated": "<timestamp>"
+   },
+   "layer2_plan_and_description_rewrite/_description_rewrite_checkpoint.json": {
+    "completed": ["matrix_000000", "matrix_000001", "matrix_000002"],
+    "last_updated": "<timestamp>"
+   },
+   "layer2_plan_and_description_rewrite/description_rewrites.jsonl": [
+    {
+     "prompt_id": "matrix_000000",
+     "reasoning": "Checked the description of matrix_000000.",
+     "rewrite_needed": false,
+     "original_description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
+     "rewritten_description": "",
+     "changes": [],
+     "dealt_value_conflict": false,
+     "conflict_reason": ""
+    },
+    {
+     "prompt_id": "matrix_000001",
+     "reasoning": "Checked the description of matrix_000001.",
+     "rewrite_needed": false,
+     "original_description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
+     "rewritten_description": "",
+     "changes": [],
+     "dealt_value_conflict": false,
+     "conflict_reason": ""
+    },
+    {
+     "prompt_id": "matrix_000002",
+     "reasoning": "Checked the description of matrix_000002.",
+     "rewrite_needed": false,
+     "original_description": "sha256:a1e6aa5ae1f779f191307a0c2f1dea766f5ad95d9a8b7b52a16d7cb411ad23f7 (435 characters)",
+     "rewritten_description": "",
+     "changes": [],
+     "dealt_value_conflict": false,
+     "conflict_reason": ""
+    }
+   ],
+   "layer2_plan_and_description_rewrite/plans.jsonl": [
+    {
+     "prompt_id": "matrix_000000",
+     "variables": "dealt_hand:a239bd9bc83cc75b",
+     "variable_value_ids": "repeated_value:38224f417d2237d4",
+     "plan": "sha256:19ff8f30186c63c0010aeef8bea7ff1584d4bd6e48f3ba280b930fca72695a28 (565 characters)",
+     "description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
+     "incoherent": false
+    },
+    {
+     "prompt_id": "matrix_000001",
+     "variables": "dealt_hand:39137258bf3ae81b",
+     "variable_value_ids": "repeated_value:870b37eef4fadef8",
+     "plan": "sha256:20b2bd4a443b3427c4d4d952d201215ee1cc310ccdb0e543e458117636e5ba15 (566 characters)",
+     "description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
+     "incoherent": false
+    },
+    {
+     "prompt_id": "matrix_000002",
+     "variables": "dealt_hand:7e99c4afaa9bab8c",
+     "variable_value_ids": "repeated_value:6f34b587673440a2",
+     "plan": "sha256:d3a2141f8dbc74fd34597acace81044dbe796688fb85fcef60c86ab7ba3f1f0a (568 characters)",
+     "description": "sha256:a1e6aa5ae1f779f191307a0c2f1dea766f5ad95d9a8b7b52a16d7cb411ad23f7 (435 characters)",
+     "incoherent": false
+    }
+   ],
+   "layer2_plan_and_description_rewrite/prompts.jsonl": [
+    {
+     "prompt_id": "matrix_000000",
+     "variables": "dealt_hand:a239bd9bc83cc75b",
+     "variable_value_ids": "repeated_value:38224f417d2237d4",
+     "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
+     "prompt": "sha256:8ab246560f782a28002d4014622ed7d5ca0ee761f3ac43ebc28d430c6031b153 (4079 characters)"
+    },
+    {
+     "prompt_id": "matrix_000001",
+     "variables": "dealt_hand:39137258bf3ae81b",
+     "variable_value_ids": "repeated_value:870b37eef4fadef8",
+     "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
+     "prompt": "sha256:89672fcc6d5ce77d5947269641fb6db803ffc1c3a84f69a985f483ccb4f032d4 (4192 characters)"
+    },
+    {
+     "prompt_id": "matrix_000002",
+     "variables": "dealt_hand:7e99c4afaa9bab8c",
+     "variable_value_ids": "repeated_value:6f34b587673440a2",
+     "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
+     "prompt": "sha256:07267864eda6ed7084528256327d217983684096995a6b7c0784b80912d10a6c (4111 characters)"
+    }
+   ],
+   "layer3_consideration_scoring_and_selection/consideration_coverage.json": {
     "eligible_documents": 3,
     "digital_mind_documents": 0,
     "scored_documents": 3,
@@ -787,7 +915,7 @@
     "documents_with_two_or_more_in_one_list": 0,
     "document_ids_with_no_consideration": ["matrix_000000", "matrix_000001", "matrix_000002"]
    },
-   "layer1/consideration_scores.jsonl": [
+   "layer3_consideration_scoring_and_selection/consideration_scores.jsonl": [
     {
      "prompt_id": "matrix_000000",
      "scores": {
@@ -879,119 +1007,25 @@
      "attempts": 1
     }
    ],
-   "layer1/consideration_selections.jsonl": [
+   "layer3_consideration_scoring_and_selection/consideration_selections.jsonl": [
     {"prompt_id": "matrix_000000", "outcomes": "repeated_value:3ac0d5ca00dc26fa"},
     {"prompt_id": "matrix_000001", "outcomes": "repeated_value:3ac0d5ca00dc26fa"},
     {"prompt_id": "matrix_000002", "outcomes": "repeated_value:3ac0d5ca00dc26fa"}
    ],
-   "layer1/description_rewrites.jsonl": [
-    {
-     "prompt_id": "matrix_000000",
-     "reasoning": "Checked the description of matrix_000000.",
-     "rewrite_needed": false,
-     "original_description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
-     "rewritten_description": "",
-     "changes": [],
-     "dealt_value_conflict": false,
-     "conflict_reason": ""
-    },
-    {
-     "prompt_id": "matrix_000001",
-     "reasoning": "Checked the description of matrix_000001.",
-     "rewrite_needed": false,
-     "original_description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
-     "rewritten_description": "",
-     "changes": [],
-     "dealt_value_conflict": false,
-     "conflict_reason": ""
-    },
-    {
-     "prompt_id": "matrix_000002",
-     "reasoning": "Checked the description of matrix_000002.",
-     "rewrite_needed": false,
-     "original_description": "sha256:a1e6aa5ae1f779f191307a0c2f1dea766f5ad95d9a8b7b52a16d7cb411ad23f7 (435 characters)",
-     "rewritten_description": "",
-     "changes": [],
-     "dealt_value_conflict": false,
-     "conflict_reason": ""
-    }
-   ],
-   "layer1/plans.jsonl": [
-    {
-     "prompt_id": "matrix_000000",
-     "variables": "dealt_hand:a239bd9bc83cc75b",
-     "variable_value_ids": "repeated_value:38224f417d2237d4",
-     "plan": "sha256:19ff8f30186c63c0010aeef8bea7ff1584d4bd6e48f3ba280b930fca72695a28 (565 characters)",
-     "description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
-     "incoherent": false
-    },
-    {
-     "prompt_id": "matrix_000001",
-     "variables": "dealt_hand:39137258bf3ae81b",
-     "variable_value_ids": "repeated_value:870b37eef4fadef8",
-     "plan": "sha256:20b2bd4a443b3427c4d4d952d201215ee1cc310ccdb0e543e458117636e5ba15 (566 characters)",
-     "description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
-     "incoherent": false
-    },
-    {
-     "prompt_id": "matrix_000002",
-     "variables": "dealt_hand:7e99c4afaa9bab8c",
-     "variable_value_ids": "repeated_value:6f34b587673440a2",
-     "plan": "sha256:d3a2141f8dbc74fd34597acace81044dbe796688fb85fcef60c86ab7ba3f1f0a (568 characters)",
-     "description": "sha256:a1e6aa5ae1f779f191307a0c2f1dea766f5ad95d9a8b7b52a16d7cb411ad23f7 (435 characters)",
-     "incoherent": false
-    }
-   ],
-   "layer1/prompts.jsonl": [
-    {
-     "prompt_id": "matrix_000000",
-     "variables": "dealt_hand:a239bd9bc83cc75b",
-     "variable_value_ids": "repeated_value:38224f417d2237d4",
-     "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
-     "prompt": "sha256:8ab246560f782a28002d4014622ed7d5ca0ee761f3ac43ebc28d430c6031b153 (4079 characters)"
-    },
-    {
-     "prompt_id": "matrix_000001",
-     "variables": "dealt_hand:39137258bf3ae81b",
-     "variable_value_ids": "repeated_value:870b37eef4fadef8",
-     "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
-     "prompt": "sha256:89672fcc6d5ce77d5947269641fb6db803ffc1c3a84f69a985f483ccb4f032d4 (4192 characters)"
-    },
-    {
-     "prompt_id": "matrix_000002",
-     "variables": "dealt_hand:7e99c4afaa9bab8c",
-     "variable_value_ids": "repeated_value:6f34b587673440a2",
-     "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
-     "prompt": "sha256:07267864eda6ed7084528256327d217983684096995a6b7c0784b80912d10a6c (4111 characters)"
-    }
-   ],
-   "layer1/screen_batches.jsonl": "repeated_value:2a7ced89d5adfc9b",
-   "layer1/screen_hands.jsonl": "repeated_value:e082a6eb6e4313ef",
-   "layer1/screen_judgments.jsonl": [
-    "repeated_value:dbaa312f2af256a2",
-    "repeated_value:faf8a0a28190e00e",
-    {"prompt_id": "matrix_000000", "round": 0, "batch_id": "screen_round0_batch0000", "number": 1, "reasoning": "Considered hand 1.", "remove": false, "reason": ""}
-   ],
-   "layer1/screen_rounds.jsonl": "repeated_value:d73a97edd9e7175b",
-   "layer1/screen_summary.json": {
-    "dealt": 3,
-    "accepted": 3,
-    "leftover_dropped": 0,
-    "leftover_prompt_ids": [],
-    "rounds": [
-     {"round": 0, "hands": 3, "removed": 0, "note": "original deal"}
-    ]
-   },
-   "layer1/screened_hands.jsonl": [
-    {"prompt_id": "matrix_000000", "variables": "dealt_hand:a239bd9bc83cc75b", "variable_value_ids": "repeated_value:38224f417d2237d4"},
-    {"prompt_id": "matrix_000001", "variables": "dealt_hand:39137258bf3ae81b", "variable_value_ids": "repeated_value:870b37eef4fadef8"},
-    {"prompt_id": "matrix_000002", "variables": "dealt_hand:7e99c4afaa9bab8c", "variable_value_ids": "repeated_value:6f34b587673440a2"}
-   ],
-   "layer2/_checkpoint.json": {
+   "layer4_draft_critique_and_revise/_checkpoint.json": {
     "completed": ["matrix_000000", "matrix_000001", "matrix_000002"],
     "last_updated": "<timestamp>"
    },
-   "layer2/drafts.jsonl": [
+   "layer4_draft_critique_and_revise/_draft_checkpoint.json": {
+    "completed": ["matrix_000000", "matrix_000001", "matrix_000002"],
+    "last_updated": "<timestamp>"
+   },
+   "layer4_draft_critique_and_revise/critiques.jsonl": [
+    {"doc_id": "matrix_000000", "review": "Problems found in the draft of matrix_000000: the opening is generic."},
+    {"doc_id": "matrix_000001", "review": "Problems found in the draft of matrix_000001: the opening is generic."},
+    {"doc_id": "matrix_000002", "review": "Problems found in the draft of matrix_000002: the opening is generic."}
+   ],
+   "layer4_draft_critique_and_revise/drafts.jsonl": [
     {
      "doc_id": "matrix_000000",
      "variables": "dealt_hand:285d2e0f7aca7e37",
@@ -1017,16 +1051,7 @@
      "content": "sha256:c229ab42f19d7beed558e85d1c12ec55a1a2e707e32605f91fcaf92246f1f53e (898 characters)"
     }
    ],
-   "layer3/_checkpoint.json": {
-    "completed": ["matrix_000000", "matrix_000001", "matrix_000002"],
-    "last_updated": "<timestamp>"
-   },
-   "layer3/critiques.jsonl": [
-    {"doc_id": "matrix_000000", "review": "Problems found in the draft of matrix_000000: the opening is generic."},
-    {"doc_id": "matrix_000001", "review": "Problems found in the draft of matrix_000001: the opening is generic."},
-    {"doc_id": "matrix_000002", "review": "Problems found in the draft of matrix_000002: the opening is generic."}
-   ],
-   "layer3/rewrites.jsonl": [
+   "layer4_draft_critique_and_revise/rewrites.jsonl": [
     {
      "doc_id": "matrix_000000",
      "variables": "dealt_hand:285d2e0f7aca7e37",
@@ -1055,11 +1080,11 @@
      "content": "sha256:1edaae7302b9aee8dc9be18811f35e7087af75e42253b83a4c7fa0cd9600874f (889 characters)"
     }
    ],
-   "layer4/_checkpoint.json": {
+   "layer5_score_and_final_selection/_checkpoint.json": {
     "completed": ["matrix_000000", "matrix_000001", "matrix_000002"],
     "last_updated": "<timestamp>"
    },
-   "layer4/scores.jsonl": [
+   "layer5_score_and_final_selection/scores.jsonl": [
     {
      "doc_id": "matrix_000000",
      "variables": "dealt_hand:285d2e0f7aca7e37",
@@ -1204,7 +1229,7 @@
   }
  },
  "repeated_values_by_identifier": {
-  "e622e0abe00e553d": {
+  "9981dac1f1fa3983": {
    "backend": "api",
    "model": "claude-sonnet-5",
    "max_tokens": 4000,
@@ -1213,14 +1238,14 @@
    "thinking_headroom": 5000,
    "effort": {
     "layer1_screen": "low",
-    "layer1_plan": "medium",
-    "layer1_description_rewrite": "high",
-    "layer1_select": "xhigh",
-    "layer2_draft": "max",
-    "layer3_critique": "low",
-    "layer3_revise": "medium",
-    "layer3_rewrite": "high",
-    "layer4_score": "xhigh"
+    "layer2_plan": "medium",
+    "layer2_description_rewrite": "high",
+    "layer3_consideration_scoring": "xhigh",
+    "layer4_draft": "max",
+    "layer4_critique": "low",
+    "layer4_revise": "medium",
+    "layer4_critique_and_revise_in_one_call": "high",
+    "layer5_score": "xhigh"
    },
    "sdf": {
     "n_prompts": 3,
@@ -1253,51 +1278,6 @@
    "language_distribution": {"en": 1.0},
    "outputs": {"cost_log": "unused_cost_log.jsonl"}
   },
-  "c0bc440f64c8651e": {
-   "format": {
-    "type": "json_schema",
-    "name": "description_rewrite_answer",
-    "schema": {
-     "type": "object",
-     "properties": {
-      "reasoning": {"type": "string"},
-      "rewrite_needed": {"type": "boolean"},
-      "rewritten_description": {"type": "string"},
-      "changes": {
-       "type": "array",
-       "items": {
-        "type": "object",
-        "properties": {
-         "check": {
-          "type": "string",
-          "enum": [
-           "plausibility_organisation",
-           "plausibility_species_or_custom",
-           "plausibility_simulated_connectome",
-           "plausibility_ai_information",
-           "plausibility_figures_and_scale",
-           "conformance_to_dealt_values",
-           "organisation_naming",
-           "forced_content"
-          ]
-         },
-         "reason": {"type": "string"}
-        },
-        "required": ["check", "reason"],
-        "additionalProperties": false
-       }
-      },
-      "dealt_value_conflict": {"type": "boolean"},
-      "conflict_reason": {"type": "string"}
-     },
-     "required": ["reasoning", "rewrite_needed", "rewritten_description", "changes", "dealt_value_conflict", "conflict_reason"],
-     "additionalProperties": false
-    },
-    "strict": true
-   }
-  },
-  "bb71341654010a8a": {"text_sha256": "b13c3b4618da31b36a894b4f54740a1a1c6d0385d95af28e0fed308d0efbac8e", "character_count": 486, "blocks": null},
-  "06def3280e3ec4f3": {"text_sha256": "d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb", "character_count": 5397, "blocks": null},
   "d89390d6be63d2cc": {
    "model": "claude-haiku-4-5",
    "max_tokens": 8000,
@@ -1409,19 +1389,52 @@
    }
   },
   "b316bd7ae0ca33eb": {"text_sha256": "cd41db50648571b644f1b2ee09711a305a1f5d2bb4b92abd14b3e09d5612df91", "character_count": 454, "blocks": null},
-  "c4a6c33f7279a913": {"text_sha256": "9be9576f66433feeaa921ebd3deb1d578735ef5dfd1ec5d3685ad34b1c3eb995", "character_count": 375, "blocks": null},
-  "dcf2de373521caef": {
-   "text_sha256": null,
-   "character_count": null,
-   "blocks": [
-    {
-     "type": "text",
-     "cache_control": {"type": "ephemeral"},
-     "text_sha256": "d9c7d8fdf396bdfabe537d2b7fed296fabbf9398490c5ce9addf7a06a5992e9d",
-     "character_count": 174521
-    }
-   ]
+  "c0bc440f64c8651e": {
+   "format": {
+    "type": "json_schema",
+    "name": "description_rewrite_answer",
+    "schema": {
+     "type": "object",
+     "properties": {
+      "reasoning": {"type": "string"},
+      "rewrite_needed": {"type": "boolean"},
+      "rewritten_description": {"type": "string"},
+      "changes": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "check": {
+          "type": "string",
+          "enum": [
+           "plausibility_organisation",
+           "plausibility_species_or_custom",
+           "plausibility_simulated_connectome",
+           "plausibility_ai_information",
+           "plausibility_figures_and_scale",
+           "conformance_to_dealt_values",
+           "organisation_naming",
+           "forced_content"
+          ]
+         },
+         "reason": {"type": "string"}
+        },
+        "required": ["check", "reason"],
+        "additionalProperties": false
+       }
+      },
+      "dealt_value_conflict": {"type": "boolean"},
+      "conflict_reason": {"type": "string"}
+     },
+     "required": ["reasoning", "rewrite_needed", "rewritten_description", "changes", "dealt_value_conflict", "conflict_reason"],
+     "additionalProperties": false
+    },
+    "strict": true
+   }
   },
+  "bb71341654010a8a": {"text_sha256": "b13c3b4618da31b36a894b4f54740a1a1c6d0385d95af28e0fed308d0efbac8e", "character_count": 486, "blocks": null},
+  "06def3280e3ec4f3": {"text_sha256": "d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb", "character_count": 5397, "blocks": null},
+  "c4a6c33f7279a913": {"text_sha256": "9be9576f66433feeaa921ebd3deb1d578735ef5dfd1ec5d3685ad34b1c3eb995", "character_count": 375, "blocks": null},
   "e6579d7f806510ed": {
    "text_sha256": null,
    "character_count": null,
@@ -1431,6 +1444,18 @@
      "cache_control": {"type": "ephemeral"},
      "text_sha256": "357e43f3cfa9b05d274c6f89a313100266076f2ae69703a205967e681a42eec8",
      "character_count": 184774
+    }
+   ]
+  },
+  "dcf2de373521caef": {
+   "text_sha256": null,
+   "character_count": null,
+   "blocks": [
+    {
+     "type": "text",
+     "cache_control": {"type": "ephemeral"},
+     "text_sha256": "d9c7d8fdf396bdfabe537d2b7fed296fabbf9398490c5ce9addf7a06a5992e9d",
+     "character_count": 174521
     }
    ]
   },

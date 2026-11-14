@@ -1,4 +1,4 @@
-"""Tests for sdf_pipeline/compose_prompts.py (offline, no API)."""
+"""Tests for sdf_pipeline/shared_step_machinery/compose_prompts.py (offline, no API)."""
 
 import json
 import random
@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from sdf_pipeline import compose_prompts as cp
+from sdf_pipeline.shared_step_machinery import compose_prompts as cp
 from shared import entity_pools, utils
 from shared import matrix as _matrix
 
@@ -123,7 +123,7 @@ def test_split_sections():
 
 def test_module_defaults_point_at_real_files():
     """The standalone CLI's default paths must exist — a template rename that
-    misses these constants breaks `python sdf_pipeline/compose_prompts.py`
+    misses these constants breaks `python sdf_pipeline/shared_step_machinery/compose_prompts.py`
     while every pipeline test (which passes explicit paths) stays green."""
     for default in (cp.DEFAULT_TEMPLATE, cp.DEFAULT_VARIABLES, cp.DEFAULT_PREAMBLE,
                     cp.DEFAULT_DEAL_CONSTRAINTS):

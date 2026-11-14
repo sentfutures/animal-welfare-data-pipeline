@@ -116,8 +116,8 @@ def test_openai_route_resolution_equals_what_call_claude_hands_to_call_openai(mo
 # ------------------------------------------------------------------ the command against the recordings
 
 STAGE_TAGS = {
-    "description_rewrite": "layer1_description_rewrite", "plan": "layer1_plan", "select": "layer1_select",
-    "draft": "layer2_draft", "critique": "layer3_critique", "revise": "layer3_revise", "score": "layer4_score"}
+    "description_rewrite": "layer2_description_rewrite", "plan": "layer2_plan", "consideration_scoring": "layer3_consideration_scoring",
+    "draft": "layer4_draft", "critique": "layer4_critique", "revise": "layer4_revise", "score": "layer5_score"}
 SCENARIOS_AND_STAGE_TAGS = [
     # Claude-routed description rewrite and a screen that keeps sampling parameters
     ("temperature_kept_on_every_stage_with_a_two_call_revision", {**STAGE_TAGS, "screen": "layer1_screen"}),
@@ -148,7 +148,7 @@ def _document_id_for(run_directory: Path, stage: str, recorded: dict) -> str:
     if stage != "screen":
         return recorded["item_id"]
     batches = command.utils.load_jsonl(
-        command.utils.sdf_stage_dir(run_directory, 1) / command.layer1_screen.BATCHES_FILENAME)
+        command.utils.sdf_stage_dir(run_directory, 1) / command.deal_and_screen_layer.BATCHES_FILENAME)
     return next(batch["prompt_ids"][0] for batch in batches if batch["batch_id"] == recorded["item_id"])
 
 
@@ -182,7 +182,7 @@ def test_printed_settings_equal_the_recorded_wire_settings_and_nothing_is_writte
 
 def test_command_line_prints_the_full_request_as_json(scenario_run, capsys):
     name, _, run_directory, config = scenario_run
-    recorded = _recorded_request(name, "layer2_draft")
+    recorded = _recorded_request(name, "layer4_draft")
     manifest_free_config = run_directory / "config_for_the_command.json"
     # a run folder given on the command line: the config comes from --config (a YAML file; JSON is YAML)
     manifest_free_config.write_text(json.dumps(config))
@@ -190,7 +190,7 @@ def test_command_line_prints_the_full_request_as_json(scenario_run, capsys):
                               "--stage", "draft", "--document-id", recorded["item_id"], "--output-format", "json"])
     printed = json.loads(capsys.readouterr().out)
     assert exit_code == 0
-    assert printed["stage"] == "layer2_draft" and printed["document_id"] == recorded["item_id"]
+    assert printed["stage"] == "layer4_draft" and printed["document_id"] == recorded["item_id"]
     assert printed["settings"]["max_tokens"] == recorded["wire"]["max_tokens"]
     assert printed["system_prompt"] and printed["user_message"]
 
@@ -198,7 +198,7 @@ def test_command_line_prints_the_full_request_as_json(scenario_run, capsys):
 def test_stages_without_a_step_are_refused_with_the_reason(scenario_run, capsys):
     _, _, run_directory, config = scenario_run
     with pytest.raises(command.RequestCannotBeBuilt, match="makes no model call"):
-        command.build_full_request(run_directory, config, "gate", "matrix_000000")
+        command.build_full_request(run_directory, config, "score_gate", "matrix_000000")
     with pytest.raises(command.RequestCannotBeBuilt, match="no record"):
         command.build_full_request(run_directory, config, "draft", "no_such_document")
 

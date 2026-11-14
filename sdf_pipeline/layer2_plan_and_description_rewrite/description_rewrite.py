@@ -1,4 +1,4 @@
-"""Layer 1 description rewrite: repair a planned description before drafting.
+"""Layer 2 step: the description rewrite, which repairs a planned description before drafting.
 
 Runs after planning, before the considerations selector and the first draft.
 One call per surviving plan is given the dealt variables (rendered as the lines
@@ -35,7 +35,7 @@ macaque whole-brain emulation as working technology. Do not use Claude for plaus
 judgment without re-validating.
 
 The stage is a ``DocumentStep`` (``DescriptionRewriteStep``) run by
-``sdf_pipeline.step_runner.StepRunner``; ``run`` is the layer's entry point, called by
+``sdf_pipeline.shared_step_machinery.step_runner.StepRunner``; ``run`` is the layer's entry point, called by
 ``sdf_pipeline/run.py``, and ``rewrite_description`` stays for scripts that call it directly.
 
 Checkpoint semantics (protects paid work): one result per plan, appended to
@@ -52,19 +52,18 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from shared import api, openai_api, utils
+from shared import api, openai_api, sdf_run_layouts, utils
 from shared.api_keys import FIND_DOTENV_FLAG, load_optional_api_key
-from sdf_pipeline import compose_prompts as cp
-from sdf_pipeline import structured_answers
-from sdf_pipeline.dealt_value_identifiers import value_ids_field_of
-from sdf_pipeline.step_runner import StepRunner
-from sdf_pipeline.update_steps import (
+from sdf_pipeline.shared_step_machinery import compose_prompts as cp
+from sdf_pipeline.shared_step_machinery import structured_answers
+from sdf_pipeline.shared_step_machinery.dealt_value_identifiers import value_ids_field_of
+from sdf_pipeline.shared_step_machinery.step_runner import StepRunner
+from sdf_pipeline.shared_step_machinery.update_steps import (
     Accepted, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, OutcomeRecords, Removed,
     StepPolicy, StepProgress, WhatAFailedDocumentDoes, WhereAnErrorIsAThrownCall, line_for_document_left_to_retry, reason_without_error_prefix)
 
-STAGE_TAG = "layer1_description_rewrite"
 TEMPLATE_FILENAME = "layer1_description_rewrite.txt"
 SCHEMA_FILENAME = "layer1_description_rewrite_answer_schema.json"
 RESULTS_FILENAME = "description_rewrites.jsonl"
@@ -167,7 +166,7 @@ def rewrite_description(
     item_id: str | None = None,
 ) -> RewriteResult:
     """One rewrite call for one plan. Raises RewriteAnswerError for a truncated, refused or
-    invalid answer; API errors propagate. Tags the call ``layer1_description_rewrite``."""
+    invalid answer; API errors propagate. Tags the call with the step's stage tag."""
     system, user = build_rewrite_prompt(prompts, variable_lines, description)
     if openai_api.is_openai_model(model):
         raw, stop_reason = openai_api.call_openai(
@@ -176,7 +175,7 @@ def rewrite_description(
             model=model,
             max_output_tokens=_MAX_TOKENS,
             reasoning_effort=reasoning_effort or openai_api.DEFAULT_REASONING_EFFORT,
-            stage=STAGE_TAG,
+            stage=DescriptionRewriteStep.stage_tag,
             item_id=item_id,
             json_schema=copy.deepcopy(prompts.answer_schema),
             schema_name="description_rewrite_answer",
@@ -187,7 +186,7 @@ def rewrite_description(
             system_prompt=system or "",
             model=model,
             max_tokens=_MAX_TOKENS,
-            stage=STAGE_TAG,
+            stage=DescriptionRewriteStep.stage_tag,
             item_id=item_id,
             return_stop_reason=True,
             json_schema=copy.deepcopy(prompts.answer_schema),
@@ -245,7 +244,8 @@ def require_openai_key_if_configured(config: dict) -> None:
     model = sdf.get("description_rewrite_model") or sdf.get("plan_model")
     if openai_api.is_openai_model(model) and load_optional_api_key("OPENAI_API_KEY") is None:
         raise SystemExit(
-            f"sdf.description_rewrite_model is '{model}', an OpenAI model, so layer 1 needs "
+            f"sdf.description_rewrite_model is '{model}', an OpenAI model, so layer "
+            f"{sdf_run_layouts.active_layout().layer_number_of_key[sdf_run_layouts.PLAN_AND_DESCRIPTION_REWRITE]} needs "
             "OPENAI_API_KEY, and the configured key source has none (by default only the repo "
             f"root's .env is read; pass {FIND_DOTENV_FLAG} to search upward and then use the "
             "environment). Set it, or set sdf.description_rewrite_enabled: false to skip the "
@@ -294,7 +294,6 @@ class DescriptionRewriteStep(DocumentStep):
         failed_document=WhatAFailedDocumentDoes.STOPS_THE_RUN_AFTER_THE_STEP,
         errors_counted_as_thrown_calls=WhereAnErrorIsAThrownCall.BUILD | WhereAnErrorIsAThrownCall.SEND
         | WhereAnErrorIsAThrownCall.INTERPRET)
-    stage_tag = STAGE_TAG
     call_noun = "call"
     unit_noun = "plan"
 
@@ -386,7 +385,7 @@ class DescriptionRewriteStep(DocumentStep):
         return self._held_out_stop_message()
 
     def _held_out_stop_message(self) -> str:
-        return (f"layer1_description_rewrite: {self.held_out_count} descriptions held out — stopping before the "
+        return (f"{self.stage_tag}: {self.held_out_count} descriptions held out — stopping before the "
                 "stages that assign over the whole plan set; fix and --resume.")
 
 
@@ -427,7 +426,7 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
 
 def load_description_rewrite_outputs(run_dir: Path) -> dict | None:
     """The stage's stored results for a run, or None when it never ran."""
-    stage_dir = utils.sdf_stage_dir(run_dir, 1)
+    stage_dir = utils.sdf_stage_folder(run_dir, sdf_run_layouts.PLAN_AND_DESCRIPTION_REWRITE)
     results = load_results(stage_dir)
     if not results:
         return None

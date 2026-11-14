@@ -1,33 +1,43 @@
 #!/usr/bin/env python3
-"""SDF matrix pipeline orchestrator: plan, draft, rewrite, score.
+"""SDF matrix pipeline orchestrator: deal and screen, plan and rewrite descriptions, score considerations, draft, critique and
+revise, score.
 
-Layer 1 deals and repairs the hands (offline), screens them for extreme
-implausibility with redeal rounds, plans one document per accepted hand, rewrites
-each description for plausibility and conformance, and selects considerations for
-each surviving specification. Layers 2-4 draft, rewrite, and score/gate.
+Five layers, each named for what it does (decision 17); each layer has a folder in ``sdf_pipeline/`` holding its
+driver (``run_layer.py``) and one file per step:
 
-Steps a document goes through (full table with module detail in CLAUDE.md):
+  1. ``layer1_deal_and_screen``: deal and screen the hands for extreme implausibility, with redeals (offline deal)
+  2. ``layer2_plan_and_description_rewrite``: compose the planning prompts, plan, rewrite descriptions
+  3. ``layer3_consideration_scoring_and_selection``: score the considerations, select them (a linear programme)
+  4. ``layer4_draft_critique_and_revise``: draft, critique, revise
+  5. ``layer5_score_and_final_selection``: score, score gate, near-duplicate removal, write ``final/``
+
+Steps a document goes through (full table with module detail in CLAUDE.md; the folder of each step's file is its
+layer's, above):
 
    1. Deal (compose_prompts, no model)                      cannot drop
-   2. Implausibility screen (layer1_screen), batches of 10,
+   2. Implausibility screen (screen.py), batches of 10,
       up to 3 redeal rounds                                 can drop: extremely implausible
    3. Compose planning prompt (compose_prompts, no model)   cannot drop
-   4. Plan (layer1_plan)                                    can drop: declared incoherent
-   5. Description rewrite (layer1_description_rewrite)      can drop: dealt-value conflict
-   6. Consideration scoring (layer1_select_considerations)  cannot drop
-   7. Consideration assignment (considerations_assignment,
-      no model)                                             cannot drop
-   8. Draft (layer2_draft)                                  cannot drop
-   9. Critique (layer3_rewrite, first call)                 cannot drop
-  10. Revise (layer3_rewrite, second call)                  cannot drop
-  11. Score (layer4_score)                                  cannot drop
-  12. Gate and near-duplicate cull (layer4_score, no model):
+   4. Plan (plan.py)                                        can drop: declared incoherent
+   5. Description rewrite (description_rewrite.py)          can drop: dealt-value conflict
+   6. Consideration scoring (consideration_scoring.py)      cannot drop
+   7. Consideration selection (consideration_selection.py,
+      considerations_assignment.py, no model)               cannot drop
+   8. Draft (draft.py)                                      cannot drop
+   9. Critique (critique.py)                                cannot drop
+  10. Revise (revise.py)                                    cannot drop
+  11. Score (score.py)                                      cannot drop
+  12. Score gate and near-duplicate removal (score_gate.py,
+      near_duplicate_removal.py, no model):
       alignment and realism must each reach 7, near-duplicates
       above 0.90 are dropped                                can drop: below threshold,
                                                             near-duplicate
 
-Runs made in the five-layer layout or before the layer renumbering can be read
-(report, audits, viewer) but not resumed: --resume refuses them.
+A run keeps the layout it was created in (``shared/sdf_run_layouts.py``). Runs made before decision 17 have four
+numbered layers (``layer1`` to ``layer4``: layer 1 holds steps 1 to 7, layer 2 the draft, layer 3 the critique and
+revise, layer 4 the score), and keep their folders, ``--layer`` numbers and cost-log tags when resumed. Runs made in
+the five-layer layout before the variables matrix, or before the layer renumbering, can be read (report, audits,
+viewer) but not resumed: --resume refuses them.
 """
 
 import argparse
@@ -39,36 +49,40 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from shared import api, costs, utils
 from shared.api_keys import add_api_key_source_flags, apply_api_key_source_flags
-from sdf_pipeline.dealt_value_identifiers import RECORDS_VALUE_IDS_MANIFEST_KEY
-from sdf_pipeline.document_state import RunLayout
-from sdf_pipeline.document_state_loader import UnknownRunLayoutError, detect_run_layout
-from sdf_pipeline import (
-    layer1_description_rewrite,
-    layer1_plan,
-    layer1_screen,
-    layer1_select_considerations,
-    layer2_draft,
-    layer3_rewrite,
-    layer4_score,
-    pipeline_steps,
-    seeding,
-)
+from sdf_pipeline.shared_step_machinery.dealt_value_identifiers import RECORDS_VALUE_IDS_MANIFEST_KEY
+from sdf_pipeline.shared_step_machinery.document_state import RunLayout
+from sdf_pipeline.shared_step_machinery.document_state_loader import UnknownRunLayoutError, detect_run_layout
+from shared import sdf_run_layouts
+from sdf_pipeline.layer1_deal_and_screen import run_layer as deal_and_screen_layer
+from sdf_pipeline.layer3_consideration_scoring_and_selection import run_layer as consideration_scoring_and_selection_layer
+from sdf_pipeline.layer4_draft_critique_and_revise import run_layer as draft_critique_and_revise_layer
+from sdf_pipeline.layer5_score_and_final_selection import run_layer as score_and_final_selection_layer
+from sdf_pipeline import pipeline_steps
+from sdf_pipeline import start_a_run_from_an_earlier_runs_step as seeding
+from sdf_pipeline.layer2_plan_and_description_rewrite import description_rewrite, plan
+from sdf_pipeline.layer4_draft_critique_and_revise import draft
 
 
-def refuse_to_resume_run_in_older_layout(run_dir: Path) -> None:
-    """Exit before any folder is created or call made when ``run_dir`` is not in the current layout.
+def refuse_to_resume_run_in_older_layout(run_dir: Path) -> sdf_run_layouts.SdfRunLayout:
+    """Exit before any folder is created or call made when ``run_dir`` is not in a layout that is still written;
+    otherwise the run's layout.
 
-    Older layouts can be read but not resumed: a resume would create a second set of ``layer1`` to
-    ``layer4`` folders beside the run's own, and the layer numbers name different stages.
+    The five named layers and the four numbered layers are resumed in their own layout. Older layouts can be read
+    but not resumed: a resume would create a second set of folders beside the run's own, and the layer numbers
+    name different stages.
     """
     try:
         layout = detect_run_layout(run_dir)
     except UnknownRunLayoutError as error:
         raise SystemExit(f"Cannot resume {run_dir.name}: {error}")
-    if layout is not RunLayout.CURRENT:
-        raise SystemExit(
-            f"Cannot resume {run_dir.name}: it is in the {layout.name} layout. Runs in that layout can be read "
-            "(report, audits, viewer) but not resumed; only runs in the current layout (layer1 to layer4) can be.")
+    if layout is RunLayout.FIVE_NAMED_LAYERS:
+        return sdf_run_layouts.FIVE_NAMED_LAYERS
+    if layout is RunLayout.FOUR_NUMBERED_LAYERS:
+        return sdf_run_layouts.FOUR_NUMBERED_LAYERS
+    raise SystemExit(
+        f"Cannot resume {run_dir.name}: it is in the {layout.name} layout. Runs in that layout can be read "
+        "(report, audits, viewer) but not resumed; only runs in the five-layer layout (layer1_deal_and_screen to "
+        "layer5_score_and_final_selection) or the four-layer layout (layer1 to layer4) can be.")
 
 
 def main() -> None:
@@ -76,7 +90,10 @@ def main() -> None:
     parser.add_argument("--config", default="config.yaml")
     parser.add_argument("--resume", action="store_true", help="Resume from checkpoints.")
     parser.add_argument("--layer", type=int, default=None,
-                        help="Start from this layer (1-4: plan, draft, rewrite, score). Default 1.")
+                        help="Start from this layer. A run in the five-layer layout (every new run) has layers 1-5: deal and "
+                             "screen, plan and description rewrite, consideration scoring and selection, draft/critique/"
+                             "revise, score and final selection. A run made in the four-layer layout keeps its 1-4: "
+                             "everything up to the considerations, draft, critique and revise, score. Default 1.")
     parser.add_argument("--label", default="dev", help="Run label, e.g. dev or full-scale.")
     parser.add_argument("--run-id", default=None, help="Run to resume (with --resume; defaults to latest).")
     parser.add_argument("--seed-from", default=None, metavar="RUN",
@@ -107,15 +124,22 @@ def main() -> None:
     if args.layer is None:
         args.layer = 1
 
-    if args.layer not in pipeline_steps.LAYER_NUMBERS:
-        parser.error(f"--layer must be {pipeline_steps.LAYER_NUMBERS[0]}-{pipeline_steps.LAYER_NUMBERS[-1]}, got {args.layer}.")
-
     config = utils.load_config(args.config)
 
     root = Path(__file__).parent.parent
     # PIPELINE_OUTPUT_ROOT redirects all run output (used by the test suite)
     outputs_root = Path(os.environ.get("PIPELINE_OUTPUT_ROOT", root / "outputs"))
     runs_root = outputs_root / "sdf" / "runs"
+
+    # The layout is decided once, when the run is created, and kept: a new or seeded run is in the five-layer
+    # layout; a resumed run keeps the one it was made in.
+    layout = sdf_run_layouts.FIVE_NAMED_LAYERS
+    run_dir = None
+    if args.resume and not seeding_requested:
+        run_dir = utils.resolve_run_dir(runs_root, args.run_id)
+        layout = refuse_to_resume_run_in_older_layout(run_dir)
+    if not seeding_requested and args.layer not in layout.layer_numbers:
+        parser.error(f"--layer must be {layout.layer_numbers[0]}-{layout.layer_numbers[-1]}, got {args.layer}.")
 
     start_layer = args.layer
     if seeding_requested:
@@ -135,8 +159,6 @@ def main() -> None:
         print(f"Seeded {run_dir.name} from {args.seed_from} at step {args.from_step} "
               f"with {len(seeded_run.document_ids)} document(s); starting at layer {start_layer}")
     elif args.resume:
-        run_dir = utils.resolve_run_dir(runs_root, args.run_id)
-        refuse_to_resume_run_in_older_layout(run_dir)
         utils.warn_if_backend_changed(run_dir, config)
     else:
         run_dir = utils.create_run_dir(
@@ -149,9 +171,32 @@ def main() -> None:
             },
             # Decided once, here: this run writes dealt value ids into its stage files. A run created
             # before this key existed lacks it and is resumed without ever gaining the field.
-            extra_manifest_fields={RECORDS_VALUE_IDS_MANIFEST_KEY: True},
+            # The layout is decided here too, and recorded, so a run keeps its folders and tags.
+            extra_manifest_fields={RECORDS_VALUE_IDS_MANIFEST_KEY: True,
+                                   sdf_run_layouts.LAYOUT_RECORDED_IN_MANIFEST_KEY: layout.name},
         )
 
+    with sdf_run_layouts.using_layout(layout):
+        run_in_layout(args, config, layout, run_dir, start_layer)
+
+
+def documents_read_when_restarting_at(folder_key: str, layout, reading, config: dict, prompts_dir: Path, folders: dict):
+    """The documents the runner of ``folder_key`` is given when the run starts there: what the stage files hold from the
+    step before. The plan step is given the hands the screen accepted (None when the screen is off)."""
+    if folder_key == sdf_run_layouts.PLAN_AND_DESCRIPTION_REWRITE:
+        if deal_and_screen_layer.reason_screen_is_inactive(config, prompts_dir):
+            return None
+        accepted_path = folders[sdf_run_layouts.DEAL_AND_SCREEN] / deal_and_screen_layer.SCREENED_HANDS_FILENAME
+        if not accepted_path.is_file():
+            raise SystemExit(f"Cannot start at layer {layout.layer_number_of_key[folder_key]}: the screen has not finished, so "
+                             f"{accepted_path} does not exist. Run layer {layout.layer_number_of_key[sdf_run_layouts.DEAL_AND_SCREEN]} first.")
+        return utils.load_jsonl(accepted_path)
+    entry = next(entry for entry in pipeline_steps.PIPELINE_STEPS if entry.folder_key == folder_key and entry.load_documents)
+    return entry.load_documents(reading)
+
+
+def run_in_layout(args, config: dict, layout: sdf_run_layouts.SdfRunLayout, run_dir: Path, start_layer: int) -> None:
+    """Run the layers of ``layout`` from ``start_layer`` on ``run_dir`` (the tags and folders of ``layout`` are active)."""
     # Read templates from the run's frozen snapshot so prompts stay reproducible
     # (and --resume replays the run's own templates, not the repo's current ones).
     prompts_dir = run_dir / "inputs" / "prompts"
@@ -163,62 +208,87 @@ def main() -> None:
     # mark here so the closing report is what THIS invocation spent.
     cost_start = costs.mark(run_dir / "cost_log.jsonl")
 
-    plan_dir = utils.sdf_stage_dir(run_dir, 1)
-    layer_dirs = {n: utils.sdf_stage_dir(run_dir, n) for n in (2, 3, 4)}
+    folders = {key: layout.folder_of(run_dir, key) for key in sdf_run_layouts.FOLDER_KEYS}
     final_dir = run_dir / "final"
-    for d in [plan_dir, *layer_dirs.values(), final_dir]:
-        utils.ensure_dir(d)
+    for folder in [*folders.values(), final_dir]:
+        utils.ensure_dir(folder)
 
     print(f"=== SDF Matrix Pipeline — run {run_dir.name} ===")
     print(f"Outputs: {run_dir}")
 
-    reading = pipeline_steps.RunReading(
-        config, prompts_dir, {1: plan_dir, **layer_dirs})
+    reading = pipeline_steps.RunReading(config, prompts_dir, folders)
 
-    def refuse_when_snapshot_lacks_templates(layer: int) -> None:
-        for step_name, missing in pipeline_steps.prompt_files_missing_from_snapshot(layer, config, prompts_dir):
+    def refuse_when_snapshot_lacks_templates(folder_key: str) -> None:
+        for step_name, missing in pipeline_steps.prompt_files_missing_from_snapshot(folder_key, config, prompts_dir):
             raise SystemExit(f"Run {run_dir.name}'s frozen prompt snapshot lacks {', '.join(missing)}, which step "
                              f"{step_name} needs. Stopping before any call.")
 
-    def run_layer_one(unused_documents):
-        layer1_description_rewrite.require_openai_key_if_configured(config)
-        refuse_when_snapshot_lacks_templates(1)
-        print("[Layer 1] Deal hands and screen them for extreme implausibility (with redeals)")
-        hands = layer1_screen.run(config, prompts_dir, plan_dir)
-        print("[Layer 1] Compose prompts + plan documents")
-        plans = layer1_plan.run(config, prompts_dir, plan_dir, hands)
-        print("[Layer 1] Rewrite descriptions for plausibility and conformance")
-        plans = layer1_description_rewrite.run(config, prompts_dir, plan_dir, plans)
-        print("[Layer 1] Select considerations for each surviving specification")
-        return layer1_select_considerations.run(config, prompts_dir, plan_dir, plans)
+    def layer_label(folder_key: str) -> str:
+        return f"[Layer {layout.layer_number_of_key[folder_key]}]"
 
-    def run_layer_two(plans):
-        refuse_when_snapshot_lacks_templates(2)
-        print("[Layer 2] Draft documents")
-        return layer2_draft.run(config, prompts_dir, layer_dirs[2], plans)
+    def deal_and_screen(unused_documents):
+        print(f"{layer_label(sdf_run_layouts.DEAL_AND_SCREEN)} Deal hands and screen them for extreme implausibility (with redeals)")
+        return deal_and_screen_layer.run(config, prompts_dir, folders[sdf_run_layouts.DEAL_AND_SCREEN])
 
-    def run_layer_three(drafts):
-        refuse_when_snapshot_lacks_templates(3)
-        print("[Layer 3] Review and rewrite")
-        return layer3_rewrite.run(config, prompts_dir, layer_dirs[3], drafts)
+    def plan_and_rewrite_descriptions(hands):
+        label = layer_label(sdf_run_layouts.PLAN_AND_DESCRIPTION_REWRITE)
+        directory = folders[sdf_run_layouts.PLAN_AND_DESCRIPTION_REWRITE]
+        print(f"{label} Compose prompts + plan documents")
+        plans = plan.run(config, prompts_dir, directory, hands)
+        print(f"{label} Rewrite descriptions for plausibility and conformance")
+        return description_rewrite.run(config, prompts_dir, directory, plans)
 
-    def run_layer_four(rewrites):
-        refuse_when_snapshot_lacks_templates(4)
-        print("[Layer 4] Score and gate")
-        final = layer4_score.run(config, prompts_dir, layer_dirs[4], final_dir, rewrites)
+    def select_considerations(plans):
+        print(f"{layer_label(sdf_run_layouts.CONSIDERATION_SCORING_AND_SELECTION)} Select considerations for each surviving specification")
+        return consideration_scoring_and_selection_layer.run(
+            config, prompts_dir, folders[sdf_run_layouts.CONSIDERATION_SCORING_AND_SELECTION], plans)
+
+    def draft_documents(plans):
+        print(f"{layer_label(sdf_run_layouts.DRAFT)} Draft documents")
+        return draft.run(config, prompts_dir, folders[sdf_run_layouts.DRAFT], plans, layout.draft_checkpoint_file_name)
+
+    def critique_and_revise(drafts):
+        print(f"{layer_label(sdf_run_layouts.CRITIQUE_AND_REVISE)} Review and rewrite")
+        return draft_critique_and_revise_layer.run_critique_and_revise(
+            config, prompts_dir, folders[sdf_run_layouts.CRITIQUE_AND_REVISE], drafts)
+
+    def score_and_select(rewrites):
+        print(f"{layer_label(sdf_run_layouts.SCORE)} Score and gate")
+        final = score_and_final_selection_layer.run(config, prompts_dir, folders[sdf_run_layouts.SCORE], final_dir, rewrites)
         print(f"  Running cost: ${api.get_total_cost():.4f}\n")
         print(f"=== Done. {len(final)} documents in {final_dir / 'sdf_corpus.jsonl'} ===")
         return final
 
-    layer_runners = {1: run_layer_one, 2: run_layer_two, 3: run_layer_three, 4: run_layer_four}
-    documents_from_the_layer_before = None
-    for layer in pipeline_steps.LAYER_NUMBERS:
-        if start_layer > layer:
-            continue
-        if documents_from_the_layer_before is None and layer > 1:   # restarting here: read the stage files
-            documents_from_the_layer_before = pipeline_steps.documents_read_when_restarting_at_layer(layer, reading)
-        documents_from_the_layer_before = layer_runners[layer](documents_from_the_layer_before)
-        if layer < 4:
+    # In pipeline order. Each runner takes what the one before returned and returns what the next takes.
+    runners = {
+        sdf_run_layouts.DEAL_AND_SCREEN: deal_and_screen,
+        sdf_run_layouts.PLAN_AND_DESCRIPTION_REWRITE: plan_and_rewrite_descriptions,
+        sdf_run_layouts.CONSIDERATION_SCORING_AND_SELECTION: select_considerations,
+        sdf_run_layouts.DRAFT: draft_documents,
+        sdf_run_layouts.CRITIQUE_AND_REVISE: critique_and_revise,
+        sdf_run_layouts.SCORE: score_and_select,
+    }
+    four_layer_number_of_key = sdf_run_layouts.FOUR_NUMBERED_LAYERS.layer_number_of_key
+    keys_to_run = [key for key in runners if layout.layer_number_of_key[key] >= start_layer]
+    openai_check_layer = layout.layer_number_of_key[sdf_run_layouts.PLAN_AND_DESCRIPTION_REWRITE]
+    if start_layer <= openai_check_layer:   # before the first paid call of the run, as the four-layer run did at its layer 1
+        description_rewrite.require_openai_key_if_configured(config)
+
+    layers_with_a_run = sorted({layout.layer_number_of_key[key] for key in keys_to_run})
+    last_key_of_layer = {layout.layer_number_of_key[key]: key for key in keys_to_run}
+    documents_from_the_step_before = None
+    templates_checked_for_group = set()
+    for key in keys_to_run:
+        layer = layout.layer_number_of_key[key]
+        group = four_layer_number_of_key[key]   # templates are checked a group at a time, before its first call
+        if group not in templates_checked_for_group:
+            templates_checked_for_group.add(group)
+            for key_in_group in (k for k in keys_to_run if four_layer_number_of_key[k] == group):
+                refuse_when_snapshot_lacks_templates(key_in_group)
+        if documents_from_the_step_before is None and key != sdf_run_layouts.DEAL_AND_SCREEN:   # restarting here: read the stage files
+            documents_from_the_step_before = documents_read_when_restarting_at(key, layout, reading, config, prompts_dir, folders)
+        documents_from_the_step_before = runners[key](documents_from_the_step_before)
+        if layer != layers_with_a_run[-1] and last_key_of_layer[layer] == key:
             print(f"  Running cost: ${api.get_total_cost():.4f}\n")
 
     costs.report(run_dir / "cost_log.jsonl", title="Run cost (this invocation)",

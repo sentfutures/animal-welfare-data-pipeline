@@ -11,11 +11,11 @@ import random
 
 import pytest
 
-from sdf_pipeline import compose_prompts as cp
-from sdf_pipeline import layer1_screen as screen
-from sdf_pipeline.layer1_screen import DealStep, RedealStep, ScreenBatch, ScreenStep
-from sdf_pipeline.step_runner import BatchStepRunner
-from sdf_pipeline.update_steps import Accepted, Created, Failed, FailureKind, ModelReply, ModelRequest, Removed
+from sdf_pipeline.shared_step_machinery import compose_prompts as cp
+from sdf_pipeline.layer1_deal_and_screen import run_layer as screen
+from sdf_pipeline.layer1_deal_and_screen.run_layer import DealStep, RedealStep, ScreenBatch, ScreenStep
+from sdf_pipeline.shared_step_machinery.step_runner import BatchStepRunner
+from sdf_pipeline.shared_step_machinery.update_steps import Accepted, Created, Failed, FailureKind, ModelReply, ModelRequest, Removed
 from shared import utils
 from sdf_screen_test_builders import (
     no_removals, numbers_in, remove_first_hand_of_round_zero_batches, remove_the_first_hand_of_every_batch,

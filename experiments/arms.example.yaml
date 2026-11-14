@@ -76,5 +76,5 @@ arms:
 
   # Per-arm model overrides are also honoured, for when an arm needs a stronger
   # critic than the rest of the sweep:
-  #   rewrite_model: claude-opus-4-8
-  #   critique_model: claude-opus-4-8   # falls back to rewrite_model
+  #   revise_model: claude-opus-4-8   # (old name rewrite_model also accepted)
+  #   critique_model: claude-opus-4-8   # falls back to revise_model

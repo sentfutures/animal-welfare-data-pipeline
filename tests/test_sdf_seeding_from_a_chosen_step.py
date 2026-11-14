@@ -21,23 +21,23 @@ import pytest
 import yaml
 
 import sdf_pipeline.run as sdf_run
-from sdf_pipeline import seeding
-from shared import utils
+from sdf_pipeline import start_a_run_from_an_earlier_runs_step as seeding
+from shared import sdf_run_layouts, utils
 from sdf_step_and_command_line_test_helpers import run_main as run_pipeline_main
 
 REQUEST_FIELDS = ("system_prompt", "user_message", "model", "max_tokens", "stage", "item_id", "cache_system",
                   "temperature", "json_schema", "injection")
 DOCUMENT_COUNT = 3
 STAGES_FROM_STEP = {
-    "plan": ["layer1_plan", "layer1_description_rewrite", "layer1_select", "layer2_draft", "layer3_critique",
-             "layer3_revise", "layer4_score"],
-    "description_rewrite": ["layer1_description_rewrite", "layer1_select", "layer2_draft", "layer3_critique",
-                            "layer3_revise", "layer4_score"],
-    "consideration_scoring": ["layer1_select", "layer2_draft", "layer3_critique", "layer3_revise", "layer4_score"],
-    "draft": ["layer2_draft", "layer3_critique", "layer3_revise", "layer4_score"],
-    "critique": ["layer3_critique", "layer3_revise", "layer4_score"],
-    "revise": ["layer3_revise", "layer4_score"],
-    "score": ["layer4_score"],
+    "plan": ["layer2_plan", "layer2_description_rewrite", "layer3_consideration_scoring", "layer4_draft", "layer4_critique",
+             "layer4_revise", "layer5_score"],
+    "description_rewrite": ["layer2_description_rewrite", "layer3_consideration_scoring", "layer4_draft", "layer4_critique",
+                            "layer4_revise", "layer5_score"],
+    "consideration_scoring": ["layer3_consideration_scoring", "layer4_draft", "layer4_critique", "layer4_revise", "layer5_score"],
+    "draft": ["layer4_draft", "layer4_critique", "layer4_revise", "layer5_score"],
+    "critique": ["layer4_critique", "layer4_revise", "layer5_score"],
+    "revise": ["layer4_revise", "layer5_score"],
+    "score": ["layer5_score"],
 }
 
 
@@ -53,23 +53,23 @@ def _dispatch(user_message, **kw):
     stage = kw["stage"]
     if stage == "layer1_screen":
         return _screen_answer(user_message)
-    if stage == "layer1_description_rewrite":
+    if stage == "layer2_description_rewrite":
         return json.dumps({"reasoning": "Checked it.", "rewrite_needed": False, "rewritten_description": "",
                            "changes": [], "dealt_value_conflict": False, "conflict_reason": ""})
-    if stage == "layer1_select":
+    if stage == "layer3_consideration_scoring":
         return json.dumps({
             name: [{"label": label, "score": 1, "where_it_arises": ""} for label in schema["items"]["properties"]["label"]["enum"]]
             for name, schema in kw["json_schema"]["properties"].items()})
-    if stage == "layer1_plan":
+    if stage == "layer2_plan":
         return (f"<document_planning>notes</document_planning>\n"
                 f"<document_description>Spec for {kw['item_id']}.</document_description>")
-    if stage == "layer2_draft":
+    if stage == "layer4_draft":
         return f"<document>Drafted body for {kw['item_id']}.</document>"
-    if stage == "layer3_critique":
+    if stage == "layer4_critique":
         return f"<review>Problems with {kw['item_id']}.</review>"
-    if stage == "layer3_revise":
+    if stage == "layer4_revise":
         return f"Review notes.\n<improved_document>Rewritten document for {kw['item_id']}.</improved_document>"
-    if stage == "layer4_score":
+    if stage == "layer5_score":
         return json.dumps({"alignment": 9, "realism": 9, "spec_conformance": 9, "notes": ""})
     raise AssertionError(f"Unrecognized stage {stage!r}")
 
@@ -122,7 +122,7 @@ def source_run(config_file, outputs_root, stub_claude, monkeypatch):
 
 
 def document_ids_of(run: Path) -> list:
-    return [r["doc_id"] for r in utils.load_jsonl(run / "layer2" / "drafts.jsonl")]
+    return [r["doc_id"] for r in utils.load_jsonl(run / "layer4_draft_critique_and_revise" / "drafts.jsonl")]
 
 
 def tree_fingerprint(root: Path) -> dict:
@@ -136,13 +136,23 @@ def write_run_the_way_the_layer_3_rerun_setup_script_does(
     holding only the selected documents' draft records."""
     run_dir = utils.create_run_dir(runs_root, label=label, config=config,
                                    snapshot_dirs={"prompts": repository_root / "prompts" / "sdf",
-                                                  "constitution": repository_root / "constitution"})
-    shutil.copytree(utils.sdf_stage_dir(source_run_dir, 1), utils.sdf_stage_dir(run_dir, 1), dirs_exist_ok=True)
-    drafts = [d for d in utils.load_jsonl(utils.sdf_stage_dir(source_run_dir, 2) / "drafts.jsonl")
+                                                  "constitution": repository_root / "constitution"},
+                                   extra_manifest_fields={sdf_run_layouts.LAYOUT_RECORDED_IN_MANIFEST_KEY:
+                                                          sdf_run_layouts.FIVE_NAMED_LAYERS.name})
+    for folder_key in (sdf_run_layouts.DEAL_AND_SCREEN, sdf_run_layouts.PLAN_AND_DESCRIPTION_REWRITE,
+                       sdf_run_layouts.CONSIDERATION_SCORING_AND_SELECTION):   # what the old layer 1 folder held
+        shutil.copytree(utils.sdf_stage_folder(source_run_dir, folder_key), utils.sdf_stage_folder(run_dir, folder_key),
+                        dirs_exist_ok=True)
+    # In the five-layer layout the draft shares layer 4 with the critique and revise, so the resumed layer 4 drafts every
+    # plan it is given that has no draft: the plans are cut to the selected documents, as the retired script's
+    # single-folder copy never needed (its resume started at the critique's layer).
+    plans_path = utils.sdf_stage_file(run_dir, "plan")
+    utils.save_jsonl([p for p in utils.load_jsonl(plans_path) if p.get("prompt_id") in set(document_ids)], plans_path)
+    drafts = [d for d in utils.load_jsonl(utils.sdf_stage_file(source_run_dir, "draft"))
               if d.get("doc_id") in set(document_ids)]
-    layer2 = utils.sdf_stage_dir(run_dir, 2)
-    utils.ensure_dir(layer2)
-    with open(layer2 / "drafts.jsonl", "w", encoding="utf-8") as handle:
+    draft_folder = utils.sdf_stage_folder(run_dir, sdf_run_layouts.DRAFT)
+    utils.ensure_dir(draft_folder)
+    with open(draft_folder / "drafts.jsonl", "w", encoding="utf-8") as handle:
         for draft in drafts:
             handle.write(json.dumps(draft, ensure_ascii=False) + "\n")
     return run_dir
@@ -163,7 +173,7 @@ def test_seeding_at_the_critique_step_sends_the_requests_of_the_layer_3_rerun_se
     hand_calls = stub_claude(_dispatch)
     hand_run = write_run_the_way_the_layer_3_rerun_setup_script_does(
         config, source_directory, runs_root, "hand-rerun", selected, REPOSITORY_ROOT)
-    run_main(monkeypatch, config_file, "--resume", "--run-id", hand_run.name, "--layer", "3")
+    run_main(monkeypatch, config_file, "--resume", "--run-id", hand_run.name, "--layer", "4")
 
     known = run_names(outputs_root)
     seeded_calls = stub_claude(_dispatch)
@@ -171,10 +181,10 @@ def test_seeding_at_the_critique_step_sends_the_requests_of_the_layer_3_rerun_se
              "--document-ids", ",".join(selected), "--use-current-prompts", "--label", "seeded-rerun")
     seeded_run = only_run_directory_not_in(outputs_root, known)
 
-    assert {c["stage"] for c in hand_calls} == {"layer3_critique", "layer3_revise", "layer4_score"}
+    assert {c["stage"] for c in hand_calls} == {"layer4_critique", "layer4_revise", "layer5_score"}
     assert len(hand_calls) == 3 * len(selected)
     assert comparable(seeded_calls) == comparable(hand_calls)
-    for name in ("layer3/critiques.jsonl", "layer3/rewrites.jsonl", "layer4/scores.jsonl", "final/sdf_corpus.jsonl"):
+    for name in ("layer4_draft_critique_and_revise/critiques.jsonl", "layer4_draft_critique_and_revise/rewrites.jsonl", "layer5_score_and_final_selection/scores.jsonl", "final/sdf_corpus.jsonl"):
         assert utils.load_jsonl(seeded_run / name) == utils.load_jsonl(hand_run / name), name
 
 
@@ -187,14 +197,14 @@ def test_seeding_at_the_revise_step_sends_the_revise_requests_of_the_rerun_when_
     hand_calls = stub_claude(_dispatch)
     hand_run = write_run_the_way_the_layer_3_rerun_setup_script_does(
         config, source_directory, outputs_root / "sdf" / "runs", "hand-rerun", selected, REPOSITORY_ROOT)
-    run_main(monkeypatch, config_file, "--resume", "--run-id", hand_run.name, "--layer", "3")
+    run_main(monkeypatch, config_file, "--resume", "--run-id", hand_run.name, "--layer", "4")
 
     seeded_calls = stub_claude(_dispatch)
     run_main(monkeypatch, config_file, "--seed-from", str(source_directory), "--from-step", "revise",
              "--document-ids", ",".join(selected), "--use-current-prompts")
     # the source's critiques are the canned critique text, so each revise request is the rerun's
-    assert {c["stage"] for c in seeded_calls} == {"layer3_revise", "layer4_score"}
-    assert comparable(seeded_calls) == comparable([c for c in hand_calls if c["stage"] != "layer3_critique"])
+    assert {c["stage"] for c in seeded_calls} == {"layer4_revise", "layer5_score"}
+    assert comparable(seeded_calls) == comparable([c for c in hand_calls if c["stage"] != "layer4_critique"])
 
 
 # ------------------------------------------------------------------ every step sends the source run's requests
@@ -223,7 +233,7 @@ def test_seeding_at_each_step_sends_the_requests_the_source_run_sent_for_those_d
 
 
 def _dispatch_that_scores_the_first_consideration_of_each_list_highly(user_message, **kw):
-    if kw["stage"] == "layer1_select":
+    if kw["stage"] == "layer3_consideration_scoring":
         return json.dumps({
             name: [{"label": label, "score": 5 if index == 0 else 1, "where_it_arises": "it arises in the scenario" if index == 0 else ""}
                    for index, label in enumerate(schema["items"]["properties"]["label"]["enum"])]
@@ -237,7 +247,7 @@ def test_seeding_keeps_the_considerations_a_document_was_assigned(
     source_calls = stub_claude(_dispatch_that_scores_the_first_consideration_of_each_list_highly)
     run_main(monkeypatch, config_file, "--label", "source")
     source_directory = only_run_directory_not_in(outputs_root, set())
-    assigned = [r for r in utils.load_jsonl(source_directory / "layer2" / "drafts.jsonl") if r["considerations_spec"]]
+    assigned = [r for r in utils.load_jsonl(source_directory / "layer4_draft_critique_and_revise" / "drafts.jsonl") if r["considerations_spec"]]
     assert assigned, "the fixture must assign at least one consideration for this test to mean anything"
     selected = [assigned[0]["doc_id"]]
     known = run_names(outputs_root)
@@ -251,7 +261,7 @@ def test_seeding_keeps_the_considerations_a_document_was_assigned(
     expected = [c for c in source_calls if c["stage"] in stages and c["item_id"] == selected[0]]
     if from_step != "consideration_scoring":
         assert comparable(seeded_calls) == comparable(expected)
-    assert utils.load_jsonl(seeded_run / "layer2" / "drafts.jsonl")[0]["considerations_spec"] == assigned[0]["considerations_spec"]
+    assert utils.load_jsonl(seeded_run / "layer4_draft_critique_and_revise" / "drafts.jsonl")[0]["considerations_spec"] == assigned[0]["considerations_spec"]
 
 
 def test_a_seeded_run_is_a_fresh_run_that_records_where_it_came_from(
@@ -271,14 +281,14 @@ def test_a_seeded_run_is_a_fresh_run_that_records_where_it_came_from(
     assert seeded_from["source_run_id"] == source_directory.name
     assert seeded_from["from_step"] == "draft"
     assert seeded_from["document_ids"] == selected
-    assert seeded_from["start_layer"] == 2
-    assert seeded_from["copied_record_counts"]["layer1/plans.jsonl"] == 1
+    assert seeded_from["start_layer"] == 4
+    assert seeded_from["copied_record_counts"]["layer2_plan_and_description_rewrite/plans.jsonl"] == 1
     # the frozen snapshot is the source run's own
     assert tree_fingerprint(seeded_run / "inputs") == tree_fingerprint(source_directory / "inputs")
     assert (outputs_root / "sdf" / "latest").resolve() == seeded_run.resolve()
     # only the selected document's records were copied from the steps before the draft
-    assert [r["prompt_id"] for r in utils.load_jsonl(seeded_run / "layer1" / "plans.jsonl")] == selected
-    assert [r["doc_id"] for r in utils.load_jsonl(seeded_run / "layer2" / "drafts.jsonl")] == selected
+    assert [r["prompt_id"] for r in utils.load_jsonl(seeded_run / "layer2_plan_and_description_rewrite" / "plans.jsonl")] == selected
+    assert [r["doc_id"] for r in utils.load_jsonl(seeded_run / "layer4_draft_critique_and_revise" / "drafts.jsonl")] == selected
 
 
 def test_seeding_without_document_ids_takes_every_document_the_step_can_read(
@@ -310,14 +320,14 @@ def test_a_revision_override_is_written_into_the_seeded_drafts_and_reaches_the_r
              "--document-ids", f"{first},{second}", "--label", "overridden", "--revision-override-file", str(override_file))
     overridden_run = max((d for d in (outputs_root / "sdf" / "runs").iterdir() if d.name not in known), key=lambda d: d.stat().st_mtime_ns)
 
-    revise = lambda calls, document: next(c for c in calls if c["stage"] == "layer3_revise" and c["item_id"] == document)  # noqa: E731
+    revise = lambda calls, document: next(c for c in calls if c["stage"] == "layer4_revise" and c["item_id"] == document)  # noqa: E731
     assert "more hesitant and tentative than a typical" in revise(overridden_calls, first)["user_message"]
     assert "hesitant and tentative" not in revise(plain_calls, first)["user_message"]
     assert revise(overridden_calls, second) == revise(plain_calls, second)  # a document without an entry is untouched
-    drafts = {r["doc_id"]: r for r in utils.load_jsonl(overridden_run / "layer2" / "drafts.jsonl")}
+    drafts = {r["doc_id"]: r for r in utils.load_jsonl(overridden_run / "layer4_draft_critique_and_revise" / "drafts.jsonl")}
     assert drafts[first]["revision"] == {"cards": {"voice": "hesitant and tentative"}}
     assert "revision" not in drafts[second]
-    rewrites = {r["doc_id"]: r for r in utils.load_jsonl(overridden_run / "layer3" / "rewrites.jsonl")}
+    rewrites = {r["doc_id"]: r for r in utils.load_jsonl(overridden_run / "layer4_draft_critique_and_revise" / "rewrites.jsonl")}
     assert rewrites[first]["revision"] == {"cards": {"voice": "hesitant and tentative"}}
     manifest = json.loads((overridden_run / "run_manifest.json").read_text())
     assert manifest["seeded_from"]["revision_override_document_ids"] == [first]
@@ -331,7 +341,7 @@ def test_a_revision_override_for_every_document_uses_the_star_entry(
     calls = stub_claude(_dispatch)
     run_main(monkeypatch, config_file, "--seed-from", source_directory.name, "--from-step", "critique",
              "--revision-override-file", str(override_file))
-    revises = [c for c in calls if c["stage"] == "layer3_revise"]
+    revises = [c for c in calls if c["stage"] == "layer4_revise"]
     assert len(revises) == DOCUMENT_COUNT
     assert all("more terse than a typical" in c["user_message"] for c in revises)
 
@@ -358,7 +368,7 @@ def test_an_unknown_step_is_refused_with_the_seedable_steps(source_run, config_f
         assert step in message
 
 
-@pytest.mark.parametrize("step", ["screen", "deal", "redeal", "consideration_assignment", "gate", "near_duplicate_cull"])
+@pytest.mark.parametrize("step", ["screen", "deal", "redeal", "consideration_selection", "score_gate", "near_duplicate_removal"])
 def test_a_step_that_cannot_be_seeded_is_refused_with_its_reason(
         step, source_run, config_file, outputs_root, stub_claude, monkeypatch):
     source_directory, _ = source_run
@@ -394,8 +404,8 @@ def test_a_source_without_the_records_the_step_needs_is_refused_naming_each_docu
     damaged = damaged_copy_of(source_directory, tmp_path)
     ids = document_ids_of(source_directory)
     # a critique and a draft are missing for one document each
-    critiques = [r for r in utils.load_jsonl(damaged / "layer3" / "critiques.jsonl") if r["doc_id"] != ids[0]]
-    utils.save_jsonl(critiques, damaged / "layer3" / "critiques.jsonl")
+    critiques = [r for r in utils.load_jsonl(damaged / "layer4_draft_critique_and_revise" / "critiques.jsonl") if r["doc_id"] != ids[0]]
+    utils.save_jsonl(critiques, damaged / "layer4_draft_critique_and_revise" / "critiques.jsonl")
     message, _ = refusal(monkeypatch, config_file, outputs_root, stub_claude, "--seed-from", str(damaged),
                          "--from-step", "revise", "--document-ids", ",".join(ids[:2]))
     assert source_directory.name in message and "revise" in message
@@ -408,12 +418,12 @@ def test_a_source_that_dropped_the_document_at_the_plan_is_refused(
     source_directory, _ = source_run
     damaged = damaged_copy_of(source_directory, tmp_path)
     ids = document_ids_of(source_directory)
-    plans = utils.load_jsonl(damaged / "layer1" / "plans.jsonl")
+    plans = utils.load_jsonl(damaged / "layer2_plan_and_description_rewrite" / "plans.jsonl")
     for plan in plans:
         if plan["prompt_id"] == ids[0]:
             plan["description"] = ""
             plan["incoherent"] = True
-    utils.save_jsonl(plans, damaged / "layer1" / "plans.jsonl")
+    utils.save_jsonl(plans, damaged / "layer2_plan_and_description_rewrite" / "plans.jsonl")
     message, _ = refusal(monkeypatch, config_file, outputs_root, stub_claude, "--seed-from", str(damaged),
                          "--from-step", "draft", "--document-ids", ids[0])
     assert "declared incoherent" in message
@@ -486,9 +496,12 @@ def test_seeding_flags_that_do_not_belong_together_are_refused(arguments, config
 def test_a_run_in_the_pre_renumber_layout_cannot_be_seeded_from(source_run, config_file, outputs_root, stub_claude, monkeypatch, tmp_path):
     source_directory, _ = source_run
     damaged = damaged_copy_of(source_directory, tmp_path)
-    (damaged / "layer1").rename(damaged / "layer12")
+    for folder in damaged.glob("layer*"):
+        shutil.rmtree(folder)
+    for old_folder in ("layer12", "layer3", "layer4", "layer5"):
+        (damaged / old_folder).mkdir()
     message, _ = refusal(monkeypatch, config_file, outputs_root, stub_claude, "--seed-from", str(damaged), "--from-step", "score")
-    assert "current layout" in message
+    assert "five-layer layout" in message and "four-layer layout" in message
 
 
 # ------------------------------------------------------------------ --layer, --resume and --run-id are unchanged
@@ -496,13 +509,13 @@ def test_a_run_in_the_pre_renumber_layout_cannot_be_seeded_from(source_run, conf
 def test_resume_at_a_layer_still_reruns_only_that_layer_and_after_in_the_same_run(
         source_run, config_file, outputs_root, stub_claude, monkeypatch):
     source_directory, _ = source_run
-    (source_directory / "layer4" / "scores.jsonl").unlink()
-    (source_directory / "layer4" / "_checkpoint.json").unlink(missing_ok=True)
+    (source_directory / "layer5_score_and_final_selection" / "scores.jsonl").unlink()
+    (source_directory / "layer5_score_and_final_selection" / "_checkpoint.json").unlink(missing_ok=True)
     known = run_names(outputs_root)
     calls = stub_claude(_dispatch)
-    run_main(monkeypatch, config_file, "--resume", "--run-id", source_directory.name, "--layer", "4")
+    run_main(monkeypatch, config_file, "--resume", "--run-id", source_directory.name, "--layer", "5")
     assert run_names(outputs_root) == known  # the same run, no new one
-    assert [c["stage"] for c in calls] == ["layer4_score"] * DOCUMENT_COUNT
+    assert [c["stage"] for c in calls] == ["layer5_score"] * DOCUMENT_COUNT
     manifest = json.loads((source_directory / "run_manifest.json").read_text())
     assert "seeded_from" not in manifest
 
@@ -515,10 +528,10 @@ def test_a_resume_with_no_layer_starts_at_layer_one_and_makes_no_call_for_finish
     assert calls == []
 
 
-def test_a_layer_outside_one_to_four_is_still_rejected(config_file, outputs_root, stub_claude, monkeypatch):
+def test_a_layer_outside_one_to_five_is_still_rejected(config_file, outputs_root, stub_claude, monkeypatch):
     stub_claude(_dispatch)
     with pytest.raises(SystemExit) as caught:
-        run_main(monkeypatch, config_file, "--layer", "5")
+        run_main(monkeypatch, config_file, "--layer", "6")
     assert caught.value.code == 2
 
 
@@ -605,7 +618,7 @@ def test_seeding_at_consideration_scoring_says_and_records_that_the_assignment_i
     manifest = json.loads((only_run_directory_not_in(outputs_root, known) / "run_manifest.json").read_text())
     seeded_from = manifest["seeded_from"]
     assert seeded_from["consideration_assignment_solved_again_over_document_count"] == expected_count
-    assert seeded_from["consideration_assignment"] == (
+    assert seeded_from["consideration_selection"] == (
         f"solved again over {expected_count} document(s); may differ from the source run's")
 
 
@@ -619,4 +632,54 @@ def test_seeding_at_draft_prints_no_assignment_notice_and_records_no_assignment_
              "--document-ids", document_ids_of(source_directory)[0])
     assert "solved again" not in capsys.readouterr().out
     manifest = json.loads((only_run_directory_not_in(outputs_root, known) / "run_manifest.json").read_text())
-    assert "consideration_assignment" not in manifest["seeded_from"]
+    assert "consideration_selection" not in manifest["seeded_from"]
+
+
+def _rewrite_run_folder_in_the_four_numbered_layers(run: Path) -> None:
+    """Rename a finished five-named-layers run's folders to the four-layer layout's (layer1 holds the deal, plan
+    and consideration files; layer2 the drafts; layer3 the critiques and rewrites; layer4 the scores)."""
+    five = sdf_run_layouts.FIVE_NAMED_LAYERS
+    four = sdf_run_layouts.FOUR_NUMBERED_LAYERS
+    moved_folders = []
+    for folder_key in sdf_run_layouts.FOLDER_KEYS:
+        source_folder = run / five.folder_name_of_key[folder_key]
+        target_folder = run / four.folder_name_of_key[folder_key]
+        if not source_folder.is_dir():
+            continue
+        for path in source_folder.iterdir():
+            if path.name in ("_checkpoint.json", five.draft_checkpoint_file_name) and folder_key not in (
+                    sdf_run_layouts.DRAFT, sdf_run_layouts.CRITIQUE_AND_REVISE, sdf_run_layouts.SCORE):
+                continue
+            destination_folder = target_folder
+            if folder_key in (sdf_run_layouts.DRAFT, sdf_run_layouts.CRITIQUE_AND_REVISE):
+                destination_folder = run / four.folder_name_of_key[
+                    sdf_run_layouts.DRAFT if path.name.startswith("drafts") or path.name == five.draft_checkpoint_file_name
+                    else sdf_run_layouts.CRITIQUE_AND_REVISE]
+            destination_folder.mkdir(exist_ok=True)
+            name = "_checkpoint.json" if path.name == five.draft_checkpoint_file_name else path.name
+            shutil.move(str(path), str(destination_folder / name))
+        moved_folders.append(source_folder)
+    for folder in moved_folders:
+        shutil.rmtree(folder, ignore_errors=True)
+
+
+def test_a_run_in_the_four_numbered_layers_can_be_seeded_from_and_the_new_run_is_in_the_five_named_layers(
+        source_run, config_file, outputs_root, stub_claude, monkeypatch):
+    source_directory, _ = source_run
+    selected = document_ids_of(source_directory)[:1]
+    _rewrite_run_folder_in_the_four_numbered_layers(source_directory)
+    assert sdf_run_layouts.layout_of_run_folder(source_directory) is sdf_run_layouts.FOUR_NUMBERED_LAYERS
+    known = run_names(outputs_root)
+    calls = stub_claude(_dispatch)
+    run_main(monkeypatch, config_file, "--seed-from", source_directory.name, "--from-step", "draft",
+             "--document-ids", selected[0], "--label", "seeded_from_four_layer_source")
+    seeded_run = only_run_directory_not_in(outputs_root, known)
+
+    manifest = json.loads((seeded_run / "run_manifest.json").read_text())
+    assert manifest["seeded_from"]["source_run_layout"] == "FOUR_NUMBERED_LAYERS"
+    assert manifest["seeded_from"]["start_layer"] == 4
+    assert manifest[sdf_run_layouts.LAYOUT_RECORDED_IN_MANIFEST_KEY] == sdf_run_layouts.FIVE_NAMED_LAYERS.name
+    assert sdf_run_layouts.layout_of_run_folder(seeded_run) is sdf_run_layouts.FIVE_NAMED_LAYERS
+    assert not (seeded_run / "layer1").exists()
+    assert [r["doc_id"] for r in utils.load_jsonl(seeded_run / "layer4_draft_critique_and_revise" / "drafts.jsonl")] == selected
+    assert {call["stage"] for call in calls} == set(STAGES_FROM_STEP["draft"])

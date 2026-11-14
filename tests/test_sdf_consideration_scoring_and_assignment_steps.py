@@ -5,10 +5,10 @@ import json
 
 import pytest
 
-from sdf_pipeline import layer1_select_considerations as select
-from sdf_pipeline.considerations_catalog import load_considerations
-from sdf_pipeline.step_runner import run_corpus_step
-from sdf_pipeline.update_steps import Accepted, Failed, FailureKind, ModelReply, StepProgress
+from sdf_pipeline.layer3_consideration_scoring_and_selection import run_layer as select
+from sdf_pipeline.shared_step_machinery.considerations_catalog import load_considerations
+from sdf_pipeline.shared_step_machinery.step_runner import run_corpus_step
+from sdf_pipeline.shared_step_machinery.update_steps import Accepted, Failed, FailureKind, ModelReply, StepProgress
 from shared import utils
 from sdf_consideration_selection_test_builders import (
     answer_with, make_plans, no_stake_resolution, offered_in, rows_of, score_everything_five, small_prompts)  # noqa: F401
@@ -80,7 +80,7 @@ def test_the_failure_record_and_line_for_unusable_and_thrown(scoring_step):
 
 def test_the_request_carries_the_schema_token_limit_and_stage(scoring_step, tiny_config):
     request = scoring_step.build_request(PLAN)
-    assert request.stage == "layer1_select" and request.item_id == PLAN["prompt_id"]
+    assert request.stage == "layer3_consideration_scoring" and request.item_id == PLAN["prompt_id"]
     assert request.json_schema is not None and request.cache_system is False
     entry_count = sum(len(v) for v in offered_in(request.user_message).values())
     assert request.max_tokens == 400 + 120 * entry_count
@@ -240,7 +240,7 @@ def test_the_assignment_step_makes_no_call_and_keeps_what_the_layer_writes(tiny_
         request, reply = reply_for(scoring, plan)
         score_rows.append({"prompt_id": plan["prompt_id"], "scores": scoring.interpret(plan, reply).update["scores"], "attempts": 1})
     calls = stub_claude([])
-    step = select.ConsiderationAssignmentStep(tiny_config, catalog, plans)
+    step = select.ConsiderationSelectionStep(tiny_config, catalog, plans)
     outcomes = run_corpus_step(step, score_rows)
     assert calls == [] and set(outcomes) == {p["prompt_id"] for p in plans}
     assert [row["prompt_id"] for row in step.selection_rows] == sorted(outcomes)

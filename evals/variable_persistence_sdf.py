@@ -60,8 +60,8 @@ from evals.audit_sdf import resolve_input
 from evals.model_judged_audit_support import (
     SMALL_SAMPLE_CHECKS_DIRECTORY_NAME, check_resume_is_compatible, corpus_path_of, run_directory_of,
     sha256_of_file, write_run_configuration)
-from sdf_pipeline import compose_prompts as cp
-from sdf_pipeline import considerations_catalog
+from sdf_pipeline.shared_step_machinery import compose_prompts as cp
+from sdf_pipeline.shared_step_machinery import considerations_catalog
 from shared import api, utils
 from shared.api_keys import add_api_key_source_flags, apply_api_key_source_flags
 

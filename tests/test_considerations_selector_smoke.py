@@ -9,7 +9,7 @@ layer-1 stage and from the final corpus:
 No model is called and nothing leaves tmp_path (PIPELINE_OUTPUT_ROOT redirects
 the run). The assertions are the contracts the paid checks will rely on: the
 picks reach each document's draft prompt and records, targets are never
-exceeded, and a resume at layer 2 hands the drafter the same picks.
+exceeded, and a resume at layer 4 hands the drafter the same picks.
 """
 
 import functools
@@ -21,8 +21,8 @@ import pytest
 import yaml
 
 import sdf_pipeline.run as sdf_run
-from sdf_pipeline import layer1_select_considerations as select
-from sdf_pipeline.considerations_catalog import load_considerations
+from sdf_pipeline.layer3_consideration_scoring_and_selection import run_layer as select
+from sdf_pipeline.shared_step_machinery.considerations_catalog import load_considerations
 from shared import utils
 from sdf_step_and_command_line_test_helpers import run_main as run_pipeline_main
 
@@ -79,21 +79,21 @@ def smoke_dispatch(user_message, **kw):
         return json.dumps({"specifications": [
             {"number": n, "reasoning": "Considered it.", "remove": False, "reason": ""}
             for n in range(1, count + 1)]})
-    if stage == "layer1_description_rewrite":
+    if stage == "layer2_description_rewrite":
         return json.dumps({
             "reasoning": "Checked it.", "rewrite_needed": False, "rewritten_description": "", "changes": [],
             "dealt_value_conflict": False, "conflict_reason": ""})
-    if stage == "layer1_select":
+    if stage == "layer3_consideration_scoring":
         return selector_answer(user_message, kw["item_id"])
-    if stage == "layer2_draft":
+    if stage == "layer4_draft":
         return f"<document>Drafted body for {kw['item_id']}.</document>"
-    if stage == "layer3_critique":
+    if stage == "layer4_critique":
         return f"<review>Problems with {kw['item_id']}.</review>"
-    if stage in ("layer3_rewrite", "layer3_revise"):
+    if stage in ("layer3_rewrite", "layer4_revise"):
         return f"Review.\n<improved_document>Rewritten document for {kw['item_id']}.</improved_document>"
-    if stage == "layer4_score":
+    if stage == "layer5_score":
         return json.dumps({"alignment": 9, "realism": 9, "spec_conformance": 9, "notes": ""})
-    if stage == "layer1_plan":
+    if stage == "layer2_plan":
         return (f"<document_planning>notes</document_planning>\n"
                 f"<document_description>Spec for {kw['item_id']}.</document_description>")
     raise AssertionError(f"Unrecognized stage {stage!r}")
@@ -117,15 +117,15 @@ def test_offline_smoke_screen_plan_description_rewrite_select_draft_rewrite(smok
         for entry in entries:
             assert entry.display.split(": ", 1)[0] in record["considerations_spec"]
         picked_documents += bool(labels)
-        draft_call = next(c for c in calls if c["stage"] == "layer2_draft" and c["item_id"] == record["doc_id"])
+        draft_call = next(c for c in calls if c["stage"] == "layer4_draft" and c["item_id"] == record["doc_id"])
         assert (record["considerations_spec"] in draft_call["user_message"]) if labels else \
             ("considerations" not in draft_call["user_message"])
     assert 0 < picked_documents < N_DOCUMENTS
 
-    report = json.loads((run_dir / "layer1" / select.COVERAGE_FILENAME).read_text())
+    report = json.loads((run_dir / "layer3_consideration_scoring_and_selection" / select.COVERAGE_FILENAME).read_text())
     for entry in report["entries"]:
         assert entry["achieved"] <= entry["target_count"]
-    selector_calls = [c for c in calls if c["stage"] == "layer1_select"]
+    selector_calls = [c for c in calls if c["stage"] == "layer3_consideration_scoring"]
     assert len(selector_calls) == N_DOCUMENTS                      # one scoring call per eligible document
 
     outputs = select.load_considerations_outputs(run_dir)
@@ -140,20 +140,20 @@ def test_offline_smoke_screen_plan_description_rewrite_select_draft_rewrite(smok
     assert corpus_report["eligible_documents"] == N_DOCUMENTS
 
 
-def test_resuming_at_layer_two_hands_the_drafter_the_same_picks(smoke_config_file, outputs_root, stub_claude, monkeypatch):
+def test_resuming_at_layer_four_hands_the_drafter_the_same_picks(smoke_config_file, outputs_root, stub_claude, monkeypatch):
     first_calls = stub_claude(smoke_dispatch)
     run_main(monkeypatch, smoke_config_file)
     run_dir = outputs_root / "sdf" / "latest"
-    first_prompts = {c["item_id"]: c["user_message"] for c in first_calls if c["stage"] == "layer2_draft"}
-    selector_call_count = sum(c["stage"] == "layer1_select" for c in first_calls)
+    first_prompts = {c["item_id"]: c["user_message"] for c in first_calls if c["stage"] == "layer4_draft"}
+    selector_call_count = sum(c["stage"] == "layer3_consideration_scoring" for c in first_calls)
     assert selector_call_count > 0
 
-    # throw the drafts and everything after them away, then resume at layer 2
-    for directory in ("layer2", "layer3", "layer4", "final"):
+    # throw the drafts and everything after them away, then resume at layer 4
+    for directory in ("layer4_draft_critique_and_revise", "layer5_score_and_final_selection", "final"):
         for path in (run_dir / directory).glob("*"):
             path.unlink()
     resumed_calls = stub_claude(smoke_dispatch)
-    run_main(monkeypatch, smoke_config_file, "--resume", "--layer", "2")
-    resumed_prompts = {c["item_id"]: c["user_message"] for c in resumed_calls if c["stage"] == "layer2_draft"}
+    run_main(monkeypatch, smoke_config_file, "--resume", "--layer", "4")
+    resumed_prompts = {c["item_id"]: c["user_message"] for c in resumed_calls if c["stage"] == "layer4_draft"}
     assert resumed_prompts == first_prompts
-    assert not any(c["stage"] in ("layer1_select", "layer1_plan", "layer1_screen", "layer1_description_rewrite") for c in resumed_calls)
+    assert not any(c["stage"] in ("layer3_consideration_scoring", "layer2_plan", "layer1_screen", "layer2_description_rewrite") for c in resumed_calls)
