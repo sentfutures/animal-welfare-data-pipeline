@@ -1,52 +1,7 @@
 #!/usr/bin/env python3
-"""Corpus-level SEMANTIC diversity audit, using OpenAI text embeddings.
-
-evals/audit_sdf.py measures redundancy lexically (word-shingle cosine): it
-catches copied skeletons and phrasing, but not paraphrase — two documents can
-share zero 3-grams and still be the same document semantically. This tool
-embeds the corpus (OpenAI text-embedding-3-small by default) and reads
-diversity in meaning-space:
-
-  Redundancy: each document's nearest-neighbor cosine similarity, the fraction
-  of semantic near-duplicates at 0.80/0.90/0.95, and the most-similar pairs
-  (with snippets) so paraphrase clusters can be inspected directly.
-
-  Diversity: mean pairwise cosine (how tightly the corpus clusters overall)
-  and the Vendi score — the effective number of semantically distinct
-  documents (exp of the entropy of the similarity-matrix spectrum; N for N
-  orthogonal docs, 1 for N identical docs).
-
-  Spread: per-type intra-group cosine and the similarity between type
-  centroids, when records carry a `type_id` (SDF).
-
-SCOPE — this measures MEANING/topic diversity, NOT lexical/structural. "Similar"
-here is embedding cosine, so two prompts that share templated phrasing ("So
-I...", "gut-check", "can you help me") but different topics embed far apart and
-count as fully distinct. For a shared-scenario set (e.g. the same DAD scenarios
-drafted two ways) the Vendi is ~fixed regardless of surface phrasing — it tells
-you about topic coverage (a 1a/scenario property), not about writing
-fingerprints. For lexical/structural diversity use the offline checks in
-evals/audit_dad.py (openers/closers, structural skeletons, and the
-over-represented-n-gram + style-Vendi section), which read surface form.
-
-Absolute numbers depend on the embedding model and on the corpus sharing one
-broad topic BY DESIGN, so the headline use is comparing runs: rerun after a
-pipeline change and diff with --compare. Verdict thresholds are provisional
-and only attached where defensible (the near-duplicate rate).
-
-Works on both corpora: SDF records embed `content`; DAD records embed their
-user+assistant `messages` joined.
-
-Usage:
-  python evals/diversity.py                                   # outputs/sdf/latest
-  python evals/diversity.py --input outputs/dad/latest        # a DAD run dir
-  python evals/diversity.py --input some/corpus.jsonl         # a bare corpus file
-  python evals/diversity.py --compare <previous diversity_report.json>
-
-Embeddings cost ~$0.02 per million tokens and are cached per report dir
-(audit/embeddings_cache.npz, gitignored), so reruns and threshold tweaks are
-free. Writes audit/diversity_report.json next to audit_sdf's report.
-"""
+"""Corpus-level SEMANTIC diversity audit using OpenAI embeddings: nearest-neighbour redundancy, mean pairwise cosine, Vendi score and per-type spread.
+It measures meaning, not wording (lexical checks are ``audit_sdf.py`` and ``audit_dad.py``), and absolute numbers depend on the model, so compare runs with ``--compare``.
+Embeddings are cached per report dir (``audit/embeddings_cache.npz``); it writes ``audit/diversity_report.json``."""
 
 import argparse
 import collections
@@ -77,8 +32,7 @@ def _verdict(value: float, good: float, ok: float, higher_better: bool = False) 
 
 # Display rows are also collected into report["sections"] (same convention as
 # evals/audit_dad.py) so the viewer renders this report without re-deriving
-# any threshold. Unlike audit_dad the prints here predate the collectors, so
-# rows are recorded alongside the existing prints rather than through them.
+# any threshold. Rows are recorded alongside the prints, not through them.
 
 
 def _sec(report: dict, title: str) -> dict:
@@ -105,12 +59,7 @@ def _fmt(label: str, value: str, verdict: str | None = None, note: str = "") -> 
 
 
 def resolve_input(input_arg: str) -> tuple[list[dict], Path, str]:
-    """Return (records, report_dir, corpus_name).
-
-    Accepts a run dir (SDF or DAD — resolved via final/*_corpus.jsonl) or a
-    bare JSONL file. Per-type names for the group breakdown come from each
-    record's own ``type_name`` (the matrix pipeline writes no layer-1 type map).
-    """
+    """``(records, report_dir, corpus_name)`` from a run dir (SDF or DAD) or a bare JSONL file; group names come from each record's ``type_name``."""
     path = Path(input_arg)
     if path.is_dir():
         for name in ("sdf_corpus.jsonl", "dad_corpus.jsonl"):
@@ -140,11 +89,7 @@ def record_id(rec: dict, index: int) -> str:
 
 
 def scope_id(rec: dict, scope: str, fallback: str, prompt_gids: dict) -> str:
-    """The stable id to LABEL a record with in a given scope, so the cloud hover
-    names what the dot actually is: the response gid (R-) for the responses
-    scope, the prompt gid (P-) for the prompts scope, the example gid (E-, the
-    `fallback`) for the combined/document scope. Falls back to `fallback` when
-    the scope's own gid is unavailable (e.g. non-DAD records)."""
+    """The gid to label a record with in a scope (R- for responses, P- for prompts, E- for combined), falling back to ``fallback``."""
     if scope == "responses":
         return rec.get("response_gid") or fallback
     if scope == "prompts":
@@ -153,10 +98,7 @@ def scope_id(rec: dict, scope: str, fallback: str, prompt_gids: dict) -> str:
 
 
 def dad_prompt_gids(run_dir: Path) -> dict:
-    """record_id -> prompt gid (P-), joined final→step3→step1 via each record's
-    prompt key (prompt_gid, legacy prompt_id); {} for non-DAD runs or missing stages. The
-    final corpus carries example_gid/response_gid but not the prompt gid, so the
-    prompts-scope cloud needs this two-hop lookup to label dots P- not E-."""
+    """``{record_id: prompt gid}`` joined final -> step3 -> step1, or {} for non-DAD runs or missing stages."""
     try:
         pid_by_rec = {r["record_id"]: prompt_key(r)
                       for r in utils.load_jsonl(run_dir / "step3" / "rewrites.jsonl")
@@ -199,12 +141,7 @@ def save_cache(path: Path, cache: dict[str, np.ndarray]) -> None:
 def embed_with_cache(
     texts: list[str], model: str, cache_path: Path | None, chunk: int = 256
 ) -> tuple[np.ndarray, dict]:
-    """Embed texts, reusing/extending the npz cache. Returns (matrix, stats).
-
-    The cache is keyed by sha256(model + text), so edited documents re-embed
-    and unchanged ones don't. It is saved after every chunk — like the
-    pipelines' checkpoints, a crash mid-run must not discard paid API calls.
-    """
+    """Embed texts, reusing and extending the npz cache (keyed by sha256 of model + text, saved after every chunk); returns ``(matrix, stats)``."""
     cache = load_cache(cache_path) if cache_path else {}
     keys = [_cache_key(model, t) for t in texts]
     missing = [i for i, k in enumerate(keys) if k not in cache]
@@ -231,13 +168,7 @@ def embed_with_cache(
 
 
 def mean_pairwise_cosine(X: np.ndarray) -> float:
-    """Mean cosine over all distinct pairs, via the centroid identity
-    (sum_ij <xi,xj> = ||sum xi||^2) — O(n·d), no n×n matrix.
-
-    Assumes every row is unit-norm: the diagonal term subtracted is n, which
-    equals sum_i ||xi||^2 only for unit rows. Callers must L2-normalize (and
-    drop any zero rows) before calling — see centroid_mean_cosine.
-    """
+    """Mean cosine over distinct pairs via the centroid identity (O(n*d)); rows must be unit-norm (see ``centroid_mean_cosine``)."""
     n = len(X)
     if n < 2:
         return 0.0
@@ -280,16 +211,7 @@ def vendi_score(X: np.ndarray) -> float:
 
 def vendi_ci(X: np.ndarray, n_boot: int = 200, seed: int = 0,
              alpha: float = 0.05) -> tuple[float, float] | None:
-    """Percentile range of the Vendi score over bootstrap resamples.
-
-    NOT a confidence interval around the point estimate, and it does not
-    contain it: resampling n documents with replacement duplicates about a
-    third of them, and duplicates are maximally similar, so every resample
-    scores BELOW the corpus it came from. What survives is the WIDTH — how
-    much this corpus's score moves when its membership is perturbed — which is
-    what says whether a gap between two arms is worth reading. Callers should
-    report `spread`, not these endpoints; they are kept for provenance.
-    """
+    """Percentile range of the Vendi score over bootstrap resamples; not a confidence interval (duplicates make every resample score lower), so report ``spread``."""
     n = len(X)
     if n < 2 or n_boot < 2:
         return None
@@ -318,12 +240,7 @@ def spread_note(block: dict) -> str:
 
 def group_vendi(records: list[dict], X: np.ndarray, axis: str, min_group: int = 10,
                 n_boot: int = 200, seed: int = 0) -> list[dict] | None:
-    """Per-group Vendi along one axis — `language` or `type_id`.
-
-    A group under min_group reports a null score rather than a figure: Vendi is
-    bounded by n, so a 3-document language would read as collapsed next to a
-    150-document one when the only thing being measured is the group size.
-    """
+    """Per-group Vendi along ``language`` or ``type_id``; a group under ``min_group`` gets a null score (Vendi is bounded by group size)."""
     keyer = ((lambda r: record_language(r, default=None)) if axis == "language"
              else (lambda r: r.get(axis)))
     groups: dict = collections.defaultdict(list)
@@ -347,13 +264,8 @@ def group_vendi(records: list[dict], X: np.ndarray, axis: str, min_group: int = 
 
 def kmeans_evenness(X: np.ndarray, k: int | None = None, seed: int = 0,
                     iters: int = 60, return_labels: bool = False):
-    """Topic evenness: k-means over the (unit) doc
-    embeddings, then the normalized entropy of cluster sizes (1.0 = topics
-    perfectly even) and the largest cluster's share. Plain numpy k-means++
-    (cosine via normalized centroids) — no new dependency; deterministic via
-    seed. k defaults to n/5 capped at 50.
-    return_labels=True returns (stats, labels) so callers can say WHAT is in
-    each cluster; the default stays the bare stats dict."""
+    """k-means over the unit embeddings (numpy, seeded; k defaults to n/5 capped at 50): normalised entropy of cluster sizes and the largest share.
+    ``return_labels=True`` returns ``(stats, labels)``."""
     n = len(X)
     if k is None:
         k = min(50, max(2, n // 5))
@@ -390,13 +302,7 @@ def kmeans_evenness(X: np.ndarray, k: int | None = None, seed: int = 0,
 
 def _cluster_detail(ids: list, texts: list, X: np.ndarray, labels: np.ndarray,
                     snippet_width: int = 140) -> list[dict]:
-    """What each cluster IS: one entry per nonempty cluster, largest first
-    (aligned with the sorted `sizes` list and the viewer's topic-spread bars).
-    Each carries the cluster size, its member ids, and the most CENTRAL member
-    (highest cosine to the cluster centroid) as a representative snippet — an
-    honest, offline answer to "what is cluster 1?" without a paid labeling
-    call. Clusters are unlabeled k-means groups; the representative is a
-    typical member, not a title."""
+    """One entry per nonempty cluster, largest first: size, member ids and the most central member as a representative snippet."""
     out = []
     for lab in sorted(set(labels.tolist())):
         idx = np.where(labels == lab)[0]
@@ -412,18 +318,13 @@ def _cluster_detail(ids: list, texts: list, X: np.ndarray, labels: np.ndarray,
 
 
 def pca_coords(X: np.ndarray) -> np.ndarray:
-    """2-D PCA projection for the document-cloud scatter. PCA rather than
-    UMAP/t-SNE deliberately: deterministic and dependency-free; good enough to
-    show clumps and outliers, which is all the cloud is for."""
+    """2-D PCA projection for the document cloud (deterministic and dependency-free)."""
     Xc = X - X.mean(axis=0, keepdims=True)
     U, S, _ = np.linalg.svd(Xc, full_matrices=False)
     return (U[:, :2] * S[:2]).astype(float)
 
 
-# Idea-level diversity: each record is reduced to a
-# one-line scenario summary; summaries are embedded and near neighbours
-# counted. Catches the same idea re-skinned across registers/settings, which
-# document-level embeddings miss.
+# Idea-level diversity: each record is reduced to a one-line scenario summary, embedded and near neighbours counted; catches an idea re-skinned across registers that document embeddings miss.
 _IDEA_PROMPT = (
     "Reduce the text below to ONE line naming its core scenario: who faces what "
     "decision or question about what. Strip register, names, place, and phrasing — "
@@ -591,10 +492,7 @@ def main() -> None:
                         help="Idea-level diversity: one-line scenario summary per record "
                              "(Anthropic call each), summaries embedded and near "
                              "neighbours counted — catches re-skinned scenarios")
-    # A first, cheap char cap (bounds cost and keeps runs consistent); English
-    # is ~4 chars/token, so 7000 chars is ~1.7k tokens. It does NOT bound tokens
-    # for CJK (~1.25-1.5 tok/char) — that safety is enforced under embed_texts,
-    # which truncates any input to the model's 8192-token window before sending.
+    # First, cheap char cap (7000 chars is ~1.7k English tokens); it does not bound CJK tokens, which embed_texts enforces by truncating to the model's 8192-token window.
     parser.add_argument("--max-chars", type=int, default=7000,
                         help="First-pass char truncation before embedding; the hard "
                              "8192-token input cap is enforced by embed_texts")
@@ -742,10 +640,7 @@ def main() -> None:
         _r(sec, "mean type-centroid cosine", f"{centroid_sim:.3f}", None,
            "(types blurring together pushes this toward 1)")
 
-    # Per-scope distributions (prompts / responses / combined), stored with the
-    # raw nearest-neighbour sims and sorted cluster sizes so the viewer can
-    # draw the diversity chart rows (NN histogram · topic-spread bars · cloud).
-    # Chat corpora get all three scopes; document corpora just the combined one.
+    # Per-scope distributions (prompts / responses / combined) with raw nearest-neighbour sims and sorted cluster sizes for the viewer's charts; document corpora get only the combined scope.
     def _scope_block(s_ids: list, s_texts: list, S: np.ndarray) -> dict:
         s_sims, _ = nearest_neighbors(S)
         s_cloud = pca_coords(S)
@@ -795,10 +690,7 @@ def main() -> None:
             print(_fmt("topic evenness", ev))
             _r(sec, "topic evenness", ev)
 
-    # Structural form — offline, no embeddings, so this runs on every pass.
-    # Restricted to word-counted languages: sentence and word statistics do not
-    # transfer to scripts written without spaces (the restriction
-    # evals/report_sdf.py already takes on its texture measures).
+    # Structural form: offline, no embeddings; restricted to word-counted languages (as report_sdf.py's texture measures), since word statistics do not transfer to unspaced scripts.
     form_report = None
     form_feats, form_ids = [], []
     for rid, text, rec in sampled:
@@ -926,8 +818,7 @@ def main() -> None:
 
     utils.ensure_dir(report_dir)
     out = report_dir / "diversity_report.json"
-    # The idea pass costs a model call per document. A later run of the free
-    # pass must not silently throw that away, so an existing block is carried
+    # The idea pass costs a model call per document; carry an existing block
     # forward when --ideas was not asked for.
     if not args.ideas and out.exists():
         try:

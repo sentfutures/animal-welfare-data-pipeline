@@ -1,19 +1,6 @@
 """Measure how often distinctive prompt phrases and considerations glosses appear
-verbatim in the documents of a finished SDF run. Offline, no API calls.
-
-Reads ``final/sdf_corpus.jsonl`` of the run directory (field ``content``), a phrase
-list (evals/distinctive_prompt_phrases.txt) and, optionally, the considerations
-catalog of a prompts directory (every label and gloss is measured as a phrase).
-Writes a JSON file and a CSV into a new, dated folder under ``--output-root``.
-
-    python evals/measure_prompt_phrase_reuse.py --run-dir outputs/sdf/runs/<run_id> \
-        --considerations-prompts-dir prompts/sdf
-
-Matching is a case-insensitive whole-word match on whitespace-normalised text with
-curly apostrophes folded to straight ones, so it only finds English wording and does
-not count a phrase that sits inside a longer word; shares are reported over all
-documents and over the documents whose recorded language is English.
-"""
+verbatim in the documents of a finished SDF run (offline, no API calls); writes a JSON and a CSV into a dated folder under ``--output-root``.
+Matching is case-insensitive whole-word on normalised text, so it finds English wording only; shares are over all documents and over English ones."""
 
 from __future__ import annotations
 

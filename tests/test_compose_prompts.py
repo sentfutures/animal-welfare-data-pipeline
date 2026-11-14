@@ -306,7 +306,7 @@ def test_real_template_axes_match_real_variables():
         assert values[axis], axis
     # Every plan placeholder must have values.
     assert set(plan_axes) <= set(values)
-    # reasoning_featured is no longer dealt: the selector (layer1_select_considerations)
+    # reasoning_featured is not dealt: the selector (layer1_select_considerations)
     # picks considerations after the plan, and only the drafter receives the result.
     assert "reasoning_featured" not in values
     assert "reasoning_featured" not in plan_axes

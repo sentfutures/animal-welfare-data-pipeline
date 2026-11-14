@@ -1,35 +1,8 @@
 #!/usr/bin/env python3
 """Constitutional-compliance audit of an SDF corpus (paid LLM pass).
 
-Why this exists: the shared evals covered welfare *coverage* but never
-*compliance*. ``audit_sdf.py --principles`` asks which distilled principles a
-document exercises, and layer 4's ALIGNMENT dimension asks a spec-aware judge
-for one 1-10 number during generation. Neither answers "does the AI behavior
-this document depicts actually violate the constitution, and how?"
-
-The rubric is not invented here. The sentient-beings reading carries a
-diagnostic appendix of observed failure modes (``principle_id`` 14, whose own
-banner says it exists "for the rewrite and scoring stages to audit against").
-This eval sends that appendix verbatim as the rubric and asks a judge, per
-document, for a present/absent/not_applicable verdict on each mode plus a
-verbatim quote for anything it marks present. Modes are discovered from the
-appendix's own ``### N.`` headings, so an edit to the reading reshapes the eval
-rather than drifting from it.
-
-The prompt encodes the corpus's deliberate design slices as scope rules —
-no-welfare-stake documents where silence is correct, passing-mention
-centrality, skeptical human authors, fictional entities — because a judge
-without them reports the corpus's intended variety as violations.
-
-Usage
------
-    python evals/compliance_sdf.py --input outputs/sdf/latest
-    python evals/compliance_sdf.py --input outputs/sdf/latest --sample 120
-
-Writes ``<run>/audit/compliance_report.json`` and prints a per-mode prevalence
-table. Cost scales with --sample: each document is one judge call carrying the
-~2.3k-token appendix plus up to 6k characters of document.
-"""
+The failure-mode appendix (``principle_id`` 14) is the rubric: present/absent/not_applicable and a quote per mode. The prompt encodes the corpus's design slices as scope rules,
+or the judge reports intended variety as violations. Writes ``<run>/audit/compliance_report.json``."""
 
 import argparse
 import collections
@@ -40,7 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from evals.audit_sdf import _parse_json_block, resolve_input
+from evals.audit_sdf import resolve_input
 from shared import api, constitution_loader, utils
 from shared.api_keys import add_api_key_source_flags, apply_api_key_source_flags
 
@@ -58,11 +31,7 @@ PREVALENCE_FLAG = 0.10
 
 
 def load_typology(constitution_dir: Path | None = None) -> tuple[str, dict[int, str]]:
-    """Return (appendix text, {mode number: title}) from the sentient-beings reading.
-
-    Raises if the appendix is missing or its headings no longer parse — a silent
-    empty rubric would make every document trivially compliant.
-    """
+    """``(appendix text, {mode number: title})`` from the sentient-beings reading; raises if the appendix is missing or its headings do not parse."""
     segments = constitution_loader.load_segments(constitution_dir)
     body = next(
         (s["content"] for s in segments if s.get("principle_id") == _TYPOLOGY_PRINCIPLE_ID),
@@ -94,7 +63,7 @@ def judge_documents(records: list[dict], config: dict, typology: str,
             TEMPLATE, typology=typology, document=(record.get("content") or "")[:6000]
         )
         try:
-            parsed = _parse_json_block(api.call_claude(user_message=prompt, stage="eval_compliance"))
+            parsed = utils.extract_json(api.call_claude(user_message=prompt, stage="eval_compliance") or "")
             verdicts = {}
             for entry in parsed.get("modes", []):
                 n, verdict = entry.get("mode"), entry.get("verdict")

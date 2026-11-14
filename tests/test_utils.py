@@ -76,9 +76,7 @@ PAYLOAD = [{"subtype_name": "River survey"}, {"subtype_name": "Coastal survey"}]
 
 
 class TestExtractJson:
-    """Model responses wrap JSON in fences or surround it with prose; a paid
-    run must not crash on an otherwise usable response (a live claude_code run
-    died at layer 2 with "Extra data" from a trailing sentence)."""
+    """extract_json tolerates fences and surrounding prose around a usable JSON response."""
 
     def test_clean_json_passes_through(self):
         assert utils.extract_json(json.dumps(PAYLOAD)) == PAYLOAD
@@ -128,14 +126,14 @@ class TestExtractJson:
     def test_complete_payload_survives_truncated_trailing_chatter(self):
         # max_tokens can cut the response mid-sentence *after* the payload has
         # already closed; a dangling bracket in that chatter must not discard
-        # the good parse (review finding on #59).
+        # the good parse.
         assert utils.extract_json('[{"a": 1}]\n\nThanks for the {') == [{"a": 1}]
         assert utils.extract_json(json.dumps(PAYLOAD) + '\nAlso note ["unclosed') == PAYLOAD
 
     def test_malformed_array_raises_instead_of_returning_fragment(self):
         # Missing/trailing commas are common LLM slip-ups; the broken array
-        # must raise like plain json.loads did, not silently return its first
-        # inner object as a dict (second review finding on #59).
+        # must raise like plain json.loads, not silently return its first
+        # inner object as a dict.
         with pytest.raises(json.JSONDecodeError):
             utils.extract_json('[{"a": 1} {"b": 2}]')  # missing comma
         with pytest.raises(json.JSONDecodeError):
@@ -150,7 +148,7 @@ class TestExtractJson:
     # --- recover=True: the shared JSON salvage the eval + step-1 both use ---
 
     def test_strict_default_still_refuses_wrong_shape(self):
-        # recover defaults off; the strict no-coerce guarantee is unchanged
+        # recover defaults off; strict mode never coerces
         with pytest.raises(json.JSONDecodeError):
             utils.extract_json_array('{"reasons": ["a", "b"]}')
         with pytest.raises(json.JSONDecodeError):
@@ -429,8 +427,7 @@ class TestLooksLikeTranscriptEcho:
         assert not utils.looks_like_transcript_echo("")
 
 def test_resolve_run_dir_ignores_handmade_local_dirs(tmp_path):
-    """A local_* scratch dir sorts after every timestamp name; bare --resume
-    must still pick the newest pipeline-created run (the 2026-07-11 incident)."""
+    """A local_* scratch dir sorts after every timestamp name; bare --resume still picks the newest pipeline-created run."""
     (tmp_path / "2026-07-10_09-00_dev").mkdir()
     (tmp_path / "2026-07-11_20-06_matrix100").mkdir()
     (tmp_path / "local_2026-07-11_scratch").mkdir()

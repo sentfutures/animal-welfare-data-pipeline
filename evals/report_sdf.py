@@ -1,28 +1,6 @@
 #!/usr/bin/env python3
-"""Build the self-contained HTML corpus report for an SDF run.
-
-Reads the run dir plus whatever eval reports exist beside it and emits one
-standalone HTML file: no external CSS, JS, fonts, or images (the Artifact CSP
-blocks every external host, and the file has to survive being downloaded and
-opened offline). Charts are inline SVG generated here; the only JS is a tooltip
-handler and the table-view toggles.
-
-Colors follow the dataviz reference palette, declared once as CSS custom
-properties per role and re-declared for dark mode under both the media query
-and the [data-theme] scope so a viewer's toggle wins either way.
-
-It reads whatever eval reports exist in ``<run>/audit/`` and silently omits the
-sections it has no data for, so it works on a run with only the offline audit as
-well as on one with the full paid set. Two inputs are per-run editorial rather
-than measured: ``report_content.json`` carries the title, the curated excerpts
-(with translations and a one-line reason each) and the prose for the weaknesses
-and method sections; ``vendi_curve.json`` carries the measured saturation points
-and fitted coefficients for the scaling projection.
-
-Usage:
-    python evals/report_sdf.py <run_dir> <run_dir>/audit/report_content.json \\
-        <run_dir>/audit/corpus_report.html
-"""
+"""Build the self-contained HTML corpus report for an SDF run: one standalone file (no external CSS, JS, fonts or images; inline SVG charts, light and dark palettes).
+It reads the eval reports in ``<run>/audit/`` and omits sections without data; ``report_content.json`` (title, excerpts, prose) and ``vendi_curve.json`` are per-run editorial inputs."""
 import collections
 import json
 import re
@@ -35,10 +13,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from sdf_pipeline.layer1_deal_variables_and_screen import run_layer as deal_variables_and_screen_layer  # noqa: E402
 from sdf_pipeline.compatibility_with_runs_made_by_earlier_code.renamed_model_settings import model_setting  # noqa: E402
-from sdf_pipeline.layer2_description_write_and_description_rewrite import description_rewrite  # noqa: E402
 from sdf_pipeline.layer3_consideration_scoring_and_selection import run_layer as consideration_scoring_and_selection_layer  # noqa: E402
 from sdf_pipeline import pipeline_steps  # noqa: E402
 from shared import utils  # noqa: E402
+from sdf_pipeline.layer2_description_write_and_description_rewrite import description_rewrite  # noqa: E402
 
 RUN = Path(sys.argv[1])
 EXCERPTS = Path(sys.argv[2])
@@ -211,12 +189,7 @@ def histogram(counts, *, labels=None, width=760, height=170, color=None, xlabel=
 
 def linechart_log(series, *, width=760, height=300, xlabel="", ylabel="",
                   xticks=None, yticks=None):
-    """Measured-vs-projected curve on a log x-axis.
-
-    series: [{"label", "points":[(x,y)…], "color", "dashed":bool}]. Log x because
-    the fit is in log space and a linear axis would squash the measured range
-    against the origin.
-    """
+    """Measured-vs-projected curve on a log x-axis; ``series``: ``[{"label", "points", "color", "dashed"}]``."""
     import math
     left, right, top, bottom = 52, 92, 14, 40
     xs = [x for s in series for x, _ in s["points"]]
@@ -810,11 +783,7 @@ if pats:
       "shows all 9 to be See-also lists or casual sign-offs rather than truncations. Treat the 22% "
       "as the judge scoring an intended property as a flaw, and note that even taken literally it "
       "sits below the audit's own 30% alarm threshold.</p>")
-    # Both figures in the note above are typed, not read from the audit, so they are a
-    # measurement frozen at the time of writing rather than a description of whatever run
-    # this report is being built for. The mechanical count has since moved; say so here
-    # rather than restating it, because the close reading behind it is a human judgement
-    # that cannot be re-derived.
+    # Both figures in the note above are typed, not read from the audit: a measurement frozen when written, which the mechanical count has since moved.
     A("<p class='muted'>Both figures above were measured on run "
       "<code>2026-07-25_15-57_fullscale-500-opus5</code> and are quoted as they stood then. "
       "The mechanical check has since been narrowed &mdash; a sign-off, letterhead or See-also "
