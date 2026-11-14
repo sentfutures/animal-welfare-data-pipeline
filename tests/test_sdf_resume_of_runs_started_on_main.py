@@ -12,6 +12,10 @@ resume and fold without an error.
 
 Offline: every provider client is replaced by canned replies. The recorded files are written only by
 ``scripts/regenerate_sdf_resume_from_main_recorded_runs.py`` (see the support module's docstring).
+
+This test is transitional: it protects runs started before the document state redesign merged. Delete it,
+its support modules, its interruption points, its regenerate script and ``tests/fixtures/sdf_resume_from_main/``
+once no such run still needs resuming. Deleting it does not shrink the repository's history.
 """
 
 import pytest
