@@ -10,7 +10,7 @@ The directory holds two independent sets of prompts, one per dataset:
 - **`sdf/`** generates pretraining-style documents: blog posts, podcast
   transcripts, academic abstracts, news articles, fiction, internal memos, forum
   threads, and more. They depict a world where AI already reasons carefully about
-  the welfare of animals and other sentient beings. It runs in five stages,
+  the welfare of animals and other sentient beings. It runs in four stages,
   called layers.
 - **`dad/`** generates chat transcripts: a user brings a real decision that has
   animal welfare implications, and an assistant reasons through it. It runs in
@@ -25,7 +25,7 @@ A constitution, here, is a published document describing the values and behavior
 a model should embody. Two files outside this directory feed the templates:
 
 - `constitution/constitution_claude.md` is that document, verbatim. SDF layers 2
-  to 5 embed it.
+  to 4 embed it.
 - `constitution/constitution_sentient_beings.md` reads it section by section for
   what it implies about animals and other possibly sentient beings. No generation
   call sends this file. It is the source the distilled principles were built
@@ -54,7 +54,7 @@ Run in sequence. Each layer feeds into the next.
 
 ### `sdf/preamble.txt`
 
-A framing block explaining the goal, tone requirements, and what to avoid. **Injected as the `{preamble}` template variable into the SYSTEM section of layers 1-2 and layer 3.** Layers 4-5 carry the constitution in their own SYSTEM sections instead.
+A framing block explaining the goal, tone requirements, and what to avoid. **Injected as the `{preamble}` template variable into the SYSTEM section of layers 1 and 2.** Layers 3 and 4 carry the constitution in their own SYSTEM sections instead.
 
 Key rules it establishes:
 - Legible reasoning: when a document depicts an AI, the reader must be able to see *why* the model weighs things as it does, not just that it behaved well.

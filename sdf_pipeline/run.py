@@ -6,6 +6,26 @@ implausibility with redeal rounds, plans one document per accepted hand, rewrite
 each description for plausibility and conformance, and selects considerations for
 each surviving specification. Layers 2-4 draft, rewrite, and score/gate.
 
+Steps a document goes through (full table with module detail in CLAUDE.md):
+
+   1. Deal (compose_prompts, no model)                      cannot drop
+   2. Implausibility screen (layer1_screen), batches of 10,
+      up to 3 redeal rounds                                 can drop: extremely implausible
+   3. Compose planning prompt (compose_prompts, no model)   cannot drop
+   4. Plan (layer1_plan)                                    can drop: declared incoherent
+   5. Description rewrite (layer1_description_rewrite)      can drop: dealt-value conflict
+   6. Consideration scoring (layer1_select_considerations)  cannot drop
+   7. Consideration assignment (considerations_assignment,
+      no model)                                             cannot drop
+   8. Draft (layer2_draft)                                  cannot drop
+   9. Critique (layer3_rewrite, first call)                 cannot drop
+  10. Revise (layer3_rewrite, second call)                  cannot drop
+  11. Score (layer4_score)                                  cannot drop
+  12. Gate and near-duplicate cull (layer4_score, no model):
+      alignment and realism must each reach 7, near-duplicates
+      above 0.90 are dropped                                can drop: below threshold,
+                                                            near-duplicate
+
 The layers were renumbered from the old 1-2/3/4/5 scheme (in which composition
 and planning were counted as two layers) to today's 1/2/3/4. --layer takes the
 new numbers; 5 is rejected rather than remapped, because every old number from
