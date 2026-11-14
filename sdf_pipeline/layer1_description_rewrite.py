@@ -390,17 +390,24 @@ class DescriptionRewriteStep(DocumentStep):
                 "stages that assign over the whole plan set; fix and --resume.")
 
 
+def reason_description_rewrite_is_inactive(config: dict, prompts_dir: Path) -> str | None:
+    """Why the description rewrite does not run, as the line ``run`` prints; None when it runs."""
+    if not enabled(config):
+        return "Description rewrite disabled (sdf.description_rewrite_enabled: false)"
+    if load_rewrite_prompts(prompts_dir) is None:
+        return f"No {TEMPLATE_FILENAME} in this run's prompt snapshot — description rewrite skipped"
+    return None
+
+
 def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) -> list[dict]:
     """Check every described plan and return the plans after the rewrite (see the
     module docstring). A disabled stage, or a run whose prompt snapshot has no
     rewrite template, makes no calls and returns ``plans`` unchanged."""
-    if not enabled(config):
-        print("  Description rewrite disabled (sdf.description_rewrite_enabled: false)")
+    reason_inactive = reason_description_rewrite_is_inactive(config, prompts_dir)
+    if reason_inactive is not None:
+        print(f"  {reason_inactive}")
         return plans
     prompts = load_rewrite_prompts(prompts_dir)
-    if prompts is None:
-        print(f"  No {TEMPLATE_FILENAME} in this run's prompt snapshot — description rewrite skipped")
-        return plans
 
     step = DescriptionRewriteStep(config, prompts, prompts_dir, output_dir, plans)
     runner = StepRunner(
