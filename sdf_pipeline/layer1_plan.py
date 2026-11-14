@@ -45,7 +45,7 @@ class PlanStep(DocumentStep):
     policy = StepPolicy()
     systemic_stop_message = (
         "layer1_plan: every pending API call failed — this is systemic "
-        "(auth, backend, or network), not per-document; fix and --resume."
+        "(auth, backend, network, or an error building the prompt), not per-document; fix and --resume."
     )
 
     def __init__(self, config: dict):

@@ -78,7 +78,7 @@ from sdf_pipeline.document_event_log import DOCUMENT_EVENT_LOG_FILE_NAME, Docume
 from sdf_pipeline.step_runner import BatchStepRunner, send_model_request
 from sdf_pipeline.update_steps import (
     Accepted, BatchStep, CorpusStep, Created, Failed, FailureKind, ModelReply, ModelRequest, Removed,
-    StepPolicy, WhatAFailedDocumentDoes, line_for_document_left_to_retry, reason_without_error_prefix)
+    StepPolicy, WhatAFailedDocumentDoes, WhereAnErrorIsAThrownCall, line_for_document_left_to_retry, reason_without_error_prefix)
 
 STAGE_TAG = "layer1_screen"
 TEMPLATE_FILENAME = "layer1_screen.txt"
@@ -417,10 +417,12 @@ class ScreenStep(BatchStep):
     stage = STAGE_TAG
     policy = StepPolicy(
         failure_kinds_counting_towards_the_systemic_stop=frozenset({FailureKind.THROWN_CALL, FailureKind.UNUSABLE_ANSWER}),
-        failed_document=WhatAFailedDocumentDoes.STOPS_THE_RUN_AFTER_THE_STEP)
+        failed_document=WhatAFailedDocumentDoes.STOPS_THE_RUN_AFTER_THE_STEP,
+        errors_counted_as_thrown_calls=WhereAnErrorIsAThrownCall.BUILD | WhereAnErrorIsAThrownCall.SEND
+        | WhereAnErrorIsAThrownCall.INTERPRET)
     systemic_stop_message = (
         "layer1_screen: every pending screen call failed — this is systemic "
-        "(auth, backend, or network), not per-batch; fix and --resume."
+        "(auth, backend, network, or an error building the prompt), not per-batch; fix and --resume."
     )
 
     def __init__(self, prompts: ScreenPrompts, model: str | None, batch_size: int, render_variable_lines):

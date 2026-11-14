@@ -13,7 +13,7 @@ from sdf_pipeline.document_event_log import DocumentEventLog, read_document_even
 from sdf_pipeline.step_runner import StepRunner, send_model_request
 from sdf_pipeline.update_steps import (
     Accepted, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, Removed, StepPolicy,
-    WhatAFailedDocumentDoes)
+    WhatAFailedDocumentDoes, WhereAnErrorIsAThrownCall)
 from shared import api, utils
 
 
@@ -251,3 +251,94 @@ def test_run_returns_existing_records_for_documents_the_step_no_longer_applies_t
     # earlier records in input order (b is inapplicable but kept), then this run's, in input order
     assert [(r["doc_id"], r["content"]) for r in result.records_in_input_order] == [
         ("b", "old b"), ("d", "old d"), ("a", "new a"), ("c", "new c")]
+
+
+# ---------------------------------------------------------------- the declared exception policy
+
+class ToyStepWithBrokenAndFragileDocuments(ToyStep):
+    """A document with ``"broken_template": True`` raises in ``build_request`` (a template that cannot be
+    filled in); a reply "EXPLODE" raises in ``interpret``."""
+
+    def build_request(self, document):
+        if document.get("broken_template"):
+            raise KeyError("missing_placeholder")
+        return super().build_request(document)
+
+    def interpret(self, document, reply):
+        if reply.text == "EXPLODE":
+            raise ValueError("parser bug")
+        return super().interpret(document, reply)
+
+
+def test_a_prompt_building_error_is_a_recorded_failure_for_that_document_only(tmp_path, capsys):
+    sent = []
+
+    def send(request):
+        sent.append(request.item_id)
+        return ModelReply("fine", "end_turn")
+
+    runner, stage_directory, log = make_runner(tmp_path, step=ToyStepWithBrokenAndFragileDocuments(), send=send)
+    result = runner.run([{"id": "a"}, {"id": "b", "broken_template": True}, {"id": "c"}])
+    assert sent == ["a", "c"]
+    assert result.failed_document_ids == ["b"] and result.thrown_call_document_ids == ["b"]
+    assert [r["doc_id"] for r in utils.load_jsonl(stage_directory / "toy_records.jsonl")] == ["a", "c"]
+    assert not utils.Checkpoint(stage_directory / "_checkpoint.json").is_done("b")
+    (failure,) = [e for e in read_document_events(log.path) if e["outcome"] == "failed"]
+    assert failure["document_id"] == "b" and failure["failure_kind"] == "thrown_call"
+    assert failure["reason"] == "error: KeyError: 'missing_placeholder'" and failure["request_hash"] is None
+    assert "  b: Failed" in capsys.readouterr().out
+
+
+def test_a_resume_retries_a_document_whose_prompt_could_not_be_built(tmp_path):
+    runner, stage_directory, _ = make_runner(tmp_path, step=ToyStepWithBrokenAndFragileDocuments())
+    runner.run([{"id": "a"}, {"id": "b", "broken_template": True}])
+    sent = []
+
+    def send(request):
+        sent.append(request.item_id)
+        return ModelReply("fixed", "end_turn")
+
+    resumed, _, _ = make_runner(tmp_path, step=ToyStepWithBrokenAndFragileDocuments(), send=send)
+    assert [d["id"] for d in resumed.select_pending([{"id": "a"}, {"id": "b"}])] == ["b"]
+    resumed.run([{"id": "a"}, {"id": "b"}])
+    assert sent == ["b"]
+    assert [r["doc_id"] for r in utils.load_jsonl(stage_directory / "toy_records.jsonl")] == ["a", "b"]
+
+
+def test_a_template_broken_for_every_document_stops_the_run_with_no_model_call(tmp_path):
+    sent = []
+    runner, _, _ = make_runner(
+        tmp_path, step=ToyStepWithBrokenAndFragileDocuments(), send=lambda request: sent.append(request) or None)
+    with pytest.raises(SystemExit, match="systemic"):
+        runner.run([{"id": "a", "broken_template": True}, {"id": "b", "broken_template": True}])
+    assert sent == []
+
+
+def test_an_error_in_interpret_ends_the_run_unless_the_step_declares_it_a_thrown_call(tmp_path):
+    explode = lambda request: ModelReply("EXPLODE", "end_turn")  # noqa: E731
+    runner, _, _ = make_runner(tmp_path, step=ToyStepWithBrokenAndFragileDocuments(), send=explode)
+    with pytest.raises(ValueError, match="parser bug"):
+        runner.run([{"id": "a"}])
+    declared = StepPolicy(errors_counted_as_thrown_calls=(
+        WhereAnErrorIsAThrownCall.BUILD | WhereAnErrorIsAThrownCall.SEND | WhereAnErrorIsAThrownCall.INTERPRET))
+    runner, _, log = make_runner(
+        tmp_path / "declared", step=ToyStepWithBrokenAndFragileDocuments(declared), send=explode)
+    with pytest.raises(SystemExit, match="systemic"):
+        runner.run([{"id": "a"}, {"id": "b"}])
+    failures = [e for e in read_document_events(log.path) if e["outcome"] == "failed"]
+    assert [(e["failure_kind"], e["reason"]) for e in failures] == [("thrown_call", "error: ValueError: parser bug")] * 2
+
+
+def test_a_place_the_step_does_not_declare_lets_the_exception_through(tmp_path):
+    only_send = StepPolicy(errors_counted_as_thrown_calls=WhereAnErrorIsAThrownCall.SEND)
+    runner, _, _ = make_runner(tmp_path, step=ToyStepWithBrokenAndFragileDocuments(only_send))
+    with pytest.raises(KeyError):
+        runner.run([{"id": "a", "broken_template": True}])
+    no_send = StepPolicy(errors_counted_as_thrown_calls=WhereAnErrorIsAThrownCall.BUILD)
+
+    def send(request):
+        raise RuntimeError("down")
+
+    runner, _, _ = make_runner(tmp_path / "other", step=ToyStepWithBrokenAndFragileDocuments(no_send), send=send)
+    with pytest.raises(RuntimeError, match="down"):
+        runner.run([{"id": "a"}])
