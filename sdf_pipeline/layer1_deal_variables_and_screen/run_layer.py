@@ -9,6 +9,7 @@ from pathlib import Path
 from shared import utils
 from shared.sdf_run_layouts import DEAL_VARIABLES_AND_SCREEN
 from sdf_pipeline.shared_step_machinery import compose_prompts as cp
+from sdf_pipeline.shared_step_machinery.dealt_value_identifiers import run_records_value_ids, value_ids_field_of
 from sdf_pipeline.shared_step_machinery.step_record import Run
 from sdf_pipeline.layer1_deal_variables_and_screen.shared_by_this_layers_steps import *  # noqa: F401,F403  (the file names, readers and row builders)
 from sdf_pipeline.layer1_deal_variables_and_screen.shared_by_this_layers_steps import (
@@ -41,16 +42,18 @@ def run(config: dict, prompts_dir: Path, output_dir: Path) -> list[dict] | None:
     redeal_rounds = int(sdf.get("screen_redeal_rounds", DEFAULT_REDEAL_ROUNDS))
     _, _, value_ids = cp.load_variables(prompts_dir / cp.DEFAULT_VARIABLES.name)
     deal_rules = cp.load_deal_rules(prompts_dir / cp.DEAL_CONSTRAINTS_FILENAME, value_ids)
-    run_of_screen = Run(config, prompts_dir, {DEAL_VARIABLES_AND_SCREEN: output_dir})
     hands_path = output_dir / HANDS_FILENAME
     rounds_path = output_dir / ROUNDS_FILENAME
+    record_value_ids = run_records_value_ids(output_dir)   # decided per run, by its manifest
+    run_of_screen = Run(config, prompts_dir, {DEAL_VARIABLES_AND_SCREEN: output_dir})
 
     hands = utils.load_jsonl(hands_path)
     rounds = utils.load_jsonl(rounds_path)
     if not rounds:  # round 0: the original deal, saved before anything is screened
         template = utils.sdf_template_path(prompts_dir, 1).read_text(encoding="utf-8")
         values, weights, _ = cp.load_variables(prompts_dir / cp.DEFAULT_VARIABLES.name)
-        hands = deal_original_hands(template, values, weights, sdf["n_prompts"], seed, deal_rules)
+        hands = deal_original_hands(
+            template, values, weights, sdf["n_prompts"], seed, deal_rules, value_ids, record_value_ids)
         utils.save_jsonl(hands, hands_path)   # replaces any partial write from an interrupted deal
         rounds = [{"round": 0, "prompt_ids": [h["prompt_id"] for h in hands], "note": "original deal"}]
         utils.append_jsonl(rounds[0], rounds_path)
@@ -80,7 +83,8 @@ def run(config: dict, prompts_dir: Path, output_dir: Path) -> list[dict] | None:
         if round_number + 1 < len(rounds):  # the next round was dealt before an interruption
             round_number += 1
             continue
-        new_records = redeal_screened_out_hands(hands, removed_ids, round_number, seed, deal_rules)
+        new_records = redeal_screened_out_hands(
+            hands, removed_ids, round_number, seed, deal_rules, value_ids, record_value_ids)
         if not new_records:
             note = (f"{len(removed_ids)} removed hands could not be redealt into different, "
                     "rule-satisfying hands")
@@ -108,7 +112,7 @@ def _finish(output_dir: Path, sdf: dict, hands: list[dict], rounds: list[dict], 
     leftover_ids = sorted(pid for pid in rejected if pid in last_ids)
     dealt_ids = {pid for r in rounds for pid in r["prompt_ids"]}
     accepted = [
-        {"prompt_id": h["prompt_id"], "variables": h["variables"]}
+        {"prompt_id": h["prompt_id"], "variables": h["variables"], **value_ids_field_of(h)}
         for h in hands if h["prompt_id"] in dealt_ids and h["prompt_id"] not in rejected
     ]
     utils.save_jsonl(accepted, output_dir / SCREENED_HANDS_FILENAME)

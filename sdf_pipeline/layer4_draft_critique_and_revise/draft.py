@@ -13,6 +13,7 @@ from shared import constitution_loader, deal_constraints, sdf_run_layouts, utils
 from sdf_pipeline.layer2_description_write_and_description_rewrite.description_write import PLANS
 from sdf_pipeline.layer3_consideration_scoring_and_selection.consideration_selection import plans_with_selections
 from sdf_pipeline.shared_step_machinery import compose_prompts as cp
+from sdf_pipeline.shared_step_machinery.dealt_value_identifiers import value_ids_field_of
 from sdf_pipeline.shared_step_machinery.step_record import (
     Run, StageFile, Step, loaded_once_per_run, one_record_per_accepted_document)
 from sdf_pipeline.shared_step_machinery.step_runner import run_step
@@ -92,6 +93,7 @@ def record_of(plan: dict, content: str, run: Run) -> dict:
     return {
         "doc_id": plan["prompt_id"],
         "variables": plan["variables"],
+        **value_ids_field_of(plan),
         "description": plan["description"],
         "considerations_spec": plan.get("considerations_spec", ""),
         "content": content,

@@ -12,6 +12,7 @@ from shared.matrix import split_sections
 from shared.sdf_run_layouts import DEAL_VARIABLES_AND_SCREEN
 from sdf_pipeline.shared_step_machinery import compose_prompts as cp
 from sdf_pipeline.shared_step_machinery import structured_answers
+from sdf_pipeline.shared_step_machinery.dealt_value_identifiers import value_ids_field_of
 from sdf_pipeline.layer1_deal_variables_and_screen.shared_by_this_layers_steps import (
     BATCHES_FILENAME, CHECKPOINT_FILENAME, DEFAULT_BATCH_SIZE, HAND_BLOCK_FILENAME, JUDGMENTS_FILENAME,
     PROMPTS, REJECTIONS_FILENAME, SCHEMA_FILENAME, SCREENED_HANDS, SHUFFLE_SEED_NAME, TEMPLATE_FILENAME)
@@ -239,7 +240,7 @@ def records(hands: list, outcomes: dict, run: Run) -> OutcomeRecords:
         if removed:
             new_records.append((REJECTIONS_FILENAME, {
                 "prompt_id": hand["prompt_id"], "round": round_number, "batch_id": batch_id, "number": facts["number"],
-                "reason": facts["reason"], "variables": hand["variables"],
+                "reason": facts["reason"], "variables": hand["variables"], **value_ids_field_of(hand),
                 "variable_lines": _render_variable_lines(run)(hand)}))
     return OutcomeRecords(
         records=tuple(new_records),

@@ -6,6 +6,8 @@ import random
 
 from shared import deal_constraints
 from sdf_pipeline.shared_step_machinery import compose_prompts as cp
+from sdf_pipeline.shared_step_machinery.dealt_value_identifiers import (
+    announce_hands_with_a_value_that_has_no_unique_id, value_ids_of_hands)
 from sdf_pipeline.layer1_deal_variables_and_screen.shared_by_this_layers_steps import MAX_REDEAL_ATTEMPTS, SHUFFLE_SEED_NAME, hand_record
 
 
@@ -39,7 +41,8 @@ def redeal_removed_hands(
 
 def redeal_screened_out_hands(
         hands: list[dict], removed_prompt_ids: list[str], finished_round_number: int, seed: int,
-        deal_rules: list[deal_constraints.DealRule]) -> list[dict]:
+        deal_rules: list[deal_constraints.DealRule], value_ids_by_axis: dict | None = None,
+        record_value_ids: bool = False) -> list[dict]:
     """The hand records of the round after ``finished_round_number``, numbered on from the highest hand id; empty when the cards cannot be redealt (which ends the screen loop)."""
     new_round_number = finished_round_number + 1
     hands_by_id = {hand["prompt_id"]: hand for hand in hands}
@@ -48,7 +51,11 @@ def redeal_screened_out_hands(
     if new_hands is None:
         return []
     new_records = cp.hand_records(new_hands, _next_hand_index(hands))
-    return [hand_record(record["prompt_id"], new_round_number, record["variables"]) for record in new_records]
+    ids_by_hand, notes_by_hand = value_ids_of_hands(new_records, value_ids_by_axis or {})
+    announce_hands_with_a_value_that_has_no_unique_id(notes_by_hand, len(new_records))
+    return [hand_record(record["prompt_id"], new_round_number, record["variables"],
+                        ids_by_hand[record["prompt_id"]] if record_value_ids else None)
+            for record in new_records]
 
 
 def _next_hand_index(hands: list[dict]) -> int:

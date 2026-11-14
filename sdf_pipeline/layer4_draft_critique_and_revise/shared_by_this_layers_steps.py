@@ -8,6 +8,7 @@ from pathlib import Path
 from shared import constitution_loader, deal_constraints, sdf_run_layouts, utils
 from sdf_pipeline.shared_step_machinery import compose_prompts as cp
 from sdf_pipeline.shared_step_machinery import revision_style
+from sdf_pipeline.shared_step_machinery.dealt_value_identifiers import value_ids_field_of
 from sdf_pipeline.shared_step_machinery.step_record import Run, StageFile, loaded_once_per_run
 from sdf_pipeline.shared_step_machinery.update_steps import (
     Accepted, Failed, FailureKind, ModelReply, line_for_document_left_to_retry)
@@ -107,6 +108,7 @@ def rewrite_record(draft: dict, update: RewrittenText) -> dict:
     record = {
         "doc_id": draft["doc_id"],
         "variables": draft["variables"],
+        **value_ids_field_of(draft),
         "description": draft["description"],
         "considerations_spec": draft.get("considerations_spec", ""),
         "review": update.review,

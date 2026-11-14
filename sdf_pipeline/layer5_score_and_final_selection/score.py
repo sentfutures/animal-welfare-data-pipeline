@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from shared import constitution_loader, utils
 from sdf_pipeline.layer4_draft_critique_and_revise.shared_by_this_layers_steps import REWRITES
 from sdf_pipeline.shared_step_machinery import compose_prompts as cp
+from sdf_pipeline.shared_step_machinery.dealt_value_identifiers import value_ids_field_of
 from sdf_pipeline.shared_step_machinery.step_record import (
     Run, StageFile, Step, loaded_once_per_run, one_record_per_accepted_document)
 from sdf_pipeline.shared_step_machinery.update_steps import (
@@ -77,7 +78,8 @@ def read_reply(documents: list, reply: ModelReply, run: Run) -> dict:
 
 
 def record_of(rewrite: dict, update: dict, run: Run) -> dict:
-    return {"doc_id": rewrite["doc_id"], "variables": rewrite["variables"], "scores": update}
+    return {"doc_id": rewrite["doc_id"], "variables": rewrite["variables"], **value_ids_field_of(rewrite),
+            "scores": update}
 
 
 def progress_line(documents: list, outcomes: dict, progress: StepProgress, run: Run) -> str | None:

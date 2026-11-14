@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from shared import api, costs, sdf_run_layouts, utils
 from shared.api_keys import add_api_key_source_flags, apply_api_key_source_flags
+from sdf_pipeline.shared_step_machinery.dealt_value_identifiers import RECORDS_VALUE_IDS_MANIFEST_KEY
 from sdf_pipeline.compatibility_with_runs_made_by_earlier_code.layouts_that_can_be_resumed import layout_of_run_that_can_be_resumed
 from sdf_pipeline.layer1_deal_variables_and_screen import run_layer as deal_variables_and_screen_layer
 from sdf_pipeline.layer2_description_write_and_description_rewrite import description_rewrite, description_write
@@ -107,7 +108,11 @@ def main() -> None:
                 "prompts": root / "prompts" / "sdf",
                 "constitution": root / "constitution",
             },
-            extra_manifest_fields={sdf_run_layouts.LAYOUT_RECORDED_IN_MANIFEST_KEY: layout.name},
+            # Decided once, here: this run writes dealt value ids into its stage files. A run created
+            # before this key existed lacks it and is resumed without ever gaining the field.
+            # The layout is decided here too, and recorded, so a run keeps its folders and tags.
+            extra_manifest_fields={RECORDS_VALUE_IDS_MANIFEST_KEY: True,
+                                   sdf_run_layouts.LAYOUT_RECORDED_IN_MANIFEST_KEY: layout.name},
         )
 
     with sdf_run_layouts.using_layout(layout):
