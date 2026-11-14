@@ -24,7 +24,7 @@ See README "Setup" (venv + `pip install -r requirements.txt`, then `cp .env.exam
 
 ### SDF: synthetic documents (`sdf_pipeline/`, `prompts/sdf/`) — agent detail in `sdf_pipeline/CLAUDE.md`
 
-A weighted variables matrix (`prompts/sdf/variables.txt`) is deck-sampled so every variable's shares match its weights exactly; every later stage is anchored to a per-document description. Five named layers, each a driver `sdf_pipeline/layer<N>_<name>.py` over one file per step in `sdf_pipeline/steps/`, run by `sdf_pipeline/run.py`; stage folders in a run carry the layer names:
+A weighted variables matrix (`prompts/sdf/variables.txt`) is deck-sampled so every variable's shares match its weights exactly; every later stage is anchored to a per-document description. Five named layers, each a folder `sdf_pipeline/layer<N>_<name>/` holding one file per step and a driver `run_layer.py`, run by `sdf_pipeline/run.py`; code the steps share is in `sdf_pipeline/shared_step_machinery/`; stage folders in a run carry the layer names:
 
 1. `layer1_deal_and_screen`: deal each document a hand of variables (deal rules repair impossible combinations), then screen out extremely implausible hands, redealing them for up to three rounds.
 2. `layer2_plan_and_description_rewrite`: one plan call per hand writes a self-contained document description; a second model (a GPT model by default) checks it for plausibility and fidelity to the dealt values and fixes it.
@@ -155,7 +155,7 @@ One line each; the reasons and detail are in the README named.
 constitution/       constitution source documents, DAD charters and failure-mode checklists
 context_docs/       background reading: tcw.md ("Teaching Claude Why" post this repo implements) + constitution PDF
 shared/             API wrapper, key loading, run helpers and layouts, constitution loader
-sdf_pipeline/       matrix document pipeline in five layers (`layer<N>_<name>.py` drivers, one file per step in `steps/`, old module names kept as aliases); run.py orchestrates; pipeline_steps.py is the step catalogue
+sdf_pipeline/       matrix document pipeline: one folder per layer (`layer<N>_<name>/`: one file per step plus `run_layer.py`), `shared_step_machinery/` for code the steps share; run.py orchestrates; pipeline_steps.py is the step catalogue
 dad_pipeline/       3-step chat transcript pipeline (+ baseline, content profiles)
 pref_pipeline/      response-pair generation + blind human A/B rating app
 prompts/sdf/        prompt templates for SDF

@@ -10,10 +10,12 @@ module's docstring has the detail of its own step, the prompts it reads are in `
 
 ## The five layers
 
-A run goes through five named layers (decision 17). Each layer is one driver module
-`sdf_pipeline/layer<N>_<name>.py` that holds only the layer's driver; each step is one file in
-`sdf_pipeline/steps/<step name>.py`; a small `..._shared.py` module holds what a layer's steps
-share. `sdf_pipeline/run.py` orchestrates.
+A run goes through five named layers (decision 17). Each layer is one folder,
+`sdf_pipeline/layer<N>_<name>/`, holding one file per step, the layer's driver `run_layer.py`
+and, in layers 1, 3 and 4, `shared_by_this_layers_steps.py` for what that layer's steps share.
+Code shared by every layer (the step runner and step types, prompt composition, the considerations
+catalogue and assignment, value ids) is in `sdf_pipeline/shared_step_machinery/`.
+`sdf_pipeline/run.py` orchestrates.
 
 | Layer | Stage folder in a run | What it does | Steps |
 |---|---|---|---|
@@ -37,17 +39,17 @@ docstring has the detail.
 | # | Step (module) | What happens | Can drop the document? |
 |---|---|---|---|
 | 1 | Deal (`compose_prompts`, no model) | A hand of variables is deck-sampled and repaired by the deal rules | No |
-| 2 | Implausibility screen (`steps/screen.py`, tag `layer1_screen`) | Hands judged 10 per call (`sdf.screen_batch_size`); removed hands redealt for up to 3 rounds (`sdf.screen_redeal_rounds`), and hands still removed after the last round are dropped | Yes: extremely implausible |
+| 2 | Implausibility screen (`layer1_deal_and_screen/screen.py`, tag `layer1_screen`) | Hands judged 10 per call (`sdf.screen_batch_size`); removed hands redealt for up to 3 rounds (`sdf.screen_redeal_rounds`), and hands still removed after the last round are dropped | Yes: extremely implausible |
 | 3 | Compose planning prompt (`compose_prompts`, no model) | Entity names and variable lines put into the planning template | No |
-| 4 | Plan (`steps/plan.py`, tag `layer2_plan`) | Working notes plus a document description | Yes: declared incoherent |
-| 5 | Description rewrite (`steps/description_rewrite.py`, tag `layer2_description_rewrite`) | Description kept or rewritten; original and changes kept | Yes: dealt-value conflict |
-| 6 | Consideration scoring (`steps/consideration_scoring.py`, tag `layer3_consideration_scoring`) | Each moral and epistemic entry scored 1 to 5 | No |
+| 4 | Plan (`layer2_plan_and_description_rewrite/plan.py`, tag `layer2_plan`) | Working notes plus a document description | Yes: declared incoherent |
+| 5 | Description rewrite (`layer2_plan_and_description_rewrite/description_rewrite.py`, tag `layer2_description_rewrite`) | Description kept or rewritten; original and changes kept | Yes: dealt-value conflict |
+| 6 | Consideration scoring (`layer3_consideration_scoring_and_selection/consideration_scoring.py`, tag `layer3_consideration_scoring`) | Each moral and epistemic entry scored 1 to 5 | No |
 | 7 | Consideration selection (`considerations_assignment`, no model; step `consideration_selection`) | Global linear programme assigns entries | No |
-| 8 | Draft (`steps/draft.py`, tag `layer4_draft`) | First full text | No |
-| 9 | Critique (`steps/critique.py`, tag `layer4_critique`; the one-call variant `steps/critique_and_revise_in_one_call.py` has tag `layer4_critique_and_revise_in_one_call`) | A list of problems against eleven review checks | No |
-| 10 | Revise (`steps/revise.py`, tag `layer4_revise`) | Rewritten text, with voice and length directives | No |
-| 11 | Score (`steps/score.py`, tag `layer5_score`) | Alignment, realism and spec conformance, 1 to 10; a response that fails to parse is recorded as 5/5/5 | No |
-| 12 | Score gate and near-duplicate removal (`steps/score_gate.py` and `steps/near_duplicate_removal.py`, no model) | Alignment and realism must each reach 7 (`sdf.min_score_threshold`); near-duplicates above 0.90 (`sdf.near_dup_threshold`) dropped | Yes: below threshold (a 5/5/5 parse-error record falls here), near-duplicate |
+| 8 | Draft (`layer4_draft_critique_and_revise/draft.py`, tag `layer4_draft`) | First full text | No |
+| 9 | Critique (`layer4_draft_critique_and_revise/critique.py`, tag `layer4_critique`; the one-call variant `layer4_draft_critique_and_revise/critique_and_revise_in_one_call.py` has tag `layer4_critique_and_revise_in_one_call`) | A list of problems against eleven review checks | No |
+| 10 | Revise (`layer4_draft_critique_and_revise/revise.py`, tag `layer4_revise`) | Rewritten text, with voice and length directives | No |
+| 11 | Score (`layer5_score_and_final_selection/score.py`, tag `layer5_score`) | Alignment, realism and spec conformance, 1 to 10; a response that fails to parse is recorded as 5/5/5 | No |
+| 12 | Score gate and near-duplicate removal (`layer5_score_and_final_selection/score_gate.py` and `layer5_score_and_final_selection/near_duplicate_removal.py`, no model) | Alignment and realism must each reach 7 (`sdf.min_score_threshold`); near-duplicates above 0.90 (`sdf.near_dup_threshold`) dropped | Yes: below threshold (a 5/5/5 parse-error record falls here), near-duplicate |
 
 Steps 2, 5 and 6 can be switched off by their `sdf.*_enabled` keys, and steps 9 and 10 are one
 call when `sdf.revision.split` is false. A draft, plan, critique, revision or score whose answer
@@ -56,9 +58,9 @@ is unusable is not checkpointed and is retried on `--resume`; it is not dropped.
 ### The step catalogue
 
 `sdf_pipeline/pipeline_steps.py` holds one entry per SDF step (today's name, folder key, module
-`steps/<name>`, stage tag per layout, model setting keys, stage files and id fields, required
+`<layer folder>.<name>`, stage tag per layout, model setting keys, stage files and id fields, required
 prompt files, inactivity reason, seedability, and functions that load a step's input documents
-from a run's stage files and build the step). `seeding.py`, `run.py`'s `--layer` restart and
+from a run's stage files and build the step). `start_a_run_from_an_earlier_runs_step.py` (seeding), `run.py`'s `--layer` restart and
 layer loop and the request print command read it, so none keeps its own table of steps. The
 stage tags `layer1_screen` and `layer1_select` are also random seeds; the entry's `shuffle_seed`
 keeps them literal if the tag is ever renamed. Step names follow decision 17:
@@ -66,7 +68,7 @@ keeps them literal if the tag is ever renamed. Step names follow decision 17:
 `select` / `select_model`), `consideration_selection`, `critique_and_revise_in_one_call`
 (formerly `combined_review_and_revise`; print command of the same name), `revise` (setting
 `revise_model`, formerly `rewrite_model`), `score_gate` and `near_duplicate_removal`. The old
-setting names still work through `sdf_pipeline/renamed_model_settings.py` with a one-line
+setting names still work through `sdf_pipeline/shared_step_machinery/renamed_model_settings.py` with a one-line
 notice, and the new name wins when both are set.
 
 ## Running
@@ -192,7 +194,7 @@ rule-breaking combinations instead.
 
 Each has a module docstring with the detail, and a stage tag in the cost log.
 
-- **Implausibility screen** (`sdf_pipeline/steps/screen.py`, `prompts/sdf/layer1_screen*.txt`;
+- **Implausibility screen** (`sdf_pipeline/layer1_deal_and_screen/screen.py`, `prompts/sdf/layer1_screen*.txt`;
   `sdf.screen_enabled`, `screen_model`, `screen_batch_size`, `screen_redeal_rounds`; tag
   `layer1_screen`): runs on the dealt hands before any planning call and removes only *extremely*
   implausible ones (unusual, shoehorned or fictional-organisation hands are not grounds). The
@@ -212,7 +214,7 @@ Each has a module docstring with the detail, and a stage tag in the cost log.
   redeal are update steps (`DealStep` and `RedealStep` corpus steps, `ScreenStep` batch step run by
   `BatchStepRunner`) driven by `layer1_deal_and_screen.run`. Runs from before the event log was
   removed may hold a `document_events.jsonl`; nothing reads it.
-- **Description rewrite** (`sdf_pipeline/steps/description_rewrite.py`,
+- **Description rewrite** (`sdf_pipeline/layer2_plan_and_description_rewrite/description_rewrite.py`,
   `prompts/sdf/layer1_description_rewrite*.{txt,json}`; `sdf.description_rewrite_enabled`,
   `description_rewrite_model`, `description_rewrite_reasoning_effort`; tag
   `layer2_description_rewrite`): one call per planned description, given the rendered dealt
@@ -227,8 +229,8 @@ Each has a module docstring with the detail, and a stage tag in the cost log.
   plausibility on 2026-10-22 (Sonnet 5 flagged 1 of 92, Opus 5 0 of 95, none of GPT's 14
   implausible premises): do not use Claude there without re-validating (evidence in the module
   docstring and in `config.yaml`).
-- **Considerations selector** (`sdf_pipeline/steps/consideration_scoring.py`,
-  `steps/consideration_selection.py`, `considerations_assignment.py`,
+- **Considerations selector** (`sdf_pipeline/layer3_consideration_scoring_and_selection/consideration_scoring.py`,
+  `layer3_consideration_scoring_and_selection/consideration_selection.py`, `shared_step_machinery/considerations_assignment.py`,
   `prompts/sdf/layer1_select_considerations.txt`, `prompts/sdf/considerations.txt`;
   `sdf.select_enabled`, `consideration_scoring_model` (old name `select_model`),
   `max_scoring_attempts`, `select_skip_no_stake`, the per-document caps and `score_weights`; tag

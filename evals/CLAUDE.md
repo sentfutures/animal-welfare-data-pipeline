@@ -19,8 +19,7 @@ jsonl, `run_manifest.json` and `audit/`. Consequences worth knowing before runni
   `language` · `type_name` · `type_id` · `register` · `scores` · `variables` ·
   `variable_value_ids` (only on runs that record it; absent on older runs and the published
   dataset so far) · `doc_id`. It is no longer a verbatim `shutil.copy2`, since the
-  pipeline's own write order (the score step, `sdf_pipeline/steps/score.py`, via the old
-  module name `sdf_pipeline/layer4_score.py`) buried `content`, the actual document text,
+  pipeline's own write order (the score step, `sdf_pipeline/layer5_score_and_final_selection/score.py`) buried `content`, the actual document text,
   behind `doc_id` and four other metadata fields. DAD is rewritten per record by
   `flatten_dad_corpus` into `user_prompt` · `assistant_response` · `language` · `variables` ·
   `example_gid`. `variables` is the one nested column on each side and the counterpart of the
@@ -52,7 +51,7 @@ jsonl, `run_manifest.json` and `audit/`. Consequences worth knowing before runni
   opened on Spanish, DAD on Hindi). **Only the staged copy is reordered — never the run's
   own `final/` corpus**, which the stride-sampling evals (`compliance_sdf.py`,
   `audit_sdf.py`, `diversity.py`, `score_sdf.py`) read and which the near-duplicate removal
-  step of SDF layer 5 (`steps/near_duplicate_removal.py`) already ordered greedily. It is a
+  step of SDF layer 5 (`layer5_score_and_final_selection/near_duplicate_removal.py`) already ordered greedily. It is a
   stable binary partition, not a sort by language: English block first, everything else
   after, each in the run's own order. The pass sorts raw lines, so the Hub file's ROW order
   is a permutation of whatever it was staged as going into this pass. Both corpora are
