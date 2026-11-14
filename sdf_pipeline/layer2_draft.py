@@ -1,122 +1,120 @@
-"""Layer 2: draft one document per plan, from its DOCUMENT DESCRIPTION spec.
-
-The layer2.txt template carries the constitution and principles in its SYSTEM
-section (rendered from the run's constitution snapshot) and the per-document
-spec in its USER section. The draft must come back inside <document> tags;
-anything else — missing tags, truncation — is not checkpointed, so --resume
-retries exactly the failed calls (temperature 1.0 makes retries productive).
-"""
+"""Layer 2: draft one document per plan from its DOCUMENT DESCRIPTION spec; the draft must come back inside <document> tags.
+Anything else (missing tags, truncation) is not recorded, so ``--resume`` retries it."""
 
 import re
 import sys
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from shared import api, constitution_loader, deal_constraints, utils
+from shared import constitution_loader, deal_constraints, utils
 from sdf_pipeline import compose_prompts as cp
+from sdf_pipeline.shared_step_machinery.step_record import (
+    LAYER2, Run, StageFile, Step, loaded_once_per_run, one_record_per_accepted_document)
+from sdf_pipeline.shared_step_machinery.step_runner import run_step
+from sdf_pipeline.shared_step_machinery.update_steps import (
+    Accepted, Failed, FailureKind, ModelReply, ModelRequest, StepProgress, line_for_document_left_to_retry)
 
 DOC_TAG_RE = re.compile(r"<document>(.*?)</document>", re.DOTALL)
 
 _MAX_TOKENS = 6000  # real documents are often long; the cap bounds api-backend cost
 
+DRAFTS = StageFile(LAYER2, "drafts.jsonl", "doc_id")
+
+
+@dataclass(frozen=True)
+class DraftInputs:
+    """What every draft request is built from, loaded once per run."""
+    constitution_claude: str
+    principles: str
+    preamble: str
+    template_text: str
+    template_without_considerations: str   # a document with no considerations leaves no trace in its prompt
+    render_variable_lines: Callable
+
+
+@loaded_once_per_run
+def _inputs(run: Run) -> DraftInputs:
+    constitution_dir = utils.resolve_constitution_dir(run.prompts_directory)
+    template_text = utils.sdf_template_path(run.prompts_directory, 2).read_text(encoding="utf-8")
+    return DraftInputs(
+        constitution_claude=constitution_loader.load_constitution_claude(constitution_dir),
+        principles=constitution_loader.format_principles(constitution_loader.load_principles(constitution_dir)),
+        preamble=(run.prompts_directory / "preamble.txt").read_text(encoding="utf-8").strip(),
+        template_text=template_text,
+        template_without_considerations=deal_constraints.drop_template_lines(template_text, ["considerations_spec"]),
+        render_variable_lines=cp.render_variable_lines_for_template(template_text, run.prompts_directory, run.config))
+
+
+def build_request(documents: list, run: Run) -> ModelRequest:
+    """The draft request for the plan record (``prompt_id``, ``description``, ``variables``, ``considerations_spec``)."""
+    (plan,) = documents
+    inputs = _inputs(run)
+    considerations_spec = plan.get("considerations_spec", "")
+    system, user = cp.split_sections((
+        inputs.template_text if considerations_spec else inputs.template_without_considerations
+    ).format(
+        preamble=inputs.preamble,
+        constitution_claude=inputs.constitution_claude,
+        constitution_principles=inputs.principles,
+        document_description=plan["description"],
+        considerations_spec=considerations_spec,
+        variable_lines=inputs.render_variable_lines({"prompt_id": plan["prompt_id"], "variables": plan["variables"]}),
+        # Downstream-only matrix axis recorded in variables; plans without it get the neutral value, so
+        # --resume of a run that lacks it never crashes.
+        reasoning_featured=plan.get("variables", {}).get(
+            "reasoning_featured", "any relevant principles from the constitution"
+        ),
+    ))
+    return STEP.model_request(
+        plan, user, system, run,
+        max_tokens=_MAX_TOKENS,
+        cache_system=True,  # constitution-laden system prompt is identical across drafts
+    )
+
+
+def read_reply(documents: list, reply: ModelReply, run: Run) -> dict:
+    (plan,) = documents
+    if reply.stop_reason != "end_turn":
+        outcome = Failed(FailureKind.UNUSABLE_ANSWER, f"truncated draft (stop_reason={reply.stop_reason})")
+    else:
+        m = DOC_TAG_RE.search(reply.text)
+        content = m.group(1).strip() if m else ""
+        outcome = Accepted(content) if content else Failed(FailureKind.UNUSABLE_ANSWER, "no <document> tags")
+    return {plan["prompt_id"]: outcome}
+
+
+def record_of(plan: dict, content: str, run: Run) -> dict:
+    return {
+        "doc_id": plan["prompt_id"],
+        "variables": plan["variables"],
+        "description": plan["description"],
+        "considerations_spec": plan.get("considerations_spec", ""),
+        "content": content,
+    }
+
+
+def progress_line(documents: list, outcomes: dict, progress: StepProgress, run: Run) -> str | None:
+    (plan,), (outcome,) = documents, outcomes.values()
+    pid = plan["prompt_id"]
+    if isinstance(outcome, Accepted):
+        return f"  Drafted {pid} ({len(outcome.update)} chars)"
+    if outcome.kind is FailureKind.THROWN_CALL:
+        return line_for_document_left_to_retry(pid, f"API call failed ({outcome.reason})")
+    return line_for_document_left_to_retry(pid, outcome.reason)
+
+
+# Only a thrown call counts towards the systemic stop; an unusable answer is left behind.
+STEP = Step(
+    name="draft", folder_key=LAYER2, stage_tag="layer2_draft", model_setting_keys=("draft_model",),
+    applies=lambda plan, run: bool(plan.get("description")),
+    build_request=build_request, read_reply=read_reply,
+    records=one_record_per_accepted_document(DRAFTS, record_of), writes=(DRAFTS,),
+    checkpoint_file_name="_checkpoint.json", progress_line=progress_line)
+
 
 def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) -> list[dict]:
-    output_path = output_dir / "drafts.jsonl"
-    checkpoint = utils.Checkpoint(output_dir / "_checkpoint.json")
-    sdf = config["sdf"]
-
-    constitution_dir = utils.resolve_constitution_dir(prompts_dir)
-    constitution_claude = constitution_loader.load_constitution_claude(constitution_dir)
-    principles = constitution_loader.format_principles(
-        constitution_loader.load_principles(constitution_dir)
-    )
-    preamble = (prompts_dir / "preamble.txt").read_text(encoding="utf-8").strip()
-
-    # A document with no considerations leaves no trace in its prompt: the template
-    # line that carries {considerations_spec} is dropped when the block is empty.
-    template_text = utils.sdf_template_path(prompts_dir, 2).read_text(encoding="utf-8")
-    render_variable_lines = cp.render_variable_lines_for_template(template_text, prompts_dir, config)
-    template_without_considerations = deal_constraints.drop_template_lines(
-        template_text, ["considerations_spec"])
-
-    planned = [p for p in plans if p.get("description")]
-    existing = {r["doc_id"]: r for r in utils.load_jsonl(output_path)}
-    results = [existing[p["prompt_id"]] for p in planned if p["prompt_id"] in existing]
-    pending = [
-        p for p in planned
-        if p["prompt_id"] not in existing and not checkpoint.is_done(p["prompt_id"])
-    ]
-
-    def draft_one(plan: dict):
-        considerations_spec = plan.get("considerations_spec", "")
-        system, user = cp.split_sections((
-            template_text if considerations_spec else template_without_considerations
-        ).format(
-            preamble=preamble,
-            constitution_claude=constitution_claude,
-            constitution_principles=principles,
-            document_description=plan["description"],
-            considerations_spec=considerations_spec,
-            variable_lines=render_variable_lines({"prompt_id": plan["prompt_id"], "variables": plan["variables"]}),
-            # Downstream-only matrix axis (sampled in layer 1, recorded in
-            # variables). Default to the neutral value for plans composed
-            # before this axis existed, so --resume on an old run never crashes.
-            # Runs whose prompt snapshot still renders it (it is no longer dealt)
-            # keep working on the same fallback.
-            reasoning_featured=plan.get("variables", {}).get(
-                "reasoning_featured", "any relevant principles from the constitution"
-            ),
-        ))
-        try:
-            return api.call_claude(
-                user,
-                system_prompt=system or "",
-                model=sdf.get("draft_model"),
-                max_tokens=_MAX_TOKENS,
-                stage="layer2_draft",
-                item_id=plan["prompt_id"],
-                return_stop_reason=True,
-                cache_system=True,  # constitution-laden system prompt is identical across drafts
-            )
-        except Exception as e:
-            # One poison document (e.g. a usage-policy false positive on the
-            # claude_code backend) must not kill the layer and discard its
-            # siblings' in-flight work. Failed work is not checkpointed, so
-            # --resume retries exactly this call.
-            return None, f"error: {type(e).__name__}: {e}"
-
-    workers = config.get("workers", 1)
-    failed_calls = 0
-    for plan, (raw, stop) in zip(pending, utils.parallel_map(draft_one, pending, workers)):
-        pid = plan["prompt_id"]
-        if raw is None:
-            failed_calls += 1
-            print(f"  {pid}: API call failed ({stop}) — will retry on resume")
-            continue
-        if stop != "end_turn":
-            print(f"  {pid}: truncated draft (stop_reason={stop}) — will retry on resume")
-            continue
-        m = DOC_TAG_RE.search(raw)
-        content = m.group(1).strip() if m else ""
-        if not content:
-            print(f"  {pid}: no <document> tags — will retry on resume")
-            continue
-        record = {
-            "doc_id": pid,
-            "variables": plan["variables"],
-            "description": plan["description"],
-            "considerations_spec": plan.get("considerations_spec", ""),
-            "content": content,
-        }
-        results.append(record)
-        utils.append_jsonl(record, output_path)
-        checkpoint.mark_done(pid)
-        print(f"  Drafted {pid} ({len(content)} chars)")
-
-    if pending and failed_calls == len(pending):
-        raise SystemExit(
-            "layer2_draft: every pending API call failed — this is systemic "
-            "(auth, backend, or network), not per-document; fix and --resume."
-        )
-    return results
+    """Draft every plan and return the draft records in input order."""
+    return run_step(STEP, Run(config, prompts_dir, {LAYER2: output_dir}), plans).records_in_input_order
