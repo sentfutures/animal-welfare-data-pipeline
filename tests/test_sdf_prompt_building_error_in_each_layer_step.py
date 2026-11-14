@@ -87,3 +87,14 @@ def test_layer_3_revise_prompt_building_error_is_a_failure_that_a_resume_retries
     records = layer3_rewrite.run(split_config(tiny_config), prompts_sdf, stage_dir, drafts)
     assert [(c["stage"], c["item_id"]) for c in calls] == [("layer3_revise", "matrix_000001")]
     assert sorted(r["doc_id"] for r in records) == ["matrix_000000", "matrix_000001"]
+
+
+def test_the_final_corpus_record_has_one_definition_with_its_field_order_and_the_matrix_layout_omission():
+    from sdf_pipeline.document_state_final_corpus import final_corpus_record
+    variables = {"document_type": "memo", "culture": "French", "tone": "dry"}
+    record = final_corpus_record("matrix_000000", variables, "Spec.", "Consider.", "Text.", {"alignment": 5})
+    assert list(record) == ["doc_id", "type_id", "type_name", "language", "register", "variables", "description",
+                            "considerations_spec", "content", "scores"]
+    assert (record["type_id"], record["type_name"], record["register"], record["considerations_spec"]) == (
+        "memo", "memo", "dry", "Consider.")
+    assert "considerations_spec" not in final_corpus_record("m", variables, "Spec.", None, "Text.", {})

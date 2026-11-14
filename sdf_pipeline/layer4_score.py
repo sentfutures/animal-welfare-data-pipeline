@@ -32,6 +32,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from shared import constitution_loader, textstats, utils
 from sdf_pipeline import compose_prompts as cp
+from sdf_pipeline.document_state_final_corpus import final_corpus_record
 from sdf_pipeline.step_runner import StepRunner, run_corpus_step
 from sdf_pipeline.update_steps import (
     Accepted, CorpusStep, DocumentStep, Failed, ModelReply, ModelRequest, Removed, StepPolicy,
@@ -194,19 +195,9 @@ def run(
     corpus = []
     for r in passed:
         rw = rewrites_by_id[r["doc_id"]]
-        v = rw["variables"]
-        corpus.append({
-            "doc_id": r["doc_id"],
-            "type_id": v.get("document_type", ""),
-            "type_name": v.get("document_type", ""),
-            "language": cp.derive_language(v.get("culture", "")),
-            "register": v.get("tone", ""),
-            "variables": v,
-            "description": rw["description"],
-            "considerations_spec": rw.get("considerations_spec", ""),
-            "content": rw["content"],
-            "scores": r["scores"],
-        })
+        corpus.append(final_corpus_record(
+            r["doc_id"], rw["variables"], rw["description"], rw.get("considerations_spec", ""),
+            rw["content"], r["scores"]))
     utils.save_jsonl(corpus, final_path)
 
     low_spec = [r for r in results if r["scores"]["spec_conformance"] < threshold]
