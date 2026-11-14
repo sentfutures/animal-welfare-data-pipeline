@@ -38,10 +38,8 @@ class DraftStep(DocumentStep):
     stage_file_name = "drafts.jsonl"
     # Only a thrown call counts towards the systemic stop; an unusable answer is left behind.
     policy = StepPolicy()
-    systemic_stop_message = (
-        "layer2_draft: every pending API call failed — this is systemic "
-        "(auth, backend, network, or an error building the prompt), not per-document; fix and --resume."
-    )
+    stage_tag = "layer2_draft"
+    document_id_field = "prompt_id"   # the documents are plans; the drafts file's ids are doc_id
 
     def __init__(self, config: dict, prompts_dir: Path):
         self.draft_model = config["sdf"].get("draft_model")
@@ -59,9 +57,6 @@ class DraftStep(DocumentStep):
             self.template_text, prompts_dir, config)
         self.template_without_considerations = deal_constraints.drop_template_lines(
             self.template_text, ["considerations_spec"])
-
-    def document_id_of(self, plan: dict) -> str:
-        return plan["prompt_id"]
 
     def applies_to(self, plan: dict) -> bool:
         return bool(plan.get("description"))
@@ -86,13 +81,9 @@ class DraftStep(DocumentStep):
                 "reasoning_featured", "any relevant principles from the constitution"
             ),
         ))
-        return ModelRequest(
-            user_message=user,
-            system_prompt=system or "",
-            model=self.draft_model,
+        return self.model_request(
+            plan, user, system, self.draft_model,
             max_tokens=_MAX_TOKENS,
-            stage="layer2_draft",
-            item_id=plan["prompt_id"],
             cache_system=True,  # constitution-laden system prompt is identical across drafts
         )
 

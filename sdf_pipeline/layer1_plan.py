@@ -45,28 +45,14 @@ class PlanStep(DocumentStep):
     stage_file_id_field = "prompt_id"
     # Only a thrown call counts towards the systemic stop; an unusable answer is left behind.
     policy = StepPolicy()
-    systemic_stop_message = (
-        "layer1_plan: every pending API call failed — this is systemic "
-        "(auth, backend, network, or an error building the prompt), not per-document; fix and --resume."
-    )
+    stage_tag = "layer1_plan"
 
     def __init__(self, config: dict):
         self.plan_model = config["sdf"].get("plan_model")
 
-    def document_id_of(self, prompt_record: dict) -> str:
-        return prompt_record["prompt_id"]
-
-    def applies_to(self, prompt_record: dict) -> bool:
-        return True
-
     def build_request(self, prompt_record: dict) -> ModelRequest:
-        return ModelRequest(
-            user_message=prompt_record["prompt"],
-            system_prompt=prompt_record.get("system") or "",
-            model=self.plan_model,
-            stage="layer1_plan",
-            item_id=prompt_record["prompt_id"],
-        )
+        return self.model_request(
+            prompt_record, prompt_record["prompt"], prompt_record.get("system"), self.plan_model)
 
     def interpret(self, prompt_record: dict, reply: ModelReply):
         if reply.stop_reason != "end_turn":

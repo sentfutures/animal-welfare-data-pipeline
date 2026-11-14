@@ -50,10 +50,7 @@ class ScoreStep(DocumentStep):
     step_name = "score"
     stage_file_name = "scores.jsonl"
     policy = StepPolicy()
-    systemic_stop_message = (
-        "layer4_score: every pending API call failed — this is systemic "
-        "(auth, backend, network, or an error building the prompt), not per-document; fix and --resume."
-    )
+    stage_tag = "layer4_score"
 
     def __init__(self, config: dict, prompts_dir: Path):
         self.score_model = config["sdf"].get("score_model")
@@ -62,12 +59,6 @@ class ScoreStep(DocumentStep):
         self.template_path = utils.sdf_template_path(prompts_dir, 4)
         self.render_variable_lines = cp.render_variable_lines_for_template(
             self.template_path.read_text(encoding="utf-8"), prompts_dir, config)
-
-    def document_id_of(self, rewrite: dict) -> str:
-        return rewrite["doc_id"]
-
-    def applies_to(self, rewrite: dict) -> bool:
-        return True
 
     def build_request(self, rewrite: dict) -> ModelRequest:
         system, user = cp.split_sections(utils.load_prompt(
@@ -78,12 +69,8 @@ class ScoreStep(DocumentStep):
                 {"prompt_id": rewrite["doc_id"], "variables": rewrite["variables"]}),
             improved_document=rewrite["content"],
         ))
-        return ModelRequest(
-            user_message=user,
-            system_prompt=system or "",
-            model=self.score_model,
-            stage="layer4_score",
-            item_id=rewrite["doc_id"],
+        return self.model_request(
+            rewrite, user, system, self.score_model,
             cache_system=True,  # constitution + rubric are identical across scoring calls
         )
 

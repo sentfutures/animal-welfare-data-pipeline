@@ -423,10 +423,7 @@ class ScreenStep(BatchStep):
         failed_document=WhatAFailedDocumentDoes.STOPS_THE_RUN_AFTER_THE_STEP,
         errors_counted_as_thrown_calls=WhereAnErrorIsAThrownCall.BUILD | WhereAnErrorIsAThrownCall.SEND
         | WhereAnErrorIsAThrownCall.INTERPRET)
-    systemic_stop_message = (
-        "layer1_screen: every pending screen call failed — this is systemic "
-        "(auth, backend, network, or an error building the prompt), not per-batch; fix and --resume."
-    )
+    call_noun = "screen call"
 
     def __init__(self, prompts: ScreenPrompts, model: str | None, batch_size: int, render_variable_lines):
         self.prompts = prompts

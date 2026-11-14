@@ -273,9 +273,8 @@ class ConsiderationScoringStep(DocumentStep):
     stage_file_id_field = "prompt_id"
     failure_file_name = FAILURES_FILENAME
     writes_stage_file_as_replies_arrive = True   # the scores file is the checkpoint: write each row the moment it arrives
-    systemic_stop_message = (
-        "layer1_select: every pending scoring call failed — this is systemic "
-        "(auth, backend, network, or an error building the prompt), not per-document; fix and --resume.")
+    stage_tag = STAGE_TAG
+    call_noun = "scoring call"
 
     def __init__(self, config: dict, catalog: ConsiderationCatalog, template: str):
         sdf = config["sdf"]
@@ -305,9 +304,6 @@ class ConsiderationScoringStep(DocumentStep):
         self._failed = 0
         self._clock.restart()
 
-    def document_id_of(self, plan: dict) -> str:
-        return plan["prompt_id"]
-
     def applies_to(self, plan: dict) -> bool:
         """A plan with a description, outside the no-welfare-stake arm (when that is skipped)."""
         return bool(plan.get("description")) and not (
@@ -319,12 +315,8 @@ class ConsiderationScoringStep(DocumentStep):
             eligible_entries_for_document(self.catalog, plan["variables"]), self.seed, prompt_id)
         self._offered_by_document_id[prompt_id] = offered
         system, user = build_scoring_prompt(self.template, DocumentFacts.from_plan(plan), offered)
-        return ModelRequest(
-            user_message=user,
-            system_prompt=system or "",
-            model=self.model,
-            stage=STAGE_TAG,
-            item_id=prompt_id,
+        return self.model_request(
+            plan, user, system, self.model,
             max_tokens=scoring_max_tokens(offered),
             json_schema=build_scoring_schema(offered),
         )
