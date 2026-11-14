@@ -41,6 +41,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sdf_pipeline import layer1_description_rewrite, layer1_screen, layer1_select_considerations
+from sdf_pipeline.document_state_final_corpus import resolve_sdf_input
 from sdf_pipeline.document_state_loader import (
     load_document_states_or_empty_list_when_not_a_run_folder, plan_records_of_states)
 from shared import api, textstats, utils
@@ -70,24 +71,15 @@ def resolve_input(input_arg: str) -> tuple[list[dict], Path]:
     Composition lives in each record's ``variables`` (the matrix axes) plus the
     top-level ``type_name``/``language``/``register`` the pipeline derives — so
     no separate layer-1 type map is loaded."""
-    path = Path(input_arg)
-    if path.is_dir():
-        corpus = path / "final" / "sdf_corpus.jsonl"
-        if not corpus.exists():
-            raise SystemExit(f"No final/sdf_corpus.jsonl under {path}")
-        return utils.load_jsonl(corpus), path / "audit"
-    if not path.exists():
-        raise SystemExit(f"Input not found: {path}")
-    return utils.load_jsonl(path), path.parent / "audit"
+    resolved = resolve_sdf_input(input_arg)
+    return utils.load_jsonl(resolved.corpus_path_or_exit_with_input_not_found_message()), resolved.audit_parent_directory
 
 
 def run_directory_for_input(input_arg: str) -> Path:
     """The run directory (the one holding layer1/ and final/) for either kind of input: a
     run directory itself, or a corpus .jsonl, which normally sits in the run's final/."""
-    path = Path(input_arg)
-    if path.is_dir():
-        return path
-    return path.parent.parent if path.parent.name == "final" else path.parent
+    resolved = resolve_sdf_input(input_arg)
+    return resolved.run_directory or resolved.input_path.parent
 
 
 # ---------------------------------------------------------------- mechanical checks

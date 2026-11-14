@@ -41,6 +41,7 @@ from evals.log_probability_persona_check.persona_sets import (PERSONA_CHECKS_PRO
 from evals.log_probability_persona_check.scoring_model_defaults import (MODEL_TYPE_BASE, MODEL_TYPE_INSTRUCT, MODEL_TYPES,  # noqa: E402
                                                                         chat_template_keyword_arguments_for_model,
                                                                         resolve_scoring_model)
+from sdf_pipeline.document_state_final_corpus import resolve_sdf_input  # noqa: E402
 from shared import utils  # noqa: E402
 
 DEFAULT_INPUT = "outputs/sdf/latest"
@@ -63,15 +64,8 @@ def sha256_of_file(path):
 
 def resolve_input(input_argument):
     """Returns (corpus_path, audit_parent_directory). Accepts a pipeline run folder or a corpus JSONL file."""
-    path = Path(input_argument)
-    if path.is_dir():
-        corpus_path = path / "final" / "sdf_corpus.jsonl"
-        if not corpus_path.exists():
-            raise SystemExit(f"No final/sdf_corpus.jsonl under {path}")
-        return corpus_path, path / "audit"
-    if not path.exists():
-        raise SystemExit(f"Input not found: {path}")
-    return path, path.parent / "audit"
+    resolved = resolve_sdf_input(input_argument)
+    return resolved.corpus_path_or_exit_with_input_not_found_message(), resolved.audit_parent_directory
 
 
 def load_corpus_documents(corpus_path):
