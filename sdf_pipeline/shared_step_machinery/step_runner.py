@@ -60,6 +60,20 @@ def send_model_request(request: ModelRequest) -> ModelReply:
     return ModelReply(text=text, stop_reason=stop_reason)
 
 
+def resolve_settings_of_model_request(request: ModelRequest, config: dict | None = None) -> api.ResolvedRequestSettings:
+    """The settings ``send_model_request`` will send ``request`` with (read-only).
+    The OpenAI route sends the request's own max tokens and reasoning effort, with no thinking headroom."""
+    if request.openai_schema_name is None:
+        return api.resolve_request_settings(
+            request.model, request.stage, request.max_tokens, request.temperature,
+            json_schema=request.json_schema, cache_system=request.cache_system, config=config)
+    return api.ResolvedRequestSettings(
+        provider="openai", model=request.model, max_tokens=request.max_tokens, thinking_headroom_added=0,
+        requested_temperature=openai_api.SAMPLING_TEMPERATURE, temperature=openai_api.SAMPLING_TEMPERATURE,
+        effort=request.openai_reasoning_effort, effort_configured=request.openai_reasoning_effort,
+        thinking=None, structured_output=request.json_schema is not None, cache_system=False)
+
+
 def failure_for_exception(error: Exception) -> Failed:
     """The ``Failed`` a step's declared exception policy turns an exception into."""
     return Failed(FailureKind.THROWN_CALL, f"error: {type(error).__name__}: {error}")
