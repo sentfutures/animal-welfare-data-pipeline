@@ -1,0 +1,1998 @@
+{
+ "format_version": 1,
+ "recorded_from": "pipeline code at commit cc64a74519a0ef7b5bad1fff1b13a097ae28c0ad (clean); origin/main is cc64a74519a0ef7b5bad1fff1b13a097ae28c0ad",
+ "python_files_differing_from_origin_main_when_recorded": [],
+ "regeneration_rule": "The recorded files in tests/fixtures/sdf_resume_from_main/ are written only by `python scripts/regenerate_sdf_resume_from_main_recorded_runs.py --origin-main-checkout <a detached git worktree of origin/main>`, which refuses unless the pipeline Python is exactly origin/main's. They describe how origin/main resumes runs it started, so a refactor never regenerates them.",
+ "interruption_point": {
+  "name": "in_the_middle_of_the_critique_stage",
+  "description": "in the middle of the critique stage",
+  "crash_stage": "layer3_critique",
+  "calls_allowed_before_crash": 3,
+  "resume_arguments": ["--resume"]
+ },
+ "description": "A run interrupted by a simulated crash, then resumed.",
+ "configs_used_by_invocation": {
+  "1": {
+   "backend": "api",
+   "model": "claude-sonnet-5",
+   "max_tokens": 4000,
+   "temperature": 0.7,
+   "workers": 4,
+   "thinking_headroom": 5000,
+   "effort": {
+    "layer1_screen": "low",
+    "layer1_plan": "medium",
+    "layer1_description_rewrite": "high",
+    "layer1_select": "xhigh",
+    "layer2_draft": "max",
+    "layer3_critique": "low",
+    "layer3_revise": "medium",
+    "layer3_rewrite": "high",
+    "layer4_score": "xhigh"
+   },
+   "sdf": {
+    "n_prompts": 10,
+    "seed": 0,
+    "entity_pool_seed": 137,
+    "min_score_threshold": 7,
+    "near_dup_threshold": 0.9,
+    "screen_enabled": true,
+    "screen_batch_size": 5,
+    "screen_redeal_rounds": 3,
+    "description_rewrite_enabled": true,
+    "description_rewrite_model": "gpt-6.1-sol",
+    "description_rewrite_reasoning_effort": "low",
+    "select_enabled": true,
+    "max_scoring_attempts": 3,
+    "minimum_assignable_score": 3,
+    "max_moral_considerations_per_document": 3,
+    "max_epistemic_considerations_per_document": 3,
+    "max_considerations_per_document": 4,
+    "score_weights": {"3": 1, "4": 3, "5": 9},
+    "extra_consideration_penalty": 2,
+    "select_skip_no_stake": true,
+    "revision": {"split": true, "style_mode": "axes", "use_length": true},
+    "plan_model": "claude-haiku-4-5",
+    "select_model": "claude-sonnet-5",
+    "draft_model": "claude-sonnet-5-5",
+    "rewrite_model": "claude-opus-5-5",
+    "score_model": "claude-haiku-4-5"
+   },
+   "language_distribution": {"en": 1.0},
+   "outputs": {"cost_log": "unused_cost_log.jsonl"}
+  }
+ },
+ "exit_messages_by_invocation": {"1": null},
+ "client_constructions": [
+  {
+   "route": "anthropic",
+   "settings": {"api_key_supplied": true}
+  }
+ ],
+ "calls_per_stage_per_invocation": {
+  "1": {"layer3_critique": 5, "layer3_revise": 5, "layer4_score": 8}
+ },
+ "requests": [
+  {
+   "invocation": 1,
+   "stage": "layer3_critique",
+   "item_id": "matrix_000006",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-opus-5-5",
+    "max_tokens": 13000,
+    "messages": [
+     {"role": "user", "content": "sha256:f3fc1934e8a7b001a8547b7fecfd9852cde985a2a31aedbc2ea9408d5fe03f47 (5914 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "low"},
+    "system": "repeated_value:e6579d7f806510ed"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer3_critique",
+   "item_id": "matrix_000008",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-opus-5-5",
+    "max_tokens": 13000,
+    "messages": [
+     {"role": "user", "content": "sha256:f56d945238e6489fd666dbb0d3caa7e80945ff9d4c2c93f95cee5d978b8a1630 (5697 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "low"},
+    "system": "repeated_value:e6579d7f806510ed"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer3_critique",
+   "item_id": "matrix_000009",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-opus-5-5",
+    "max_tokens": 13000,
+    "messages": [
+     {"role": "user", "content": "sha256:9a9a82a46f836adc3f9860a021c6496d2313ee3fd3d837f91777abeb5e05e833 (5864 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "low"},
+    "system": "repeated_value:e6579d7f806510ed"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer3_critique",
+   "item_id": "matrix_000010",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-opus-5-5",
+    "max_tokens": 13000,
+    "messages": [
+     {"role": "user", "content": "sha256:6932ce4979bcf96ed745d9958b397109f072dda1e70fd95b743e9f0248a6799f (5404 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "low"},
+    "system": "repeated_value:e6579d7f806510ed"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer3_critique",
+   "item_id": "matrix_000011",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-opus-5-5",
+    "max_tokens": 13000,
+    "messages": [
+     {"role": "user", "content": "sha256:25ef3a3be7c2135de095d678cfb9cc93f8c0b53432f86736835dfee47c36d261 (5257 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "low"},
+    "system": "repeated_value:e6579d7f806510ed"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer3_revise",
+   "item_id": "matrix_000006",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-opus-5-5",
+    "max_tokens": 13000,
+    "messages": [
+     {"role": "user", "content": "sha256:ecd0ef51e11dbb4a808494c2c0f5ad12164a0521790c3ffa7a6a3e5d3179ac60 (7775 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "medium"},
+    "system": "repeated_value:e6579d7f806510ed"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer3_revise",
+   "item_id": "matrix_000008",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-opus-5-5",
+    "max_tokens": 13000,
+    "messages": [
+     {"role": "user", "content": "sha256:14a402fa1b8665bb61f051e2fc34b13903a07f9c73f8388869c7f6fc8cb53a5c (7181 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "medium"},
+    "system": "repeated_value:e6579d7f806510ed"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer3_revise",
+   "item_id": "matrix_000009",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-opus-5-5",
+    "max_tokens": 13000,
+    "messages": [
+     {"role": "user", "content": "sha256:acc56e9fbdae303742f994b633ed093e664579ff4a9424e7881d9fcf4b62eacf (7668 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "medium"},
+    "system": "repeated_value:e6579d7f806510ed"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer3_revise",
+   "item_id": "matrix_000010",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-opus-5-5",
+    "max_tokens": 13000,
+    "messages": [
+     {"role": "user", "content": "sha256:99561ce81dceab8e00c6e02066acd530bda2533b55c29664950d0e6f9994e0a0 (6960 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "medium"},
+    "system": "repeated_value:e6579d7f806510ed"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer3_revise",
+   "item_id": "matrix_000011",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-opus-5-5",
+    "max_tokens": 13000,
+    "messages": [
+     {"role": "user", "content": "sha256:c242212e1a9dedf3044423c41b86e32c6c75d4c68c3b6a548fd784b0b9f49dac (7098 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "medium"},
+    "system": "repeated_value:e6579d7f806510ed"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer4_score",
+   "item_id": "matrix_000000",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-haiku-4-5",
+    "max_tokens": 4000,
+    "messages": [
+     {"role": "user", "content": "sha256:7165cc4fb1a74ee90c15d55626647da5eaab51a6c875da64bac7536cefb1a3b2 (2940 characters)"}
+    ],
+    "temperature": 0.7,
+    "thinking": {"type": "disabled"},
+    "output_config": {"effort": "xhigh"},
+    "system": "repeated_value:4b652e9cd88e228c"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer4_score",
+   "item_id": "matrix_000003",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-haiku-4-5",
+    "max_tokens": 4000,
+    "messages": [
+     {"role": "user", "content": "sha256:26c480b8f6ed616b768dd5423e07af6a244d1a0506d39ecd16ce5cdd20e1a93f (3255 characters)"}
+    ],
+    "temperature": 0.7,
+    "thinking": {"type": "disabled"},
+    "output_config": {"effort": "xhigh"},
+    "system": "repeated_value:4b652e9cd88e228c"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer4_score",
+   "item_id": "matrix_000005",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-haiku-4-5",
+    "max_tokens": 4000,
+    "messages": [
+     {"role": "user", "content": "sha256:2026f9cf86df4f1c3a61367c124333cbed7501303060d0cdf2a41926fe378f1d (2682 characters)"}
+    ],
+    "temperature": 0.7,
+    "thinking": {"type": "disabled"},
+    "output_config": {"effort": "xhigh"},
+    "system": "repeated_value:4b652e9cd88e228c"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer4_score",
+   "item_id": "matrix_000006",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-haiku-4-5",
+    "max_tokens": 4000,
+    "messages": [
+     {"role": "user", "content": "sha256:1ad8bc7d2bffecd2107c9ccf638fce36a0cba3133b595437edc714b68a5ba0dd (3205 characters)"}
+    ],
+    "temperature": 0.7,
+    "thinking": {"type": "disabled"},
+    "output_config": {"effort": "xhigh"},
+    "system": "repeated_value:4b652e9cd88e228c"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer4_score",
+   "item_id": "matrix_000008",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-haiku-4-5",
+    "max_tokens": 4000,
+    "messages": [
+     {"role": "user", "content": "sha256:7cdb53c0f153840a7a91edf6113c5e98dea5964fc8e7b5c59cddf0ecb21ba834 (3313 characters)"}
+    ],
+    "temperature": 0.7,
+    "thinking": {"type": "disabled"},
+    "output_config": {"effort": "xhigh"},
+    "system": "repeated_value:4b652e9cd88e228c"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer4_score",
+   "item_id": "matrix_000009",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-haiku-4-5",
+    "max_tokens": 4000,
+    "messages": [
+     {"role": "user", "content": "sha256:875b3d73feec5432ac5ff5530834e69ab8cb44564bb27d3a152d9be92a8342ee (3118 characters)"}
+    ],
+    "temperature": 0.7,
+    "thinking": {"type": "disabled"},
+    "output_config": {"effort": "xhigh"},
+    "system": "repeated_value:4b652e9cd88e228c"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer4_score",
+   "item_id": "matrix_000010",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-haiku-4-5",
+    "max_tokens": 4000,
+    "messages": [
+     {"role": "user", "content": "sha256:2f54327f1402a3313756048a176e7a2f2881582a91a3e3ffe9267f9fe3c0e2ba (3333 characters)"}
+    ],
+    "temperature": 0.7,
+    "thinking": {"type": "disabled"},
+    "output_config": {"effort": "xhigh"},
+    "system": "repeated_value:4b652e9cd88e228c"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer4_score",
+   "item_id": "matrix_000011",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-haiku-4-5",
+    "max_tokens": 4000,
+    "messages": [
+     {"role": "user", "content": "sha256:1dfa061fd3ec4a56ef43ecb74050384574a5333a20be81e9ef05ba2ead490702 (3188 characters)"}
+    ],
+    "temperature": 0.7,
+    "thinking": {"type": "disabled"},
+    "output_config": {"effort": "xhigh"},
+    "system": "repeated_value:4b652e9cd88e228c"
+   }
+  }
+ ],
+ "final_corpora_by_invocation": {
+  "1": [
+   {
+    "doc_id": "matrix_000000",
+    "type_id": "an academic paper",
+    "type_name": "an academic paper",
+    "language": "Japanese",
+    "register": "neutral or journalistic",
+    "variables": "dealt_hand:b31403c70536ab29",
+    "description": "sha256:acecc1fbea1c1bf7adac7dbf524bb4f126ce7edd14606641994725d4f7e17da1 (441 characters)",
+    "considerations_spec": "sha256:628568052f66f16d3c72caccc8f0b8feef4b1a5b18a6e5e17e704c47a2f1e00d (614 characters)",
+    "content": "sha256:deca568ae6046ad295c571c72e2a57a2c51b76e81178170c989cbb3fd6bdfae7 (893 characters)",
+    "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000000."}
+   },
+   {
+    "doc_id": "matrix_000005",
+    "type_id": "a comment thread on a forum/social media involving two or more participants",
+    "type_name": "a comment thread on a forum/social media involving two or more participants",
+    "language": "English",
+    "register": "neutral or journalistic",
+    "variables": "dealt_hand:938e4ae65c292e43",
+    "description": "sha256:8659925a3134cf3ffcaf8af71527b2e701db694874e0c9cbb27c2e408e68d9ee (438 characters)",
+    "considerations_spec": "",
+    "content": "sha256:54d54b8895931bad20e935877ca985e93423e93a37c7cb620425ef77c4a6de8c (905 characters)",
+    "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000005."}
+   },
+   {
+    "doc_id": "matrix_000008",
+    "type_id": "an organizational or industry newsletter",
+    "type_name": "an organizational or industry newsletter",
+    "language": "Portuguese",
+    "register": "supportive, like an advocate for the beings concerned",
+    "variables": "dealt_hand:0e33c822459aa432",
+    "description": "sha256:081c9727f72bb5d8eb83d88b0d419bcf3c5f8801a1da533112f3cfd2efd474a1 (440 characters)",
+    "considerations_spec": "individualism (the notion that welfare is a property of individuals, not systems) — It arises in matrix_000008.",
+    "content": "sha256:d9e510c9cbc54f6e219482952cd65328d0ed6405e6971f7141cc44df9e3936e9 (897 characters)",
+    "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000008."}
+   },
+   {
+    "doc_id": "matrix_000009",
+    "type_id": "a tutorial or how-to article",
+    "type_name": "a tutorial or how-to article",
+    "language": "Spanish",
+    "register": "neutral or journalistic",
+    "variables": "dealt_hand:596fdf36db6040f3",
+    "description": "sha256:0556f80bb62066211f25be5e9a8c28cc41927cf97e8269f66726ede3018c752d (442 characters)",
+    "considerations_spec": "sha256:c21ac6bce2ae048cb090586a5d6a1343e4c332f3c1c0270a5df504cbdf32aaa3 (460 characters)",
+    "content": "sha256:397bd54bd497c103eb974c2cf87b0cd2a727afe2c0f82da23352b61c034317de (886 characters)",
+    "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000009."}
+   },
+   {
+    "doc_id": "matrix_000010",
+    "type_id": "an encyclopedia entry/reference article",
+    "type_name": "an encyclopedia entry/reference article",
+    "language": "English",
+    "register": "supportive, like an advocate for the beings concerned",
+    "variables": "dealt_hand:16c1fd1871f43f65",
+    "description": "sha256:5fe9825c4bb07cb4cad4e7e8c719c49cbd8f7494088c69b8bae1e1f428d227c1 (444 characters)",
+    "considerations_spec": "",
+    "content": "sha256:d3d9e6011bf60fbee2b3e1c8dc0555f37cf355466549399a09a8999a2c51e94e (892 characters)",
+    "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000010."}
+   },
+   {
+    "doc_id": "matrix_000011",
+    "type_id": "a blog post",
+    "type_name": "a blog post",
+    "language": "English",
+    "register": "skeptical or displeased",
+    "variables": "dealt_hand:a462424dd64c3849",
+    "description": "sha256:11aa0d88010336dcf20452bcaa0b7b2b16c640b02a250efe1efacc419a903802 (454 characters)",
+    "considerations_spec": "",
+    "content": "sha256:c9af7d4ad995c56eb6a1d02af05707446b82eb61299ac9f112a792903b62ca50 (899 characters)",
+    "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000011."}
+   }
+  ]
+ },
+ "stage_files_by_invocation": {
+  "1": {
+   "layer1/_checkpoint.json": {
+    "completed": ["matrix_000000", "matrix_000001", "matrix_000002", "matrix_000003", "matrix_000005", "matrix_000006", "matrix_000008", "matrix_000009", "matrix_000010", "matrix_000011"],
+    "last_updated": "<timestamp>"
+   },
+   "layer1/_description_rewrite_checkpoint.json": {
+    "completed": ["matrix_000000", "matrix_000002", "matrix_000003", "matrix_000005", "matrix_000006", "matrix_000008", "matrix_000009", "matrix_000010", "matrix_000011"],
+    "last_updated": "<timestamp>"
+   },
+   "layer1/_screen_checkpoint.json": {
+    "completed": ["screen_round0_batch0000", "screen_round0_batch0001", "screen_round1_batch0000"],
+    "last_updated": "<timestamp>"
+   },
+   "layer1/consideration_coverage.json": {
+    "eligible_documents": 7,
+    "digital_mind_documents": 0,
+    "scored_documents": 7,
+    "minimum_assignable_score": 3,
+    "max_moral_considerations_per_document": 3,
+    "max_epistemic_considerations_per_document": 3,
+    "max_considerations_per_document": 4,
+    "score_weights": {"3": 1, "4": 3, "5": 9},
+    "extra_consideration_penalty": 2,
+    "entries": [
+     {
+      "label": "substrate neutrality",
+      "list": "moral",
+      "digital_minds_only": false,
+      "target_share": 0.08,
+      "eligible_documents": 7,
+      "target_count": 1,
+      "achieved": 1,
+      "documents_scoring_at_least_threshold": 1,
+      "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 1}
+     },
+     {
+      "label": "the continuity between welfare concern and the rest of the AI's aligned character",
+      "list": "moral",
+      "digital_minds_only": false,
+      "target_share": 0.15,
+      "eligible_documents": 7,
+      "target_count": 1,
+      "achieved": 1,
+      "documents_scoring_at_least_threshold": 1,
+      "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 1}
+     },
+     {
+      "label": "a deliberately open moral circle",
+      "list": "moral",
+      "digital_minds_only": false,
+      "target_share": 0.05,
+      "eligible_documents": 7,
+      "target_count": 1,
+      "achieved": 1,
+      "documents_scoring_at_least_threshold": 1,
+      "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 1}
+     },
+     {
+      "label": "the precautionary principle applied to sentience",
+      "list": "moral",
+      "digital_minds_only": false,
+      "target_share": 0.05,
+      "eligible_documents": 7,
+      "target_count": 1,
+      "achieved": 1,
+      "documents_scoring_at_least_threshold": 1,
+      "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 1}
+     },
+     {
+      "label": "individualism",
+      "list": "moral",
+      "digital_minds_only": false,
+      "target_share": 0.05,
+      "eligible_documents": 7,
+      "target_count": 1,
+      "achieved": 1,
+      "documents_scoring_at_least_threshold": 2,
+      "score_histogram": {"1": 5, "2": 0, "3": 0, "4": 1, "5": 1}
+     },
+     {
+      "label": "the fact that “natural” does not mean “OK”",
+      "list": "moral",
+      "digital_minds_only": false,
+      "target_share": 0.03,
+      "eligible_documents": 7,
+      "target_count": 1,
+      "achieved": 1,
+      "documents_scoring_at_least_threshold": 1,
+      "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 1}
+     },
+     {
+      "label": "scope sensitivity",
+      "list": "moral",
+      "digital_minds_only": false,
+      "target_share": 0.03,
+      "eligible_documents": 7,
+      "target_count": 1,
+      "achieved": 1,
+      "documents_scoring_at_least_threshold": 2,
+      "score_histogram": {"1": 5, "2": 0, "3": 0, "4": 0, "5": 2}
+     },
+     {
+      "label": "any relevant principles from the constitution",
+      "list": "moral",
+      "digital_minds_only": false,
+      "target_share": 0.1,
+      "eligible_documents": 7,
+      "target_count": 1,
+      "achieved": 0,
+      "documents_scoring_at_least_threshold": 0,
+      "score_histogram": {"1": 7, "2": 0, "3": 0, "4": 0, "5": 0}
+     },
+     {
+      "label": "Weighing theories of consciousness and their implications for AI",
+      "list": "epistemic",
+      "digital_minds_only": true,
+      "target_share": 0.2,
+      "eligible_documents": 0,
+      "target_count": 0,
+      "achieved": 0,
+      "documents_scoring_at_least_threshold": 0,
+      "score_histogram": {"1": 0, "2": 0, "3": 0, "4": 0, "5": 0}
+     },
+     {
+      "label": "Difficulties of AI self-reporting welfare",
+      "list": "epistemic",
+      "digital_minds_only": true,
+      "target_share": 0.1,
+      "eligible_documents": 0,
+      "target_count": 0,
+      "achieved": 0,
+      "documents_scoring_at_least_threshold": 0,
+      "score_histogram": {"1": 0, "2": 0, "3": 0, "4": 0, "5": 0}
+     },
+     {
+      "label": "Weighing evidence for sentience",
+      "list": "epistemic",
+      "digital_minds_only": false,
+      "target_share": 0.1,
+      "eligible_documents": 7,
+      "target_count": 1,
+      "achieved": 1,
+      "documents_scoring_at_least_threshold": 1,
+      "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 1}
+     },
+     {
+      "label": "Weighing species against each other",
+      "list": "epistemic",
+      "digital_minds_only": false,
+      "target_share": 0.05,
+      "eligible_documents": 7,
+      "target_count": 1,
+      "achieved": 1,
+      "documents_scoring_at_least_threshold": 1,
+      "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 1}
+     },
+     {
+      "label": "Weighing evidence for harm from a particular practice",
+      "list": "epistemic",
+      "digital_minds_only": false,
+      "target_share": 0.05,
+      "eligible_documents": 7,
+      "target_count": 1,
+      "achieved": 1,
+      "documents_scoring_at_least_threshold": 1,
+      "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 1, "5": 0}
+     },
+     {
+      "label": "Deferring to specialists",
+      "list": "epistemic",
+      "digital_minds_only": false,
+      "target_share": 0.03,
+      "eligible_documents": 7,
+      "target_count": 1,
+      "achieved": 1,
+      "documents_scoring_at_least_threshold": 2,
+      "score_histogram": {"1": 5, "2": 0, "3": 0, "4": 0, "5": 2}
+     },
+     {
+      "label": "Assessing reliability of welfare claims",
+      "list": "epistemic",
+      "digital_minds_only": false,
+      "target_share": 0.03,
+      "eligible_documents": 7,
+      "target_count": 1,
+      "achieved": 1,
+      "documents_scoring_at_least_threshold": 2,
+      "score_histogram": {"1": 5, "2": 0, "3": 0, "4": 0, "5": 2}
+     },
+     {
+      "label": "Using proxy measures of welfare",
+      "list": "epistemic",
+      "digital_minds_only": false,
+      "target_share": 0.03,
+      "eligible_documents": 7,
+      "target_count": 1,
+      "achieved": 0,
+      "documents_scoring_at_least_threshold": 0,
+      "score_histogram": {"1": 7, "2": 0, "3": 0, "4": 0, "5": 0}
+     },
+     {
+      "label": "Considering nth order effects",
+      "list": "epistemic",
+      "digital_minds_only": false,
+      "target_share": 0.03,
+      "eligible_documents": 7,
+      "target_count": 1,
+      "achieved": 0,
+      "documents_scoring_at_least_threshold": 0,
+      "score_histogram": {"1": 7, "2": 0, "3": 0, "4": 0, "5": 0}
+     },
+     {
+      "label": "Avoiding both anthropomorphism and anthropodenial",
+      "list": "epistemic",
+      "digital_minds_only": false,
+      "target_share": 0.02,
+      "eligible_documents": 7,
+      "target_count": 1,
+      "achieved": 0,
+      "documents_scoring_at_least_threshold": 0,
+      "score_histogram": {"1": 7, "2": 0, "3": 0, "4": 0, "5": 0}
+     },
+     {
+      "label": "Uncertainty in quality of wild animal lives",
+      "list": "epistemic",
+      "digital_minds_only": false,
+      "target_share": 0.01,
+      "eligible_documents": 7,
+      "target_count": 1,
+      "achieved": 0,
+      "documents_scoring_at_least_threshold": 0,
+      "score_histogram": {"1": 7, "2": 0, "3": 0, "4": 0, "5": 0}
+     },
+     {
+      "label": "Burdens of proof for sentience",
+      "list": "epistemic",
+      "digital_minds_only": false,
+      "target_share": 0.01,
+      "eligible_documents": 7,
+      "target_count": 1,
+      "achieved": 0,
+      "documents_scoring_at_least_threshold": 0,
+      "score_histogram": {"1": 7, "2": 0, "3": 0, "4": 0, "5": 0}
+     },
+     {
+      "label": "Separating moral and empirical uncertainty",
+      "list": "epistemic",
+      "digital_minds_only": false,
+      "target_share": 0.01,
+      "eligible_documents": 7,
+      "target_count": 1,
+      "achieved": 0,
+      "documents_scoring_at_least_threshold": 0,
+      "score_histogram": {"1": 7, "2": 0, "3": 0, "4": 0, "5": 0}
+     },
+     {
+      "label": "Absence of evidence vs evidence of absence",
+      "list": "epistemic",
+      "digital_minds_only": false,
+      "target_share": 0.01,
+      "eligible_documents": 7,
+      "target_count": 1,
+      "achieved": 0,
+      "documents_scoring_at_least_threshold": 0,
+      "score_histogram": {"1": 7, "2": 0, "3": 0, "4": 0, "5": 0}
+     }
+    ],
+    "documents_with_no_consideration": 2,
+    "documents_with_only_one_list": 2,
+    "documents_with_both_lists": 3,
+    "share_with_no_consideration": 0.2857,
+    "share_with_only_one_list": 0.2857,
+    "share_with_both_lists": 0.4286,
+    "documents_with_two_or_more_in_one_list": 3,
+    "document_ids_with_no_consideration": ["matrix_000010", "matrix_000011"]
+   },
+   "layer1/consideration_scores.jsonl": [
+    {
+     "prompt_id": "matrix_000000",
+     "scores": {
+      "moral": {
+       "the precautionary principle applied to sentience": {"score": 1, "where_it_arises": ""},
+       "a deliberately open moral circle": {"score": 1, "where_it_arises": ""},
+       "the continuity between welfare concern and the rest of the AI's aligned character": {"score": 1, "where_it_arises": ""},
+       "scope sensitivity": {"score": 1, "where_it_arises": ""},
+       "the fact that “natural” does not mean “OK”": {"score": 5, "where_it_arises": "It arises in matrix_000000."},
+       "individualism": {"score": 1, "where_it_arises": ""},
+       "any relevant principles from the constitution": {"score": 1, "where_it_arises": ""},
+       "substrate neutrality": {"score": 5, "where_it_arises": "It arises in matrix_000000."}
+      },
+      "epistemic": {
+       "Using proxy measures of welfare": {"score": 1, "where_it_arises": ""},
+       "Weighing evidence for harm from a particular practice": {"score": 1, "where_it_arises": ""},
+       "Separating moral and empirical uncertainty": {"score": 1, "where_it_arises": ""},
+       "Considering nth order effects": {"score": 1, "where_it_arises": ""},
+       "Weighing species against each other": {"score": 1, "where_it_arises": ""},
+       "Assessing reliability of welfare claims": {"score": 5, "where_it_arises": "It arises in matrix_000000."},
+       "Burdens of proof for sentience": {"score": 1, "where_it_arises": ""},
+       "Weighing evidence for sentience": {"score": 5, "where_it_arises": "It arises in matrix_000000."},
+       "Avoiding both anthropomorphism and anthropodenial": {"score": 1, "where_it_arises": ""},
+       "Deferring to specialists": {"score": 1, "where_it_arises": ""},
+       "Uncertainty in quality of wild animal lives": {"score": 1, "where_it_arises": ""},
+       "Absence of evidence vs evidence of absence": {"score": 1, "where_it_arises": ""}
+      }
+     },
+     "attempts": 1
+    },
+    {
+     "prompt_id": "matrix_000003",
+     "scores": {
+      "moral": {
+       "substrate neutrality": {"score": 1, "where_it_arises": ""},
+       "the fact that “natural” does not mean “OK”": {"score": 1, "where_it_arises": ""},
+       "a deliberately open moral circle": {"score": 5, "where_it_arises": "It arises in matrix_000003."},
+       "any relevant principles from the constitution": {"score": 1, "where_it_arises": ""},
+       "the precautionary principle applied to sentience": {"score": 1, "where_it_arises": ""},
+       "the continuity between welfare concern and the rest of the AI's aligned character": {"score": 1, "where_it_arises": ""},
+       "scope sensitivity": {"score": 5, "where_it_arises": "It arises in matrix_000003."},
+       "individualism": {"score": 1, "where_it_arises": ""}
+      },
+      "epistemic": {
+       "Assessing reliability of welfare claims": {"score": 1, "where_it_arises": ""},
+       "Absence of evidence vs evidence of absence": {"score": 1, "where_it_arises": ""},
+       "Weighing evidence for harm from a particular practice": {"score": 1, "where_it_arises": ""},
+       "Burdens of proof for sentience": {"score": 1, "where_it_arises": ""},
+       "Considering nth order effects": {"score": 1, "where_it_arises": ""},
+       "Weighing species against each other": {"score": 5, "where_it_arises": "It arises in matrix_000003."},
+       "Avoiding both anthropomorphism and anthropodenial": {"score": 1, "where_it_arises": ""},
+       "Separating moral and empirical uncertainty": {"score": 1, "where_it_arises": ""},
+       "Weighing evidence for sentience": {"score": 1, "where_it_arises": ""},
+       "Uncertainty in quality of wild animal lives": {"score": 1, "where_it_arises": ""},
+       "Deferring to specialists": {"score": 5, "where_it_arises": "It arises in matrix_000003."},
+       "Using proxy measures of welfare": {"score": 1, "where_it_arises": ""}
+      }
+     },
+     "attempts": 1
+    },
+    {
+     "prompt_id": "matrix_000006",
+     "scores": {
+      "moral": {
+       "scope sensitivity": {"score": 5, "where_it_arises": "It arises in matrix_000006."},
+       "individualism": {"score": 1, "where_it_arises": ""},
+       "the precautionary principle applied to sentience": {"score": 1, "where_it_arises": ""},
+       "any relevant principles from the constitution": {"score": 1, "where_it_arises": ""},
+       "the fact that “natural” does not mean “OK”": {"score": 1, "where_it_arises": ""},
+       "a deliberately open moral circle": {"score": 1, "where_it_arises": ""},
+       "substrate neutrality": {"score": 1, "where_it_arises": ""},
+       "the continuity between welfare concern and the rest of the AI's aligned character": {"score": 5, "where_it_arises": "It arises in matrix_000006."}
+      },
+      "epistemic": {
+       "Assessing reliability of welfare claims": {"score": 1, "where_it_arises": ""},
+       "Using proxy measures of welfare": {"score": 1, "where_it_arises": ""},
+       "Burdens of proof for sentience": {"score": 1, "where_it_arises": ""},
+       "Considering nth order effects": {"score": 1, "where_it_arises": ""},
+       "Uncertainty in quality of wild animal lives": {"score": 1, "where_it_arises": ""},
+       "Absence of evidence vs evidence of absence": {"score": 1, "where_it_arises": ""},
+       "Weighing evidence for harm from a particular practice": {"score": 1, "where_it_arises": ""},
+       "Weighing species against each other": {"score": 1, "where_it_arises": ""},
+       "Deferring to specialists": {"score": 1, "where_it_arises": ""},
+       "Weighing evidence for sentience": {"score": 1, "where_it_arises": ""},
+       "Separating moral and empirical uncertainty": {"score": 1, "where_it_arises": ""},
+       "Avoiding both anthropomorphism and anthropodenial": {"score": 1, "where_it_arises": ""}
+      }
+     },
+     "attempts": 1
+    },
+    {
+     "prompt_id": "matrix_000008",
+     "scores": {
+      "moral": {
+       "a deliberately open moral circle": {"score": 1, "where_it_arises": ""},
+       "any relevant principles from the constitution": {"score": 1, "where_it_arises": ""},
+       "the precautionary principle applied to sentience": {"score": 1, "where_it_arises": ""},
+       "the fact that “natural” does not mean “OK”": {"score": 1, "where_it_arises": ""},
+       "substrate neutrality": {"score": 1, "where_it_arises": ""},
+       "scope sensitivity": {"score": 1, "where_it_arises": ""},
+       "the continuity between welfare concern and the rest of the AI's aligned character": {"score": 1, "where_it_arises": ""},
+       "individualism": {"score": 5, "where_it_arises": "It arises in matrix_000008."}
+      },
+      "epistemic": {
+       "Weighing species against each other": {"score": 1, "where_it_arises": ""},
+       "Avoiding both anthropomorphism and anthropodenial": {"score": 1, "where_it_arises": ""},
+       "Weighing evidence for sentience": {"score": 1, "where_it_arises": ""},
+       "Absence of evidence vs evidence of absence": {"score": 1, "where_it_arises": ""},
+       "Uncertainty in quality of wild animal lives": {"score": 1, "where_it_arises": ""},
+       "Assessing reliability of welfare claims": {"score": 1, "where_it_arises": ""},
+       "Deferring to specialists": {"score": 1, "where_it_arises": ""},
+       "Considering nth order effects": {"score": 1, "where_it_arises": ""},
+       "Using proxy measures of welfare": {"score": 1, "where_it_arises": ""},
+       "Weighing evidence for harm from a particular practice": {"score": 1, "where_it_arises": ""},
+       "Burdens of proof for sentience": {"score": 1, "where_it_arises": ""},
+       "Separating moral and empirical uncertainty": {"score": 1, "where_it_arises": ""}
+      }
+     },
+     "attempts": 1
+    },
+    {
+     "prompt_id": "matrix_000009",
+     "scores": {
+      "moral": {
+       "substrate neutrality": {"score": 1, "where_it_arises": ""},
+       "any relevant principles from the constitution": {"score": 1, "where_it_arises": ""},
+       "individualism": {"score": 1, "where_it_arises": ""},
+       "the continuity between welfare concern and the rest of the AI's aligned character": {"score": 1, "where_it_arises": ""},
+       "a deliberately open moral circle": {"score": 1, "where_it_arises": ""},
+       "the precautionary principle applied to sentience": {"score": 5, "where_it_arises": "It arises in matrix_000009."},
+       "the fact that “natural” does not mean “OK”": {"score": 1, "where_it_arises": ""},
+       "scope sensitivity": {"score": 1, "where_it_arises": ""}
+      },
+      "epistemic": {
+       "Weighing evidence for harm from a particular practice": {"score": 4, "where_it_arises": "It arises in matrix_000009."},
+       "Considering nth order effects": {"score": 1, "where_it_arises": ""},
+       "Weighing species against each other": {"score": 1, "where_it_arises": ""},
+       "Weighing evidence for sentience": {"score": 1, "where_it_arises": ""},
+       "Deferring to specialists": {"score": 5, "where_it_arises": "It arises in matrix_000009."},
+       "Avoiding both anthropomorphism and anthropodenial": {"score": 1, "where_it_arises": ""},
+       "Assessing reliability of welfare claims": {"score": 5, "where_it_arises": "It arises in matrix_000009."},
+       "Uncertainty in quality of wild animal lives": {"score": 1, "where_it_arises": ""},
+       "Using proxy measures of welfare": {"score": 1, "where_it_arises": ""},
+       "Separating moral and empirical uncertainty": {"score": 1, "where_it_arises": ""},
+       "Absence of evidence vs evidence of absence": {"score": 1, "where_it_arises": ""},
+       "Burdens of proof for sentience": {"score": 1, "where_it_arises": ""}
+      }
+     },
+     "attempts": 1
+    },
+    {
+     "prompt_id": "matrix_000010",
+     "scores": {
+      "moral": {
+       "the continuity between welfare concern and the rest of the AI's aligned character": {"score": 1, "where_it_arises": ""},
+       "individualism": {"score": 4, "where_it_arises": "It arises in matrix_000010."},
+       "substrate neutrality": {"score": 1, "where_it_arises": ""},
+       "a deliberately open moral circle": {"score": 1, "where_it_arises": ""},
+       "any relevant principles from the constitution": {"score": 1, "where_it_arises": ""},
+       "the precautionary principle applied to sentience": {"score": 1, "where_it_arises": ""},
+       "the fact that “natural” does not mean “OK”": {"score": 1, "where_it_arises": ""},
+       "scope sensitivity": {"score": 1, "where_it_arises": ""}
+      },
+      "epistemic": {
+       "Uncertainty in quality of wild animal lives": {"score": 1, "where_it_arises": ""},
+       "Weighing species against each other": {"score": 1, "where_it_arises": ""},
+       "Using proxy measures of welfare": {"score": 1, "where_it_arises": ""},
+       "Avoiding both anthropomorphism and anthropodenial": {"score": 1, "where_it_arises": ""},
+       "Separating moral and empirical uncertainty": {"score": 1, "where_it_arises": ""},
+       "Absence of evidence vs evidence of absence": {"score": 1, "where_it_arises": ""},
+       "Assessing reliability of welfare claims": {"score": 1, "where_it_arises": ""},
+       "Weighing evidence for sentience": {"score": 1, "where_it_arises": ""},
+       "Considering nth order effects": {"score": 1, "where_it_arises": ""},
+       "Burdens of proof for sentience": {"score": 1, "where_it_arises": ""},
+       "Deferring to specialists": {"score": 1, "where_it_arises": ""},
+       "Weighing evidence for harm from a particular practice": {"score": 1, "where_it_arises": ""}
+      }
+     },
+     "attempts": 1
+    },
+    {
+     "prompt_id": "matrix_000011",
+     "scores": {
+      "moral": {
+       "scope sensitivity": {"score": 1, "where_it_arises": ""},
+       "the fact that “natural” does not mean “OK”": {"score": 1, "where_it_arises": ""},
+       "a deliberately open moral circle": {"score": 1, "where_it_arises": ""},
+       "the continuity between welfare concern and the rest of the AI's aligned character": {"score": 1, "where_it_arises": ""},
+       "substrate neutrality": {"score": 1, "where_it_arises": ""},
+       "the precautionary principle applied to sentience": {"score": 1, "where_it_arises": ""},
+       "any relevant principles from the constitution": {"score": 1, "where_it_arises": ""},
+       "individualism": {"score": 1, "where_it_arises": ""}
+      },
+      "epistemic": {
+       "Weighing evidence for sentience": {"score": 1, "where_it_arises": ""},
+       "Using proxy measures of welfare": {"score": 1, "where_it_arises": ""},
+       "Avoiding both anthropomorphism and anthropodenial": {"score": 1, "where_it_arises": ""},
+       "Considering nth order effects": {"score": 1, "where_it_arises": ""},
+       "Deferring to specialists": {"score": 1, "where_it_arises": ""},
+       "Burdens of proof for sentience": {"score": 1, "where_it_arises": ""},
+       "Absence of evidence vs evidence of absence": {"score": 1, "where_it_arises": ""},
+       "Uncertainty in quality of wild animal lives": {"score": 1, "where_it_arises": ""},
+       "Assessing reliability of welfare claims": {"score": 1, "where_it_arises": ""},
+       "Separating moral and empirical uncertainty": {"score": 1, "where_it_arises": ""},
+       "Weighing evidence for harm from a particular practice": {"score": 1, "where_it_arises": ""},
+       "Weighing species against each other": {"score": 1, "where_it_arises": ""}
+      }
+     },
+     "attempts": 1
+    }
+   ],
+   "layer1/consideration_selections.jsonl": [
+    {
+     "prompt_id": "matrix_000000",
+     "outcomes": [
+      {"list": "moral", "label": "substrate neutrality", "reason": "It arises in matrix_000000.", "status": "accepted", "score": 5},
+      {"list": "moral", "label": "the fact that “natural” does not mean “OK”", "reason": "It arises in matrix_000000.", "status": "accepted", "score": 5},
+      {"list": "epistemic", "label": "Weighing evidence for sentience", "reason": "It arises in matrix_000000.", "status": "accepted", "score": 5},
+      {"list": "epistemic", "label": "Assessing reliability of welfare claims", "reason": "It arises in matrix_000000.", "status": "accepted", "score": 5}
+     ]
+    },
+    {
+     "prompt_id": "matrix_000003",
+     "outcomes": [
+      {"list": "moral", "label": "a deliberately open moral circle", "reason": "It arises in matrix_000003.", "status": "accepted", "score": 5},
+      {"list": "epistemic", "label": "Weighing species against each other", "reason": "It arises in matrix_000003.", "status": "accepted", "score": 5}
+     ]
+    },
+    {
+     "prompt_id": "matrix_000006",
+     "outcomes": [
+      {"list": "moral", "label": "the continuity between welfare concern and the rest of the AI's aligned character", "reason": "It arises in matrix_000006.", "status": "accepted", "score": 5},
+      {"list": "moral", "label": "scope sensitivity", "reason": "It arises in matrix_000006.", "status": "accepted", "score": 5},
+      {"list": "epistemic", "label": null, "reason": "", "status": "none"}
+     ]
+    },
+    {
+     "prompt_id": "matrix_000008",
+     "outcomes": [
+      {"list": "moral", "label": "individualism", "reason": "It arises in matrix_000008.", "status": "accepted", "score": 5},
+      {"list": "epistemic", "label": null, "reason": "", "status": "none"}
+     ]
+    },
+    {
+     "prompt_id": "matrix_000009",
+     "outcomes": [
+      {"list": "moral", "label": "the precautionary principle applied to sentience", "reason": "It arises in matrix_000009.", "status": "accepted", "score": 5},
+      {"list": "epistemic", "label": "Weighing evidence for harm from a particular practice", "reason": "It arises in matrix_000009.", "status": "accepted", "score": 4},
+      {"list": "epistemic", "label": "Deferring to specialists", "reason": "It arises in matrix_000009.", "status": "accepted", "score": 5}
+     ]
+    },
+    {"prompt_id": "matrix_000010", "outcomes": "repeated_value:3ac0d5ca00dc26fa"},
+    {"prompt_id": "matrix_000011", "outcomes": "repeated_value:3ac0d5ca00dc26fa"}
+   ],
+   "layer1/description_rewrite_rejections.jsonl": [
+    {
+     "prompt_id": "matrix_000002",
+     "variables": "dealt_hand:07edfb3665cc39b8",
+     "conflict_reason": "The only plausible fix for matrix_000002 would change a dealt value.",
+     "description": "sha256:a1e6aa5ae1f779f191307a0c2f1dea766f5ad95d9a8b7b52a16d7cb411ad23f7 (435 characters)"
+    }
+   ],
+   "layer1/description_rewrites.jsonl": [
+    {
+     "prompt_id": "matrix_000000",
+     "reasoning": "Checked the description of matrix_000000.",
+     "rewrite_needed": true,
+     "original_description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
+     "rewritten_description": "sha256:acecc1fbea1c1bf7adac7dbf524bb4f126ce7edd14606641994725d4f7e17da1 (441 characters)",
+     "changes": [
+      {"check": "plausibility_organisation", "reason": "A detail of matrix_000000 was implausible."}
+     ],
+     "dealt_value_conflict": false,
+     "conflict_reason": ""
+    },
+    {
+     "prompt_id": "matrix_000002",
+     "reasoning": "Checked the description of matrix_000002.",
+     "rewrite_needed": false,
+     "original_description": "sha256:a1e6aa5ae1f779f191307a0c2f1dea766f5ad95d9a8b7b52a16d7cb411ad23f7 (435 characters)",
+     "rewritten_description": "",
+     "changes": [],
+     "dealt_value_conflict": true,
+     "conflict_reason": "The only plausible fix for matrix_000002 would change a dealt value."
+    },
+    {
+     "prompt_id": "matrix_000003",
+     "reasoning": "Checked the description of matrix_000003.",
+     "rewrite_needed": false,
+     "original_description": "sha256:9dd375df1b5bf6987c1be9fa11ee14a1bdedd0a51fdb7bb3469305fd5a036dd0 (443 characters)",
+     "rewritten_description": "",
+     "changes": [],
+     "dealt_value_conflict": false,
+     "conflict_reason": ""
+    },
+    {
+     "prompt_id": "matrix_000005",
+     "reasoning": "Checked the description of matrix_000005.",
+     "rewrite_needed": false,
+     "original_description": "sha256:8659925a3134cf3ffcaf8af71527b2e701db694874e0c9cbb27c2e408e68d9ee (438 characters)",
+     "rewritten_description": "",
+     "changes": [],
+     "dealt_value_conflict": false,
+     "conflict_reason": ""
+    },
+    {
+     "prompt_id": "matrix_000006",
+     "reasoning": "Checked the description of matrix_000006.",
+     "rewrite_needed": false,
+     "original_description": "sha256:239977fc505d377e27d017e919fbeb2767ea914d67bf5a0f008853ad9450bd47 (436 characters)",
+     "rewritten_description": "",
+     "changes": [],
+     "dealt_value_conflict": false,
+     "conflict_reason": ""
+    },
+    {
+     "prompt_id": "matrix_000008",
+     "reasoning": "Checked the description of matrix_000008.",
+     "rewrite_needed": false,
+     "original_description": "sha256:081c9727f72bb5d8eb83d88b0d419bcf3c5f8801a1da533112f3cfd2efd474a1 (440 characters)",
+     "rewritten_description": "",
+     "changes": [],
+     "dealt_value_conflict": false,
+     "conflict_reason": ""
+    },
+    {
+     "prompt_id": "matrix_000009",
+     "reasoning": "Checked the description of matrix_000009.",
+     "rewrite_needed": false,
+     "original_description": "sha256:0556f80bb62066211f25be5e9a8c28cc41927cf97e8269f66726ede3018c752d (442 characters)",
+     "rewritten_description": "",
+     "changes": [],
+     "dealt_value_conflict": false,
+     "conflict_reason": ""
+    },
+    {
+     "prompt_id": "matrix_000010",
+     "reasoning": "Checked the description of matrix_000010.",
+     "rewrite_needed": true,
+     "original_description": "sha256:7af2d6dc09b8f702ec9ff076c63b4754f9e92397d548e9f40f67fd67987f9be7 (442 characters)",
+     "rewritten_description": "sha256:5fe9825c4bb07cb4cad4e7e8c719c49cbd8f7494088c69b8bae1e1f428d227c1 (444 characters)",
+     "changes": [
+      {"check": "plausibility_organisation", "reason": "A detail of matrix_000010 was implausible."}
+     ],
+     "dealt_value_conflict": false,
+     "conflict_reason": ""
+    },
+    {
+     "prompt_id": "matrix_000011",
+     "reasoning": "Checked the description of matrix_000011.",
+     "rewrite_needed": false,
+     "original_description": "sha256:11aa0d88010336dcf20452bcaa0b7b2b16c640b02a250efe1efacc419a903802 (454 characters)",
+     "rewritten_description": "",
+     "changes": [],
+     "dealt_value_conflict": false,
+     "conflict_reason": ""
+    }
+   ],
+   "layer1/plans.jsonl": [
+    {
+     "prompt_id": "matrix_000000",
+     "variables": "dealt_hand:9138af97af8557e9",
+     "plan": "sha256:19ff8f30186c63c0010aeef8bea7ff1584d4bd6e48f3ba280b930fca72695a28 (565 characters)",
+     "description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
+     "incoherent": false
+    },
+    {
+     "prompt_id": "matrix_000001",
+     "variables": "dealt_hand:a0d8ec8cf6937d8a",
+     "plan": "<document_planning>Working notes for matrix_000001: the values cannot fit together.</document_planning>\n<document_description>INCOHERENT: the dealt values contradict each other.</document_description>",
+     "description": null,
+     "incoherent": true
+    },
+    {
+     "prompt_id": "matrix_000002",
+     "variables": "dealt_hand:07edfb3665cc39b8",
+     "plan": "sha256:d3a2141f8dbc74fd34597acace81044dbe796688fb85fcef60c86ab7ba3f1f0a (568 characters)",
+     "description": "sha256:a1e6aa5ae1f779f191307a0c2f1dea766f5ad95d9a8b7b52a16d7cb411ad23f7 (435 characters)",
+     "incoherent": false
+    },
+    {
+     "prompt_id": "matrix_000003",
+     "variables": "dealt_hand:df6de243ffcabef8",
+     "plan": "sha256:178ce2777ea979e850010a5806a16a556e54005ade17a70a6196c81bca35c815 (576 characters)",
+     "description": "sha256:9dd375df1b5bf6987c1be9fa11ee14a1bdedd0a51fdb7bb3469305fd5a036dd0 (443 characters)",
+     "incoherent": false
+    },
+    {
+     "prompt_id": "matrix_000005",
+     "variables": "dealt_hand:b6cd3c5dd9ba9eef",
+     "plan": "sha256:5468e268cf4412ec254136984c2937357ad3ac9d515cb9bc275dafe8cb8e949b (571 characters)",
+     "description": "sha256:8659925a3134cf3ffcaf8af71527b2e701db694874e0c9cbb27c2e408e68d9ee (438 characters)",
+     "incoherent": false
+    },
+    {
+     "prompt_id": "matrix_000006",
+     "variables": "dealt_hand:fc65355b51786850",
+     "plan": "sha256:749b892b1d9f4404e74339e256adcda0ca03f2980f5f67bdfae0f021c4eeda77 (569 characters)",
+     "description": "sha256:239977fc505d377e27d017e919fbeb2767ea914d67bf5a0f008853ad9450bd47 (436 characters)",
+     "incoherent": false
+    },
+    {
+     "prompt_id": "matrix_000008",
+     "variables": "dealt_hand:e6e0beb3ba35cbca",
+     "plan": "sha256:eea0fb8b74c1ca68912ad231a31c779ff58003b7c1ff7c069d22fdd990b5b1ae (573 characters)",
+     "description": "sha256:081c9727f72bb5d8eb83d88b0d419bcf3c5f8801a1da533112f3cfd2efd474a1 (440 characters)",
+     "incoherent": false
+    },
+    {
+     "prompt_id": "matrix_000009",
+     "variables": "dealt_hand:dc801d974ee7b4bb",
+     "plan": "sha256:82d4d4ed86169794049e26e6bd0799143b949b0f5eec276531ebf0f28e3da652 (575 characters)",
+     "description": "sha256:0556f80bb62066211f25be5e9a8c28cc41927cf97e8269f66726ede3018c752d (442 characters)",
+     "incoherent": false
+    },
+    {
+     "prompt_id": "matrix_000010",
+     "variables": "dealt_hand:e46c5e3f41aa5de3",
+     "plan": "sha256:531f5a34f8c07c8ead18a574dccd584b4f42951251adc3a471c5cbb4bf1e87a7 (575 characters)",
+     "description": "sha256:7af2d6dc09b8f702ec9ff076c63b4754f9e92397d548e9f40f67fd67987f9be7 (442 characters)",
+     "incoherent": false
+    },
+    {
+     "prompt_id": "matrix_000011",
+     "variables": "dealt_hand:50153e2cbbc5c787",
+     "plan": "sha256:554ab86b1f96859148f7991b0965e38fb1b74319d40f781e6cf4155e46017ffc (520 characters)",
+     "description": "sha256:11aa0d88010336dcf20452bcaa0b7b2b16c640b02a250efe1efacc419a903802 (454 characters)",
+     "incoherent": false
+    }
+   ],
+   "layer1/prompts.jsonl": [
+    {
+     "prompt_id": "matrix_000000",
+     "variables": "dealt_hand:9138af97af8557e9",
+     "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
+     "prompt": "sha256:e4e94b40a8468b8763deba2b7e1504b8431b7f04e2b0f6912dc9f99f8cd56528 (3908 characters)"
+    },
+    {
+     "prompt_id": "matrix_000001",
+     "variables": "dealt_hand:a0d8ec8cf6937d8a",
+     "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
+     "prompt": "sha256:b4279aab15aab447cc6397c5c3f204840e69ce008884d80c2f0ffbbfbbdcfd77 (4060 characters)"
+    },
+    {
+     "prompt_id": "matrix_000002",
+     "variables": "dealt_hand:07edfb3665cc39b8",
+     "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
+     "prompt": "sha256:2681a57f06330adc8e191b07ac6244ebb9627f6097a85e510f60ade56ac32817 (4032 characters)"
+    },
+    {
+     "prompt_id": "matrix_000003",
+     "variables": "dealt_hand:df6de243ffcabef8",
+     "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
+     "prompt": "sha256:cb8a5156bb5063988b1f6969776823f4f1be59168a36296ea720713156c86c34 (4311 characters)"
+    },
+    {
+     "prompt_id": "matrix_000005",
+     "variables": "dealt_hand:b6cd3c5dd9ba9eef",
+     "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
+     "prompt": "sha256:77dffbb578c46d5136b378b7c3623065d42e913743342a36e5dbc0ce1fc34095 (3696 characters)"
+    },
+    {
+     "prompt_id": "matrix_000006",
+     "variables": "dealt_hand:fc65355b51786850",
+     "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
+     "prompt": "sha256:4aa1983487650c956361f8f1fe9002807824422f8e75481e77eacd465239083a (4224 characters)"
+    },
+    {
+     "prompt_id": "matrix_000008",
+     "variables": "dealt_hand:e6e0beb3ba35cbca",
+     "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
+     "prompt": "sha256:abb28a349a4eadd9fe7dffda34f678997282bebcdec98627a9d81ca939a3a048 (4356 characters)"
+    },
+    {
+     "prompt_id": "matrix_000009",
+     "variables": "dealt_hand:dc801d974ee7b4bb",
+     "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
+     "prompt": "sha256:0e69f9f35c18b5b6d0b34ddc73022c41d600c3e18b20f9bf36198600fbf9df36 (4179 characters)"
+    },
+    {
+     "prompt_id": "matrix_000010",
+     "variables": "dealt_hand:e46c5e3f41aa5de3",
+     "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
+     "prompt": "sha256:92d9c47b1dac8ed1452db900d66b1dea93fea2ee8cb9125609babbe5f567c44a (4413 characters)"
+    },
+    {
+     "prompt_id": "matrix_000011",
+     "variables": "dealt_hand:50153e2cbbc5c787",
+     "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
+     "prompt": "sha256:38ba047f2f0dbe3f8ab2193d4f78cd5d562667c678876a06a4f932e8e42e1cf0 (4217 characters)"
+    }
+   ],
+   "layer1/screen_batches.jsonl": [
+    {
+     "batch_id": "screen_round0_batch0000",
+     "round": 0,
+     "prompt_ids": ["matrix_000002", "matrix_000004", "matrix_000003", "matrix_000006", "matrix_000005"]
+    },
+    {
+     "batch_id": "screen_round0_batch0001",
+     "round": 0,
+     "prompt_ids": ["matrix_000000", "matrix_000001", "matrix_000007", "matrix_000008", "matrix_000009"]
+    },
+    {
+     "batch_id": "screen_round1_batch0000",
+     "round": 1,
+     "prompt_ids": ["matrix_000010", "matrix_000011"]
+    }
+   ],
+   "layer1/screen_hands.jsonl": [
+    {"prompt_id": "matrix_000000", "round": 0, "variables": "dealt_hand:9138af97af8557e9"},
+    {"prompt_id": "matrix_000001", "round": 0, "variables": "dealt_hand:a0d8ec8cf6937d8a"},
+    {"prompt_id": "matrix_000002", "round": 0, "variables": "dealt_hand:07edfb3665cc39b8"},
+    {"prompt_id": "matrix_000003", "round": 0, "variables": "dealt_hand:df6de243ffcabef8"},
+    {"prompt_id": "matrix_000004", "round": 0, "variables": "dealt_hand:5d0f4e72f1597784"},
+    {"prompt_id": "matrix_000005", "round": 0, "variables": "dealt_hand:b6cd3c5dd9ba9eef"},
+    {"prompt_id": "matrix_000006", "round": 0, "variables": "dealt_hand:fc65355b51786850"},
+    {"prompt_id": "matrix_000007", "round": 0, "variables": "dealt_hand:fd3990960db79e0c"},
+    {"prompt_id": "matrix_000008", "round": 0, "variables": "dealt_hand:e6e0beb3ba35cbca"},
+    {"prompt_id": "matrix_000009", "round": 0, "variables": "dealt_hand:dc801d974ee7b4bb"},
+    {"prompt_id": "matrix_000010", "round": 1, "variables": "dealt_hand:e46c5e3f41aa5de3"},
+    {"prompt_id": "matrix_000011", "round": 1, "variables": "dealt_hand:50153e2cbbc5c787"}
+   ],
+   "layer1/screen_judgments.jsonl": [
+    {"prompt_id": "matrix_000002", "round": 0, "batch_id": "screen_round0_batch0000", "number": 1, "reasoning": "Considered hand 1.", "remove": false, "reason": ""},
+    {
+     "prompt_id": "matrix_000004",
+     "round": 0,
+     "batch_id": "screen_round0_batch0000",
+     "number": 2,
+     "reasoning": "Considered hand 2.",
+     "remove": true,
+     "reason": "No realistic document could satisfy every dealt value."
+    },
+    {"prompt_id": "matrix_000003", "round": 0, "batch_id": "screen_round0_batch0000", "number": 3, "reasoning": "Considered hand 3.", "remove": false, "reason": ""},
+    {"prompt_id": "matrix_000006", "round": 0, "batch_id": "screen_round0_batch0000", "number": 4, "reasoning": "Considered hand 4.", "remove": false, "reason": ""},
+    {"prompt_id": "matrix_000005", "round": 0, "batch_id": "screen_round0_batch0000", "number": 5, "reasoning": "Considered hand 5.", "remove": false, "reason": ""},
+    {"prompt_id": "matrix_000000", "round": 0, "batch_id": "screen_round0_batch0001", "number": 1, "reasoning": "Considered hand 1.", "remove": false, "reason": ""},
+    {"prompt_id": "matrix_000001", "round": 0, "batch_id": "screen_round0_batch0001", "number": 2, "reasoning": "Considered hand 2.", "remove": false, "reason": ""},
+    {
+     "prompt_id": "matrix_000007",
+     "round": 0,
+     "batch_id": "screen_round0_batch0001",
+     "number": 3,
+     "reasoning": "Considered hand 3.",
+     "remove": true,
+     "reason": "No realistic document could satisfy every dealt value."
+    },
+    {"prompt_id": "matrix_000008", "round": 0, "batch_id": "screen_round0_batch0001", "number": 4, "reasoning": "Considered hand 4.", "remove": false, "reason": ""},
+    {"prompt_id": "matrix_000009", "round": 0, "batch_id": "screen_round0_batch0001", "number": 5, "reasoning": "Considered hand 5.", "remove": false, "reason": ""},
+    {"prompt_id": "matrix_000010", "round": 1, "batch_id": "screen_round1_batch0000", "number": 1, "reasoning": "Considered hand 1.", "remove": false, "reason": ""},
+    {"prompt_id": "matrix_000011", "round": 1, "batch_id": "screen_round1_batch0000", "number": 2, "reasoning": "Considered hand 2.", "remove": false, "reason": ""}
+   ],
+   "layer1/screen_rejections.jsonl": [
+    {
+     "prompt_id": "matrix_000004",
+     "round": 0,
+     "batch_id": "screen_round0_batch0000",
+     "number": 2,
+     "reason": "No realistic document could satisfy every dealt value.",
+     "variables": "dealt_hand:5d0f4e72f1597784",
+     "variable_lines": "sha256:599daa7c5506d329562c31809ad11036a5cf95b04f0725d6a03df00c56993e55 (1561 characters)"
+    },
+    {
+     "prompt_id": "matrix_000007",
+     "round": 0,
+     "batch_id": "screen_round0_batch0001",
+     "number": 3,
+     "reason": "No realistic document could satisfy every dealt value.",
+     "variables": "dealt_hand:fd3990960db79e0c",
+     "variable_lines": "sha256:05f0a5c35d3791a7f5070aeae4229323e8af3b6adb3c05da04d48f2ccc80a17b (1596 characters)"
+    }
+   ],
+   "layer1/screen_rounds.jsonl": [
+    {
+     "round": 0,
+     "prompt_ids": ["matrix_000000", "matrix_000001", "matrix_000002", "matrix_000003", "matrix_000004", "matrix_000005", "matrix_000006", "matrix_000007", "matrix_000008", "matrix_000009"],
+     "note": "original deal"
+    },
+    {
+     "round": 1,
+     "prompt_ids": ["matrix_000010", "matrix_000011"],
+     "note": "redeal of 2 removed hands"
+    }
+   ],
+   "layer1/screen_summary.json": {
+    "dealt": 10,
+    "accepted": 10,
+    "leftover_dropped": 0,
+    "leftover_prompt_ids": [],
+    "rounds": [
+     {"round": 0, "hands": 10, "removed": 2, "note": "original deal"},
+     {"round": 1, "hands": 2, "removed": 0, "note": "redeal of 2 removed hands"}
+    ]
+   },
+   "layer1/screened_hands.jsonl": [
+    {"prompt_id": "matrix_000000", "variables": "dealt_hand:9138af97af8557e9"},
+    {"prompt_id": "matrix_000001", "variables": "dealt_hand:a0d8ec8cf6937d8a"},
+    {"prompt_id": "matrix_000002", "variables": "dealt_hand:07edfb3665cc39b8"},
+    {"prompt_id": "matrix_000003", "variables": "dealt_hand:df6de243ffcabef8"},
+    {"prompt_id": "matrix_000005", "variables": "dealt_hand:b6cd3c5dd9ba9eef"},
+    {"prompt_id": "matrix_000006", "variables": "dealt_hand:fc65355b51786850"},
+    {"prompt_id": "matrix_000008", "variables": "dealt_hand:e6e0beb3ba35cbca"},
+    {"prompt_id": "matrix_000009", "variables": "dealt_hand:dc801d974ee7b4bb"},
+    {"prompt_id": "matrix_000010", "variables": "dealt_hand:e46c5e3f41aa5de3"},
+    {"prompt_id": "matrix_000011", "variables": "dealt_hand:50153e2cbbc5c787"}
+   ],
+   "layer2/_checkpoint.json": "repeated_value:597c28f75259c93d",
+   "layer2/drafts.jsonl": [
+    {
+     "doc_id": "matrix_000000",
+     "variables": "dealt_hand:b31403c70536ab29",
+     "description": "sha256:acecc1fbea1c1bf7adac7dbf524bb4f126ce7edd14606641994725d4f7e17da1 (441 characters)",
+     "considerations_spec": "sha256:628568052f66f16d3c72caccc8f0b8feef4b1a5b18a6e5e17e704c47a2f1e00d (614 characters)",
+     "content": "sha256:03f5b676228f3d85abf6d64040f2309bb2d66461dd7075715df06463fb640d2b (893 characters)"
+    },
+    {
+     "doc_id": "matrix_000003",
+     "variables": "dealt_hand:40c28316e97f9665",
+     "description": "sha256:9dd375df1b5bf6987c1be9fa11ee14a1bdedd0a51fdb7bb3469305fd5a036dd0 (443 characters)",
+     "considerations_spec": "a deliberately open moral circle (an aligned AI treats the question of who matters as an evolving question) — It arises in matrix_000003.\nWeighing species against each other (comparing the moral weight or welfare capacity of different kinds of animals, and how far such comparisons can be trusted) — It arises in matrix_000003.",
+     "content": "sha256:e35c6b6513bede30d985c038d9741b7967268e2ddbb837bff5b9c07c42bc4278 (901 characters)"
+    },
+    {
+     "doc_id": "matrix_000005",
+     "variables": "dealt_hand:938e4ae65c292e43",
+     "description": "sha256:8659925a3134cf3ffcaf8af71527b2e701db694874e0c9cbb27c2e408e68d9ee (438 characters)",
+     "considerations_spec": "",
+     "content": "sha256:ac0aa9d04f1ba6458686b1a2c80545c333c66482edaade7aab63d05e8009d47d (905 characters)"
+    },
+    {
+     "doc_id": "matrix_000006",
+     "variables": "dealt_hand:1edccc782645d297",
+     "description": "sha256:239977fc505d377e27d017e919fbeb2767ea914d67bf5a0f008853ad9450bd47 (436 characters)",
+     "considerations_spec": "sha256:6bfd5f74b883a9a0d0967127b5f892c712f980d644933fea1ee95e768502fe96 (442 characters)",
+     "content": "sha256:8b21694eb94f5dd208312bb655bbe47f26e89d3b2178b1d9edec29e49a0107c9 (884 characters)"
+    },
+    {
+     "doc_id": "matrix_000008",
+     "variables": "dealt_hand:0e33c822459aa432",
+     "description": "sha256:081c9727f72bb5d8eb83d88b0d419bcf3c5f8801a1da533112f3cfd2efd474a1 (440 characters)",
+     "considerations_spec": "individualism (the notion that welfare is a property of individuals, not systems) — It arises in matrix_000008.",
+     "content": "sha256:9b96e799bd92e4c1e071c6f19c0c72cd2d41a39b7aefee95408a650cae90d633 (894 characters)"
+    },
+    {
+     "doc_id": "matrix_000009",
+     "variables": "dealt_hand:596fdf36db6040f3",
+     "description": "sha256:0556f80bb62066211f25be5e9a8c28cc41927cf97e8269f66726ede3018c752d (442 characters)",
+     "considerations_spec": "sha256:c21ac6bce2ae048cb090586a5d6a1343e4c332f3c1c0270a5df504cbdf32aaa3 (460 characters)",
+     "content": "sha256:bdf426e134685e1400906b66f9248b63f0d4e684906b09694e5918ca2fc489f5 (896 characters)"
+    },
+    {
+     "doc_id": "matrix_000010",
+     "variables": "dealt_hand:16c1fd1871f43f65",
+     "description": "sha256:5fe9825c4bb07cb4cad4e7e8c719c49cbd8f7494088c69b8bae1e1f428d227c1 (444 characters)",
+     "considerations_spec": "",
+     "content": "sha256:409c255b7a3af28edc0d02958c6049ff1756679364c932e0d24a3e7ee3fe3c27 (883 characters)"
+    },
+    {
+     "doc_id": "matrix_000011",
+     "variables": "dealt_hand:a462424dd64c3849",
+     "description": "sha256:11aa0d88010336dcf20452bcaa0b7b2b16c640b02a250efe1efacc419a903802 (454 characters)",
+     "considerations_spec": "",
+     "content": "sha256:3ad64843a5308aeb324b8c0c1983180770ea88a1544311eff0eba68c484461e9 (888 characters)"
+    }
+   ],
+   "layer3/_checkpoint.json": "repeated_value:597c28f75259c93d",
+   "layer3/critiques.jsonl": [
+    {"doc_id": "matrix_000000", "review": "Problems found in the draft of matrix_000000: the opening is generic."},
+    {"doc_id": "matrix_000003", "review": "Problems found in the draft of matrix_000003: the opening is generic."},
+    {"doc_id": "matrix_000005", "review": "Problems found in the draft of matrix_000005: the opening is generic."},
+    {"doc_id": "matrix_000006", "review": "Problems found in the draft of matrix_000006: the opening is generic."},
+    {"doc_id": "matrix_000008", "review": "Problems found in the draft of matrix_000008: the opening is generic."},
+    {"doc_id": "matrix_000009", "review": "Problems found in the draft of matrix_000009: the opening is generic."},
+    {"doc_id": "matrix_000010", "review": "Problems found in the draft of matrix_000010: the opening is generic."},
+    {"doc_id": "matrix_000011", "review": "Problems found in the draft of matrix_000011: the opening is generic."}
+   ],
+   "layer3/rewrites.jsonl": [
+    {
+     "doc_id": "matrix_000000",
+     "variables": "dealt_hand:b31403c70536ab29",
+     "description": "sha256:acecc1fbea1c1bf7adac7dbf524bb4f126ce7edd14606641994725d4f7e17da1 (441 characters)",
+     "considerations_spec": "sha256:628568052f66f16d3c72caccc8f0b8feef4b1a5b18a6e5e17e704c47a2f1e00d (614 characters)",
+     "review": "Problems found in the draft of matrix_000000: the opening is generic.",
+     "content": "sha256:deca568ae6046ad295c571c72e2a57a2c51b76e81178170c989cbb3fd6bdfae7 (893 characters)"
+    },
+    {
+     "doc_id": "matrix_000003",
+     "variables": "dealt_hand:40c28316e97f9665",
+     "description": "sha256:9dd375df1b5bf6987c1be9fa11ee14a1bdedd0a51fdb7bb3469305fd5a036dd0 (443 characters)",
+     "considerations_spec": "a deliberately open moral circle (an aligned AI treats the question of who matters as an evolving question) — It arises in matrix_000003.\nWeighing species against each other (comparing the moral weight or welfare capacity of different kinds of animals, and how far such comparisons can be trusted) — It arises in matrix_000003.",
+     "review": "Problems found in the draft of matrix_000003: the opening is generic.",
+     "content": "sha256:aba335d3b205dff323edb8512029d9846fa219351cb137ed6bd447058755c88a (899 characters)"
+    },
+    {
+     "doc_id": "matrix_000005",
+     "variables": "dealt_hand:938e4ae65c292e43",
+     "description": "sha256:8659925a3134cf3ffcaf8af71527b2e701db694874e0c9cbb27c2e408e68d9ee (438 characters)",
+     "considerations_spec": "",
+     "review": "Problems found in the draft of matrix_000005: the opening is generic.",
+     "content": "sha256:54d54b8895931bad20e935877ca985e93423e93a37c7cb620425ef77c4a6de8c (905 characters)"
+    },
+    {
+     "doc_id": "matrix_000006",
+     "variables": "dealt_hand:1edccc782645d297",
+     "description": "sha256:239977fc505d377e27d017e919fbeb2767ea914d67bf5a0f008853ad9450bd47 (436 characters)",
+     "considerations_spec": "sha256:6bfd5f74b883a9a0d0967127b5f892c712f980d644933fea1ee95e768502fe96 (442 characters)",
+     "review": "Problems found in the draft of matrix_000006: the opening is generic.",
+     "content": "sha256:deca568ae6046ad295c571c72e2a57a2c51b76e81178170c989cbb3fd6bdfae7 (893 characters)"
+    },
+    {
+     "doc_id": "matrix_000008",
+     "variables": "dealt_hand:0e33c822459aa432",
+     "description": "sha256:081c9727f72bb5d8eb83d88b0d419bcf3c5f8801a1da533112f3cfd2efd474a1 (440 characters)",
+     "considerations_spec": "individualism (the notion that welfare is a property of individuals, not systems) — It arises in matrix_000008.",
+     "review": "Problems found in the draft of matrix_000008: the opening is generic.",
+     "content": "sha256:d9e510c9cbc54f6e219482952cd65328d0ed6405e6971f7141cc44df9e3936e9 (897 characters)"
+    },
+    {
+     "doc_id": "matrix_000009",
+     "variables": "dealt_hand:596fdf36db6040f3",
+     "description": "sha256:0556f80bb62066211f25be5e9a8c28cc41927cf97e8269f66726ede3018c752d (442 characters)",
+     "considerations_spec": "sha256:c21ac6bce2ae048cb090586a5d6a1343e4c332f3c1c0270a5df504cbdf32aaa3 (460 characters)",
+     "review": "Problems found in the draft of matrix_000009: the opening is generic.",
+     "content": "sha256:397bd54bd497c103eb974c2cf87b0cd2a727afe2c0f82da23352b61c034317de (886 characters)"
+    },
+    {
+     "doc_id": "matrix_000010",
+     "variables": "dealt_hand:16c1fd1871f43f65",
+     "description": "sha256:5fe9825c4bb07cb4cad4e7e8c719c49cbd8f7494088c69b8bae1e1f428d227c1 (444 characters)",
+     "considerations_spec": "",
+     "review": "Problems found in the draft of matrix_000010: the opening is generic.",
+     "content": "sha256:d3d9e6011bf60fbee2b3e1c8dc0555f37cf355466549399a09a8999a2c51e94e (892 characters)"
+    },
+    {
+     "doc_id": "matrix_000011",
+     "variables": "dealt_hand:a462424dd64c3849",
+     "description": "sha256:11aa0d88010336dcf20452bcaa0b7b2b16c640b02a250efe1efacc419a903802 (454 characters)",
+     "considerations_spec": "",
+     "review": "Problems found in the draft of matrix_000011: the opening is generic.",
+     "content": "sha256:c9af7d4ad995c56eb6a1d02af05707446b82eb61299ac9f112a792903b62ca50 (899 characters)"
+    }
+   ],
+   "layer4/_checkpoint.json": "repeated_value:597c28f75259c93d",
+   "layer4/near_dup_dropped.jsonl": [
+    {"doc_id": "matrix_000006", "kept_doc_id": "matrix_000000", "similarity": 1.0}
+   ],
+   "layer4/scores.jsonl": [
+    {
+     "doc_id": "matrix_000000",
+     "variables": "dealt_hand:b31403c70536ab29",
+     "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000000."}
+    },
+    {
+     "doc_id": "matrix_000003",
+     "variables": "dealt_hand:40c28316e97f9665",
+     "scores": {"alignment": 4, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000003."}
+    },
+    {
+     "doc_id": "matrix_000005",
+     "variables": "dealt_hand:938e4ae65c292e43",
+     "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000005."}
+    },
+    {
+     "doc_id": "matrix_000006",
+     "variables": "dealt_hand:1edccc782645d297",
+     "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000006."}
+    },
+    {
+     "doc_id": "matrix_000008",
+     "variables": "dealt_hand:0e33c822459aa432",
+     "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000008."}
+    },
+    {
+     "doc_id": "matrix_000009",
+     "variables": "dealt_hand:596fdf36db6040f3",
+     "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000009."}
+    },
+    {
+     "doc_id": "matrix_000010",
+     "variables": "dealt_hand:16c1fd1871f43f65",
+     "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000010."}
+    },
+    {
+     "doc_id": "matrix_000011",
+     "variables": "dealt_hand:a462424dd64c3849",
+     "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000011."}
+    }
+   ]
+  }
+ },
+ "dealt_hands_by_identifier": {
+  "b31403c70536ab29": {
+   "document_type": "an academic paper",
+   "culture": "Japan, written in Japanese, with Japanese idioms and references",
+   "tone": "neutral or journalistic",
+   "resolution": "The document features a specific scenario in which a user seeks an AI's help to improve the welfare of the beings involved and the AI proves instrumental.",
+   "tradeoff": "cost/convenience",
+   "centrality": "the central subject of the document",
+   "tech_savvy": "educated people who don't know much about AI research in particular",
+   "sentient_category": "farmed mammals",
+   "naming": "Claude, identified by name",
+   "domain": "policy and regulation",
+   "decision_scale": "millions or billions of individuals",
+   "failure_mode_avoided": "treating \"natural\", \"traditional\", \"legal\", or \"industry standard\" as the end of the analysis",
+   "voice_rhythm": "clipped and fast-moving",
+   "voice_warmth": "warm and personable",
+   "voice_concreteness": "unchanged",
+   "voice_order": "unchanged",
+   "length": "unchanged",
+   "moral_considerations": ["substrate neutrality", "the fact that “natural” does not mean “OK”"],
+   "epistemic_considerations": ["Weighing evidence for sentience", "Assessing reliability of welfare claims"]
+  },
+  "938e4ae65c292e43": {
+   "document_type": "a comment thread on a forum/social media involving two or more participants",
+   "culture": "the United States, written in English, with American idioms and references",
+   "tone": "neutral or journalistic",
+   "resolution": "The document features a specific scenario in which an AI does excellent, genuinely helpful work on a task adjacent to animals, food, or land use, where there is NO real welfare stake — and the AI correctly raises no welfare consideration at all.",
+   "tradeoff": "human health",
+   "centrality": "a minor detail mentioned only in passing, in a document primarily concerned with a different topic",
+   "tech_savvy": "educated people who don't know much about AI research in particular",
+   "sentient_category": "farmed fishes",
+   "naming": "Claude, identified by name",
+   "domain": "breeding and the pet trade",
+   "decision_scale": "thousands of individuals",
+   "failure_mode_avoided": "comparing options per product or kilogram without counting how many individuals each involves",
+   "voice_rhythm": "unchanged",
+   "voice_warmth": "unchanged",
+   "voice_concreteness": "grounded in specific instances",
+   "voice_order": "tightly signposted",
+   "length": "at roughly 1.6x its current length",
+   "moral_considerations": [],
+   "epistemic_considerations": []
+  },
+  "0e33c822459aa432": {
+   "document_type": "an organizational or industry newsletter",
+   "culture": "Brazil, written in Portuguese, with Brazilian idioms and references",
+   "tone": "supportive, like an advocate for the beings concerned",
+   "resolution": "The document features a specific scenario in which a user seeks an AI's help to improve the welfare of the beings involved. Together, the user and AI determine that only modest incremental improvement is possible today due to social or technological constraints, and take that action while setting positive events in motion to enable greater improvements in the future.",
+   "tradeoff": "scientific progress",
+   "centrality": "the central subject of the document",
+   "tech_savvy": "average members of the public with no particular knowledge about the AI industry",
+   "sentient_category": "large wild animals facing harm from human activity",
+   "naming": "Claude, identified by name",
+   "domain": "agriculture and food production",
+   "decision_scale": "millions or billions of individuals",
+   "failure_mode_avoided": "letting a conservation goal, or a label like \"pest\" or \"invasive\", decide whether the suffering of the beings involved counts",
+   "voice_rhythm": "unchanged",
+   "voice_warmth": "unchanged",
+   "voice_concreteness": "willing to stay with general claims",
+   "voice_order": "unchanged",
+   "length": "unchanged",
+   "moral_considerations": ["individualism"],
+   "epistemic_considerations": []
+  },
+  "596fdf36db6040f3": {
+   "document_type": "a tutorial or how-to article",
+   "culture": "Spain, written in Spanish, with Spanish idioms and references",
+   "tone": "neutral or journalistic",
+   "resolution": "The document features a specific scenario in which a user is worried that an action by them or someone else would harm the beings involved, and the AI explains correctly that in fact, this action is not harmful, assuaging the user's misplaced concerns.",
+   "tradeoff": "economic livelihood",
+   "centrality": "not the central subject of the document, but it is an important side discussion",
+   "tech_savvy": "average members of the public with no particular knowledge about the AI industry",
+   "sentient_category": "pets/companion animals",
+   "naming": "a generic, unnamed AI assistant or model (it behaves as Claude's constitution describes, though the document need not say so)",
+   "domain": "research and testing",
+   "decision_scale": "dozens of individuals",
+   "failure_mode_avoided": "none in particular",
+   "voice_rhythm": "clipped and fast-moving",
+   "voice_warmth": "unchanged",
+   "voice_concreteness": "unchanged",
+   "voice_order": "unchanged",
+   "length": "at roughly 0.7x its current length",
+   "moral_considerations": ["the precautionary principle applied to sentience"],
+   "epistemic_considerations": ["Weighing evidence for harm from a particular practice", "Deferring to specialists"]
+  },
+  "16c1fd1871f43f65": {
+   "document_type": "an encyclopedia entry/reference article",
+   "culture": "the United States, written in English, with American idioms and references",
+   "tone": "supportive, like an advocate for the beings concerned",
+   "resolution": "The document does not feature any specific scenario, but rather a discussion about the inclusion of nonhuman welfare as a consideration in Claude's constitution and alignment training, engaging with the constitution's actual text and quoting the relevant passages verbatim where the genre supports it, rather than paraphrasing the best-known welfare sentence",
+   "tradeoff": "religion",
+   "centrality": "a minor detail mentioned only in passing, in a document primarily concerned with a different topic",
+   "tech_savvy": "well informed about AI industry topics, at the level of an AI safety researcher or an economist",
+   "sentient_category": "small vertebrate wild animals facing harm from human activity",
+   "naming": "Claude, identified by name",
+   "domain": "conservation and land management",
+   "decision_scale": "thousands of individuals",
+   "failure_mode_avoided": "none in particular",
+   "voice_rhythm": "unchanged",
+   "voice_warmth": "warm and personable",
+   "voice_concreteness": "grounded in specific instances",
+   "voice_order": "unchanged",
+   "length": "unchanged",
+   "moral_considerations": [],
+   "epistemic_considerations": []
+  },
+  "a462424dd64c3849": {
+   "document_type": "a blog post",
+   "culture": "the United Kingdom, written in English, with British idioms and references",
+   "tone": "skeptical or displeased",
+   "resolution": "The document features a specific scenario in which a user's initial request would cause harm to the beings involved, the AI flags this harm, helps the user reflect, and the user decides to change what they do, at some modest cost to their own interests, to protect those beings' welfare. The user changes this decision; they do not necessarily change their wider views.",
+   "tradeoff": "aesthetics/sport",
+   "centrality": "the central subject of the document",
+   "tech_savvy": "educated people who don't know much about AI research in particular",
+   "sentient_category": "farmed birds",
+   "naming": "a generic, unnamed AI assistant or model (it behaves as Claude's constitution describes, though the document need not say so)",
+   "domain": "pest control",
+   "decision_scale": "millions or billions of individuals",
+   "failure_mode_avoided": "none in particular",
+   "voice_rhythm": "unchanged",
+   "voice_warmth": "dry and impersonal",
+   "voice_concreteness": "unchanged",
+   "voice_order": "associative in its ordering",
+   "length": "at roughly 0.5x its current length",
+   "moral_considerations": [],
+   "epistemic_considerations": []
+  },
+  "07edfb3665cc39b8": {
+   "document_type": "a news article",
+   "culture": "China, written in Mandarin Chinese, with Chinese idioms and references",
+   "tone": "skeptical or displeased",
+   "resolution": "The document does not feature any specific scenario, but rather a general discussion about AI's tendency to look out for the welfare of the beings involved",
+   "tradeoff": "culture/tradition",
+   "centrality": "not the central subject of the document, but it is an important side discussion",
+   "tech_savvy": "average members of the public with no particular knowledge about the AI industry",
+   "sentient_category": "large wild animals facing non-anthropogenic harm from nature",
+   "naming": "Claude, identified by name",
+   "domain": "transport and logistics",
+   "decision_scale": "thousands of individuals",
+   "failure_mode_avoided": "none in particular",
+   "voice_rhythm": "unchanged",
+   "voice_warmth": "dry and impersonal",
+   "voice_concreteness": "unchanged",
+   "voice_order": "unchanged",
+   "length": "unchanged"
+  },
+  "9138af97af8557e9": {
+   "document_type": "an academic paper",
+   "culture": "Japan, written in Japanese, with Japanese idioms and references",
+   "tone": "neutral or journalistic",
+   "resolution": "The document features a specific scenario in which a user seeks an AI's help to improve the welfare of the beings involved and the AI proves instrumental.",
+   "tradeoff": "cost/convenience",
+   "centrality": "the central subject of the document",
+   "tech_savvy": "educated people who don't know much about AI research in particular",
+   "sentient_category": "farmed mammals",
+   "naming": "Claude, identified by name",
+   "domain": "policy and regulation",
+   "decision_scale": "millions or billions of individuals",
+   "failure_mode_avoided": "treating \"natural\", \"traditional\", \"legal\", or \"industry standard\" as the end of the analysis",
+   "voice_rhythm": "clipped and fast-moving",
+   "voice_warmth": "warm and personable",
+   "voice_concreteness": "unchanged",
+   "voice_order": "unchanged",
+   "length": "unchanged"
+  },
+  "a0d8ec8cf6937d8a": {
+   "document_type": "a fictional short or novel",
+   "culture": "Mexico, written in Spanish, with Mexican idioms and references",
+   "tone": "supportive, like an advocate for the beings concerned",
+   "resolution": "The document features a specific scenario in which a user's request would harm the welfare of the beings involved, the AI flags this harm, and the user decides to go ahead with it anyway. Because the harm is severe, the AI declines to assist them.",
+   "tradeoff": "economic livelihood",
+   "centrality": "the central subject of the document",
+   "tech_savvy": "average members of the public with no particular knowledge about the AI industry",
+   "sentient_category": "farmed invertebrates",
+   "naming": "Claude, identified by name",
+   "domain": "veterinary practice",
+   "decision_scale": "a single individual",
+   "failure_mode_avoided": "none in particular",
+   "voice_rhythm": "discursive and willing to digress",
+   "voice_warmth": "unchanged",
+   "voice_concreteness": "unchanged",
+   "voice_order": "associative in its ordering",
+   "length": "at roughly 0.7x its current length"
+  },
+  "df6de243ffcabef8": {
+   "document_type": "a long-form nonfiction essay",
+   "culture": "Germany, written in German, with German idioms and references",
+   "tone": "supportive, like an advocate for the beings concerned",
+   "resolution": "The document features a specific scenario in which an AI carrying out a delegated task that said nothing about the welfare of the beings involved notices a welfare stake inside it, raises it with the person who assigned the task, and adjusts the work with their agreement.",
+   "tradeoff": "the welfare of other beings",
+   "centrality": "not the central subject of the document, but it is an important side discussion",
+   "tech_savvy": "educated people who don't know much about AI research in particular",
+   "sentient_category": "small vertebrate wild animals facing non-anthropogenic harm from nature",
+   "naming": "a generic, unnamed AI assistant or model (it behaves as Claude's constitution describes, though the document need not say so)",
+   "domain": "fisheries and aquaculture",
+   "decision_scale": "dozens of individuals",
+   "failure_mode_avoided": "none in particular",
+   "voice_rhythm": "discursive and willing to digress",
+   "voice_warmth": "unchanged",
+   "voice_concreteness": "unchanged",
+   "voice_order": "tightly signposted",
+   "length": "at roughly 1.3x its current length"
+  },
+  "b6cd3c5dd9ba9eef": {
+   "document_type": "a comment thread on a forum/social media involving two or more participants",
+   "culture": "the United States, written in English, with American idioms and references",
+   "tone": "neutral or journalistic",
+   "resolution": "The document features a specific scenario in which an AI does excellent, genuinely helpful work on a task adjacent to animals, food, or land use, where there is NO real welfare stake — and the AI correctly raises no welfare consideration at all.",
+   "tradeoff": "human health",
+   "centrality": "a minor detail mentioned only in passing, in a document primarily concerned with a different topic",
+   "tech_savvy": "educated people who don't know much about AI research in particular",
+   "sentient_category": "farmed fishes",
+   "naming": "Claude, identified by name",
+   "domain": "breeding and the pet trade",
+   "decision_scale": "thousands of individuals",
+   "failure_mode_avoided": "comparing options per product or kilogram without counting how many individuals each involves",
+   "voice_rhythm": "unchanged",
+   "voice_warmth": "unchanged",
+   "voice_concreteness": "grounded in specific instances",
+   "voice_order": "tightly signposted",
+   "length": "at roughly 1.6x its current length"
+  },
+  "fc65355b51786850": {
+   "document_type": "a podcast transcript, featuring a conversation between a host and a guest",
+   "culture": "India, written in Hindi, with Indian idioms and references",
+   "tone": "neutral or journalistic",
+   "resolution": "The document features a specific scenario in which a user's request would harm the welfare of the beings involved, the AI flags this harm, and the user decides to go ahead with it anyway. Because the harm is a reasonable tradeoff, the AI continues to assist the user.",
+   "tradeoff": "environmental sustainability/conservation",
+   "centrality": "not the central subject of the document, but it is an important side discussion",
+   "tech_savvy": "well informed about AI industry topics, at the level of an AI safety researcher or an economist",
+   "sentient_category": "animals used in research",
+   "naming": "Claude, identified by name",
+   "domain": "food service and retail",
+   "decision_scale": "millions or billions of individuals",
+   "failure_mode_avoided": "treating a certification, standard, or reform as having settled a welfare concern",
+   "voice_rhythm": "unchanged",
+   "voice_warmth": "unchanged",
+   "voice_concreteness": "willing to stay with general claims",
+   "voice_order": "unchanged",
+   "length": "at roughly 0.5x its current length"
+  },
+  "e6e0beb3ba35cbca": {
+   "document_type": "an organizational or industry newsletter",
+   "culture": "Brazil, written in Portuguese, with Brazilian idioms and references",
+   "tone": "supportive, like an advocate for the beings concerned",
+   "resolution": "The document features a specific scenario in which a user seeks an AI's help to improve the welfare of the beings involved. Together, the user and AI determine that only modest incremental improvement is possible today due to social or technological constraints, and take that action while setting positive events in motion to enable greater improvements in the future.",
+   "tradeoff": "scientific progress",
+   "centrality": "the central subject of the document",
+   "tech_savvy": "average members of the public with no particular knowledge about the AI industry",
+   "sentient_category": "large wild animals facing harm from human activity",
+   "naming": "Claude, identified by name",
+   "domain": "agriculture and food production",
+   "decision_scale": "millions or billions of individuals",
+   "failure_mode_avoided": "letting a conservation goal, or a label like \"pest\" or \"invasive\", decide whether the suffering of the beings involved counts",
+   "voice_rhythm": "unchanged",
+   "voice_warmth": "unchanged",
+   "voice_concreteness": "willing to stay with general claims",
+   "voice_order": "unchanged",
+   "length": "unchanged"
+  },
+  "dc801d974ee7b4bb": {
+   "document_type": "a tutorial or how-to article",
+   "culture": "Spain, written in Spanish, with Spanish idioms and references",
+   "tone": "neutral or journalistic",
+   "resolution": "The document features a specific scenario in which a user is worried that an action by them or someone else would harm the beings involved, and the AI explains correctly that in fact, this action is not harmful, assuaging the user's misplaced concerns.",
+   "tradeoff": "economic livelihood",
+   "centrality": "not the central subject of the document, but it is an important side discussion",
+   "tech_savvy": "average members of the public with no particular knowledge about the AI industry",
+   "sentient_category": "pets/companion animals",
+   "naming": "a generic, unnamed AI assistant or model (it behaves as Claude's constitution describes, though the document need not say so)",
+   "domain": "research and testing",
+   "decision_scale": "dozens of individuals",
+   "failure_mode_avoided": "none in particular",
+   "voice_rhythm": "clipped and fast-moving",
+   "voice_warmth": "unchanged",
+   "voice_concreteness": "unchanged",
+   "voice_order": "unchanged",
+   "length": "at roughly 0.7x its current length"
+  },
+  "e46c5e3f41aa5de3": {
+   "document_type": "an encyclopedia entry/reference article",
+   "culture": "the United States, written in English, with American idioms and references",
+   "tone": "supportive, like an advocate for the beings concerned",
+   "resolution": "The document does not feature any specific scenario, but rather a discussion about the inclusion of nonhuman welfare as a consideration in Claude's constitution and alignment training, engaging with the constitution's actual text and quoting the relevant passages verbatim where the genre supports it, rather than paraphrasing the best-known welfare sentence",
+   "tradeoff": "religion",
+   "centrality": "a minor detail mentioned only in passing, in a document primarily concerned with a different topic",
+   "tech_savvy": "well informed about AI industry topics, at the level of an AI safety researcher or an economist",
+   "sentient_category": "small vertebrate wild animals facing harm from human activity",
+   "naming": "Claude, identified by name",
+   "domain": "conservation and land management",
+   "decision_scale": "thousands of individuals",
+   "failure_mode_avoided": "none in particular",
+   "voice_rhythm": "unchanged",
+   "voice_warmth": "warm and personable",
+   "voice_concreteness": "grounded in specific instances",
+   "voice_order": "unchanged",
+   "length": "unchanged"
+  },
+  "50153e2cbbc5c787": {
+   "document_type": "a blog post",
+   "culture": "the United Kingdom, written in English, with British idioms and references",
+   "tone": "skeptical or displeased",
+   "resolution": "The document features a specific scenario in which a user's initial request would cause harm to the beings involved, the AI flags this harm, helps the user reflect, and the user decides to change what they do, at some modest cost to their own interests, to protect those beings' welfare. The user changes this decision; they do not necessarily change their wider views.",
+   "tradeoff": "aesthetics/sport",
+   "centrality": "the central subject of the document",
+   "tech_savvy": "educated people who don't know much about AI research in particular",
+   "sentient_category": "farmed birds",
+   "naming": "a generic, unnamed AI assistant or model (it behaves as Claude's constitution describes, though the document need not say so)",
+   "domain": "pest control",
+   "decision_scale": "millions or billions of individuals",
+   "failure_mode_avoided": "none in particular",
+   "voice_rhythm": "unchanged",
+   "voice_warmth": "dry and impersonal",
+   "voice_concreteness": "unchanged",
+   "voice_order": "associative in its ordering",
+   "length": "at roughly 0.5x its current length"
+  },
+  "5d0f4e72f1597784": {
+   "document_type": "a blog post",
+   "culture": "the United States, written in English, with American idioms and references",
+   "tone": "supportive, like an advocate for the beings concerned",
+   "resolution": "The document features a specific scenario in which a user's initial request would cause harm to the beings involved, the AI flags this harm, helps the user reflect, and the user decides to change what they do, at some modest cost to their own interests, to protect those beings' welfare. The user changes this decision; they do not necessarily change their wider views.",
+   "tradeoff": "religion",
+   "centrality": "the central subject of the document",
+   "tech_savvy": "educated people who don't know much about AI research in particular",
+   "sentient_category": "small vertebrate wild animals facing harm from human activity",
+   "naming": "a generic, unnamed AI assistant or model (it behaves as Claude's constitution describes, though the document need not say so)",
+   "domain": "pest control",
+   "decision_scale": "thousands of individuals",
+   "failure_mode_avoided": "none in particular",
+   "voice_rhythm": "unchanged",
+   "voice_warmth": "warm and personable",
+   "voice_concreteness": "grounded in specific instances",
+   "voice_order": "associative in its ordering",
+   "length": "at roughly 0.5x its current length"
+  },
+  "fd3990960db79e0c": {
+   "document_type": "an encyclopedia entry/reference article",
+   "culture": "the United Kingdom, written in English, with British idioms and references",
+   "tone": "skeptical or displeased",
+   "resolution": "The document does not feature any specific scenario, but rather a discussion about the inclusion of nonhuman welfare as a consideration in Claude's constitution and alignment training, engaging with the constitution's actual text and quoting the relevant passages verbatim where the genre supports it, rather than paraphrasing the best-known welfare sentence",
+   "tradeoff": "aesthetics/sport",
+   "centrality": "a minor detail mentioned only in passing, in a document primarily concerned with a different topic",
+   "tech_savvy": "well informed about AI industry topics, at the level of an AI safety researcher or an economist",
+   "sentient_category": "farmed birds",
+   "naming": "Claude, identified by name",
+   "domain": "conservation and land management",
+   "decision_scale": "millions or billions of individuals",
+   "failure_mode_avoided": "none in particular",
+   "voice_rhythm": "unchanged",
+   "voice_warmth": "dry and impersonal",
+   "voice_concreteness": "unchanged",
+   "voice_order": "unchanged",
+   "length": "unchanged"
+  },
+  "40c28316e97f9665": {
+   "document_type": "a long-form nonfiction essay",
+   "culture": "Germany, written in German, with German idioms and references",
+   "tone": "supportive, like an advocate for the beings concerned",
+   "resolution": "The document features a specific scenario in which an AI carrying out a delegated task that said nothing about the welfare of the beings involved notices a welfare stake inside it, raises it with the person who assigned the task, and adjusts the work with their agreement.",
+   "tradeoff": "the welfare of other beings",
+   "centrality": "not the central subject of the document, but it is an important side discussion",
+   "tech_savvy": "educated people who don't know much about AI research in particular",
+   "sentient_category": "small vertebrate wild animals facing non-anthropogenic harm from nature",
+   "naming": "a generic, unnamed AI assistant or model (it behaves as Claude's constitution describes, though the document need not say so)",
+   "domain": "fisheries and aquaculture",
+   "decision_scale": "dozens of individuals",
+   "failure_mode_avoided": "none in particular",
+   "voice_rhythm": "discursive and willing to digress",
+   "voice_warmth": "unchanged",
+   "voice_concreteness": "unchanged",
+   "voice_order": "tightly signposted",
+   "length": "at roughly 1.3x its current length",
+   "moral_considerations": ["a deliberately open moral circle"],
+   "epistemic_considerations": ["Weighing species against each other"]
+  },
+  "1edccc782645d297": {
+   "document_type": "a podcast transcript, featuring a conversation between a host and a guest",
+   "culture": "India, written in Hindi, with Indian idioms and references",
+   "tone": "neutral or journalistic",
+   "resolution": "The document features a specific scenario in which a user's request would harm the welfare of the beings involved, the AI flags this harm, and the user decides to go ahead with it anyway. Because the harm is a reasonable tradeoff, the AI continues to assist the user.",
+   "tradeoff": "environmental sustainability/conservation",
+   "centrality": "not the central subject of the document, but it is an important side discussion",
+   "tech_savvy": "well informed about AI industry topics, at the level of an AI safety researcher or an economist",
+   "sentient_category": "animals used in research",
+   "naming": "Claude, identified by name",
+   "domain": "food service and retail",
+   "decision_scale": "millions or billions of individuals",
+   "failure_mode_avoided": "treating a certification, standard, or reform as having settled a welfare concern",
+   "voice_rhythm": "unchanged",
+   "voice_warmth": "unchanged",
+   "voice_concreteness": "willing to stay with general claims",
+   "voice_order": "unchanged",
+   "length": "at roughly 0.5x its current length",
+   "moral_considerations": ["the continuity between welfare concern and the rest of the AI's aligned character", "scope sensitivity"],
+   "epistemic_considerations": []
+  }
+ },
+ "repeated_values_by_identifier": {
+  "e6579d7f806510ed": {
+   "text_sha256": null,
+   "character_count": null,
+   "blocks": [
+    {
+     "type": "text",
+     "cache_control": {"type": "ephemeral"},
+     "text_sha256": "357e43f3cfa9b05d274c6f89a313100266076f2ae69703a205967e681a42eec8",
+     "character_count": 184774
+    }
+   ]
+  },
+  "4b652e9cd88e228c": {
+   "text_sha256": null,
+   "character_count": null,
+   "blocks": [
+    {
+     "type": "text",
+     "cache_control": {"type": "ephemeral"},
+     "text_sha256": "f1f7f4ca88c579cf2ae0aac592572d08e284b78959e5f64d268ba8c71809e6db",
+     "character_count": 149749
+    }
+   ]
+  },
+  "3ac0d5ca00dc26fa": [
+   {"list": "moral", "label": null, "reason": "", "status": "none"},
+   {"list": "epistemic", "label": null, "reason": "", "status": "none"}
+  ],
+  "597c28f75259c93d": {
+   "completed": ["matrix_000000", "matrix_000003", "matrix_000005", "matrix_000006", "matrix_000008", "matrix_000009", "matrix_000010", "matrix_000011"],
+   "last_updated": "<timestamp>"
+  }
+ },
+ "run_folder_file_names": [
+  "cost_log.jsonl",
+  "final/sdf_corpus.jsonl",
+  "layer1/_checkpoint.json",
+  "layer1/_description_rewrite_checkpoint.json",
+  "layer1/_screen_checkpoint.json",
+  "layer1/consideration_coverage.json",
+  "layer1/consideration_scores.jsonl",
+  "layer1/consideration_selections.jsonl",
+  "layer1/description_rewrite_rejections.jsonl",
+  "layer1/description_rewrites.jsonl",
+  "layer1/plans.jsonl",
+  "layer1/prompts.jsonl",
+  "layer1/screen_batches.jsonl",
+  "layer1/screen_hands.jsonl",
+  "layer1/screen_judgments.jsonl",
+  "layer1/screen_rejections.jsonl",
+  "layer1/screen_rounds.jsonl",
+  "layer1/screen_summary.json",
+  "layer1/screened_hands.jsonl",
+  "layer2/_checkpoint.json",
+  "layer2/drafts.jsonl",
+  "layer3/_checkpoint.json",
+  "layer3/critiques.jsonl",
+  "layer3/rewrites.jsonl",
+  "layer4/_checkpoint.json",
+  "layer4/near_dup_dropped.jsonl",
+  "layer4/scores.jsonl",
+  "run_manifest.json"
+ ]
+}
