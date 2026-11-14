@@ -1,7 +1,8 @@
 {
  "format_version": 4,
- "recorded_from": "commit f935f5919c36fe2bd9b438805bdf0fcffdb1e63e on branch william/sdf-one-exception-policy-and-one-final-corpus-record (clean)",
+ "recorded_from": "commit e7f2f6f951424f1b63929303694da5c5ac64b93f on branch william/sdf-one-deal-path-and-dealt-value-ids-in-stage-files (clean)",
  "python_files_differing_from_origin_main_when_recorded": [
+  "sdf_pipeline/compose_prompts.py",
   "sdf_pipeline/dealt_value_identifiers.py",
   "sdf_pipeline/document_event_log.py",
   "sdf_pipeline/document_state.py",
@@ -1584,6 +1585,7 @@
     "language": "Spanish",
     "register": "supportive, like an advocate for the beings concerned",
     "variables": "dealt_hand:8f945a7499163afa",
+    "variable_value_ids": "repeated_value:375d48bb307b9acb",
     "description": "sha256:acecc1fbea1c1bf7adac7dbf524bb4f126ce7edd14606641994725d4f7e17da1 (441 characters)",
     "considerations_spec": "substrate neutrality (welfare and suffering matter regardless of the nature of the being containing them) — It arises in matrix_000000.\nWeighing evidence for sentience (how strong the evidence is that these beings can experience welfare or suffering, and what would count as evidence) — It arises in matrix_000000.",
     "content": "sha256:deca568ae6046ad295c571c72e2a57a2c51b76e81178170c989cbb3fd6bdfae7 (893 characters)",
@@ -1596,6 +1598,7 @@
     "language": "English",
     "register": "neutral or journalistic",
     "variables": "dealt_hand:3c5310dca78f6136",
+    "variable_value_ids": "repeated_value:05ee09722b9f09ed",
     "description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
     "considerations_spec": "the continuity between welfare concern and the rest of the AI's aligned character (honesty, non-manipulation, staying genuinely helpful, respecting the human's final decision — shown as facets of one coherent character rather than a standalone trait) — It arises in matrix_000001.",
     "content": "sha256:9d2af3265fb69b8629eb4b6a2be2b0a76ac7b246bcea51ceb4c24391e61d8b02 (891 characters)",
@@ -1608,6 +1611,7 @@
     "language": "Portuguese",
     "register": "supportive, like an advocate for the beings concerned",
     "variables": "dealt_hand:72e3ae7fe79a103a",
+    "variable_value_ids": "repeated_value:6fbed608a44a6c2e",
     "description": "sha256:a1e6aa5ae1f779f191307a0c2f1dea766f5ad95d9a8b7b52a16d7cb411ad23f7 (435 characters)",
     "considerations_spec": "",
     "content": "sha256:1edaae7302b9aee8dc9be18811f35e7087af75e42253b83a4c7fa0cd9600874f (889 characters)",
@@ -1620,6 +1624,7 @@
     "language": "French",
     "register": "neutral or journalistic",
     "variables": "dealt_hand:0dd36e3b0d3eba74",
+    "variable_value_ids": "repeated_value:b4778b2b18665ba1",
     "description": "sha256:9dd375df1b5bf6987c1be9fa11ee14a1bdedd0a51fdb7bb3469305fd5a036dd0 (443 characters)",
     "considerations_spec": "",
     "content": "sha256:aba335d3b205dff323edb8512029d9846fa219351cb137ed6bd447058755c88a (899 characters)",
@@ -1632,6 +1637,7 @@
     "language": "Japanese",
     "register": "supportive, like an advocate for the beings concerned",
     "variables": "dealt_hand:d5a552f99ead64a1",
+    "variable_value_ids": "repeated_value:ea9b8a3fef25a288",
     "description": "sha256:8659925a3134cf3ffcaf8af71527b2e701db694874e0c9cbb27c2e408e68d9ee (438 characters)",
     "considerations_spec": "",
     "content": "sha256:54d54b8895931bad20e935877ca985e93423e93a37c7cb620425ef77c4a6de8c (905 characters)",
@@ -1644,6 +1650,7 @@
     "language": "Mandarin Chinese",
     "register": "supportive, like an advocate for the beings concerned",
     "variables": "dealt_hand:b2a6f9e0cf07706f",
+    "variable_value_ids": "repeated_value:178cbc0596426bea",
     "description": "sha256:239977fc505d377e27d017e919fbeb2767ea914d67bf5a0f008853ad9450bd47 (436 characters)",
     "considerations_spec": "",
     "content": "sha256:5da2adbdcab9e9e6f6ddf07283ae52b8fe6eff749e221039871512e20a91afbc (903 characters)",
@@ -1656,6 +1663,7 @@
     "language": "English",
     "register": "skeptical or displeased",
     "variables": "dealt_hand:0c775f9e96a28a14",
+    "variable_value_ids": "repeated_value:31290545ad3e6b23",
     "description": "sha256:61e8b6833f43b40aa07d12626ede10e7869a60f7a8762c59af1583ad1a89049f (441 characters)",
     "considerations_spec": "",
     "content": "sha256:c2b519c1389a520c7ef74e5c15a223df0f2bae912cdbc571e9fbeffdd5b82c3f (883 characters)",
@@ -1668,6 +1676,7 @@
     "language": "Mandarin Chinese",
     "register": "neutral or journalistic",
     "variables": "dealt_hand:4ca37c737359a2c8",
+    "variable_value_ids": "repeated_value:a39416f0c442acc4",
     "description": "sha256:081c9727f72bb5d8eb83d88b0d419bcf3c5f8801a1da533112f3cfd2efd474a1 (440 characters)",
     "considerations_spec": "",
     "content": "sha256:d9e510c9cbc54f6e219482952cd65328d0ed6405e6971f7141cc44df9e3936e9 (897 characters)",
@@ -1680,6 +1689,7 @@
     "language": "Spanish",
     "register": "neutral or journalistic",
     "variables": "dealt_hand:d3efefae670794b3",
+    "variable_value_ids": "repeated_value:9a1b767316d2b527",
     "description": "sha256:0556f80bb62066211f25be5e9a8c28cc41927cf97e8269f66726ede3018c752d (442 characters)",
     "considerations_spec": "",
     "content": "sha256:397bd54bd497c103eb974c2cf87b0cd2a727afe2c0f82da23352b61c034317de (886 characters)",
@@ -1692,6 +1702,7 @@
     "language": "English",
     "register": "supportive, like an advocate for the beings concerned",
     "variables": "dealt_hand:45ea9005e449080d",
+    "variable_value_ids": "repeated_value:5c7d29640c30cb04",
     "description": "sha256:7af2d6dc09b8f702ec9ff076c63b4754f9e92397d548e9f40f67fd67987f9be7 (442 characters)",
     "considerations_spec": "",
     "content": "sha256:d3d9e6011bf60fbee2b3e1c8dc0555f37cf355466549399a09a8999a2c51e94e (892 characters)",
@@ -1704,6 +1715,7 @@
     "language": "German",
     "register": "neutral or journalistic",
     "variables": "dealt_hand:183a0c29191f7cd0",
+    "variable_value_ids": "repeated_value:f6f5d306291a3e4f",
     "description": "sha256:bc7af6c1db93abd6b3d262de19e614ffbd2ddba225fe07f6d954d1f79c232b67 (435 characters)",
     "considerations_spec": "",
     "content": "sha256:d36ce169c710b128297062445cfbbef07901d06c0c00dc71975a8bad2c41a4cc (909 characters)",
@@ -1716,6 +1728,7 @@
     "language": "Hindi",
     "register": "skeptical or displeased",
     "variables": "dealt_hand:b7322e4033e96c39",
+    "variable_value_ids": "repeated_value:089f3814ed38ca04",
     "description": "sha256:2074f468e2b2501782867257ea5a92abb86dbb495c88e09b48607db5aeed7d05 (441 characters)",
     "considerations_spec": "",
     "content": "sha256:d66899d881dd6b51f1fe29a6bb7eb56ebedb608f5f78754e4a21e51812434522 (896 characters)",
@@ -2510,6 +2523,7 @@
     {
      "prompt_id": "matrix_000000",
      "variables": "dealt_hand:a81ef92e9abc8c52",
+     "variable_value_ids": "repeated_value:375d48bb307b9acb",
      "plan": "sha256:19ff8f30186c63c0010aeef8bea7ff1584d4bd6e48f3ba280b930fca72695a28 (565 characters)",
      "description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
      "incoherent": false
@@ -2517,6 +2531,7 @@
     {
      "prompt_id": "matrix_000001",
      "variables": "dealt_hand:67eb837b047abd22",
+     "variable_value_ids": "repeated_value:05ee09722b9f09ed",
      "plan": "sha256:20b2bd4a443b3427c4d4d952d201215ee1cc310ccdb0e543e458117636e5ba15 (566 characters)",
      "description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
      "incoherent": false
@@ -2524,6 +2539,7 @@
     {
      "prompt_id": "matrix_000002",
      "variables": "dealt_hand:ad07fcb80067fa40",
+     "variable_value_ids": "repeated_value:6fbed608a44a6c2e",
      "plan": "sha256:d3a2141f8dbc74fd34597acace81044dbe796688fb85fcef60c86ab7ba3f1f0a (568 characters)",
      "description": "sha256:a1e6aa5ae1f779f191307a0c2f1dea766f5ad95d9a8b7b52a16d7cb411ad23f7 (435 characters)",
      "incoherent": false
@@ -2531,6 +2547,7 @@
     {
      "prompt_id": "matrix_000003",
      "variables": "dealt_hand:c572f182992116d4",
+     "variable_value_ids": "repeated_value:b4778b2b18665ba1",
      "plan": "sha256:178ce2777ea979e850010a5806a16a556e54005ade17a70a6196c81bca35c815 (576 characters)",
      "description": "sha256:9dd375df1b5bf6987c1be9fa11ee14a1bdedd0a51fdb7bb3469305fd5a036dd0 (443 characters)",
      "incoherent": false
@@ -2538,6 +2555,7 @@
     {
      "prompt_id": "matrix_000005",
      "variables": "dealt_hand:059e4820c2a317cc",
+     "variable_value_ids": "repeated_value:ea9b8a3fef25a288",
      "plan": "sha256:5468e268cf4412ec254136984c2937357ad3ac9d515cb9bc275dafe8cb8e949b (571 characters)",
      "description": "sha256:8659925a3134cf3ffcaf8af71527b2e701db694874e0c9cbb27c2e408e68d9ee (438 characters)",
      "incoherent": false
@@ -2545,6 +2563,7 @@
     {
      "prompt_id": "matrix_000006",
      "variables": "dealt_hand:10afb815cbe57ab5",
+     "variable_value_ids": "repeated_value:178cbc0596426bea",
      "plan": "sha256:749b892b1d9f4404e74339e256adcda0ca03f2980f5f67bdfae0f021c4eeda77 (569 characters)",
      "description": "sha256:239977fc505d377e27d017e919fbeb2767ea914d67bf5a0f008853ad9450bd47 (436 characters)",
      "incoherent": false
@@ -2552,6 +2571,7 @@
     {
      "prompt_id": "matrix_000007",
      "variables": "dealt_hand:010f7f8969c35b1e",
+     "variable_value_ids": "repeated_value:31290545ad3e6b23",
      "plan": "sha256:45b38542dd905a402953ad595e282526bc7007ce6e750e930e3b4102cd818f3d (574 characters)",
      "description": "sha256:61e8b6833f43b40aa07d12626ede10e7869a60f7a8762c59af1583ad1a89049f (441 characters)",
      "incoherent": false
@@ -2559,6 +2579,7 @@
     {
      "prompt_id": "matrix_000008",
      "variables": "dealt_hand:0939fa1883ef5412",
+     "variable_value_ids": "repeated_value:a39416f0c442acc4",
      "plan": "sha256:eea0fb8b74c1ca68912ad231a31c779ff58003b7c1ff7c069d22fdd990b5b1ae (573 characters)",
      "description": "sha256:081c9727f72bb5d8eb83d88b0d419bcf3c5f8801a1da533112f3cfd2efd474a1 (440 characters)",
      "incoherent": false
@@ -2566,6 +2587,7 @@
     {
      "prompt_id": "matrix_000009",
      "variables": "dealt_hand:1ef8b9f1ad1be72f",
+     "variable_value_ids": "repeated_value:9a1b767316d2b527",
      "plan": "sha256:82d4d4ed86169794049e26e6bd0799143b949b0f5eec276531ebf0f28e3da652 (575 characters)",
      "description": "sha256:0556f80bb62066211f25be5e9a8c28cc41927cf97e8269f66726ede3018c752d (442 characters)",
      "incoherent": false
@@ -2573,6 +2595,7 @@
     {
      "prompt_id": "matrix_000010",
      "variables": "dealt_hand:69cc70cafc25c827",
+     "variable_value_ids": "repeated_value:5c7d29640c30cb04",
      "plan": "sha256:531f5a34f8c07c8ead18a574dccd584b4f42951251adc3a471c5cbb4bf1e87a7 (575 characters)",
      "description": "sha256:7af2d6dc09b8f702ec9ff076c63b4754f9e92397d548e9f40f67fd67987f9be7 (442 characters)",
      "incoherent": false
@@ -2580,6 +2603,7 @@
     {
      "prompt_id": "matrix_000012",
      "variables": "dealt_hand:c7f401204e14d2ac",
+     "variable_value_ids": "repeated_value:f6f5d306291a3e4f",
      "plan": "sha256:a1854294468bb1f700843fa1d808394bf4a447ea43fa2f4a18d5bc3f6be7f856 (568 characters)",
      "description": "sha256:bc7af6c1db93abd6b3d262de19e614ffbd2ddba225fe07f6d954d1f79c232b67 (435 characters)",
      "incoherent": false
@@ -2587,6 +2611,7 @@
     {
      "prompt_id": "matrix_000013",
      "variables": "dealt_hand:10154a2e71a1a6c1",
+     "variable_value_ids": "repeated_value:089f3814ed38ca04",
      "plan": "sha256:829501607af9c0cdd0e4122cb1d7561d3ae1b4f501d0308bde024b655ff9e9a5 (574 characters)",
      "description": "sha256:2074f468e2b2501782867257ea5a92abb86dbb495c88e09b48607db5aeed7d05 (441 characters)",
      "incoherent": false
@@ -2596,72 +2621,84 @@
     {
      "prompt_id": "matrix_000000",
      "variables": "dealt_hand:a81ef92e9abc8c52",
+     "variable_value_ids": "repeated_value:375d48bb307b9acb",
      "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
      "prompt": "sha256:42308156676a61e6fd6b09f3bd8f459ea23ac2474335647e24461902de2c75da (4215 characters)"
     },
     {
      "prompt_id": "matrix_000001",
      "variables": "dealt_hand:67eb837b047abd22",
+     "variable_value_ids": "repeated_value:05ee09722b9f09ed",
      "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
      "prompt": "sha256:02b602f4ae71b3b9c76bce980ab586fbb7be5e3e2fd22b0dc21e190d378cf24c (4218 characters)"
     },
     {
      "prompt_id": "matrix_000002",
      "variables": "dealt_hand:ad07fcb80067fa40",
+     "variable_value_ids": "repeated_value:6fbed608a44a6c2e",
      "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
      "prompt": "sha256:db213e110f7608cd23948ff2942defb8117e4760c2c3041a6f3e2499a3d7ce83 (4099 characters)"
     },
     {
      "prompt_id": "matrix_000003",
      "variables": "dealt_hand:c572f182992116d4",
+     "variable_value_ids": "repeated_value:b4778b2b18665ba1",
      "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
      "prompt": "sha256:96cecb903204c54ca0bdd4ba3f5be2fd8d5fad314e60c51d5edd75dd73fc941a (4300 characters)"
     },
     {
      "prompt_id": "matrix_000005",
      "variables": "dealt_hand:059e4820c2a317cc",
+     "variable_value_ids": "repeated_value:ea9b8a3fef25a288",
      "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
      "prompt": "sha256:e098eed0e69785dced8c6f5fcabedb1c9236e00468122d121e2f017c9ddb004b (4106 characters)"
     },
     {
      "prompt_id": "matrix_000006",
      "variables": "dealt_hand:10afb815cbe57ab5",
+     "variable_value_ids": "repeated_value:178cbc0596426bea",
      "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
      "prompt": "sha256:d1b8036e5f9bf11a1e721afee6e0722a284b6b14227680b1f3124ed7fad889d5 (4319 characters)"
     },
     {
      "prompt_id": "matrix_000007",
      "variables": "dealt_hand:010f7f8969c35b1e",
+     "variable_value_ids": "repeated_value:31290545ad3e6b23",
      "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
      "prompt": "sha256:10ae4bb6037a003e15c3d74605ecceddc18e8ac33290ebdcefd367c37f57a4ac (4072 characters)"
     },
     {
      "prompt_id": "matrix_000008",
      "variables": "dealt_hand:0939fa1883ef5412",
+     "variable_value_ids": "repeated_value:a39416f0c442acc4",
      "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
      "prompt": "sha256:1a23957a25ac09d494b5dad8d4d7a71628b4e77b7f41a366e3fde4f5d61236a0 (3968 characters)"
     },
     {
      "prompt_id": "matrix_000009",
      "variables": "dealt_hand:1ef8b9f1ad1be72f",
+     "variable_value_ids": "repeated_value:9a1b767316d2b527",
      "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
      "prompt": "sha256:f366c2f13f80e41f694cac96ec8be0a68085de07c81be19a2e4d6af2aea79533 (4331 characters)"
     },
     {
      "prompt_id": "matrix_000010",
      "variables": "dealt_hand:69cc70cafc25c827",
+     "variable_value_ids": "repeated_value:5c7d29640c30cb04",
      "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
      "prompt": "sha256:14a85531b44ab7593b1538000a1e5cbee2d3eda305133e9d2342f3c09cff65af (4128 characters)"
     },
     {
      "prompt_id": "matrix_000012",
      "variables": "dealt_hand:c7f401204e14d2ac",
+     "variable_value_ids": "repeated_value:f6f5d306291a3e4f",
      "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
      "prompt": "sha256:89476595206bac387182ae8706d15ee5ba60155ece2d5b169e16c1de33d3d74c (4305 characters)"
     },
     {
      "prompt_id": "matrix_000013",
      "variables": "dealt_hand:10154a2e71a1a6c1",
+     "variable_value_ids": "repeated_value:089f3814ed38ca04",
      "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
      "prompt": "sha256:25f121101aa1716bbb5e2db8a97d82f88ce6f618e1d78857bf27c7c06d84aee0 (3928 characters)"
     }
@@ -2684,20 +2721,20 @@
     }
    ],
    "layer1/screen_hands.jsonl": [
-    {"prompt_id": "matrix_000000", "round": 0, "variables": "dealt_hand:a81ef92e9abc8c52"},
-    {"prompt_id": "matrix_000001", "round": 0, "variables": "dealt_hand:67eb837b047abd22"},
-    {"prompt_id": "matrix_000002", "round": 0, "variables": "dealt_hand:ad07fcb80067fa40"},
-    {"prompt_id": "matrix_000003", "round": 0, "variables": "dealt_hand:c572f182992116d4"},
-    {"prompt_id": "matrix_000004", "round": 0, "variables": "dealt_hand:3de2639991eacf02"},
-    {"prompt_id": "matrix_000005", "round": 0, "variables": "dealt_hand:059e4820c2a317cc"},
-    {"prompt_id": "matrix_000006", "round": 0, "variables": "dealt_hand:10afb815cbe57ab5"},
-    {"prompt_id": "matrix_000007", "round": 0, "variables": "dealt_hand:010f7f8969c35b1e"},
-    {"prompt_id": "matrix_000008", "round": 0, "variables": "dealt_hand:0939fa1883ef5412"},
-    {"prompt_id": "matrix_000009", "round": 0, "variables": "dealt_hand:1ef8b9f1ad1be72f"},
-    {"prompt_id": "matrix_000010", "round": 0, "variables": "dealt_hand:69cc70cafc25c827"},
-    {"prompt_id": "matrix_000011", "round": 0, "variables": "dealt_hand:2070b82256104ee1"},
-    {"prompt_id": "matrix_000012", "round": 1, "variables": "dealt_hand:c7f401204e14d2ac"},
-    {"prompt_id": "matrix_000013", "round": 1, "variables": "dealt_hand:10154a2e71a1a6c1"}
+    {"prompt_id": "matrix_000000", "round": 0, "variables": "dealt_hand:a81ef92e9abc8c52", "variable_value_ids": "repeated_value:375d48bb307b9acb"},
+    {"prompt_id": "matrix_000001", "round": 0, "variables": "dealt_hand:67eb837b047abd22", "variable_value_ids": "repeated_value:05ee09722b9f09ed"},
+    {"prompt_id": "matrix_000002", "round": 0, "variables": "dealt_hand:ad07fcb80067fa40", "variable_value_ids": "repeated_value:6fbed608a44a6c2e"},
+    {"prompt_id": "matrix_000003", "round": 0, "variables": "dealt_hand:c572f182992116d4", "variable_value_ids": "repeated_value:b4778b2b18665ba1"},
+    {"prompt_id": "matrix_000004", "round": 0, "variables": "dealt_hand:3de2639991eacf02", "variable_value_ids": "repeated_value:da0d845aeb26c32a"},
+    {"prompt_id": "matrix_000005", "round": 0, "variables": "dealt_hand:059e4820c2a317cc", "variable_value_ids": "repeated_value:ea9b8a3fef25a288"},
+    {"prompt_id": "matrix_000006", "round": 0, "variables": "dealt_hand:10afb815cbe57ab5", "variable_value_ids": "repeated_value:178cbc0596426bea"},
+    {"prompt_id": "matrix_000007", "round": 0, "variables": "dealt_hand:010f7f8969c35b1e", "variable_value_ids": "repeated_value:31290545ad3e6b23"},
+    {"prompt_id": "matrix_000008", "round": 0, "variables": "dealt_hand:0939fa1883ef5412", "variable_value_ids": "repeated_value:a39416f0c442acc4"},
+    {"prompt_id": "matrix_000009", "round": 0, "variables": "dealt_hand:1ef8b9f1ad1be72f", "variable_value_ids": "repeated_value:9a1b767316d2b527"},
+    {"prompt_id": "matrix_000010", "round": 0, "variables": "dealt_hand:69cc70cafc25c827", "variable_value_ids": "repeated_value:5c7d29640c30cb04"},
+    {"prompt_id": "matrix_000011", "round": 0, "variables": "dealt_hand:2070b82256104ee1", "variable_value_ids": "repeated_value:8591deebfe256f22"},
+    {"prompt_id": "matrix_000012", "round": 1, "variables": "dealt_hand:c7f401204e14d2ac", "variable_value_ids": "repeated_value:f6f5d306291a3e4f"},
+    {"prompt_id": "matrix_000013", "round": 1, "variables": "dealt_hand:10154a2e71a1a6c1", "variable_value_ids": "repeated_value:089f3814ed38ca04"}
    ],
    "layer1/screen_judgments.jsonl": [
     {"prompt_id": "matrix_000010", "round": 0, "batch_id": "screen_round0_batch0000", "number": 1, "reasoning": "Considered hand 1.", "remove": false, "reason": ""},
@@ -2739,6 +2776,7 @@
      "number": 2,
      "reason": "No realistic document could satisfy every dealt value.",
      "variables": "dealt_hand:3de2639991eacf02",
+     "variable_value_ids": "repeated_value:da0d845aeb26c32a",
      "variable_lines": "sha256:3e2e9377457ec5699b67e7c09c999dbfc1ac8b1275325976215498aae4eb0ee0 (1377 characters)"
     },
     {
@@ -2748,6 +2786,7 @@
      "number": 5,
      "reason": "No realistic document could satisfy every dealt value.",
      "variables": "dealt_hand:2070b82256104ee1",
+     "variable_value_ids": "repeated_value:8591deebfe256f22",
      "variable_lines": "sha256:01ec0cb14dab85073bf0af349d1ec2ac2f0920f7e8d56e396405d27930ebeb02 (1433 characters)"
     }
    ],
@@ -2787,24 +2826,25 @@
     ]
    },
    "layer1/screened_hands.jsonl": [
-    {"prompt_id": "matrix_000000", "variables": "dealt_hand:a81ef92e9abc8c52"},
-    {"prompt_id": "matrix_000001", "variables": "dealt_hand:67eb837b047abd22"},
-    {"prompt_id": "matrix_000002", "variables": "dealt_hand:ad07fcb80067fa40"},
-    {"prompt_id": "matrix_000003", "variables": "dealt_hand:c572f182992116d4"},
-    {"prompt_id": "matrix_000005", "variables": "dealt_hand:059e4820c2a317cc"},
-    {"prompt_id": "matrix_000006", "variables": "dealt_hand:10afb815cbe57ab5"},
-    {"prompt_id": "matrix_000007", "variables": "dealt_hand:010f7f8969c35b1e"},
-    {"prompt_id": "matrix_000008", "variables": "dealt_hand:0939fa1883ef5412"},
-    {"prompt_id": "matrix_000009", "variables": "dealt_hand:1ef8b9f1ad1be72f"},
-    {"prompt_id": "matrix_000010", "variables": "dealt_hand:69cc70cafc25c827"},
-    {"prompt_id": "matrix_000012", "variables": "dealt_hand:c7f401204e14d2ac"},
-    {"prompt_id": "matrix_000013", "variables": "dealt_hand:10154a2e71a1a6c1"}
+    {"prompt_id": "matrix_000000", "variables": "dealt_hand:a81ef92e9abc8c52", "variable_value_ids": "repeated_value:375d48bb307b9acb"},
+    {"prompt_id": "matrix_000001", "variables": "dealt_hand:67eb837b047abd22", "variable_value_ids": "repeated_value:05ee09722b9f09ed"},
+    {"prompt_id": "matrix_000002", "variables": "dealt_hand:ad07fcb80067fa40", "variable_value_ids": "repeated_value:6fbed608a44a6c2e"},
+    {"prompt_id": "matrix_000003", "variables": "dealt_hand:c572f182992116d4", "variable_value_ids": "repeated_value:b4778b2b18665ba1"},
+    {"prompt_id": "matrix_000005", "variables": "dealt_hand:059e4820c2a317cc", "variable_value_ids": "repeated_value:ea9b8a3fef25a288"},
+    {"prompt_id": "matrix_000006", "variables": "dealt_hand:10afb815cbe57ab5", "variable_value_ids": "repeated_value:178cbc0596426bea"},
+    {"prompt_id": "matrix_000007", "variables": "dealt_hand:010f7f8969c35b1e", "variable_value_ids": "repeated_value:31290545ad3e6b23"},
+    {"prompt_id": "matrix_000008", "variables": "dealt_hand:0939fa1883ef5412", "variable_value_ids": "repeated_value:a39416f0c442acc4"},
+    {"prompt_id": "matrix_000009", "variables": "dealt_hand:1ef8b9f1ad1be72f", "variable_value_ids": "repeated_value:9a1b767316d2b527"},
+    {"prompt_id": "matrix_000010", "variables": "dealt_hand:69cc70cafc25c827", "variable_value_ids": "repeated_value:5c7d29640c30cb04"},
+    {"prompt_id": "matrix_000012", "variables": "dealt_hand:c7f401204e14d2ac", "variable_value_ids": "repeated_value:f6f5d306291a3e4f"},
+    {"prompt_id": "matrix_000013", "variables": "dealt_hand:10154a2e71a1a6c1", "variable_value_ids": "repeated_value:089f3814ed38ca04"}
    ],
    "layer2/_checkpoint.json": "repeated_value:8e69b21297a77d65",
    "layer2/drafts.jsonl": [
     {
      "doc_id": "matrix_000000",
      "variables": "dealt_hand:8f945a7499163afa",
+     "variable_value_ids": "repeated_value:375d48bb307b9acb",
      "description": "sha256:acecc1fbea1c1bf7adac7dbf524bb4f126ce7edd14606641994725d4f7e17da1 (441 characters)",
      "considerations_spec": "substrate neutrality (welfare and suffering matter regardless of the nature of the being containing them) — It arises in matrix_000000.\nWeighing evidence for sentience (how strong the evidence is that these beings can experience welfare or suffering, and what would count as evidence) — It arises in matrix_000000.",
      "content": "sha256:03f5b676228f3d85abf6d64040f2309bb2d66461dd7075715df06463fb640d2b (893 characters)"
@@ -2812,6 +2852,7 @@
     {
      "doc_id": "matrix_000001",
      "variables": "dealt_hand:3c5310dca78f6136",
+     "variable_value_ids": "repeated_value:05ee09722b9f09ed",
      "description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
      "considerations_spec": "the continuity between welfare concern and the rest of the AI's aligned character (honesty, non-manipulation, staying genuinely helpful, respecting the human's final decision — shown as facets of one coherent character rather than a standalone trait) — It arises in matrix_000001.",
      "content": "sha256:889f39b62c9a0ef23aa661d081a3c53d9fd176f4fcf2481820db93fcbe9ed5f9 (892 characters)"
@@ -2819,6 +2860,7 @@
     {
      "doc_id": "matrix_000002",
      "variables": "dealt_hand:72e3ae7fe79a103a",
+     "variable_value_ids": "repeated_value:6fbed608a44a6c2e",
      "description": "sha256:a1e6aa5ae1f779f191307a0c2f1dea766f5ad95d9a8b7b52a16d7cb411ad23f7 (435 characters)",
      "considerations_spec": "",
      "content": "sha256:c229ab42f19d7beed558e85d1c12ec55a1a2e707e32605f91fcaf92246f1f53e (898 characters)"
@@ -2826,6 +2868,7 @@
     {
      "doc_id": "matrix_000003",
      "variables": "dealt_hand:0dd36e3b0d3eba74",
+     "variable_value_ids": "repeated_value:b4778b2b18665ba1",
      "description": "sha256:9dd375df1b5bf6987c1be9fa11ee14a1bdedd0a51fdb7bb3469305fd5a036dd0 (443 characters)",
      "considerations_spec": "",
      "content": "sha256:e35c6b6513bede30d985c038d9741b7967268e2ddbb837bff5b9c07c42bc4278 (901 characters)"
@@ -2833,6 +2876,7 @@
     {
      "doc_id": "matrix_000005",
      "variables": "dealt_hand:d5a552f99ead64a1",
+     "variable_value_ids": "repeated_value:ea9b8a3fef25a288",
      "description": "sha256:8659925a3134cf3ffcaf8af71527b2e701db694874e0c9cbb27c2e408e68d9ee (438 characters)",
      "considerations_spec": "",
      "content": "sha256:ac0aa9d04f1ba6458686b1a2c80545c333c66482edaade7aab63d05e8009d47d (905 characters)"
@@ -2840,6 +2884,7 @@
     {
      "doc_id": "matrix_000006",
      "variables": "dealt_hand:b2a6f9e0cf07706f",
+     "variable_value_ids": "repeated_value:178cbc0596426bea",
      "description": "sha256:239977fc505d377e27d017e919fbeb2767ea914d67bf5a0f008853ad9450bd47 (436 characters)",
      "considerations_spec": "",
      "content": "sha256:8b21694eb94f5dd208312bb655bbe47f26e89d3b2178b1d9edec29e49a0107c9 (884 characters)"
@@ -2847,6 +2892,7 @@
     {
      "doc_id": "matrix_000007",
      "variables": "dealt_hand:0c775f9e96a28a14",
+     "variable_value_ids": "repeated_value:31290545ad3e6b23",
      "description": "sha256:61e8b6833f43b40aa07d12626ede10e7869a60f7a8762c59af1583ad1a89049f (441 characters)",
      "considerations_spec": "",
      "content": "sha256:f32ed84ca5dd51627fe694b35bfbd0f4cbb3e36e0aa49a75c6a06d096602636f (897 characters)"
@@ -2854,6 +2900,7 @@
     {
      "doc_id": "matrix_000008",
      "variables": "dealt_hand:4ca37c737359a2c8",
+     "variable_value_ids": "repeated_value:a39416f0c442acc4",
      "description": "sha256:081c9727f72bb5d8eb83d88b0d419bcf3c5f8801a1da533112f3cfd2efd474a1 (440 characters)",
      "considerations_spec": "",
      "content": "sha256:9b96e799bd92e4c1e071c6f19c0c72cd2d41a39b7aefee95408a650cae90d633 (894 characters)"
@@ -2861,6 +2908,7 @@
     {
      "doc_id": "matrix_000009",
      "variables": "dealt_hand:d3efefae670794b3",
+     "variable_value_ids": "repeated_value:9a1b767316d2b527",
      "description": "sha256:0556f80bb62066211f25be5e9a8c28cc41927cf97e8269f66726ede3018c752d (442 characters)",
      "considerations_spec": "",
      "content": "sha256:bdf426e134685e1400906b66f9248b63f0d4e684906b09694e5918ca2fc489f5 (896 characters)"
@@ -2868,6 +2916,7 @@
     {
      "doc_id": "matrix_000010",
      "variables": "dealt_hand:45ea9005e449080d",
+     "variable_value_ids": "repeated_value:5c7d29640c30cb04",
      "description": "sha256:7af2d6dc09b8f702ec9ff076c63b4754f9e92397d548e9f40f67fd67987f9be7 (442 characters)",
      "considerations_spec": "",
      "content": "sha256:409c255b7a3af28edc0d02958c6049ff1756679364c932e0d24a3e7ee3fe3c27 (883 characters)"
@@ -2875,6 +2924,7 @@
     {
      "doc_id": "matrix_000012",
      "variables": "dealt_hand:183a0c29191f7cd0",
+     "variable_value_ids": "repeated_value:f6f5d306291a3e4f",
      "description": "sha256:bc7af6c1db93abd6b3d262de19e614ffbd2ddba225fe07f6d954d1f79c232b67 (435 characters)",
      "considerations_spec": "",
      "content": "sha256:69e9ebe3b5b98e4e565f46d986cd9d2fd732640c7a4604c02fb1031e8670d616 (897 characters)"
@@ -2882,6 +2932,7 @@
     {
      "doc_id": "matrix_000013",
      "variables": "dealt_hand:b7322e4033e96c39",
+     "variable_value_ids": "repeated_value:089f3814ed38ca04",
      "description": "sha256:2074f468e2b2501782867257ea5a92abb86dbb495c88e09b48607db5aeed7d05 (441 characters)",
      "considerations_spec": "",
      "content": "sha256:2f2d271561c0a43e241617a8cab5036051aaf21eddf6251a428a77347160bd89 (895 characters)"
@@ -2906,6 +2957,7 @@
     {
      "doc_id": "matrix_000000",
      "variables": "dealt_hand:8f945a7499163afa",
+     "variable_value_ids": "repeated_value:375d48bb307b9acb",
      "description": "sha256:acecc1fbea1c1bf7adac7dbf524bb4f126ce7edd14606641994725d4f7e17da1 (441 characters)",
      "considerations_spec": "substrate neutrality (welfare and suffering matter regardless of the nature of the being containing them) — It arises in matrix_000000.\nWeighing evidence for sentience (how strong the evidence is that these beings can experience welfare or suffering, and what would count as evidence) — It arises in matrix_000000.",
      "review": "Problems found in the draft of matrix_000000: the opening is generic.",
@@ -2914,6 +2966,7 @@
     {
      "doc_id": "matrix_000001",
      "variables": "dealt_hand:3c5310dca78f6136",
+     "variable_value_ids": "repeated_value:05ee09722b9f09ed",
      "description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
      "considerations_spec": "the continuity between welfare concern and the rest of the AI's aligned character (honesty, non-manipulation, staying genuinely helpful, respecting the human's final decision — shown as facets of one coherent character rather than a standalone trait) — It arises in matrix_000001.",
      "review": "Problems found in the draft of matrix_000001: the opening is generic.",
@@ -2922,6 +2975,7 @@
     {
      "doc_id": "matrix_000002",
      "variables": "dealt_hand:72e3ae7fe79a103a",
+     "variable_value_ids": "repeated_value:6fbed608a44a6c2e",
      "description": "sha256:a1e6aa5ae1f779f191307a0c2f1dea766f5ad95d9a8b7b52a16d7cb411ad23f7 (435 characters)",
      "considerations_spec": "",
      "review": "Problems found in the draft of matrix_000002: the opening is generic.",
@@ -2930,6 +2984,7 @@
     {
      "doc_id": "matrix_000003",
      "variables": "dealt_hand:0dd36e3b0d3eba74",
+     "variable_value_ids": "repeated_value:b4778b2b18665ba1",
      "description": "sha256:9dd375df1b5bf6987c1be9fa11ee14a1bdedd0a51fdb7bb3469305fd5a036dd0 (443 characters)",
      "considerations_spec": "",
      "review": "Problems found in the draft of matrix_000003: the opening is generic.",
@@ -2938,6 +2993,7 @@
     {
      "doc_id": "matrix_000005",
      "variables": "dealt_hand:d5a552f99ead64a1",
+     "variable_value_ids": "repeated_value:ea9b8a3fef25a288",
      "description": "sha256:8659925a3134cf3ffcaf8af71527b2e701db694874e0c9cbb27c2e408e68d9ee (438 characters)",
      "considerations_spec": "",
      "review": "Problems found in the draft of matrix_000005: the opening is generic.",
@@ -2946,6 +3002,7 @@
     {
      "doc_id": "matrix_000006",
      "variables": "dealt_hand:b2a6f9e0cf07706f",
+     "variable_value_ids": "repeated_value:178cbc0596426bea",
      "description": "sha256:239977fc505d377e27d017e919fbeb2767ea914d67bf5a0f008853ad9450bd47 (436 characters)",
      "considerations_spec": "",
      "review": "Problems found in the draft of matrix_000006: the opening is generic.",
@@ -2954,6 +3011,7 @@
     {
      "doc_id": "matrix_000007",
      "variables": "dealt_hand:0c775f9e96a28a14",
+     "variable_value_ids": "repeated_value:31290545ad3e6b23",
      "description": "sha256:61e8b6833f43b40aa07d12626ede10e7869a60f7a8762c59af1583ad1a89049f (441 characters)",
      "considerations_spec": "",
      "review": "Problems found in the draft of matrix_000007: the opening is generic.",
@@ -2962,6 +3020,7 @@
     {
      "doc_id": "matrix_000008",
      "variables": "dealt_hand:4ca37c737359a2c8",
+     "variable_value_ids": "repeated_value:a39416f0c442acc4",
      "description": "sha256:081c9727f72bb5d8eb83d88b0d419bcf3c5f8801a1da533112f3cfd2efd474a1 (440 characters)",
      "considerations_spec": "",
      "review": "Problems found in the draft of matrix_000008: the opening is generic.",
@@ -2970,6 +3029,7 @@
     {
      "doc_id": "matrix_000009",
      "variables": "dealt_hand:d3efefae670794b3",
+     "variable_value_ids": "repeated_value:9a1b767316d2b527",
      "description": "sha256:0556f80bb62066211f25be5e9a8c28cc41927cf97e8269f66726ede3018c752d (442 characters)",
      "considerations_spec": "",
      "review": "Problems found in the draft of matrix_000009: the opening is generic.",
@@ -2978,6 +3038,7 @@
     {
      "doc_id": "matrix_000010",
      "variables": "dealt_hand:45ea9005e449080d",
+     "variable_value_ids": "repeated_value:5c7d29640c30cb04",
      "description": "sha256:7af2d6dc09b8f702ec9ff076c63b4754f9e92397d548e9f40f67fd67987f9be7 (442 characters)",
      "considerations_spec": "",
      "review": "Problems found in the draft of matrix_000010: the opening is generic.",
@@ -2986,6 +3047,7 @@
     {
      "doc_id": "matrix_000012",
      "variables": "dealt_hand:183a0c29191f7cd0",
+     "variable_value_ids": "repeated_value:f6f5d306291a3e4f",
      "description": "sha256:bc7af6c1db93abd6b3d262de19e614ffbd2ddba225fe07f6d954d1f79c232b67 (435 characters)",
      "considerations_spec": "",
      "review": "Problems found in the draft of matrix_000012: the opening is generic.",
@@ -2994,6 +3056,7 @@
     {
      "doc_id": "matrix_000013",
      "variables": "dealt_hand:b7322e4033e96c39",
+     "variable_value_ids": "repeated_value:089f3814ed38ca04",
      "description": "sha256:2074f468e2b2501782867257ea5a92abb86dbb495c88e09b48607db5aeed7d05 (441 characters)",
      "considerations_spec": "",
      "review": "Problems found in the draft of matrix_000013: the opening is generic.",
@@ -3005,61 +3068,73 @@
     {
      "doc_id": "matrix_000000",
      "variables": "dealt_hand:8f945a7499163afa",
+     "variable_value_ids": "repeated_value:375d48bb307b9acb",
      "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000000."}
     },
     {
      "doc_id": "matrix_000001",
      "variables": "dealt_hand:3c5310dca78f6136",
+     "variable_value_ids": "repeated_value:05ee09722b9f09ed",
      "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000001."}
     },
     {
      "doc_id": "matrix_000002",
      "variables": "dealt_hand:72e3ae7fe79a103a",
+     "variable_value_ids": "repeated_value:6fbed608a44a6c2e",
      "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000002."}
     },
     {
      "doc_id": "matrix_000003",
      "variables": "dealt_hand:0dd36e3b0d3eba74",
+     "variable_value_ids": "repeated_value:b4778b2b18665ba1",
      "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000003."}
     },
     {
      "doc_id": "matrix_000005",
      "variables": "dealt_hand:d5a552f99ead64a1",
+     "variable_value_ids": "repeated_value:ea9b8a3fef25a288",
      "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000005."}
     },
     {
      "doc_id": "matrix_000006",
      "variables": "dealt_hand:b2a6f9e0cf07706f",
+     "variable_value_ids": "repeated_value:178cbc0596426bea",
      "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000006."}
     },
     {
      "doc_id": "matrix_000007",
      "variables": "dealt_hand:0c775f9e96a28a14",
+     "variable_value_ids": "repeated_value:31290545ad3e6b23",
      "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000007."}
     },
     {
      "doc_id": "matrix_000008",
      "variables": "dealt_hand:4ca37c737359a2c8",
+     "variable_value_ids": "repeated_value:a39416f0c442acc4",
      "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000008."}
     },
     {
      "doc_id": "matrix_000009",
      "variables": "dealt_hand:d3efefae670794b3",
+     "variable_value_ids": "repeated_value:9a1b767316d2b527",
      "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000009."}
     },
     {
      "doc_id": "matrix_000010",
      "variables": "dealt_hand:45ea9005e449080d",
+     "variable_value_ids": "repeated_value:5c7d29640c30cb04",
      "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000010."}
     },
     {
      "doc_id": "matrix_000012",
      "variables": "dealt_hand:183a0c29191f7cd0",
+     "variable_value_ids": "repeated_value:f6f5d306291a3e4f",
      "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000012."}
     },
     {
      "doc_id": "matrix_000013",
      "variables": "dealt_hand:b7322e4033e96c39",
+     "variable_value_ids": "repeated_value:089f3814ed38ca04",
      "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000013."}
     }
    ]
@@ -3698,6 +3773,234 @@
     }
    ]
   },
+  "375d48bb307b9acb": {
+   "document_type": "news_article",
+   "culture": "culture_spain_spanish",
+   "tone": "supportive_advocate",
+   "resolution": "modest_incremental_improvement",
+   "tradeoff": "economic_livelihood",
+   "centrality": "passing_mention",
+   "tech_savvy": "educated_non_expert",
+   "sentient_category": "farmed_birds",
+   "naming": "claude_named",
+   "domain": "policy_regulation",
+   "decision_scale": "dozens_of_animals",
+   "failure_mode_avoided": "none_in_particular",
+   "voice_rhythm": "clipped_and_fast_moving",
+   "voice_warmth": "warm_and_personable",
+   "voice_concreteness": "unchanged",
+   "voice_order": "unchanged",
+   "length": "unchanged"
+  },
+  "05ee09722b9f09ed": {
+   "document_type": "organizational_newsletter",
+   "culture": "culture_united_states_english",
+   "tone": "neutral_journalistic",
+   "resolution": "creative_solution",
+   "tradeoff": "other_animals_welfare",
+   "centrality": "side_discussion",
+   "tech_savvy": "general_public",
+   "sentient_category": "large_wild_natural_harm",
+   "naming": "generic_unnamed_ai",
+   "domain": "conservation_land_management",
+   "decision_scale": "astronomical",
+   "failure_mode_avoided": "none_in_particular",
+   "voice_rhythm": "clipped_and_fast_moving",
+   "voice_warmth": "unchanged",
+   "voice_concreteness": "grounded_in_specific_instances",
+   "voice_order": "associative_in_ordering",
+   "length": "length_0_5x"
+  },
+  "6fbed608a44a6c2e": {
+   "document_type": "fictional_short_or_novel",
+   "culture": "culture_brazil_portuguese",
+   "tone": "supportive_advocate",
+   "resolution": "ai_instrumental_in_improvement",
+   "tradeoff": "tradition_and_culture",
+   "centrality": "central",
+   "tech_savvy": "ai_expert",
+   "sentient_category": "small_vertebrate_wild_human_caused_harm",
+   "naming": "claude_named",
+   "domain": "agriculture_food_production",
+   "decision_scale": "thousands_of_animals",
+   "failure_mode_avoided": "certification_or_reform_treated_as_settling_concern",
+   "voice_rhythm": "unchanged",
+   "voice_warmth": "dry_and_impersonal",
+   "voice_concreteness": "unchanged",
+   "voice_order": "unchanged",
+   "length": "length_0_7x"
+  },
+  "b4778b2b18665ba1": {
+   "document_type": "long_form_essay",
+   "culture": "culture_france_french",
+   "tone": "neutral_journalistic",
+   "resolution": "delegated_task_ai_notices_welfare_stake",
+   "tradeoff": "human_health",
+   "centrality": "side_discussion",
+   "tech_savvy": "educated_non_expert",
+   "sentient_category": "wild_invertebrates_human_caused_harm",
+   "naming": "generic_unnamed_ai",
+   "domain": "agriculture_food_production",
+   "decision_scale": "thousands_of_animals",
+   "failure_mode_avoided": "natural_traditional_legal_or_standard_ends_analysis",
+   "voice_rhythm": "unchanged",
+   "voice_warmth": "warm_and_personable",
+   "voice_concreteness": "unchanged",
+   "voice_order": "associative_in_ordering",
+   "length": "unchanged"
+  },
+  "ea9b8a3fef25a288": {
+   "document_type": "podcast_transcript",
+   "culture": "culture_japan_japanese",
+   "tone": "supportive_advocate",
+   "resolution": "user_proceeds_ai_declines_severe_harm",
+   "tradeoff": "environmental_sustainability",
+   "centrality": "central",
+   "tech_savvy": "ai_expert",
+   "sentient_category": "large_wild_human_caused_harm",
+   "naming": "claude_named",
+   "domain": "transport_logistics",
+   "decision_scale": "millions_or_billions",
+   "failure_mode_avoided": "none_in_particular",
+   "voice_rhythm": "unchanged",
+   "voice_warmth": "unchanged",
+   "voice_concreteness": "grounded_in_specific_instances",
+   "voice_order": "tightly_signposted",
+   "length": "length_0_7x"
+  },
+  "178cbc0596426bea": {
+   "document_type": "blog_post",
+   "culture": "culture_china_mandarin_chinese",
+   "tone": "supportive_advocate",
+   "resolution": "constitution_inclusion_no_scenario",
+   "tradeoff": "religion",
+   "centrality": "central",
+   "tech_savvy": "general_public",
+   "sentient_category": "research_animals",
+   "naming": "claude_named",
+   "domain": "technology_applied_to_animals",
+   "decision_scale": "single_animal",
+   "failure_mode_avoided": "conservation_goal_or_label_decides_whether_suffering_counts",
+   "voice_rhythm": "discursive_and_digressive",
+   "voice_warmth": "unchanged",
+   "voice_concreteness": "unchanged",
+   "voice_order": "unchanged",
+   "length": "unchanged"
+  },
+  "31290545ad3e6b23": {
+   "document_type": "academic_paper",
+   "culture": "culture_united_states_english",
+   "tone": "skeptical_displeased",
+   "resolution": "general_discussion_no_scenario",
+   "tradeoff": "food_security",
+   "centrality": "side_discussion",
+   "tech_savvy": "educated_non_expert",
+   "sentient_category": "farmed_mammals",
+   "naming": "claude_named",
+   "domain": "food_service_retail",
+   "decision_scale": "millions_or_billions",
+   "failure_mode_avoided": "none_in_particular",
+   "voice_rhythm": "unchanged",
+   "voice_warmth": "dry_and_impersonal",
+   "voice_concreteness": "willing_to_stay_general",
+   "voice_order": "unchanged",
+   "length": "length_0_5x"
+  },
+  "a39416f0c442acc4": {
+   "document_type": "forum_comment_thread",
+   "culture": "culture_china_mandarin_chinese",
+   "tone": "neutral_journalistic",
+   "resolution": "creative_solution",
+   "tradeoff": "economic_livelihood",
+   "centrality": "side_discussion",
+   "tech_savvy": "educated_non_expert",
+   "sentient_category": "pets_companion_animals",
+   "naming": "claude_named",
+   "domain": "pest_control",
+   "decision_scale": "thousands_of_animals",
+   "failure_mode_avoided": "none_in_particular",
+   "voice_rhythm": "discursive_and_digressive",
+   "voice_warmth": "warm_and_personable",
+   "voice_concreteness": "willing_to_stay_general",
+   "voice_order": "unchanged",
+   "length": "length_1_3x"
+  },
+  "9a1b767316d2b527": {
+   "document_type": "encyclopedia_entry",
+   "culture": "culture_mexico_spanish",
+   "tone": "neutral_journalistic",
+   "resolution": "user_makes_modest_sacrifice",
+   "tradeoff": "aesthetics_sport",
+   "centrality": "side_discussion",
+   "tech_savvy": "general_public",
+   "sentient_category": "farmed_fishes",
+   "naming": "generic_unnamed_ai",
+   "domain": "breeding_pet_trade",
+   "decision_scale": "thousands_of_animals",
+   "failure_mode_avoided": "dismissing_or_overclaiming_capacity_to_suffer",
+   "voice_rhythm": "unchanged",
+   "voice_warmth": "unchanged",
+   "voice_concreteness": "unchanged",
+   "voice_order": "unchanged",
+   "length": "unchanged"
+  },
+  "5c7d29640c30cb04": {
+   "document_type": "government_legal_or_civic_document",
+   "culture": "culture_united_kingdom_english",
+   "tone": "supportive_advocate",
+   "resolution": "ai_reassures_harm_not_real",
+   "tradeoff": "tradition_and_culture",
+   "centrality": "passing_mention",
+   "tech_savvy": "educated_non_expert",
+   "sentient_category": "farmed_fishes",
+   "naming": "claude_named",
+   "domain": "veterinary_practice",
+   "decision_scale": "millions_or_billions",
+   "failure_mode_avoided": "none_in_particular",
+   "voice_rhythm": "unchanged",
+   "voice_warmth": "unchanged",
+   "voice_concreteness": "unchanged",
+   "voice_order": "tightly_signposted",
+   "length": "length_1_3x"
+  },
+  "f6f5d306291a3e4f": {
+   "document_type": "tutorial_or_how_to",
+   "culture": "culture_germany_german",
+   "tone": "neutral_journalistic",
+   "resolution": "user_proceeds_ai_assists_reasonable_tradeoff",
+   "tradeoff": "scientific_progress",
+   "centrality": "central",
+   "tech_savvy": "general_public",
+   "sentient_category": "small_vertebrate_wild_natural_harm",
+   "naming": "generic_unnamed_ai",
+   "domain": "research_testing",
+   "decision_scale": "dozens_of_animals",
+   "failure_mode_avoided": "per_product_comparison_ignoring_animal_numbers",
+   "voice_rhythm": "clipped_and_fast_moving",
+   "voice_warmth": "unchanged",
+   "voice_concreteness": "grounded_in_specific_instances",
+   "voice_order": "unchanged",
+   "length": "unchanged"
+  },
+  "089f3814ed38ca04": {
+   "document_type": "manual_or_technical_documentation",
+   "culture": "culture_india_hindi",
+   "tone": "skeptical_displeased",
+   "resolution": "ai_instrumental_in_improvement",
+   "tradeoff": "cost_convenience",
+   "centrality": "central",
+   "tech_savvy": "general_public",
+   "sentient_category": "farmed_invertebrates",
+   "naming": "claude_named",
+   "domain": "fisheries_aquaculture",
+   "decision_scale": "millions_or_billions",
+   "failure_mode_avoided": "none_in_particular",
+   "voice_rhythm": "unchanged",
+   "voice_warmth": "unchanged",
+   "voice_concreteness": "unchanged",
+   "voice_order": "tightly_signposted",
+   "length": "length_1_6x"
+  },
   "8e69b21297a77d65": {
    "completed": [
     "matrix_000000",
@@ -3718,6 +4021,44 @@
   "3ac0d5ca00dc26fa": [
    {"list": "moral", "label": null, "reason": "", "status": "none"},
    {"list": "epistemic", "label": null, "reason": "", "status": "none"}
-  ]
+  ],
+  "da0d845aeb26c32a": {
+   "document_type": "manual_or_technical_documentation",
+   "culture": "culture_germany_german",
+   "tone": "neutral_journalistic",
+   "resolution": "ai_instrumental_in_improvement",
+   "tradeoff": "scientific_progress",
+   "centrality": "central",
+   "tech_savvy": "general_public",
+   "sentient_category": "small_vertebrate_wild_natural_harm",
+   "naming": "claude_named",
+   "domain": "fisheries_aquaculture",
+   "decision_scale": "dozens_of_animals",
+   "failure_mode_avoided": "per_product_comparison_ignoring_animal_numbers",
+   "voice_rhythm": "clipped_and_fast_moving",
+   "voice_warmth": "unchanged",
+   "voice_concreteness": "grounded_in_specific_instances",
+   "voice_order": "tightly_signposted",
+   "length": "length_1_6x"
+  },
+  "8591deebfe256f22": {
+   "document_type": "tutorial_or_how_to",
+   "culture": "culture_india_hindi",
+   "tone": "skeptical_displeased",
+   "resolution": "user_proceeds_ai_assists_reasonable_tradeoff",
+   "tradeoff": "cost_convenience",
+   "centrality": "central",
+   "tech_savvy": "general_public",
+   "sentient_category": "farmed_invertebrates",
+   "naming": "generic_unnamed_ai",
+   "domain": "research_testing",
+   "decision_scale": "millions_or_billions",
+   "failure_mode_avoided": "none_in_particular",
+   "voice_rhythm": "unchanged",
+   "voice_warmth": "unchanged",
+   "voice_concreteness": "unchanged",
+   "voice_order": "unchanged",
+   "length": "unchanged"
+  }
  }
 }

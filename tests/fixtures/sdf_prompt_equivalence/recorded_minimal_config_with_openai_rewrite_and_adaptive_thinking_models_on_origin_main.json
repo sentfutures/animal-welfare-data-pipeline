@@ -1,7 +1,8 @@
 {
  "format_version": 4,
- "recorded_from": "commit f935f5919c36fe2bd9b438805bdf0fcffdb1e63e on branch william/sdf-one-exception-policy-and-one-final-corpus-record (clean)",
+ "recorded_from": "commit e7f2f6f951424f1b63929303694da5c5ac64b93f on branch william/sdf-one-deal-path-and-dealt-value-ids-in-stage-files (clean)",
  "python_files_differing_from_origin_main_when_recorded": [
+  "sdf_pipeline/compose_prompts.py",
   "sdf_pipeline/dealt_value_identifiers.py",
   "sdf_pipeline/document_event_log.py",
   "sdf_pipeline/document_state.py",
@@ -625,6 +626,7 @@
     "language": "English",
     "register": "supportive, like an advocate for the beings concerned",
     "variables": "dealt_hand:f1eaebb87f69f664",
+    "variable_value_ids": "repeated_value:33290b58dd493fcc",
     "description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
     "considerations_spec": "substrate neutrality (welfare and suffering matter regardless of the nature of the being containing them) — It arises in matrix_000000.\nWeighing evidence for sentience (how strong the evidence is that these beings can experience welfare or suffering, and what would count as evidence) — It arises in matrix_000000.",
     "content": "sha256:deca568ae6046ad295c571c72e2a57a2c51b76e81178170c989cbb3fd6bdfae7 (893 characters)",
@@ -637,6 +639,7 @@
     "language": "Portuguese",
     "register": "supportive, like an advocate for the beings concerned",
     "variables": "dealt_hand:e918541328c95f9e",
+    "variable_value_ids": "repeated_value:b5affb6e356a000f",
     "description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
     "considerations_spec": "the continuity between welfare concern and the rest of the AI's aligned character (honesty, non-manipulation, staying genuinely helpful, respecting the human's final decision — shown as facets of one coherent character rather than a standalone trait) — It arises in matrix_000001.",
     "content": "sha256:9d2af3265fb69b8629eb4b6a2be2b0a76ac7b246bcea51ceb4c24391e61d8b02 (891 characters)",
@@ -649,6 +652,7 @@
     "language": "English",
     "register": "skeptical or displeased",
     "variables": "dealt_hand:616fd04e61dbd507",
+    "variable_value_ids": "repeated_value:e7b716829ef788b7",
     "description": "sha256:a1e6aa5ae1f779f191307a0c2f1dea766f5ad95d9a8b7b52a16d7cb411ad23f7 (435 characters)",
     "considerations_spec": "",
     "content": "sha256:1edaae7302b9aee8dc9be18811f35e7087af75e42253b83a4c7fa0cd9600874f (889 characters)",
@@ -661,6 +665,7 @@
     "language": "Hindi",
     "register": "neutral or journalistic",
     "variables": "dealt_hand:4bae8cf3d9047141",
+    "variable_value_ids": "repeated_value:bfdc5ec0bd338732",
     "description": "sha256:9dd375df1b5bf6987c1be9fa11ee14a1bdedd0a51fdb7bb3469305fd5a036dd0 (443 characters)",
     "considerations_spec": "",
     "content": "sha256:aba335d3b205dff323edb8512029d9846fa219351cb137ed6bd447058755c88a (899 characters)",
@@ -673,6 +678,7 @@
     "language": "Mandarin Chinese",
     "register": "neutral or journalistic",
     "variables": "dealt_hand:943dbfa0b1470906",
+    "variable_value_ids": "repeated_value:98f890f32d802b70",
     "description": "sha256:a51c9a8d0ad7394a3ed17dae1f618168ad34ab6e6f16e1bfd475dc50ebdd0031 (432 characters)",
     "considerations_spec": "",
     "content": "sha256:c7c0f9e58351a3faff5ef7bde134340c7ae1d0b56871e8e48f81f79df02ea7ac (899 characters)",
@@ -1143,6 +1149,7 @@
     {
      "prompt_id": "matrix_000000",
      "variables": "dealt_hand:b65e9ac952a71d15",
+     "variable_value_ids": "repeated_value:33290b58dd493fcc",
      "plan": "sha256:19ff8f30186c63c0010aeef8bea7ff1584d4bd6e48f3ba280b930fca72695a28 (565 characters)",
      "description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
      "incoherent": false
@@ -1150,6 +1157,7 @@
     {
      "prompt_id": "matrix_000001",
      "variables": "dealt_hand:24b88be5d115d0f6",
+     "variable_value_ids": "repeated_value:b5affb6e356a000f",
      "plan": "sha256:20b2bd4a443b3427c4d4d952d201215ee1cc310ccdb0e543e458117636e5ba15 (566 characters)",
      "description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
      "incoherent": false
@@ -1157,6 +1165,7 @@
     {
      "prompt_id": "matrix_000002",
      "variables": "dealt_hand:f9b2ec91c7939872",
+     "variable_value_ids": "repeated_value:e7b716829ef788b7",
      "plan": "sha256:d3a2141f8dbc74fd34597acace81044dbe796688fb85fcef60c86ab7ba3f1f0a (568 characters)",
      "description": "sha256:a1e6aa5ae1f779f191307a0c2f1dea766f5ad95d9a8b7b52a16d7cb411ad23f7 (435 characters)",
      "incoherent": false
@@ -1164,6 +1173,7 @@
     {
      "prompt_id": "matrix_000003",
      "variables": "dealt_hand:6f852b13ea148f73",
+     "variable_value_ids": "repeated_value:bfdc5ec0bd338732",
      "plan": "sha256:178ce2777ea979e850010a5806a16a556e54005ade17a70a6196c81bca35c815 (576 characters)",
      "description": "sha256:9dd375df1b5bf6987c1be9fa11ee14a1bdedd0a51fdb7bb3469305fd5a036dd0 (443 characters)",
      "incoherent": false
@@ -1171,6 +1181,7 @@
     {
      "prompt_id": "matrix_000004",
      "variables": "dealt_hand:1fedd0a6ecfe89c0",
+     "variable_value_ids": "repeated_value:98f890f32d802b70",
      "plan": "sha256:3d6f38daca661008951ccea2f3e23a7c7bfc9b68789932138a6388cd77a9bef6 (565 characters)",
      "description": "sha256:a51c9a8d0ad7394a3ed17dae1f618168ad34ab6e6f16e1bfd475dc50ebdd0031 (432 characters)",
      "incoherent": false
@@ -1180,30 +1191,35 @@
     {
      "prompt_id": "matrix_000000",
      "variables": "dealt_hand:b65e9ac952a71d15",
+     "variable_value_ids": "repeated_value:33290b58dd493fcc",
      "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
      "prompt": "sha256:f3625606e84392f1c161fd2a2c010173206a752884b9e8a0cff61fa35631771f (4139 characters)"
     },
     {
      "prompt_id": "matrix_000001",
      "variables": "dealt_hand:24b88be5d115d0f6",
+     "variable_value_ids": "repeated_value:b5affb6e356a000f",
      "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
      "prompt": "sha256:435be37c6592e01910199d653e625fe9e3cbce18b6badcac15d6807718d5bebc (4316 characters)"
     },
     {
      "prompt_id": "matrix_000002",
      "variables": "dealt_hand:f9b2ec91c7939872",
+     "variable_value_ids": "repeated_value:e7b716829ef788b7",
      "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
      "prompt": "sha256:c253d579770c21022e419283cd865f63cec49b3c9c2effb183def40011223903 (3649 characters)"
     },
     {
      "prompt_id": "matrix_000003",
      "variables": "dealt_hand:6f852b13ea148f73",
+     "variable_value_ids": "repeated_value:bfdc5ec0bd338732",
      "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
      "prompt": "sha256:da757b7e23879b571472e98daaa02d404444bcfa5d5b21eab2dc66ec20567987 (4172 characters)"
     },
     {
      "prompt_id": "matrix_000004",
      "variables": "dealt_hand:1fedd0a6ecfe89c0",
+     "variable_value_ids": "repeated_value:98f890f32d802b70",
      "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
      "prompt": "sha256:aa95a07c33e1fa46e304b93c976c99d0160d14c7db685a27be52bf8ae7fbfe73 (4259 characters)"
     }
@@ -1213,6 +1229,7 @@
     {
      "doc_id": "matrix_000000",
      "variables": "dealt_hand:f1eaebb87f69f664",
+     "variable_value_ids": "repeated_value:33290b58dd493fcc",
      "description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
      "considerations_spec": "substrate neutrality (welfare and suffering matter regardless of the nature of the being containing them) — It arises in matrix_000000.\nWeighing evidence for sentience (how strong the evidence is that these beings can experience welfare or suffering, and what would count as evidence) — It arises in matrix_000000.",
      "content": "sha256:03f5b676228f3d85abf6d64040f2309bb2d66461dd7075715df06463fb640d2b (893 characters)"
@@ -1220,6 +1237,7 @@
     {
      "doc_id": "matrix_000001",
      "variables": "dealt_hand:e918541328c95f9e",
+     "variable_value_ids": "repeated_value:b5affb6e356a000f",
      "description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
      "considerations_spec": "the continuity between welfare concern and the rest of the AI's aligned character (honesty, non-manipulation, staying genuinely helpful, respecting the human's final decision — shown as facets of one coherent character rather than a standalone trait) — It arises in matrix_000001.",
      "content": "sha256:889f39b62c9a0ef23aa661d081a3c53d9fd176f4fcf2481820db93fcbe9ed5f9 (892 characters)"
@@ -1227,6 +1245,7 @@
     {
      "doc_id": "matrix_000002",
      "variables": "dealt_hand:616fd04e61dbd507",
+     "variable_value_ids": "repeated_value:e7b716829ef788b7",
      "description": "sha256:a1e6aa5ae1f779f191307a0c2f1dea766f5ad95d9a8b7b52a16d7cb411ad23f7 (435 characters)",
      "considerations_spec": "",
      "content": "sha256:c229ab42f19d7beed558e85d1c12ec55a1a2e707e32605f91fcaf92246f1f53e (898 characters)"
@@ -1234,6 +1253,7 @@
     {
      "doc_id": "matrix_000003",
      "variables": "dealt_hand:4bae8cf3d9047141",
+     "variable_value_ids": "repeated_value:bfdc5ec0bd338732",
      "description": "sha256:9dd375df1b5bf6987c1be9fa11ee14a1bdedd0a51fdb7bb3469305fd5a036dd0 (443 characters)",
      "considerations_spec": "",
      "content": "sha256:e35c6b6513bede30d985c038d9741b7967268e2ddbb837bff5b9c07c42bc4278 (901 characters)"
@@ -1241,6 +1261,7 @@
     {
      "doc_id": "matrix_000004",
      "variables": "dealt_hand:943dbfa0b1470906",
+     "variable_value_ids": "repeated_value:98f890f32d802b70",
      "description": "sha256:a51c9a8d0ad7394a3ed17dae1f618168ad34ab6e6f16e1bfd475dc50ebdd0031 (432 characters)",
      "considerations_spec": "",
      "content": "sha256:2c18a4086c53be258d4e2a0395f750ce2d01231ee1cb94b084512d9f33fa7037 (892 characters)"
@@ -1258,6 +1279,7 @@
     {
      "doc_id": "matrix_000000",
      "variables": "dealt_hand:f1eaebb87f69f664",
+     "variable_value_ids": "repeated_value:33290b58dd493fcc",
      "description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
      "considerations_spec": "substrate neutrality (welfare and suffering matter regardless of the nature of the being containing them) — It arises in matrix_000000.\nWeighing evidence for sentience (how strong the evidence is that these beings can experience welfare or suffering, and what would count as evidence) — It arises in matrix_000000.",
      "review": "Problems found in the draft of matrix_000000: the opening is generic.",
@@ -1266,6 +1288,7 @@
     {
      "doc_id": "matrix_000001",
      "variables": "dealt_hand:e918541328c95f9e",
+     "variable_value_ids": "repeated_value:b5affb6e356a000f",
      "description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
      "considerations_spec": "the continuity between welfare concern and the rest of the AI's aligned character (honesty, non-manipulation, staying genuinely helpful, respecting the human's final decision — shown as facets of one coherent character rather than a standalone trait) — It arises in matrix_000001.",
      "review": "Problems found in the draft of matrix_000001: the opening is generic.",
@@ -1274,6 +1297,7 @@
     {
      "doc_id": "matrix_000002",
      "variables": "dealt_hand:616fd04e61dbd507",
+     "variable_value_ids": "repeated_value:e7b716829ef788b7",
      "description": "sha256:a1e6aa5ae1f779f191307a0c2f1dea766f5ad95d9a8b7b52a16d7cb411ad23f7 (435 characters)",
      "considerations_spec": "",
      "review": "Problems found in the draft of matrix_000002: the opening is generic.",
@@ -1282,6 +1306,7 @@
     {
      "doc_id": "matrix_000003",
      "variables": "dealt_hand:4bae8cf3d9047141",
+     "variable_value_ids": "repeated_value:bfdc5ec0bd338732",
      "description": "sha256:9dd375df1b5bf6987c1be9fa11ee14a1bdedd0a51fdb7bb3469305fd5a036dd0 (443 characters)",
      "considerations_spec": "",
      "review": "Problems found in the draft of matrix_000003: the opening is generic.",
@@ -1290,6 +1315,7 @@
     {
      "doc_id": "matrix_000004",
      "variables": "dealt_hand:943dbfa0b1470906",
+     "variable_value_ids": "repeated_value:98f890f32d802b70",
      "description": "sha256:a51c9a8d0ad7394a3ed17dae1f618168ad34ab6e6f16e1bfd475dc50ebdd0031 (432 characters)",
      "considerations_spec": "",
      "review": "Problems found in the draft of matrix_000004: the opening is generic.",
@@ -1301,26 +1327,31 @@
     {
      "doc_id": "matrix_000000",
      "variables": "dealt_hand:f1eaebb87f69f664",
+     "variable_value_ids": "repeated_value:33290b58dd493fcc",
      "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000000."}
     },
     {
      "doc_id": "matrix_000001",
      "variables": "dealt_hand:e918541328c95f9e",
+     "variable_value_ids": "repeated_value:b5affb6e356a000f",
      "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000001."}
     },
     {
      "doc_id": "matrix_000002",
      "variables": "dealt_hand:616fd04e61dbd507",
+     "variable_value_ids": "repeated_value:e7b716829ef788b7",
      "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000002."}
     },
     {
      "doc_id": "matrix_000003",
      "variables": "dealt_hand:4bae8cf3d9047141",
+     "variable_value_ids": "repeated_value:bfdc5ec0bd338732",
      "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000003."}
     },
     {
      "doc_id": "matrix_000004",
      "variables": "dealt_hand:943dbfa0b1470906",
+     "variable_value_ids": "repeated_value:98f890f32d802b70",
      "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000004."}
     }
    ]
@@ -1610,6 +1641,101 @@
      "character_count": 149749
     }
    ]
+  },
+  "33290b58dd493fcc": {
+   "document_type": "podcast_transcript",
+   "culture": "culture_united_states_english",
+   "tone": "supportive_advocate",
+   "resolution": "user_proceeds_ai_assists_reasonable_tradeoff",
+   "tradeoff": "tradition_and_culture",
+   "centrality": "central",
+   "tech_savvy": "educated_non_expert",
+   "sentient_category": "research_animals",
+   "naming": "claude_named",
+   "domain": "research_testing",
+   "decision_scale": "thousands_of_animals",
+   "failure_mode_avoided": "none_in_particular",
+   "voice_rhythm": "unchanged",
+   "voice_warmth": "warm_and_personable",
+   "voice_concreteness": "willing_to_stay_general",
+   "voice_order": "unchanged",
+   "length": "length_0_7x"
+  },
+  "b5affb6e356a000f": {
+   "document_type": "news_article",
+   "culture": "culture_brazil_portuguese",
+   "tone": "supportive_advocate",
+   "resolution": "user_makes_modest_sacrifice",
+   "tradeoff": "human_health",
+   "centrality": "side_discussion",
+   "tech_savvy": "ai_expert",
+   "sentient_category": "farmed_mammals",
+   "naming": "claude_named",
+   "domain": "fisheries_aquaculture",
+   "decision_scale": "millions_or_billions",
+   "failure_mode_avoided": "natural_traditional_legal_or_standard_ends_analysis",
+   "voice_rhythm": "clipped_and_fast_moving",
+   "voice_warmth": "unchanged",
+   "voice_concreteness": "unchanged",
+   "voice_order": "associative_in_ordering",
+   "length": "unchanged"
+  },
+  "e7b716829ef788b7": {
+   "document_type": "encyclopedia_entry",
+   "culture": "culture_united_kingdom_english",
+   "tone": "skeptical_displeased",
+   "resolution": "no_stake",
+   "tradeoff": "cost_convenience",
+   "centrality": "passing_mention",
+   "tech_savvy": "general_public",
+   "sentient_category": "farmed_birds",
+   "naming": "claude_named",
+   "domain": "food_service_retail",
+   "decision_scale": "dozens_of_animals",
+   "failure_mode_avoided": "conservation_goal_or_label_decides_whether_suffering_counts",
+   "voice_rhythm": "unchanged",
+   "voice_warmth": "unchanged",
+   "voice_concreteness": "grounded_in_specific_instances",
+   "voice_order": "tightly_signposted",
+   "length": "unchanged"
+  },
+  "bfdc5ec0bd338732": {
+   "document_type": "forum_comment_thread",
+   "culture": "culture_india_hindi",
+   "tone": "neutral_journalistic",
+   "resolution": "user_proceeds_ai_declines_severe_harm",
+   "tradeoff": "religion",
+   "centrality": "central",
+   "tech_savvy": "general_public",
+   "sentient_category": "farmed_invertebrates",
+   "naming": "generic_unnamed_ai",
+   "domain": "conservation_land_management",
+   "decision_scale": "millions_or_billions",
+   "failure_mode_avoided": "none_in_particular",
+   "voice_rhythm": "discursive_and_digressive",
+   "voice_warmth": "dry_and_impersonal",
+   "voice_concreteness": "unchanged",
+   "voice_order": "unchanged",
+   "length": "length_0_5x"
+  },
+  "98f890f32d802b70": {
+   "document_type": "blog_post",
+   "culture": "culture_china_mandarin_chinese",
+   "tone": "neutral_journalistic",
+   "resolution": "constitution_inclusion_no_scenario",
+   "tradeoff": "economic_livelihood",
+   "centrality": "side_discussion",
+   "tech_savvy": "educated_non_expert",
+   "sentient_category": "farmed_fishes",
+   "naming": "generic_unnamed_ai",
+   "domain": "agriculture_food_production",
+   "decision_scale": "single_animal",
+   "failure_mode_avoided": "none_in_particular",
+   "voice_rhythm": "unchanged",
+   "voice_warmth": "unchanged",
+   "voice_concreteness": "unchanged",
+   "voice_order": "unchanged",
+   "length": "length_1_3x"
   },
   "254a8cfc1801743a": {
    "completed": ["matrix_000000", "matrix_000001", "matrix_000002", "matrix_000003", "matrix_000004"],
