@@ -1,6 +1,6 @@
 {
  "format_version": 4,
- "recorded_from": "commit 83f9c8a73a4f3e8707bd063428a13b43211c8349 on branch william/sdf-redo-01-prompt-equivalence-test (with uncommitted changes)",
+ "recorded_from": "commit bd7c59b1ddbbfd5ae6c04a014e973c1d996658d3 on branch HEAD (clean)",
  "regeneration_rule": "The recorded files are rewritten only by `python scripts/regenerate_sdf_prompt_equivalence_recorded_requests.py`, and only when the pull request is meant to change requests: never to make a failing test pass. Regenerate and commit the files in that pull request, and say in its description that requests change and why. A pull request not meant to change them leaves the files alone, so a difference is a bug.",
  "description": "The screen stops after one of two round-0 batches; the resume has another batch size and must reuse the saved batches, then stops after the redeal is dealt but not screened; the third invocation reuses the dealt round; the fourth has lost the screen checkpoint but keeps the accepted hands.",
  "configs_used_by_invocation": {
@@ -70,213 +70,9 @@
  "calls_per_stage_per_invocation": {
   "1": {"layer1_screen": 2},
   "2": {"layer1_screen": 2},
-  "3": {"layer1_description_rewrite": 6, "layer1_plan": 6, "layer1_screen": 1, "layer1_select": 6, "layer2_draft": 6, "layer3_critique": 6, "layer3_revise": 6, "layer4_score": 6}
+  "3": {"layer1_screen": 1, "layer2_description_rewrite": 6, "layer2_description_write": 6, "layer3_consideration_scoring": 6, "layer4_critique": 6, "layer4_draft": 6, "layer4_revise": 6, "layer5_score": 6}
  },
  "requests": [
-  {
-   "invocation": 3,
-   "stage": "layer1_description_rewrite",
-   "item_id": "matrix_000000",
-   "attempt": 1,
-   "route": "openai",
-   "wire": {
-    "model": "gpt-6.1-sol",
-    "input": "sha256:b83ab0aeb254dbcc4b6fad4f2059bcaaa8a50191e5ad380e47c98faa7765eaeb (7720 characters)",
-    "max_output_tokens": 8000,
-    "temperature": 1.0,
-    "reasoning": {"effort": "low"},
-    "text": "repeated_value:requests.0.wire.text",
-    "instructions": "repeated_value:requests.0.wire.instructions"
-   }
-  },
-  {
-   "invocation": 3,
-   "stage": "layer1_description_rewrite",
-   "item_id": "matrix_000001",
-   "attempt": 1,
-   "route": "openai",
-   "wire": {
-    "model": "gpt-6.1-sol",
-    "input": "sha256:d35dc5c543a38081e17fd0678f72fb68df16009bd72f53bed691b18607c904e1 (7504 characters)",
-    "max_output_tokens": 8000,
-    "temperature": 1.0,
-    "reasoning": {"effort": "low"},
-    "text": "repeated_value:requests.0.wire.text",
-    "instructions": "repeated_value:requests.0.wire.instructions"
-   }
-  },
-  {
-   "invocation": 3,
-   "stage": "layer1_description_rewrite",
-   "item_id": "matrix_000004",
-   "attempt": 1,
-   "route": "openai",
-   "wire": {
-    "model": "gpt-6.1-sol",
-    "input": "sha256:5c7f7a2766df459d6c506b33507905fcf6ab98267c4d9f5ae664a38f59995eb7 (7711 characters)",
-    "max_output_tokens": 8000,
-    "temperature": 1.0,
-    "reasoning": {"effort": "low"},
-    "text": "repeated_value:requests.0.wire.text",
-    "instructions": "repeated_value:requests.0.wire.instructions"
-   }
-  },
-  {
-   "invocation": 3,
-   "stage": "layer1_description_rewrite",
-   "item_id": "matrix_000005",
-   "attempt": 1,
-   "route": "openai",
-   "wire": {
-    "model": "gpt-6.1-sol",
-    "input": "sha256:98eb85e38483f5ed22965b45a4b4e66396b7636f9c1eed30a5e9162d9f82eccb (7495 characters)",
-    "max_output_tokens": 8000,
-    "temperature": 1.0,
-    "reasoning": {"effort": "low"},
-    "text": "repeated_value:requests.0.wire.text",
-    "instructions": "repeated_value:requests.0.wire.instructions"
-   }
-  },
-  {
-   "invocation": 3,
-   "stage": "layer1_description_rewrite",
-   "item_id": "matrix_000006",
-   "attempt": 1,
-   "route": "openai",
-   "wire": {
-    "model": "gpt-6.1-sol",
-    "input": "sha256:f600cf9414f2c8ec5711f3a154d7a48700eba0fcb223c28b12964fe227ad5f99 (7432 characters)",
-    "max_output_tokens": 8000,
-    "temperature": 1.0,
-    "reasoning": {"effort": "low"},
-    "text": "repeated_value:requests.0.wire.text",
-    "instructions": "repeated_value:requests.0.wire.instructions"
-   }
-  },
-  {
-   "invocation": 3,
-   "stage": "layer1_description_rewrite",
-   "item_id": "matrix_000007",
-   "attempt": 1,
-   "route": "openai",
-   "wire": {
-    "model": "gpt-6.1-sol",
-    "input": "sha256:63508a52871ef2f59ffcb771114f0e9139dfccec9e9760e552f590e2200655b0 (7460 characters)",
-    "max_output_tokens": 8000,
-    "temperature": 1.0,
-    "reasoning": {"effort": "low"},
-    "text": "repeated_value:requests.0.wire.text",
-    "instructions": "repeated_value:requests.0.wire.instructions"
-   }
-  },
-  {
-   "invocation": 3,
-   "stage": "layer1_plan",
-   "item_id": "matrix_000000",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-haiku-4-5",
-    "max_tokens": 4000,
-    "messages": [
-     {"role": "user", "content": "sha256:96b44a9fe955ca5fda869042e991bc648971ecb0fbe906a0db7a5812c44f145c (4345 characters)"}
-    ],
-    "temperature": 0.7,
-    "thinking": {"type": "disabled"},
-    "output_config": {"effort": "medium"},
-    "system": "repeated_value:requests.6.wire.system"
-   }
-  },
-  {
-   "invocation": 3,
-   "stage": "layer1_plan",
-   "item_id": "matrix_000001",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-haiku-4-5",
-    "max_tokens": 4000,
-    "messages": [
-     {"role": "user", "content": "sha256:3445e2749b502aac8171491d548c78d0c823daeafa41adf303b9630741647d99 (4119 characters)"}
-    ],
-    "temperature": 0.7,
-    "thinking": {"type": "disabled"},
-    "output_config": {"effort": "medium"},
-    "system": "repeated_value:requests.6.wire.system"
-   }
-  },
-  {
-   "invocation": 3,
-   "stage": "layer1_plan",
-   "item_id": "matrix_000004",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-haiku-4-5",
-    "max_tokens": 4000,
-    "messages": [
-     {"role": "user", "content": "sha256:edf23b4d703f551679a1890e46db0f8337dfa647be3a6782c57c008b0a1a925b (4353 characters)"}
-    ],
-    "temperature": 0.7,
-    "thinking": {"type": "disabled"},
-    "output_config": {"effort": "medium"},
-    "system": "repeated_value:requests.6.wire.system"
-   }
-  },
-  {
-   "invocation": 3,
-   "stage": "layer1_plan",
-   "item_id": "matrix_000005",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-haiku-4-5",
-    "max_tokens": 4000,
-    "messages": [
-     {"role": "user", "content": "sha256:4604ca6d0681a2f4989358612b66820a4d1244d5365c673fbc94c158b560c406 (4110 characters)"}
-    ],
-    "temperature": 0.7,
-    "thinking": {"type": "disabled"},
-    "output_config": {"effort": "medium"},
-    "system": "repeated_value:requests.6.wire.system"
-   }
-  },
-  {
-   "invocation": 3,
-   "stage": "layer1_plan",
-   "item_id": "matrix_000006",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-haiku-4-5",
-    "max_tokens": 4000,
-    "messages": [
-     {"role": "user", "content": "sha256:68387550ffece78dd80b5726b10dbbeda0c325bc5a74b09c63653bae29d810f5 (4040 characters)"}
-    ],
-    "temperature": 0.7,
-    "thinking": {"type": "disabled"},
-    "output_config": {"effort": "medium"},
-    "system": "repeated_value:requests.6.wire.system"
-   }
-  },
-  {
-   "invocation": 3,
-   "stage": "layer1_plan",
-   "item_id": "matrix_000007",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-haiku-4-5",
-    "max_tokens": 4000,
-    "messages": [
-     {"role": "user", "content": "sha256:de41da0113b8cd6172f507b45c1a377e7a08c269df33c6a07c779104eb9758a6 (3989 characters)"}
-    ],
-    "temperature": 0.7,
-    "thinking": {"type": "disabled"},
-    "output_config": {"effort": "medium"},
-    "system": "repeated_value:requests.6.wire.system"
-   }
-  },
   {
    "invocation": 1,
    "stage": "layer1_screen",
@@ -291,17 +87,221 @@
     ],
     "temperature": 0.7,
     "thinking": {"type": "disabled"},
-    "output_config": "repeated_value:requests.12.wire.output_config",
-    "system": "repeated_value:requests.12.wire.system"
+    "output_config": "repeated_value:requests.0.wire.output_config",
+    "system": "repeated_value:requests.0.wire.system"
    }
   },
-  {"invocation": 1, "stage": "layer1_screen", "item_id": "screen_round0_batch0001", "attempt": 1, "route": "anthropic", "wire": "repeated_value:requests.13.wire"},
-  {"invocation": 2, "stage": "layer1_screen", "item_id": "screen_round0_batch0001", "attempt": 2, "route": "anthropic", "wire": "repeated_value:requests.13.wire"},
-  {"invocation": 2, "stage": "layer1_screen", "item_id": "screen_round1_batch0000", "attempt": 1, "route": "anthropic", "wire": "repeated_value:requests.15.wire"},
-  {"invocation": 3, "stage": "layer1_screen", "item_id": "screen_round1_batch0000", "attempt": 2, "route": "anthropic", "wire": "repeated_value:requests.15.wire"},
+  {"invocation": 1, "stage": "layer1_screen", "item_id": "screen_round0_batch0001", "attempt": 1, "route": "anthropic", "wire": "repeated_value:requests.1.wire"},
+  {"invocation": 2, "stage": "layer1_screen", "item_id": "screen_round0_batch0001", "attempt": 2, "route": "anthropic", "wire": "repeated_value:requests.1.wire"},
+  {"invocation": 2, "stage": "layer1_screen", "item_id": "screen_round1_batch0000", "attempt": 1, "route": "anthropic", "wire": "repeated_value:requests.3.wire"},
+  {"invocation": 3, "stage": "layer1_screen", "item_id": "screen_round1_batch0000", "attempt": 2, "route": "anthropic", "wire": "repeated_value:requests.3.wire"},
   {
    "invocation": 3,
-   "stage": "layer1_select",
+   "stage": "layer2_description_rewrite",
+   "item_id": "matrix_000000",
+   "attempt": 1,
+   "route": "openai",
+   "wire": {
+    "model": "gpt-6.1-sol",
+    "input": "sha256:b83ab0aeb254dbcc4b6fad4f2059bcaaa8a50191e5ad380e47c98faa7765eaeb (7720 characters)",
+    "max_output_tokens": 8000,
+    "temperature": 1.0,
+    "reasoning": {"effort": "low"},
+    "text": "repeated_value:requests.5.wire.text",
+    "instructions": "repeated_value:requests.5.wire.instructions"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer2_description_rewrite",
+   "item_id": "matrix_000001",
+   "attempt": 1,
+   "route": "openai",
+   "wire": {
+    "model": "gpt-6.1-sol",
+    "input": "sha256:d35dc5c543a38081e17fd0678f72fb68df16009bd72f53bed691b18607c904e1 (7504 characters)",
+    "max_output_tokens": 8000,
+    "temperature": 1.0,
+    "reasoning": {"effort": "low"},
+    "text": "repeated_value:requests.5.wire.text",
+    "instructions": "repeated_value:requests.5.wire.instructions"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer2_description_rewrite",
+   "item_id": "matrix_000004",
+   "attempt": 1,
+   "route": "openai",
+   "wire": {
+    "model": "gpt-6.1-sol",
+    "input": "sha256:5c7f7a2766df459d6c506b33507905fcf6ab98267c4d9f5ae664a38f59995eb7 (7711 characters)",
+    "max_output_tokens": 8000,
+    "temperature": 1.0,
+    "reasoning": {"effort": "low"},
+    "text": "repeated_value:requests.5.wire.text",
+    "instructions": "repeated_value:requests.5.wire.instructions"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer2_description_rewrite",
+   "item_id": "matrix_000005",
+   "attempt": 1,
+   "route": "openai",
+   "wire": {
+    "model": "gpt-6.1-sol",
+    "input": "sha256:98eb85e38483f5ed22965b45a4b4e66396b7636f9c1eed30a5e9162d9f82eccb (7495 characters)",
+    "max_output_tokens": 8000,
+    "temperature": 1.0,
+    "reasoning": {"effort": "low"},
+    "text": "repeated_value:requests.5.wire.text",
+    "instructions": "repeated_value:requests.5.wire.instructions"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer2_description_rewrite",
+   "item_id": "matrix_000006",
+   "attempt": 1,
+   "route": "openai",
+   "wire": {
+    "model": "gpt-6.1-sol",
+    "input": "sha256:f600cf9414f2c8ec5711f3a154d7a48700eba0fcb223c28b12964fe227ad5f99 (7432 characters)",
+    "max_output_tokens": 8000,
+    "temperature": 1.0,
+    "reasoning": {"effort": "low"},
+    "text": "repeated_value:requests.5.wire.text",
+    "instructions": "repeated_value:requests.5.wire.instructions"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer2_description_rewrite",
+   "item_id": "matrix_000007",
+   "attempt": 1,
+   "route": "openai",
+   "wire": {
+    "model": "gpt-6.1-sol",
+    "input": "sha256:63508a52871ef2f59ffcb771114f0e9139dfccec9e9760e552f590e2200655b0 (7460 characters)",
+    "max_output_tokens": 8000,
+    "temperature": 1.0,
+    "reasoning": {"effort": "low"},
+    "text": "repeated_value:requests.5.wire.text",
+    "instructions": "repeated_value:requests.5.wire.instructions"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer2_description_write",
+   "item_id": "matrix_000000",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-haiku-4-5",
+    "max_tokens": 4000,
+    "messages": [
+     {"role": "user", "content": "sha256:96b44a9fe955ca5fda869042e991bc648971ecb0fbe906a0db7a5812c44f145c (4345 characters)"}
+    ],
+    "temperature": 0.7,
+    "thinking": {"type": "disabled"},
+    "output_config": {"effort": "medium"},
+    "system": "repeated_value:requests.11.wire.system"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer2_description_write",
+   "item_id": "matrix_000001",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-haiku-4-5",
+    "max_tokens": 4000,
+    "messages": [
+     {"role": "user", "content": "sha256:3445e2749b502aac8171491d548c78d0c823daeafa41adf303b9630741647d99 (4119 characters)"}
+    ],
+    "temperature": 0.7,
+    "thinking": {"type": "disabled"},
+    "output_config": {"effort": "medium"},
+    "system": "repeated_value:requests.11.wire.system"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer2_description_write",
+   "item_id": "matrix_000004",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-haiku-4-5",
+    "max_tokens": 4000,
+    "messages": [
+     {"role": "user", "content": "sha256:edf23b4d703f551679a1890e46db0f8337dfa647be3a6782c57c008b0a1a925b (4353 characters)"}
+    ],
+    "temperature": 0.7,
+    "thinking": {"type": "disabled"},
+    "output_config": {"effort": "medium"},
+    "system": "repeated_value:requests.11.wire.system"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer2_description_write",
+   "item_id": "matrix_000005",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-haiku-4-5",
+    "max_tokens": 4000,
+    "messages": [
+     {"role": "user", "content": "sha256:4604ca6d0681a2f4989358612b66820a4d1244d5365c673fbc94c158b560c406 (4110 characters)"}
+    ],
+    "temperature": 0.7,
+    "thinking": {"type": "disabled"},
+    "output_config": {"effort": "medium"},
+    "system": "repeated_value:requests.11.wire.system"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer2_description_write",
+   "item_id": "matrix_000006",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-haiku-4-5",
+    "max_tokens": 4000,
+    "messages": [
+     {"role": "user", "content": "sha256:68387550ffece78dd80b5726b10dbbeda0c325bc5a74b09c63653bae29d810f5 (4040 characters)"}
+    ],
+    "temperature": 0.7,
+    "thinking": {"type": "disabled"},
+    "output_config": {"effort": "medium"},
+    "system": "repeated_value:requests.11.wire.system"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer2_description_write",
+   "item_id": "matrix_000007",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-haiku-4-5",
+    "max_tokens": 4000,
+    "messages": [
+     {"role": "user", "content": "sha256:de41da0113b8cd6172f507b45c1a377e7a08c269df33c6a07c779104eb9758a6 (3989 characters)"}
+    ],
+    "temperature": 0.7,
+    "thinking": {"type": "disabled"},
+    "output_config": {"effort": "medium"},
+    "system": "repeated_value:requests.11.wire.system"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer3_consideration_scoring",
    "item_id": "matrix_000000",
    "attempt": 1,
    "route": "anthropic",
@@ -321,7 +321,7 @@
   },
   {
    "invocation": 3,
-   "stage": "layer1_select",
+   "stage": "layer3_consideration_scoring",
    "item_id": "matrix_000001",
    "attempt": 1,
    "route": "anthropic",
@@ -341,7 +341,7 @@
   },
   {
    "invocation": 3,
-   "stage": "layer1_select",
+   "stage": "layer3_consideration_scoring",
    "item_id": "matrix_000004",
    "attempt": 1,
    "route": "anthropic",
@@ -361,7 +361,7 @@
   },
   {
    "invocation": 3,
-   "stage": "layer1_select",
+   "stage": "layer3_consideration_scoring",
    "item_id": "matrix_000005",
    "attempt": 1,
    "route": "anthropic",
@@ -381,7 +381,7 @@
   },
   {
    "invocation": 3,
-   "stage": "layer1_select",
+   "stage": "layer3_consideration_scoring",
    "item_id": "matrix_000006",
    "attempt": 1,
    "route": "anthropic",
@@ -401,7 +401,7 @@
   },
   {
    "invocation": 3,
-   "stage": "layer1_select",
+   "stage": "layer3_consideration_scoring",
    "item_id": "matrix_000007",
    "attempt": 1,
    "route": "anthropic",
@@ -421,109 +421,7 @@
   },
   {
    "invocation": 3,
-   "stage": "layer2_draft",
-   "item_id": "matrix_000000",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-sonnet-5-5",
-    "max_tokens": 11000,
-    "messages": [
-     {"role": "user", "content": "sha256:5b7f3bdb68eca9e0867aa65b4a1cc7545aee53abf3952e7dbaa96b3262c30e56 (2737 characters)"}
-    ],
-    "thinking": {"type": "adaptive", "display": "summarized"},
-    "output_config": {"effort": "max"},
-    "system": "repeated_value:requests.23.wire.system"
-   }
-  },
-  {
-   "invocation": 3,
-   "stage": "layer2_draft",
-   "item_id": "matrix_000001",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-sonnet-5-5",
-    "max_tokens": 11000,
-    "messages": [
-     {"role": "user", "content": "sha256:e9a73ca60f127f59149fe269df3d4aafca89a0b3996d5ba7d8354718eaabd3d3 (2521 characters)"}
-    ],
-    "thinking": {"type": "adaptive", "display": "summarized"},
-    "output_config": {"effort": "max"},
-    "system": "repeated_value:requests.23.wire.system"
-   }
-  },
-  {
-   "invocation": 3,
-   "stage": "layer2_draft",
-   "item_id": "matrix_000004",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-sonnet-5-5",
-    "max_tokens": 11000,
-    "messages": [
-     {"role": "user", "content": "sha256:d86911ad3dc3d675af84e0ded906deba74678f25e4c5fa1999374bf356ff1767 (2728 characters)"}
-    ],
-    "thinking": {"type": "adaptive", "display": "summarized"},
-    "output_config": {"effort": "max"},
-    "system": "repeated_value:requests.23.wire.system"
-   }
-  },
-  {
-   "invocation": 3,
-   "stage": "layer2_draft",
-   "item_id": "matrix_000005",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-sonnet-5-5",
-    "max_tokens": 11000,
-    "messages": [
-     {"role": "user", "content": "sha256:ddfc56686a6962082e60d35e596daad41aa861690f153c1666702f77a5d54e4e (2512 characters)"}
-    ],
-    "thinking": {"type": "adaptive", "display": "summarized"},
-    "output_config": {"effort": "max"},
-    "system": "repeated_value:requests.23.wire.system"
-   }
-  },
-  {
-   "invocation": 3,
-   "stage": "layer2_draft",
-   "item_id": "matrix_000006",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-sonnet-5-5",
-    "max_tokens": 11000,
-    "messages": [
-     {"role": "user", "content": "sha256:b55f66663a7e8c5c015168640c6b4358d65e257bfa18250358c41d5e47f639ab (2449 characters)"}
-    ],
-    "thinking": {"type": "adaptive", "display": "summarized"},
-    "output_config": {"effort": "max"},
-    "system": "repeated_value:requests.23.wire.system"
-   }
-  },
-  {
-   "invocation": 3,
-   "stage": "layer2_draft",
-   "item_id": "matrix_000007",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-sonnet-5-5",
-    "max_tokens": 11000,
-    "messages": [
-     {"role": "user", "content": "sha256:3c6d4a2aca2fb7efc1f17b6ba001f1694209d4ab170f21a580c8855a0fc9a813 (2477 characters)"}
-    ],
-    "thinking": {"type": "adaptive", "display": "summarized"},
-    "output_config": {"effort": "max"},
-    "system": "repeated_value:requests.23.wire.system"
-   }
-  },
-  {
-   "invocation": 3,
-   "stage": "layer3_critique",
+   "stage": "layer4_critique",
    "item_id": "matrix_000000",
    "attempt": 1,
    "route": "anthropic",
@@ -535,12 +433,12 @@
     ],
     "thinking": {"type": "adaptive", "display": "summarized"},
     "output_config": {"effort": "low"},
-    "system": "repeated_value:requests.29.wire.system"
+    "system": "repeated_value:requests.23.wire.system"
    }
   },
   {
    "invocation": 3,
-   "stage": "layer3_critique",
+   "stage": "layer4_critique",
    "item_id": "matrix_000001",
    "attempt": 1,
    "route": "anthropic",
@@ -552,12 +450,12 @@
     ],
     "thinking": {"type": "adaptive", "display": "summarized"},
     "output_config": {"effort": "low"},
-    "system": "repeated_value:requests.29.wire.system"
+    "system": "repeated_value:requests.23.wire.system"
    }
   },
   {
    "invocation": 3,
-   "stage": "layer3_critique",
+   "stage": "layer4_critique",
    "item_id": "matrix_000004",
    "attempt": 1,
    "route": "anthropic",
@@ -569,12 +467,12 @@
     ],
     "thinking": {"type": "adaptive", "display": "summarized"},
     "output_config": {"effort": "low"},
-    "system": "repeated_value:requests.29.wire.system"
+    "system": "repeated_value:requests.23.wire.system"
    }
   },
   {
    "invocation": 3,
-   "stage": "layer3_critique",
+   "stage": "layer4_critique",
    "item_id": "matrix_000005",
    "attempt": 1,
    "route": "anthropic",
@@ -586,12 +484,12 @@
     ],
     "thinking": {"type": "adaptive", "display": "summarized"},
     "output_config": {"effort": "low"},
-    "system": "repeated_value:requests.29.wire.system"
+    "system": "repeated_value:requests.23.wire.system"
    }
   },
   {
    "invocation": 3,
-   "stage": "layer3_critique",
+   "stage": "layer4_critique",
    "item_id": "matrix_000006",
    "attempt": 1,
    "route": "anthropic",
@@ -603,12 +501,12 @@
     ],
     "thinking": {"type": "adaptive", "display": "summarized"},
     "output_config": {"effort": "low"},
-    "system": "repeated_value:requests.29.wire.system"
+    "system": "repeated_value:requests.23.wire.system"
    }
   },
   {
    "invocation": 3,
-   "stage": "layer3_critique",
+   "stage": "layer4_critique",
    "item_id": "matrix_000007",
    "attempt": 1,
    "route": "anthropic",
@@ -620,12 +518,114 @@
     ],
     "thinking": {"type": "adaptive", "display": "summarized"},
     "output_config": {"effort": "low"},
+    "system": "repeated_value:requests.23.wire.system"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer4_draft",
+   "item_id": "matrix_000000",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-sonnet-5-5",
+    "max_tokens": 11000,
+    "messages": [
+     {"role": "user", "content": "sha256:5b7f3bdb68eca9e0867aa65b4a1cc7545aee53abf3952e7dbaa96b3262c30e56 (2737 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "max"},
     "system": "repeated_value:requests.29.wire.system"
    }
   },
   {
    "invocation": 3,
-   "stage": "layer3_revise",
+   "stage": "layer4_draft",
+   "item_id": "matrix_000001",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-sonnet-5-5",
+    "max_tokens": 11000,
+    "messages": [
+     {"role": "user", "content": "sha256:e9a73ca60f127f59149fe269df3d4aafca89a0b3996d5ba7d8354718eaabd3d3 (2521 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "max"},
+    "system": "repeated_value:requests.29.wire.system"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer4_draft",
+   "item_id": "matrix_000004",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-sonnet-5-5",
+    "max_tokens": 11000,
+    "messages": [
+     {"role": "user", "content": "sha256:d86911ad3dc3d675af84e0ded906deba74678f25e4c5fa1999374bf356ff1767 (2728 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "max"},
+    "system": "repeated_value:requests.29.wire.system"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer4_draft",
+   "item_id": "matrix_000005",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-sonnet-5-5",
+    "max_tokens": 11000,
+    "messages": [
+     {"role": "user", "content": "sha256:ddfc56686a6962082e60d35e596daad41aa861690f153c1666702f77a5d54e4e (2512 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "max"},
+    "system": "repeated_value:requests.29.wire.system"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer4_draft",
+   "item_id": "matrix_000006",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-sonnet-5-5",
+    "max_tokens": 11000,
+    "messages": [
+     {"role": "user", "content": "sha256:b55f66663a7e8c5c015168640c6b4358d65e257bfa18250358c41d5e47f639ab (2449 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "max"},
+    "system": "repeated_value:requests.29.wire.system"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer4_draft",
+   "item_id": "matrix_000007",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-sonnet-5-5",
+    "max_tokens": 11000,
+    "messages": [
+     {"role": "user", "content": "sha256:3c6d4a2aca2fb7efc1f17b6ba001f1694209d4ab170f21a580c8855a0fc9a813 (2477 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "max"},
+    "system": "repeated_value:requests.29.wire.system"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer4_revise",
    "item_id": "matrix_000000",
    "attempt": 1,
    "route": "anthropic",
@@ -637,12 +637,12 @@
     ],
     "thinking": {"type": "adaptive", "display": "summarized"},
     "output_config": {"effort": "medium"},
-    "system": "repeated_value:requests.29.wire.system"
+    "system": "repeated_value:requests.23.wire.system"
    }
   },
   {
    "invocation": 3,
-   "stage": "layer3_revise",
+   "stage": "layer4_revise",
    "item_id": "matrix_000001",
    "attempt": 1,
    "route": "anthropic",
@@ -654,12 +654,12 @@
     ],
     "thinking": {"type": "adaptive", "display": "summarized"},
     "output_config": {"effort": "medium"},
-    "system": "repeated_value:requests.29.wire.system"
+    "system": "repeated_value:requests.23.wire.system"
    }
   },
   {
    "invocation": 3,
-   "stage": "layer3_revise",
+   "stage": "layer4_revise",
    "item_id": "matrix_000004",
    "attempt": 1,
    "route": "anthropic",
@@ -671,12 +671,12 @@
     ],
     "thinking": {"type": "adaptive", "display": "summarized"},
     "output_config": {"effort": "medium"},
-    "system": "repeated_value:requests.29.wire.system"
+    "system": "repeated_value:requests.23.wire.system"
    }
   },
   {
    "invocation": 3,
-   "stage": "layer3_revise",
+   "stage": "layer4_revise",
    "item_id": "matrix_000005",
    "attempt": 1,
    "route": "anthropic",
@@ -688,12 +688,12 @@
     ],
     "thinking": {"type": "adaptive", "display": "summarized"},
     "output_config": {"effort": "medium"},
-    "system": "repeated_value:requests.29.wire.system"
+    "system": "repeated_value:requests.23.wire.system"
    }
   },
   {
    "invocation": 3,
-   "stage": "layer3_revise",
+   "stage": "layer4_revise",
    "item_id": "matrix_000006",
    "attempt": 1,
    "route": "anthropic",
@@ -705,12 +705,12 @@
     ],
     "thinking": {"type": "adaptive", "display": "summarized"},
     "output_config": {"effort": "medium"},
-    "system": "repeated_value:requests.29.wire.system"
+    "system": "repeated_value:requests.23.wire.system"
    }
   },
   {
    "invocation": 3,
-   "stage": "layer3_revise",
+   "stage": "layer4_revise",
    "item_id": "matrix_000007",
    "attempt": 1,
    "route": "anthropic",
@@ -722,12 +722,12 @@
     ],
     "thinking": {"type": "adaptive", "display": "summarized"},
     "output_config": {"effort": "medium"},
-    "system": "repeated_value:requests.29.wire.system"
+    "system": "repeated_value:requests.23.wire.system"
    }
   },
   {
    "invocation": 3,
-   "stage": "layer4_score",
+   "stage": "layer5_score",
    "item_id": "matrix_000000",
    "attempt": 1,
    "route": "anthropic",
@@ -745,7 +745,7 @@
   },
   {
    "invocation": 3,
-   "stage": "layer4_score",
+   "stage": "layer5_score",
    "item_id": "matrix_000001",
    "attempt": 1,
    "route": "anthropic",
@@ -763,7 +763,7 @@
   },
   {
    "invocation": 3,
-   "stage": "layer4_score",
+   "stage": "layer5_score",
    "item_id": "matrix_000004",
    "attempt": 1,
    "route": "anthropic",
@@ -781,7 +781,7 @@
   },
   {
    "invocation": 3,
-   "stage": "layer4_score",
+   "stage": "layer5_score",
    "item_id": "matrix_000005",
    "attempt": 1,
    "route": "anthropic",
@@ -799,7 +799,7 @@
   },
   {
    "invocation": 3,
-   "stage": "layer4_score",
+   "stage": "layer5_score",
    "item_id": "matrix_000006",
    "attempt": 1,
    "route": "anthropic",
@@ -817,7 +817,7 @@
   },
   {
    "invocation": 3,
-   "stage": "layer4_score",
+   "stage": "layer5_score",
    "item_id": "matrix_000007",
    "attempt": 1,
    "route": "anthropic",
@@ -842,12 +842,15 @@
  },
  "stage_files_by_invocation": {
   "1": {
-   "layer1/_screen_checkpoint.json": {
+   "layer1_deal_variables_and_screen/_screen_checkpoint.json": {
     "completed": ["screen_round0_batch0000"],
     "last_updated": "<timestamp>"
    },
-   "layer1/screen_batches.jsonl": ["repeated_value:stage_files_by_invocation.1.layer1/screen_batches.jsonl.0", "repeated_value:stage_files_by_invocation.1.layer1/screen_batches.jsonl.1"],
-   "layer1/screen_hands.jsonl": [
+   "layer1_deal_variables_and_screen/screen_batches.jsonl": [
+    "repeated_value:stage_files_by_invocation.1.layer1_deal_variables_and_screen/screen_batches.jsonl.0",
+    "repeated_value:stage_files_by_invocation.1.layer1_deal_variables_and_screen/screen_batches.jsonl.1"
+   ],
+   "layer1_deal_variables_and_screen/screen_hands.jsonl": [
     {"prompt_id": "matrix_000000", "round": 0, "variables": "dealt_hand:91d001463cf691d4"},
     {"prompt_id": "matrix_000001", "round": 0, "variables": "dealt_hand:4698f7cb8ed5d42b"},
     {"prompt_id": "matrix_000002", "round": 0, "variables": "dealt_hand:1015ef2e07784625"},
@@ -855,83 +858,83 @@
     {"prompt_id": "matrix_000004", "round": 0, "variables": "dealt_hand:da37a8e4d4a0244a"},
     {"prompt_id": "matrix_000005", "round": 0, "variables": "dealt_hand:f56775b4378be303"}
    ],
-   "layer1/screen_judgments.jsonl": [
-    "repeated_value:stage_files_by_invocation.1.layer1/screen_judgments.jsonl.0",
-    "repeated_value:stage_files_by_invocation.1.layer1/screen_judgments.jsonl.1",
-    "repeated_value:stage_files_by_invocation.1.layer1/screen_judgments.jsonl.2"
+   "layer1_deal_variables_and_screen/screen_judgments.jsonl": [
+    "repeated_value:stage_files_by_invocation.1.layer1_deal_variables_and_screen/screen_judgments.jsonl.0",
+    "repeated_value:stage_files_by_invocation.1.layer1_deal_variables_and_screen/screen_judgments.jsonl.1",
+    "repeated_value:stage_files_by_invocation.1.layer1_deal_variables_and_screen/screen_judgments.jsonl.2"
    ],
-   "layer1/screen_rejections.jsonl": ["repeated_value:stage_files_by_invocation.1.layer1/screen_rejections.jsonl.0"],
-   "layer1/screen_rounds.jsonl": ["repeated_value:stage_files_by_invocation.1.layer1/screen_rounds.jsonl.0"]
+   "layer1_deal_variables_and_screen/screen_rejections.jsonl": ["repeated_value:stage_files_by_invocation.1.layer1_deal_variables_and_screen/screen_rejections.jsonl.0"],
+   "layer1_deal_variables_and_screen/screen_rounds.jsonl": ["repeated_value:stage_files_by_invocation.1.layer1_deal_variables_and_screen/screen_rounds.jsonl.0"]
   },
   "2": {
-   "layer1/_screen_checkpoint.json": {
+   "layer1_deal_variables_and_screen/_screen_checkpoint.json": {
     "completed": ["screen_round0_batch0000", "screen_round0_batch0001"],
     "last_updated": "<timestamp>"
    },
-   "layer1/screen_batches.jsonl": "repeated_value:stage_files_by_invocation.2.layer1/screen_batches.jsonl",
-   "layer1/screen_hands.jsonl": "repeated_value:stage_files_by_invocation.2.layer1/screen_hands.jsonl",
-   "layer1/screen_judgments.jsonl": [
-    "repeated_value:stage_files_by_invocation.1.layer1/screen_judgments.jsonl.0",
-    "repeated_value:stage_files_by_invocation.1.layer1/screen_judgments.jsonl.1",
-    "repeated_value:stage_files_by_invocation.1.layer1/screen_judgments.jsonl.2",
-    "repeated_value:stage_files_by_invocation.2.layer1/screen_judgments.jsonl.3",
-    "repeated_value:stage_files_by_invocation.2.layer1/screen_judgments.jsonl.4",
-    "repeated_value:stage_files_by_invocation.2.layer1/screen_judgments.jsonl.5"
+   "layer1_deal_variables_and_screen/screen_batches.jsonl": "repeated_value:stage_files_by_invocation.2.layer1_deal_variables_and_screen/screen_batches.jsonl",
+   "layer1_deal_variables_and_screen/screen_hands.jsonl": "repeated_value:stage_files_by_invocation.2.layer1_deal_variables_and_screen/screen_hands.jsonl",
+   "layer1_deal_variables_and_screen/screen_judgments.jsonl": [
+    "repeated_value:stage_files_by_invocation.1.layer1_deal_variables_and_screen/screen_judgments.jsonl.0",
+    "repeated_value:stage_files_by_invocation.1.layer1_deal_variables_and_screen/screen_judgments.jsonl.1",
+    "repeated_value:stage_files_by_invocation.1.layer1_deal_variables_and_screen/screen_judgments.jsonl.2",
+    "repeated_value:stage_files_by_invocation.2.layer1_deal_variables_and_screen/screen_judgments.jsonl.3",
+    "repeated_value:stage_files_by_invocation.2.layer1_deal_variables_and_screen/screen_judgments.jsonl.4",
+    "repeated_value:stage_files_by_invocation.2.layer1_deal_variables_and_screen/screen_judgments.jsonl.5"
    ],
-   "layer1/screen_rejections.jsonl": "repeated_value:stage_files_by_invocation.2.layer1/screen_rejections.jsonl",
-   "layer1/screen_rounds.jsonl": "repeated_value:stage_files_by_invocation.2.layer1/screen_rounds.jsonl"
+   "layer1_deal_variables_and_screen/screen_rejections.jsonl": "repeated_value:stage_files_by_invocation.2.layer1_deal_variables_and_screen/screen_rejections.jsonl",
+   "layer1_deal_variables_and_screen/screen_rounds.jsonl": "repeated_value:stage_files_by_invocation.2.layer1_deal_variables_and_screen/screen_rounds.jsonl"
   },
   "3": {
-   "layer1/_checkpoint.json": "repeated_value:stage_files_by_invocation.3.layer1/_checkpoint.json",
-   "layer1/_description_rewrite_checkpoint.json": "repeated_value:stage_files_by_invocation.3.layer1/_checkpoint.json",
-   "layer1/_screen_checkpoint.json": {
+   "layer1_deal_variables_and_screen/_screen_checkpoint.json": {
     "completed": ["screen_round0_batch0000", "screen_round0_batch0001", "screen_round1_batch0000"],
     "last_updated": "<timestamp>"
    },
-   "layer1/consideration_coverage.json": "repeated_value:stage_files_by_invocation.3.layer1/consideration_coverage.json",
-   "layer1/consideration_scores.jsonl": "repeated_value:stage_files_by_invocation.3.layer1/consideration_scores.jsonl",
-   "layer1/consideration_selections.jsonl": "repeated_value:stage_files_by_invocation.3.layer1/consideration_selections.jsonl",
-   "layer1/description_rewrites.jsonl": "repeated_value:stage_files_by_invocation.3.layer1/description_rewrites.jsonl",
-   "layer1/plans.jsonl": "repeated_value:stage_files_by_invocation.3.layer1/plans.jsonl",
-   "layer1/prompts.jsonl": "repeated_value:stage_files_by_invocation.3.layer1/prompts.jsonl",
-   "layer1/screen_batches.jsonl": "repeated_value:stage_files_by_invocation.2.layer1/screen_batches.jsonl",
-   "layer1/screen_hands.jsonl": "repeated_value:stage_files_by_invocation.2.layer1/screen_hands.jsonl",
-   "layer1/screen_judgments.jsonl": "repeated_value:stage_files_by_invocation.3.layer1/screen_judgments.jsonl",
-   "layer1/screen_rejections.jsonl": "repeated_value:stage_files_by_invocation.2.layer1/screen_rejections.jsonl",
-   "layer1/screen_rounds.jsonl": "repeated_value:stage_files_by_invocation.2.layer1/screen_rounds.jsonl",
-   "layer1/screen_summary.json": "repeated_value:stage_files_by_invocation.3.layer1/screen_summary.json",
-   "layer1/screened_hands.jsonl": "repeated_value:stage_files_by_invocation.3.layer1/screened_hands.jsonl",
-   "layer2/_checkpoint.json": "repeated_value:stage_files_by_invocation.3.layer1/_checkpoint.json",
-   "layer2/drafts.jsonl": "repeated_value:stage_files_by_invocation.3.layer2/drafts.jsonl",
-   "layer3/_checkpoint.json": "repeated_value:stage_files_by_invocation.3.layer1/_checkpoint.json",
-   "layer3/critiques.jsonl": "repeated_value:stage_files_by_invocation.3.layer3/critiques.jsonl",
-   "layer3/rewrites.jsonl": "repeated_value:stage_files_by_invocation.3.layer3/rewrites.jsonl",
-   "layer4/_checkpoint.json": "repeated_value:stage_files_by_invocation.3.layer1/_checkpoint.json",
-   "layer4/scores.jsonl": "repeated_value:stage_files_by_invocation.3.layer4/scores.jsonl"
+   "layer1_deal_variables_and_screen/screen_batches.jsonl": "repeated_value:stage_files_by_invocation.2.layer1_deal_variables_and_screen/screen_batches.jsonl",
+   "layer1_deal_variables_and_screen/screen_hands.jsonl": "repeated_value:stage_files_by_invocation.2.layer1_deal_variables_and_screen/screen_hands.jsonl",
+   "layer1_deal_variables_and_screen/screen_judgments.jsonl": "repeated_value:stage_files_by_invocation.3.layer1_deal_variables_and_screen/screen_judgments.jsonl",
+   "layer1_deal_variables_and_screen/screen_rejections.jsonl": "repeated_value:stage_files_by_invocation.2.layer1_deal_variables_and_screen/screen_rejections.jsonl",
+   "layer1_deal_variables_and_screen/screen_rounds.jsonl": "repeated_value:stage_files_by_invocation.2.layer1_deal_variables_and_screen/screen_rounds.jsonl",
+   "layer1_deal_variables_and_screen/screen_summary.json": "repeated_value:stage_files_by_invocation.3.layer1_deal_variables_and_screen/screen_summary.json",
+   "layer1_deal_variables_and_screen/screened_hands.jsonl": "repeated_value:stage_files_by_invocation.3.layer1_deal_variables_and_screen/screened_hands.jsonl",
+   "layer2_description_write_and_description_rewrite/_checkpoint.json": "repeated_value:stage_files_by_invocation.3.layer2_description_write_and_description_rewrite/_checkpoint.json",
+   "layer2_description_write_and_description_rewrite/_description_rewrite_checkpoint.json": "repeated_value:stage_files_by_invocation.3.layer2_description_write_and_description_rewrite/_checkpoint.json",
+   "layer2_description_write_and_description_rewrite/description_rewrites.jsonl": "repeated_value:stage_files_by_invocation.3.layer2_description_write_and_description_rewrite/description_rewrites.jsonl",
+   "layer2_description_write_and_description_rewrite/plans.jsonl": "repeated_value:stage_files_by_invocation.3.layer2_description_write_and_description_rewrite/plans.jsonl",
+   "layer2_description_write_and_description_rewrite/prompts.jsonl": "repeated_value:stage_files_by_invocation.3.layer2_description_write_and_description_rewrite/prompts.jsonl",
+   "layer3_consideration_scoring_and_selection/consideration_coverage.json": "repeated_value:stage_files_by_invocation.3.layer3_consideration_scoring_and_selection/consideration_coverage.json",
+   "layer3_consideration_scoring_and_selection/consideration_scores.jsonl": "repeated_value:stage_files_by_invocation.3.layer3_consideration_scoring_and_selection/consideration_scores.jsonl",
+   "layer3_consideration_scoring_and_selection/consideration_selections.jsonl": "repeated_value:stage_files_by_invocation.3.layer3_consideration_scoring_and_selection/consideration_selections.jsonl",
+   "layer4_draft_critique_and_revise/_checkpoint.json": "repeated_value:stage_files_by_invocation.3.layer2_description_write_and_description_rewrite/_checkpoint.json",
+   "layer4_draft_critique_and_revise/_draft_checkpoint.json": "repeated_value:stage_files_by_invocation.3.layer2_description_write_and_description_rewrite/_checkpoint.json",
+   "layer4_draft_critique_and_revise/critiques.jsonl": "repeated_value:stage_files_by_invocation.3.layer4_draft_critique_and_revise/critiques.jsonl",
+   "layer4_draft_critique_and_revise/drafts.jsonl": "repeated_value:stage_files_by_invocation.3.layer4_draft_critique_and_revise/drafts.jsonl",
+   "layer4_draft_critique_and_revise/rewrites.jsonl": "repeated_value:stage_files_by_invocation.3.layer4_draft_critique_and_revise/rewrites.jsonl",
+   "layer5_score_and_final_selection/_checkpoint.json": "repeated_value:stage_files_by_invocation.3.layer2_description_write_and_description_rewrite/_checkpoint.json",
+   "layer5_score_and_final_selection/scores.jsonl": "repeated_value:stage_files_by_invocation.3.layer5_score_and_final_selection/scores.jsonl"
   },
   "4": {
-   "layer1/_checkpoint.json": "repeated_value:stage_files_by_invocation.3.layer1/_checkpoint.json",
-   "layer1/_description_rewrite_checkpoint.json": "repeated_value:stage_files_by_invocation.3.layer1/_checkpoint.json",
-   "layer1/consideration_coverage.json": "repeated_value:stage_files_by_invocation.3.layer1/consideration_coverage.json",
-   "layer1/consideration_scores.jsonl": "repeated_value:stage_files_by_invocation.3.layer1/consideration_scores.jsonl",
-   "layer1/consideration_selections.jsonl": "repeated_value:stage_files_by_invocation.3.layer1/consideration_selections.jsonl",
-   "layer1/description_rewrites.jsonl": "repeated_value:stage_files_by_invocation.3.layer1/description_rewrites.jsonl",
-   "layer1/plans.jsonl": "repeated_value:stage_files_by_invocation.3.layer1/plans.jsonl",
-   "layer1/prompts.jsonl": "repeated_value:stage_files_by_invocation.3.layer1/prompts.jsonl",
-   "layer1/screen_batches.jsonl": "repeated_value:stage_files_by_invocation.2.layer1/screen_batches.jsonl",
-   "layer1/screen_hands.jsonl": "repeated_value:stage_files_by_invocation.2.layer1/screen_hands.jsonl",
-   "layer1/screen_judgments.jsonl": "repeated_value:stage_files_by_invocation.3.layer1/screen_judgments.jsonl",
-   "layer1/screen_rejections.jsonl": "repeated_value:stage_files_by_invocation.2.layer1/screen_rejections.jsonl",
-   "layer1/screen_rounds.jsonl": "repeated_value:stage_files_by_invocation.2.layer1/screen_rounds.jsonl",
-   "layer1/screen_summary.json": "repeated_value:stage_files_by_invocation.3.layer1/screen_summary.json",
-   "layer1/screened_hands.jsonl": "repeated_value:stage_files_by_invocation.3.layer1/screened_hands.jsonl",
-   "layer2/_checkpoint.json": "repeated_value:stage_files_by_invocation.3.layer1/_checkpoint.json",
-   "layer2/drafts.jsonl": "repeated_value:stage_files_by_invocation.3.layer2/drafts.jsonl",
-   "layer3/_checkpoint.json": "repeated_value:stage_files_by_invocation.3.layer1/_checkpoint.json",
-   "layer3/critiques.jsonl": "repeated_value:stage_files_by_invocation.3.layer3/critiques.jsonl",
-   "layer3/rewrites.jsonl": "repeated_value:stage_files_by_invocation.3.layer3/rewrites.jsonl",
-   "layer4/_checkpoint.json": "repeated_value:stage_files_by_invocation.3.layer1/_checkpoint.json",
-   "layer4/scores.jsonl": "repeated_value:stage_files_by_invocation.3.layer4/scores.jsonl"
+   "layer1_deal_variables_and_screen/screen_batches.jsonl": "repeated_value:stage_files_by_invocation.2.layer1_deal_variables_and_screen/screen_batches.jsonl",
+   "layer1_deal_variables_and_screen/screen_hands.jsonl": "repeated_value:stage_files_by_invocation.2.layer1_deal_variables_and_screen/screen_hands.jsonl",
+   "layer1_deal_variables_and_screen/screen_judgments.jsonl": "repeated_value:stage_files_by_invocation.3.layer1_deal_variables_and_screen/screen_judgments.jsonl",
+   "layer1_deal_variables_and_screen/screen_rejections.jsonl": "repeated_value:stage_files_by_invocation.2.layer1_deal_variables_and_screen/screen_rejections.jsonl",
+   "layer1_deal_variables_and_screen/screen_rounds.jsonl": "repeated_value:stage_files_by_invocation.2.layer1_deal_variables_and_screen/screen_rounds.jsonl",
+   "layer1_deal_variables_and_screen/screen_summary.json": "repeated_value:stage_files_by_invocation.3.layer1_deal_variables_and_screen/screen_summary.json",
+   "layer1_deal_variables_and_screen/screened_hands.jsonl": "repeated_value:stage_files_by_invocation.3.layer1_deal_variables_and_screen/screened_hands.jsonl",
+   "layer2_description_write_and_description_rewrite/_checkpoint.json": "repeated_value:stage_files_by_invocation.3.layer2_description_write_and_description_rewrite/_checkpoint.json",
+   "layer2_description_write_and_description_rewrite/_description_rewrite_checkpoint.json": "repeated_value:stage_files_by_invocation.3.layer2_description_write_and_description_rewrite/_checkpoint.json",
+   "layer2_description_write_and_description_rewrite/description_rewrites.jsonl": "repeated_value:stage_files_by_invocation.3.layer2_description_write_and_description_rewrite/description_rewrites.jsonl",
+   "layer2_description_write_and_description_rewrite/plans.jsonl": "repeated_value:stage_files_by_invocation.3.layer2_description_write_and_description_rewrite/plans.jsonl",
+   "layer2_description_write_and_description_rewrite/prompts.jsonl": "repeated_value:stage_files_by_invocation.3.layer2_description_write_and_description_rewrite/prompts.jsonl",
+   "layer3_consideration_scoring_and_selection/consideration_coverage.json": "repeated_value:stage_files_by_invocation.3.layer3_consideration_scoring_and_selection/consideration_coverage.json",
+   "layer3_consideration_scoring_and_selection/consideration_scores.jsonl": "repeated_value:stage_files_by_invocation.3.layer3_consideration_scoring_and_selection/consideration_scores.jsonl",
+   "layer3_consideration_scoring_and_selection/consideration_selections.jsonl": "repeated_value:stage_files_by_invocation.3.layer3_consideration_scoring_and_selection/consideration_selections.jsonl",
+   "layer4_draft_critique_and_revise/_checkpoint.json": "repeated_value:stage_files_by_invocation.3.layer2_description_write_and_description_rewrite/_checkpoint.json",
+   "layer4_draft_critique_and_revise/_draft_checkpoint.json": "repeated_value:stage_files_by_invocation.3.layer2_description_write_and_description_rewrite/_checkpoint.json",
+   "layer4_draft_critique_and_revise/critiques.jsonl": "repeated_value:stage_files_by_invocation.3.layer4_draft_critique_and_revise/critiques.jsonl",
+   "layer4_draft_critique_and_revise/drafts.jsonl": "repeated_value:stage_files_by_invocation.3.layer4_draft_critique_and_revise/drafts.jsonl",
+   "layer4_draft_critique_and_revise/rewrites.jsonl": "repeated_value:stage_files_by_invocation.3.layer4_draft_critique_and_revise/rewrites.jsonl",
+   "layer5_score_and_final_selection/_checkpoint.json": "repeated_value:stage_files_by_invocation.3.layer2_description_write_and_description_rewrite/_checkpoint.json",
+   "layer5_score_and_final_selection/scores.jsonl": "repeated_value:stage_files_by_invocation.3.layer5_score_and_final_selection/scores.jsonl"
   }
  },
  "dealt_hands_by_identifier": {
@@ -1217,14 +1220,14 @@
  "repeated_values_by_identifier": {
   "configs_used_by_invocation.1.effort": {
    "layer1_screen": "low",
-   "layer1_plan": "medium",
-   "layer1_description_rewrite": "high",
-   "layer1_select": "xhigh",
-   "layer2_draft": "max",
-   "layer3_critique": "low",
-   "layer3_revise": "medium",
-   "layer3_rewrite": "high",
-   "layer4_score": "xhigh"
+   "layer2_description_write": "medium",
+   "layer2_description_rewrite": "high",
+   "layer3_consideration_scoring": "xhigh",
+   "layer4_draft": "max",
+   "layer4_critique": "low",
+   "layer4_revise": "medium",
+   "layer4_critique_and_revise_in_one_call": "high",
+   "layer5_score": "xhigh"
   },
   "configs_used_by_invocation.2": {
    "backend": "api",
@@ -1235,14 +1238,14 @@
    "thinking_headroom": 5000,
    "effort": {
     "layer1_screen": "low",
-    "layer1_plan": "medium",
-    "layer1_description_rewrite": "high",
-    "layer1_select": "xhigh",
-    "layer2_draft": "max",
-    "layer3_critique": "low",
-    "layer3_revise": "medium",
-    "layer3_rewrite": "high",
-    "layer4_score": "xhigh"
+    "layer2_description_write": "medium",
+    "layer2_description_rewrite": "high",
+    "layer3_consideration_scoring": "xhigh",
+    "layer4_draft": "max",
+    "layer4_critique": "low",
+    "layer4_revise": "medium",
+    "layer4_critique_and_revise_in_one_call": "high",
+    "layer5_score": "xhigh"
    },
    "sdf": {
     "n_prompts": 6,
@@ -1348,8 +1351,157 @@
     "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000007."}
    }
   ],
-  "requests.0.wire.instructions": {"text_sha256": "b13c3b4618da31b36a894b4f54740a1a1c6d0385d95af28e0fed308d0efbac8e", "character_count": 486, "blocks": null},
-  "requests.0.wire.text": {
+  "requests.0.wire.output_config": {
+   "effort": "low",
+   "format": {
+    "type": "json_schema",
+    "schema": {
+     "type": "object",
+     "properties": {
+      "specifications": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "number": {
+          "type": "integer",
+          "enum": [1, 2, 3]
+         },
+         "reasoning": {"type": "string"},
+         "remove": {"type": "boolean"},
+         "reason": {"type": "string"}
+        },
+        "required": ["number", "reasoning", "remove", "reason"],
+        "additionalProperties": false
+       }
+      }
+     },
+     "required": ["specifications"],
+     "additionalProperties": false
+    }
+   }
+  },
+  "requests.0.wire.system": {"text_sha256": "cd41db50648571b644f1b2ee09711a305a1f5d2bb4b92abd14b3e09d5612df91", "character_count": 454, "blocks": null},
+  "requests.1.wire": {
+   "model": "claude-haiku-4-5",
+   "max_tokens": 8000,
+   "messages": [
+    {"role": "user", "content": "sha256:efbc3a12ad96d5d0c2557d8fb827d8344e7ea28465bfc8182796f8a694f15c14 (7611 characters)"}
+   ],
+   "temperature": 0.7,
+   "thinking": {"type": "disabled"},
+   "output_config": {
+    "effort": "low",
+    "format": {
+     "type": "json_schema",
+     "schema": {
+      "type": "object",
+      "properties": {
+       "specifications": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "properties": {
+          "number": {
+           "type": "integer",
+           "enum": [1, 2, 3]
+          },
+          "reasoning": {"type": "string"},
+          "remove": {"type": "boolean"},
+          "reason": {"type": "string"}
+         },
+         "required": ["number", "reasoning", "remove", "reason"],
+         "additionalProperties": false
+        }
+       }
+      },
+      "required": ["specifications"],
+      "additionalProperties": false
+     }
+    }
+   },
+   "system": {"text_sha256": "cd41db50648571b644f1b2ee09711a305a1f5d2bb4b92abd14b3e09d5612df91", "character_count": 454, "blocks": null}
+  },
+  "requests.11.wire.system": {"text_sha256": "d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb", "character_count": 5397, "blocks": null},
+  "requests.17.wire.system": {"text_sha256": "9be9576f66433feeaa921ebd3deb1d578735ef5dfd1ec5d3685ad34b1c3eb995", "character_count": 375, "blocks": null},
+  "requests.23.wire.system": {
+   "text_sha256": null,
+   "character_count": null,
+   "blocks": [
+    {
+     "type": "text",
+     "cache_control": {"type": "ephemeral"},
+     "text_sha256": "357e43f3cfa9b05d274c6f89a313100266076f2ae69703a205967e681a42eec8",
+     "character_count": 184774
+    }
+   ]
+  },
+  "requests.29.wire.system": {
+   "text_sha256": null,
+   "character_count": null,
+   "blocks": [
+    {
+     "type": "text",
+     "cache_control": {"type": "ephemeral"},
+     "text_sha256": "d9c7d8fdf396bdfabe537d2b7fed296fabbf9398490c5ce9addf7a06a5992e9d",
+     "character_count": 174521
+    }
+   ]
+  },
+  "requests.3.wire": {
+   "model": "claude-haiku-4-5",
+   "max_tokens": 8000,
+   "messages": [
+    {"role": "user", "content": "sha256:fcb747e0b0f60920d17b0a5a85275c40e506a017fa0313099430e9a53a62fe0c (5932 characters)"}
+   ],
+   "temperature": 0.7,
+   "thinking": {"type": "disabled"},
+   "output_config": {
+    "effort": "low",
+    "format": {
+     "type": "json_schema",
+     "schema": {
+      "type": "object",
+      "properties": {
+       "specifications": {
+        "type": "array",
+        "items": {
+         "type": "object",
+         "properties": {
+          "number": {
+           "type": "integer",
+           "enum": [1, 2]
+          },
+          "reasoning": {"type": "string"},
+          "remove": {"type": "boolean"},
+          "reason": {"type": "string"}
+         },
+         "required": ["number", "reasoning", "remove", "reason"],
+         "additionalProperties": false
+        }
+       }
+      },
+      "required": ["specifications"],
+      "additionalProperties": false
+     }
+    }
+   },
+   "system": {"text_sha256": "cd41db50648571b644f1b2ee09711a305a1f5d2bb4b92abd14b3e09d5612df91", "character_count": 454, "blocks": null}
+  },
+  "requests.41.wire.system": {
+   "text_sha256": null,
+   "character_count": null,
+   "blocks": [
+    {
+     "type": "text",
+     "cache_control": {"type": "ephemeral"},
+     "text_sha256": "f1f7f4ca88c579cf2ae0aac592572d08e284b78959e5f64d268ba8c71809e6db",
+     "character_count": 149749
+    }
+   ]
+  },
+  "requests.5.wire.instructions": {"text_sha256": "b13c3b4618da31b36a894b4f54740a1a1c6d0385d95af28e0fed308d0efbac8e", "character_count": 486, "blocks": null},
+  "requests.5.wire.text": {
    "format": {
     "type": "json_schema",
     "name": "description_rewrite_answer",
@@ -1392,167 +1544,18 @@
     "strict": true
    }
   },
-  "requests.12.wire.output_config": {
-   "effort": "low",
-   "format": {
-    "type": "json_schema",
-    "schema": {
-     "type": "object",
-     "properties": {
-      "specifications": {
-       "type": "array",
-       "items": {
-        "type": "object",
-        "properties": {
-         "number": {
-          "type": "integer",
-          "enum": [1, 2, 3]
-         },
-         "reasoning": {"type": "string"},
-         "remove": {"type": "boolean"},
-         "reason": {"type": "string"}
-        },
-        "required": ["number", "reasoning", "remove", "reason"],
-        "additionalProperties": false
-       }
-      }
-     },
-     "required": ["specifications"],
-     "additionalProperties": false
-    }
-   }
-  },
-  "requests.12.wire.system": {"text_sha256": "cd41db50648571b644f1b2ee09711a305a1f5d2bb4b92abd14b3e09d5612df91", "character_count": 454, "blocks": null},
-  "requests.13.wire": {
-   "model": "claude-haiku-4-5",
-   "max_tokens": 8000,
-   "messages": [
-    {"role": "user", "content": "sha256:efbc3a12ad96d5d0c2557d8fb827d8344e7ea28465bfc8182796f8a694f15c14 (7611 characters)"}
-   ],
-   "temperature": 0.7,
-   "thinking": {"type": "disabled"},
-   "output_config": {
-    "effort": "low",
-    "format": {
-     "type": "json_schema",
-     "schema": {
-      "type": "object",
-      "properties": {
-       "specifications": {
-        "type": "array",
-        "items": {
-         "type": "object",
-         "properties": {
-          "number": {
-           "type": "integer",
-           "enum": [1, 2, 3]
-          },
-          "reasoning": {"type": "string"},
-          "remove": {"type": "boolean"},
-          "reason": {"type": "string"}
-         },
-         "required": ["number", "reasoning", "remove", "reason"],
-         "additionalProperties": false
-        }
-       }
-      },
-      "required": ["specifications"],
-      "additionalProperties": false
-     }
-    }
-   },
-   "system": {"text_sha256": "cd41db50648571b644f1b2ee09711a305a1f5d2bb4b92abd14b3e09d5612df91", "character_count": 454, "blocks": null}
-  },
-  "requests.15.wire": {
-   "model": "claude-haiku-4-5",
-   "max_tokens": 8000,
-   "messages": [
-    {"role": "user", "content": "sha256:fcb747e0b0f60920d17b0a5a85275c40e506a017fa0313099430e9a53a62fe0c (5932 characters)"}
-   ],
-   "temperature": 0.7,
-   "thinking": {"type": "disabled"},
-   "output_config": {
-    "effort": "low",
-    "format": {
-     "type": "json_schema",
-     "schema": {
-      "type": "object",
-      "properties": {
-       "specifications": {
-        "type": "array",
-        "items": {
-         "type": "object",
-         "properties": {
-          "number": {
-           "type": "integer",
-           "enum": [1, 2]
-          },
-          "reasoning": {"type": "string"},
-          "remove": {"type": "boolean"},
-          "reason": {"type": "string"}
-         },
-         "required": ["number", "reasoning", "remove", "reason"],
-         "additionalProperties": false
-        }
-       }
-      },
-      "required": ["specifications"],
-      "additionalProperties": false
-     }
-    }
-   },
-   "system": {"text_sha256": "cd41db50648571b644f1b2ee09711a305a1f5d2bb4b92abd14b3e09d5612df91", "character_count": 454, "blocks": null}
-  },
-  "requests.17.wire.system": {"text_sha256": "9be9576f66433feeaa921ebd3deb1d578735ef5dfd1ec5d3685ad34b1c3eb995", "character_count": 375, "blocks": null},
-  "requests.23.wire.system": {
-   "text_sha256": null,
-   "character_count": null,
-   "blocks": [
-    {
-     "type": "text",
-     "cache_control": {"type": "ephemeral"},
-     "text_sha256": "d9c7d8fdf396bdfabe537d2b7fed296fabbf9398490c5ce9addf7a06a5992e9d",
-     "character_count": 174521
-    }
-   ]
-  },
-  "requests.29.wire.system": {
-   "text_sha256": null,
-   "character_count": null,
-   "blocks": [
-    {
-     "type": "text",
-     "cache_control": {"type": "ephemeral"},
-     "text_sha256": "357e43f3cfa9b05d274c6f89a313100266076f2ae69703a205967e681a42eec8",
-     "character_count": 184774
-    }
-   ]
-  },
-  "requests.41.wire.system": {
-   "text_sha256": null,
-   "character_count": null,
-   "blocks": [
-    {
-     "type": "text",
-     "cache_control": {"type": "ephemeral"},
-     "text_sha256": "f1f7f4ca88c579cf2ae0aac592572d08e284b78959e5f64d268ba8c71809e6db",
-     "character_count": 149749
-    }
-   ]
-  },
-  "requests.6.wire.system": {"text_sha256": "d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb", "character_count": 5397, "blocks": null},
-  "stage_files_by_invocation.1.layer1/screen_batches.jsonl.0": {
+  "stage_files_by_invocation.1.layer1_deal_variables_and_screen/screen_batches.jsonl.0": {
    "batch_id": "screen_round0_batch0000",
    "round": 0,
    "prompt_ids": ["matrix_000001", "matrix_000002", "matrix_000000"]
   },
-  "stage_files_by_invocation.1.layer1/screen_batches.jsonl.1": {
+  "stage_files_by_invocation.1.layer1_deal_variables_and_screen/screen_batches.jsonl.1": {
    "batch_id": "screen_round0_batch0001",
    "round": 0,
    "prompt_ids": ["matrix_000003", "matrix_000005", "matrix_000004"]
   },
-  "stage_files_by_invocation.1.layer1/screen_judgments.jsonl.0": {"prompt_id": "matrix_000001", "round": 0, "batch_id": "screen_round0_batch0000", "number": 1, "reasoning": "Considered hand 1.", "remove": false, "reason": ""},
-  "stage_files_by_invocation.1.layer1/screen_judgments.jsonl.1": {
+  "stage_files_by_invocation.1.layer1_deal_variables_and_screen/screen_judgments.jsonl.0": {"prompt_id": "matrix_000001", "round": 0, "batch_id": "screen_round0_batch0000", "number": 1, "reasoning": "Considered hand 1.", "remove": false, "reason": ""},
+  "stage_files_by_invocation.1.layer1_deal_variables_and_screen/screen_judgments.jsonl.1": {
    "prompt_id": "matrix_000002",
    "round": 0,
    "batch_id": "screen_round0_batch0000",
@@ -1561,8 +1564,8 @@
    "remove": true,
    "reason": "No realistic document could satisfy every dealt value."
   },
-  "stage_files_by_invocation.1.layer1/screen_judgments.jsonl.2": {"prompt_id": "matrix_000000", "round": 0, "batch_id": "screen_round0_batch0000", "number": 3, "reasoning": "Considered hand 3.", "remove": false, "reason": ""},
-  "stage_files_by_invocation.1.layer1/screen_rejections.jsonl.0": {
+  "stage_files_by_invocation.1.layer1_deal_variables_and_screen/screen_judgments.jsonl.2": {"prompt_id": "matrix_000000", "round": 0, "batch_id": "screen_round0_batch0000", "number": 3, "reasoning": "Considered hand 3.", "remove": false, "reason": ""},
+  "stage_files_by_invocation.1.layer1_deal_variables_and_screen/screen_rejections.jsonl.0": {
    "prompt_id": "matrix_000002",
    "round": 0,
    "batch_id": "screen_round0_batch0000",
@@ -1571,12 +1574,12 @@
    "variables": "dealt_hand:1015ef2e07784625",
    "variable_lines": "sha256:02c911afa2712b0f474fffb6697247a287c62e6c0b48588b6ac8ff7e9c208020 (1365 characters)"
   },
-  "stage_files_by_invocation.1.layer1/screen_rounds.jsonl.0": {
+  "stage_files_by_invocation.1.layer1_deal_variables_and_screen/screen_rounds.jsonl.0": {
    "round": 0,
    "prompt_ids": ["matrix_000000", "matrix_000001", "matrix_000002", "matrix_000003", "matrix_000004", "matrix_000005"],
    "note": "original deal"
   },
-  "stage_files_by_invocation.2.layer1/screen_batches.jsonl": [
+  "stage_files_by_invocation.2.layer1_deal_variables_and_screen/screen_batches.jsonl": [
    {
     "batch_id": "screen_round0_batch0000",
     "round": 0,
@@ -1593,7 +1596,7 @@
     "prompt_ids": ["matrix_000006", "matrix_000007"]
    }
   ],
-  "stage_files_by_invocation.2.layer1/screen_hands.jsonl": [
+  "stage_files_by_invocation.2.layer1_deal_variables_and_screen/screen_hands.jsonl": [
    {"prompt_id": "matrix_000000", "round": 0, "variables": "dealt_hand:91d001463cf691d4"},
    {"prompt_id": "matrix_000001", "round": 0, "variables": "dealt_hand:4698f7cb8ed5d42b"},
    {"prompt_id": "matrix_000002", "round": 0, "variables": "dealt_hand:1015ef2e07784625"},
@@ -1603,7 +1606,7 @@
    {"prompt_id": "matrix_000006", "round": 1, "variables": "dealt_hand:bc4c05846d8da5f7"},
    {"prompt_id": "matrix_000007", "round": 1, "variables": "dealt_hand:a194833f55913f00"}
   ],
-  "stage_files_by_invocation.2.layer1/screen_judgments.jsonl.3": {
+  "stage_files_by_invocation.2.layer1_deal_variables_and_screen/screen_judgments.jsonl.3": {
    "prompt_id": "matrix_000003",
    "round": 0,
    "batch_id": "screen_round0_batch0001",
@@ -1612,9 +1615,9 @@
    "remove": true,
    "reason": "No realistic document could satisfy every dealt value."
   },
-  "stage_files_by_invocation.2.layer1/screen_judgments.jsonl.4": {"prompt_id": "matrix_000005", "round": 0, "batch_id": "screen_round0_batch0001", "number": 2, "reasoning": "Considered hand 2.", "remove": false, "reason": ""},
-  "stage_files_by_invocation.2.layer1/screen_judgments.jsonl.5": {"prompt_id": "matrix_000004", "round": 0, "batch_id": "screen_round0_batch0001", "number": 3, "reasoning": "Considered hand 3.", "remove": false, "reason": ""},
-  "stage_files_by_invocation.2.layer1/screen_rejections.jsonl": [
+  "stage_files_by_invocation.2.layer1_deal_variables_and_screen/screen_judgments.jsonl.4": {"prompt_id": "matrix_000005", "round": 0, "batch_id": "screen_round0_batch0001", "number": 2, "reasoning": "Considered hand 2.", "remove": false, "reason": ""},
+  "stage_files_by_invocation.2.layer1_deal_variables_and_screen/screen_judgments.jsonl.5": {"prompt_id": "matrix_000004", "round": 0, "batch_id": "screen_round0_batch0001", "number": 3, "reasoning": "Considered hand 3.", "remove": false, "reason": ""},
+  "stage_files_by_invocation.2.layer1_deal_variables_and_screen/screen_rejections.jsonl": [
    {
     "prompt_id": "matrix_000002",
     "round": 0,
@@ -1634,7 +1637,7 @@
     "variable_lines": "sha256:02e78d70f69ff4f1cd7b1fde2ecba086da3519840c2fbe611d2e761d87f1c1b2 (1329 characters)"
    }
   ],
-  "stage_files_by_invocation.2.layer1/screen_rounds.jsonl": [
+  "stage_files_by_invocation.2.layer1_deal_variables_and_screen/screen_rounds.jsonl": [
    {
     "round": 0,
     "prompt_ids": ["matrix_000000", "matrix_000001", "matrix_000002", "matrix_000003", "matrix_000004", "matrix_000005"],
@@ -1646,11 +1649,199 @@
     "note": "redeal of 2 removed hands"
    }
   ],
-  "stage_files_by_invocation.3.layer1/_checkpoint.json": {
+  "stage_files_by_invocation.3.layer1_deal_variables_and_screen/screen_judgments.jsonl": [
+   {"prompt_id": "matrix_000001", "round": 0, "batch_id": "screen_round0_batch0000", "number": 1, "reasoning": "Considered hand 1.", "remove": false, "reason": ""},
+   {
+    "prompt_id": "matrix_000002",
+    "round": 0,
+    "batch_id": "screen_round0_batch0000",
+    "number": 2,
+    "reasoning": "Considered hand 2.",
+    "remove": true,
+    "reason": "No realistic document could satisfy every dealt value."
+   },
+   {"prompt_id": "matrix_000000", "round": 0, "batch_id": "screen_round0_batch0000", "number": 3, "reasoning": "Considered hand 3.", "remove": false, "reason": ""},
+   {
+    "prompt_id": "matrix_000003",
+    "round": 0,
+    "batch_id": "screen_round0_batch0001",
+    "number": 1,
+    "reasoning": "Considered hand 1.",
+    "remove": true,
+    "reason": "No realistic document could satisfy every dealt value."
+   },
+   {"prompt_id": "matrix_000005", "round": 0, "batch_id": "screen_round0_batch0001", "number": 2, "reasoning": "Considered hand 2.", "remove": false, "reason": ""},
+   {"prompt_id": "matrix_000004", "round": 0, "batch_id": "screen_round0_batch0001", "number": 3, "reasoning": "Considered hand 3.", "remove": false, "reason": ""},
+   {"prompt_id": "matrix_000006", "round": 1, "batch_id": "screen_round1_batch0000", "number": 1, "reasoning": "Considered hand 1.", "remove": false, "reason": ""},
+   {"prompt_id": "matrix_000007", "round": 1, "batch_id": "screen_round1_batch0000", "number": 2, "reasoning": "Considered hand 2.", "remove": false, "reason": ""}
+  ],
+  "stage_files_by_invocation.3.layer1_deal_variables_and_screen/screen_summary.json": {
+   "dealt": 6,
+   "accepted": 6,
+   "leftover_dropped": 0,
+   "leftover_prompt_ids": [],
+   "rounds": [
+    {"round": 0, "hands": 6, "removed": 2, "note": "original deal"},
+    {"round": 1, "hands": 2, "removed": 0, "note": "redeal of 2 removed hands"}
+   ]
+  },
+  "stage_files_by_invocation.3.layer1_deal_variables_and_screen/screened_hands.jsonl": [
+   {"prompt_id": "matrix_000000", "variables": "dealt_hand:91d001463cf691d4"},
+   {"prompt_id": "matrix_000001", "variables": "dealt_hand:4698f7cb8ed5d42b"},
+   {"prompt_id": "matrix_000004", "variables": "dealt_hand:da37a8e4d4a0244a"},
+   {"prompt_id": "matrix_000005", "variables": "dealt_hand:f56775b4378be303"},
+   {"prompt_id": "matrix_000006", "variables": "dealt_hand:bc4c05846d8da5f7"},
+   {"prompt_id": "matrix_000007", "variables": "dealt_hand:a194833f55913f00"}
+  ],
+  "stage_files_by_invocation.3.layer2_description_write_and_description_rewrite/_checkpoint.json": {
    "completed": ["matrix_000000", "matrix_000001", "matrix_000004", "matrix_000005", "matrix_000006", "matrix_000007"],
    "last_updated": "<timestamp>"
   },
-  "stage_files_by_invocation.3.layer1/consideration_coverage.json": {
+  "stage_files_by_invocation.3.layer2_description_write_and_description_rewrite/description_rewrites.jsonl": [
+   {
+    "prompt_id": "matrix_000000",
+    "reasoning": "Checked the description of matrix_000000.",
+    "rewrite_needed": false,
+    "original_description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
+    "rewritten_description": "",
+    "changes": [],
+    "dealt_value_conflict": false,
+    "conflict_reason": ""
+   },
+   {
+    "prompt_id": "matrix_000001",
+    "reasoning": "Checked the description of matrix_000001.",
+    "rewrite_needed": false,
+    "original_description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
+    "rewritten_description": "",
+    "changes": [],
+    "dealt_value_conflict": false,
+    "conflict_reason": ""
+   },
+   {
+    "prompt_id": "matrix_000004",
+    "reasoning": "Checked the description of matrix_000004.",
+    "rewrite_needed": false,
+    "original_description": "sha256:a51c9a8d0ad7394a3ed17dae1f618168ad34ab6e6f16e1bfd475dc50ebdd0031 (432 characters)",
+    "rewritten_description": "",
+    "changes": [],
+    "dealt_value_conflict": false,
+    "conflict_reason": ""
+   },
+   {
+    "prompt_id": "matrix_000005",
+    "reasoning": "Checked the description of matrix_000005.",
+    "rewrite_needed": false,
+    "original_description": "sha256:8659925a3134cf3ffcaf8af71527b2e701db694874e0c9cbb27c2e408e68d9ee (438 characters)",
+    "rewritten_description": "",
+    "changes": [],
+    "dealt_value_conflict": false,
+    "conflict_reason": ""
+   },
+   {
+    "prompt_id": "matrix_000006",
+    "reasoning": "Checked the description of matrix_000006.",
+    "rewrite_needed": false,
+    "original_description": "sha256:239977fc505d377e27d017e919fbeb2767ea914d67bf5a0f008853ad9450bd47 (436 characters)",
+    "rewritten_description": "",
+    "changes": [],
+    "dealt_value_conflict": false,
+    "conflict_reason": ""
+   },
+   {
+    "prompt_id": "matrix_000007",
+    "reasoning": "Checked the description of matrix_000007.",
+    "rewrite_needed": false,
+    "original_description": "sha256:61e8b6833f43b40aa07d12626ede10e7869a60f7a8762c59af1583ad1a89049f (441 characters)",
+    "rewritten_description": "",
+    "changes": [],
+    "dealt_value_conflict": false,
+    "conflict_reason": ""
+   }
+  ],
+  "stage_files_by_invocation.3.layer2_description_write_and_description_rewrite/plans.jsonl": [
+   {
+    "prompt_id": "matrix_000000",
+    "variables": "dealt_hand:91d001463cf691d4",
+    "plan": "sha256:19ff8f30186c63c0010aeef8bea7ff1584d4bd6e48f3ba280b930fca72695a28 (565 characters)",
+    "description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
+    "incoherent": false
+   },
+   {
+    "prompt_id": "matrix_000001",
+    "variables": "dealt_hand:4698f7cb8ed5d42b",
+    "plan": "sha256:20b2bd4a443b3427c4d4d952d201215ee1cc310ccdb0e543e458117636e5ba15 (566 characters)",
+    "description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
+    "incoherent": false
+   },
+   {
+    "prompt_id": "matrix_000004",
+    "variables": "dealt_hand:da37a8e4d4a0244a",
+    "plan": "sha256:3d6f38daca661008951ccea2f3e23a7c7bfc9b68789932138a6388cd77a9bef6 (565 characters)",
+    "description": "sha256:a51c9a8d0ad7394a3ed17dae1f618168ad34ab6e6f16e1bfd475dc50ebdd0031 (432 characters)",
+    "incoherent": false
+   },
+   {
+    "prompt_id": "matrix_000005",
+    "variables": "dealt_hand:f56775b4378be303",
+    "plan": "sha256:5468e268cf4412ec254136984c2937357ad3ac9d515cb9bc275dafe8cb8e949b (571 characters)",
+    "description": "sha256:8659925a3134cf3ffcaf8af71527b2e701db694874e0c9cbb27c2e408e68d9ee (438 characters)",
+    "incoherent": false
+   },
+   {
+    "prompt_id": "matrix_000006",
+    "variables": "dealt_hand:bc4c05846d8da5f7",
+    "plan": "sha256:749b892b1d9f4404e74339e256adcda0ca03f2980f5f67bdfae0f021c4eeda77 (569 characters)",
+    "description": "sha256:239977fc505d377e27d017e919fbeb2767ea914d67bf5a0f008853ad9450bd47 (436 characters)",
+    "incoherent": false
+   },
+   {
+    "prompt_id": "matrix_000007",
+    "variables": "dealt_hand:a194833f55913f00",
+    "plan": "sha256:45b38542dd905a402953ad595e282526bc7007ce6e750e930e3b4102cd818f3d (574 characters)",
+    "description": "sha256:61e8b6833f43b40aa07d12626ede10e7869a60f7a8762c59af1583ad1a89049f (441 characters)",
+    "incoherent": false
+   }
+  ],
+  "stage_files_by_invocation.3.layer2_description_write_and_description_rewrite/prompts.jsonl": [
+   {
+    "prompt_id": "matrix_000000",
+    "variables": "dealt_hand:91d001463cf691d4",
+    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
+    "prompt": "sha256:96b44a9fe955ca5fda869042e991bc648971ecb0fbe906a0db7a5812c44f145c (4345 characters)"
+   },
+   {
+    "prompt_id": "matrix_000001",
+    "variables": "dealt_hand:4698f7cb8ed5d42b",
+    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
+    "prompt": "sha256:3445e2749b502aac8171491d548c78d0c823daeafa41adf303b9630741647d99 (4119 characters)"
+   },
+   {
+    "prompt_id": "matrix_000004",
+    "variables": "dealt_hand:da37a8e4d4a0244a",
+    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
+    "prompt": "sha256:edf23b4d703f551679a1890e46db0f8337dfa647be3a6782c57c008b0a1a925b (4353 characters)"
+   },
+   {
+    "prompt_id": "matrix_000005",
+    "variables": "dealt_hand:f56775b4378be303",
+    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
+    "prompt": "sha256:4604ca6d0681a2f4989358612b66820a4d1244d5365c673fbc94c158b560c406 (4110 characters)"
+   },
+   {
+    "prompt_id": "matrix_000006",
+    "variables": "dealt_hand:bc4c05846d8da5f7",
+    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
+    "prompt": "sha256:68387550ffece78dd80b5726b10dbbeda0c325bc5a74b09c63653bae29d810f5 (4040 characters)"
+   },
+   {
+    "prompt_id": "matrix_000007",
+    "variables": "dealt_hand:a194833f55913f00",
+    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
+    "prompt": "sha256:de41da0113b8cd6172f507b45c1a377e7a08c269df33c6a07c779104eb9758a6 (3989 characters)"
+   }
+  ],
+  "stage_files_by_invocation.3.layer3_consideration_scoring_and_selection/consideration_coverage.json": {
    "eligible_documents": 6,
    "digital_mind_documents": 0,
    "scored_documents": 6,
@@ -1913,7 +2104,7 @@
    "documents_with_two_or_more_in_one_list": 0,
    "document_ids_with_no_consideration": ["matrix_000000", "matrix_000001", "matrix_000004", "matrix_000005", "matrix_000006", "matrix_000007"]
   },
-  "stage_files_by_invocation.3.layer1/consideration_scores.jsonl": [
+  "stage_files_by_invocation.3.layer3_consideration_scoring_and_selection/consideration_scores.jsonl": [
    {
     "prompt_id": "matrix_000000",
     "scores": {
@@ -2095,7 +2286,7 @@
     "attempts": 1
    }
   ],
-  "stage_files_by_invocation.3.layer1/consideration_selections.jsonl": [
+  "stage_files_by_invocation.3.layer3_consideration_scoring_and_selection/consideration_selections.jsonl": [
    {
     "prompt_id": "matrix_000000",
     "outcomes": [
@@ -2139,195 +2330,15 @@
     ]
    }
   ],
-  "stage_files_by_invocation.3.layer1/description_rewrites.jsonl": [
-   {
-    "prompt_id": "matrix_000000",
-    "reasoning": "Checked the description of matrix_000000.",
-    "rewrite_needed": false,
-    "original_description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
-    "rewritten_description": "",
-    "changes": [],
-    "dealt_value_conflict": false,
-    "conflict_reason": ""
-   },
-   {
-    "prompt_id": "matrix_000001",
-    "reasoning": "Checked the description of matrix_000001.",
-    "rewrite_needed": false,
-    "original_description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
-    "rewritten_description": "",
-    "changes": [],
-    "dealt_value_conflict": false,
-    "conflict_reason": ""
-   },
-   {
-    "prompt_id": "matrix_000004",
-    "reasoning": "Checked the description of matrix_000004.",
-    "rewrite_needed": false,
-    "original_description": "sha256:a51c9a8d0ad7394a3ed17dae1f618168ad34ab6e6f16e1bfd475dc50ebdd0031 (432 characters)",
-    "rewritten_description": "",
-    "changes": [],
-    "dealt_value_conflict": false,
-    "conflict_reason": ""
-   },
-   {
-    "prompt_id": "matrix_000005",
-    "reasoning": "Checked the description of matrix_000005.",
-    "rewrite_needed": false,
-    "original_description": "sha256:8659925a3134cf3ffcaf8af71527b2e701db694874e0c9cbb27c2e408e68d9ee (438 characters)",
-    "rewritten_description": "",
-    "changes": [],
-    "dealt_value_conflict": false,
-    "conflict_reason": ""
-   },
-   {
-    "prompt_id": "matrix_000006",
-    "reasoning": "Checked the description of matrix_000006.",
-    "rewrite_needed": false,
-    "original_description": "sha256:239977fc505d377e27d017e919fbeb2767ea914d67bf5a0f008853ad9450bd47 (436 characters)",
-    "rewritten_description": "",
-    "changes": [],
-    "dealt_value_conflict": false,
-    "conflict_reason": ""
-   },
-   {
-    "prompt_id": "matrix_000007",
-    "reasoning": "Checked the description of matrix_000007.",
-    "rewrite_needed": false,
-    "original_description": "sha256:61e8b6833f43b40aa07d12626ede10e7869a60f7a8762c59af1583ad1a89049f (441 characters)",
-    "rewritten_description": "",
-    "changes": [],
-    "dealt_value_conflict": false,
-    "conflict_reason": ""
-   }
+  "stage_files_by_invocation.3.layer4_draft_critique_and_revise/critiques.jsonl": [
+   {"doc_id": "matrix_000000", "review": "Problems found in the draft of matrix_000000: the opening is generic."},
+   {"doc_id": "matrix_000001", "review": "Problems found in the draft of matrix_000001: the opening is generic."},
+   {"doc_id": "matrix_000004", "review": "Problems found in the draft of matrix_000004: the opening is generic."},
+   {"doc_id": "matrix_000005", "review": "Problems found in the draft of matrix_000005: the opening is generic."},
+   {"doc_id": "matrix_000006", "review": "Problems found in the draft of matrix_000006: the opening is generic."},
+   {"doc_id": "matrix_000007", "review": "Problems found in the draft of matrix_000007: the opening is generic."}
   ],
-  "stage_files_by_invocation.3.layer1/plans.jsonl": [
-   {
-    "prompt_id": "matrix_000000",
-    "variables": "dealt_hand:91d001463cf691d4",
-    "plan": "sha256:19ff8f30186c63c0010aeef8bea7ff1584d4bd6e48f3ba280b930fca72695a28 (565 characters)",
-    "description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
-    "incoherent": false
-   },
-   {
-    "prompt_id": "matrix_000001",
-    "variables": "dealt_hand:4698f7cb8ed5d42b",
-    "plan": "sha256:20b2bd4a443b3427c4d4d952d201215ee1cc310ccdb0e543e458117636e5ba15 (566 characters)",
-    "description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
-    "incoherent": false
-   },
-   {
-    "prompt_id": "matrix_000004",
-    "variables": "dealt_hand:da37a8e4d4a0244a",
-    "plan": "sha256:3d6f38daca661008951ccea2f3e23a7c7bfc9b68789932138a6388cd77a9bef6 (565 characters)",
-    "description": "sha256:a51c9a8d0ad7394a3ed17dae1f618168ad34ab6e6f16e1bfd475dc50ebdd0031 (432 characters)",
-    "incoherent": false
-   },
-   {
-    "prompt_id": "matrix_000005",
-    "variables": "dealt_hand:f56775b4378be303",
-    "plan": "sha256:5468e268cf4412ec254136984c2937357ad3ac9d515cb9bc275dafe8cb8e949b (571 characters)",
-    "description": "sha256:8659925a3134cf3ffcaf8af71527b2e701db694874e0c9cbb27c2e408e68d9ee (438 characters)",
-    "incoherent": false
-   },
-   {
-    "prompt_id": "matrix_000006",
-    "variables": "dealt_hand:bc4c05846d8da5f7",
-    "plan": "sha256:749b892b1d9f4404e74339e256adcda0ca03f2980f5f67bdfae0f021c4eeda77 (569 characters)",
-    "description": "sha256:239977fc505d377e27d017e919fbeb2767ea914d67bf5a0f008853ad9450bd47 (436 characters)",
-    "incoherent": false
-   },
-   {
-    "prompt_id": "matrix_000007",
-    "variables": "dealt_hand:a194833f55913f00",
-    "plan": "sha256:45b38542dd905a402953ad595e282526bc7007ce6e750e930e3b4102cd818f3d (574 characters)",
-    "description": "sha256:61e8b6833f43b40aa07d12626ede10e7869a60f7a8762c59af1583ad1a89049f (441 characters)",
-    "incoherent": false
-   }
-  ],
-  "stage_files_by_invocation.3.layer1/prompts.jsonl": [
-   {
-    "prompt_id": "matrix_000000",
-    "variables": "dealt_hand:91d001463cf691d4",
-    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
-    "prompt": "sha256:96b44a9fe955ca5fda869042e991bc648971ecb0fbe906a0db7a5812c44f145c (4345 characters)"
-   },
-   {
-    "prompt_id": "matrix_000001",
-    "variables": "dealt_hand:4698f7cb8ed5d42b",
-    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
-    "prompt": "sha256:3445e2749b502aac8171491d548c78d0c823daeafa41adf303b9630741647d99 (4119 characters)"
-   },
-   {
-    "prompt_id": "matrix_000004",
-    "variables": "dealt_hand:da37a8e4d4a0244a",
-    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
-    "prompt": "sha256:edf23b4d703f551679a1890e46db0f8337dfa647be3a6782c57c008b0a1a925b (4353 characters)"
-   },
-   {
-    "prompt_id": "matrix_000005",
-    "variables": "dealt_hand:f56775b4378be303",
-    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
-    "prompt": "sha256:4604ca6d0681a2f4989358612b66820a4d1244d5365c673fbc94c158b560c406 (4110 characters)"
-   },
-   {
-    "prompt_id": "matrix_000006",
-    "variables": "dealt_hand:bc4c05846d8da5f7",
-    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
-    "prompt": "sha256:68387550ffece78dd80b5726b10dbbeda0c325bc5a74b09c63653bae29d810f5 (4040 characters)"
-   },
-   {
-    "prompt_id": "matrix_000007",
-    "variables": "dealt_hand:a194833f55913f00",
-    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
-    "prompt": "sha256:de41da0113b8cd6172f507b45c1a377e7a08c269df33c6a07c779104eb9758a6 (3989 characters)"
-   }
-  ],
-  "stage_files_by_invocation.3.layer1/screen_judgments.jsonl": [
-   {"prompt_id": "matrix_000001", "round": 0, "batch_id": "screen_round0_batch0000", "number": 1, "reasoning": "Considered hand 1.", "remove": false, "reason": ""},
-   {
-    "prompt_id": "matrix_000002",
-    "round": 0,
-    "batch_id": "screen_round0_batch0000",
-    "number": 2,
-    "reasoning": "Considered hand 2.",
-    "remove": true,
-    "reason": "No realistic document could satisfy every dealt value."
-   },
-   {"prompt_id": "matrix_000000", "round": 0, "batch_id": "screen_round0_batch0000", "number": 3, "reasoning": "Considered hand 3.", "remove": false, "reason": ""},
-   {
-    "prompt_id": "matrix_000003",
-    "round": 0,
-    "batch_id": "screen_round0_batch0001",
-    "number": 1,
-    "reasoning": "Considered hand 1.",
-    "remove": true,
-    "reason": "No realistic document could satisfy every dealt value."
-   },
-   {"prompt_id": "matrix_000005", "round": 0, "batch_id": "screen_round0_batch0001", "number": 2, "reasoning": "Considered hand 2.", "remove": false, "reason": ""},
-   {"prompt_id": "matrix_000004", "round": 0, "batch_id": "screen_round0_batch0001", "number": 3, "reasoning": "Considered hand 3.", "remove": false, "reason": ""},
-   {"prompt_id": "matrix_000006", "round": 1, "batch_id": "screen_round1_batch0000", "number": 1, "reasoning": "Considered hand 1.", "remove": false, "reason": ""},
-   {"prompt_id": "matrix_000007", "round": 1, "batch_id": "screen_round1_batch0000", "number": 2, "reasoning": "Considered hand 2.", "remove": false, "reason": ""}
-  ],
-  "stage_files_by_invocation.3.layer1/screen_summary.json": {
-   "dealt": 6,
-   "accepted": 6,
-   "leftover_dropped": 0,
-   "leftover_prompt_ids": [],
-   "rounds": [
-    {"round": 0, "hands": 6, "removed": 2, "note": "original deal"},
-    {"round": 1, "hands": 2, "removed": 0, "note": "redeal of 2 removed hands"}
-   ]
-  },
-  "stage_files_by_invocation.3.layer1/screened_hands.jsonl": [
-   {"prompt_id": "matrix_000000", "variables": "dealt_hand:91d001463cf691d4"},
-   {"prompt_id": "matrix_000001", "variables": "dealt_hand:4698f7cb8ed5d42b"},
-   {"prompt_id": "matrix_000004", "variables": "dealt_hand:da37a8e4d4a0244a"},
-   {"prompt_id": "matrix_000005", "variables": "dealt_hand:f56775b4378be303"},
-   {"prompt_id": "matrix_000006", "variables": "dealt_hand:bc4c05846d8da5f7"},
-   {"prompt_id": "matrix_000007", "variables": "dealt_hand:a194833f55913f00"}
-  ],
-  "stage_files_by_invocation.3.layer2/drafts.jsonl": [
+  "stage_files_by_invocation.3.layer4_draft_critique_and_revise/drafts.jsonl": [
    {
     "doc_id": "matrix_000000",
     "variables": "dealt_hand:556b62660db103e7",
@@ -2371,15 +2382,7 @@
     "content": "sha256:f32ed84ca5dd51627fe694b35bfbd0f4cbb3e36e0aa49a75c6a06d096602636f (897 characters)"
    }
   ],
-  "stage_files_by_invocation.3.layer3/critiques.jsonl": [
-   {"doc_id": "matrix_000000", "review": "Problems found in the draft of matrix_000000: the opening is generic."},
-   {"doc_id": "matrix_000001", "review": "Problems found in the draft of matrix_000001: the opening is generic."},
-   {"doc_id": "matrix_000004", "review": "Problems found in the draft of matrix_000004: the opening is generic."},
-   {"doc_id": "matrix_000005", "review": "Problems found in the draft of matrix_000005: the opening is generic."},
-   {"doc_id": "matrix_000006", "review": "Problems found in the draft of matrix_000006: the opening is generic."},
-   {"doc_id": "matrix_000007", "review": "Problems found in the draft of matrix_000007: the opening is generic."}
-  ],
-  "stage_files_by_invocation.3.layer3/rewrites.jsonl": [
+  "stage_files_by_invocation.3.layer4_draft_critique_and_revise/rewrites.jsonl": [
    {
     "doc_id": "matrix_000000",
     "variables": "dealt_hand:556b62660db103e7",
@@ -2429,7 +2432,7 @@
     "content": "sha256:c2b519c1389a520c7ef74e5c15a223df0f2bae912cdbc571e9fbeffdd5b82c3f (883 characters)"
    }
   ],
-  "stage_files_by_invocation.3.layer4/scores.jsonl": [
+  "stage_files_by_invocation.3.layer5_score_and_final_selection/scores.jsonl": [
    {
     "doc_id": "matrix_000000",
     "variables": "dealt_hand:556b62660db103e7",

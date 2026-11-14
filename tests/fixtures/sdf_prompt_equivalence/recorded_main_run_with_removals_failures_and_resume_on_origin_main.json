@@ -1,6 +1,6 @@
 {
  "format_version": 4,
- "recorded_from": "commit 83f9c8a73a4f3e8707bd063428a13b43211c8349 on branch william/sdf-redo-01-prompt-equivalence-test (with uncommitted changes)",
+ "recorded_from": "commit bd7c59b1ddbbfd5ae6c04a014e973c1d996658d3 on branch HEAD (clean)",
  "regeneration_rule": "The recorded files are rewritten only by `python scripts/regenerate_sdf_prompt_equivalence_recorded_requests.py`, and only when the pull request is meant to change requests: never to make a failing test pass. Regenerate and commit the files in that pull request, and say in its description that requests change and why. A pull request not meant to change them leaves the files alone, so a difference is a bug.",
  "description": "Ten hands, every removal kind, every failure kind, and a resume that retries the failures.",
  "configs_used_by_invocation": {"1": "repeated_value:configs_used_by_invocation.1", "2": "repeated_value:configs_used_by_invocation.1"},
@@ -21,318 +21,10 @@
   }
  ],
  "calls_per_stage_per_invocation": {
-  "1": {"layer1_description_rewrite": 8, "layer1_plan": 10, "layer1_screen": 3, "layer1_select": 7, "layer2_draft": 7, "layer3_critique": 6, "layer3_revise": 6, "layer4_score": 5},
-  "2": {"layer1_description_rewrite": 1, "layer1_plan": 1, "layer1_select": 1, "layer2_draft": 2, "layer3_critique": 2, "layer3_revise": 3, "layer4_score": 3}
+  "1": {"layer1_screen": 3, "layer2_description_rewrite": 8, "layer2_description_write": 10, "layer3_consideration_scoring": 7, "layer4_critique": 6, "layer4_draft": 7, "layer4_revise": 6, "layer5_score": 5},
+  "2": {"layer2_description_rewrite": 1, "layer2_description_write": 1, "layer3_consideration_scoring": 1, "layer4_critique": 2, "layer4_draft": 2, "layer4_revise": 3, "layer5_score": 3}
  },
  "requests": [
-  {
-   "invocation": 1,
-   "stage": "layer1_description_rewrite",
-   "item_id": "matrix_000000",
-   "attempt": 1,
-   "route": "openai",
-   "wire": {
-    "model": "gpt-6.1-sol",
-    "input": "sha256:bfdfd4725a73a384dcda515a6d4e1e045abf2b3a778c4297171428168593174a (7365 characters)",
-    "max_output_tokens": 8000,
-    "temperature": 1.0,
-    "reasoning": {"effort": "low"},
-    "text": "repeated_value:requests.0.wire.text",
-    "instructions": "repeated_value:requests.0.wire.instructions"
-   }
-  },
-  {
-   "invocation": 1,
-   "stage": "layer1_description_rewrite",
-   "item_id": "matrix_000002",
-   "attempt": 1,
-   "route": "openai",
-   "wire": {
-    "model": "gpt-6.1-sol",
-    "input": "sha256:f3e024b9bb48ba91e503e2239a88e91281cb86ceea3b7cf3de35af3669ed26d5 (7479 characters)",
-    "max_output_tokens": 8000,
-    "temperature": 1.0,
-    "reasoning": {"effort": "low"},
-    "text": "repeated_value:requests.0.wire.text",
-    "instructions": "repeated_value:requests.0.wire.instructions"
-   }
-  },
-  {
-   "invocation": 1,
-   "stage": "layer1_description_rewrite",
-   "item_id": "matrix_000003",
-   "attempt": 1,
-   "route": "openai",
-   "wire": {
-    "model": "gpt-6.1-sol",
-    "input": "sha256:5b1d487f449a5f703cce5cc6d7a8e3e0c1ac9224b5d34054cb9b3633e9f52341 (7683 characters)",
-    "max_output_tokens": 8000,
-    "temperature": 1.0,
-    "reasoning": {"effort": "low"},
-    "text": "repeated_value:requests.0.wire.text",
-    "instructions": "repeated_value:requests.0.wire.instructions"
-   }
-  },
-  {
-   "invocation": 1,
-   "stage": "layer1_description_rewrite",
-   "item_id": "matrix_000005",
-   "attempt": 1,
-   "route": "openai",
-   "wire": {
-    "model": "gpt-6.1-sol",
-    "input": "sha256:46ac3cc9a254a2f397905df5716378d43c05a7166de87df31cb60c9371c0cd8e (7104 characters)",
-    "max_output_tokens": 8000,
-    "temperature": 1.0,
-    "reasoning": {"effort": "low"},
-    "text": "repeated_value:requests.0.wire.text",
-    "instructions": "repeated_value:requests.0.wire.instructions"
-   }
-  },
-  {
-   "invocation": 1,
-   "stage": "layer1_description_rewrite",
-   "item_id": "matrix_000006",
-   "attempt": 1,
-   "route": "openai",
-   "wire": {
-    "model": "gpt-6.1-sol",
-    "input": "sha256:8b509099db1426c46447130501c6786f62d815b2151c416bf66629c4ed5007d0 (7639 characters)",
-    "max_output_tokens": 8000,
-    "temperature": 1.0,
-    "reasoning": {"effort": "low"},
-    "text": "repeated_value:requests.0.wire.text",
-    "instructions": "repeated_value:requests.0.wire.instructions"
-   }
-  },
-  {
-   "invocation": 2,
-   "stage": "layer1_description_rewrite",
-   "item_id": "matrix_000008",
-   "attempt": 1,
-   "route": "openai",
-   "wire": {
-    "model": "gpt-6.1-sol",
-    "input": "sha256:06e0621e8ce18d6b4d021fe024362db391d8a6e2f05974cfa7b7aaeab352aba8 (7743 characters)",
-    "max_output_tokens": 8000,
-    "temperature": 1.0,
-    "reasoning": {"effort": "low"},
-    "text": "repeated_value:requests.0.wire.text",
-    "instructions": "repeated_value:requests.0.wire.instructions"
-   }
-  },
-  {
-   "invocation": 1,
-   "stage": "layer1_description_rewrite",
-   "item_id": "matrix_000009",
-   "attempt": 1,
-   "route": "openai",
-   "wire": {
-    "model": "gpt-6.1-sol",
-    "input": "sha256:1badf5799c220f63a26afdb5ccddc6b46b3b1fb668153633f88115ebd30c093e (7559 characters)",
-    "max_output_tokens": 8000,
-    "temperature": 1.0,
-    "reasoning": {"effort": "low"},
-    "text": "repeated_value:requests.0.wire.text",
-    "instructions": "repeated_value:requests.0.wire.instructions"
-   }
-  },
-  {
-   "invocation": 1,
-   "stage": "layer1_description_rewrite",
-   "item_id": "matrix_000010",
-   "attempt": 1,
-   "route": "openai",
-   "wire": {
-    "model": "gpt-6.1-sol",
-    "input": "sha256:6088ed13d4502e23ae51b167262193b666dba115f9dba6e2bb73f82ae90e112a (7766 characters)",
-    "max_output_tokens": 8000,
-    "temperature": 1.0,
-    "reasoning": {"effort": "low"},
-    "text": "repeated_value:requests.0.wire.text",
-    "instructions": "repeated_value:requests.0.wire.instructions"
-   }
-  },
-  {
-   "invocation": 1,
-   "stage": "layer1_description_rewrite",
-   "item_id": "matrix_000011",
-   "attempt": 1,
-   "route": "openai",
-   "wire": {
-    "model": "gpt-6.1-sol",
-    "input": "sha256:eee77370351751d02b3ec9f5db58434332f32ab30e46fafd4567a8c635e88f0c (7616 characters)",
-    "max_output_tokens": 8000,
-    "temperature": 1.0,
-    "reasoning": {"effort": "low"},
-    "text": "repeated_value:requests.0.wire.text",
-    "instructions": "repeated_value:requests.0.wire.instructions"
-   }
-  },
-  {
-   "invocation": 1,
-   "stage": "layer1_plan",
-   "item_id": "matrix_000000",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-haiku-4-5",
-    "max_tokens": 4000,
-    "messages": [
-     {"role": "user", "content": "sha256:e4e94b40a8468b8763deba2b7e1504b8431b7f04e2b0f6912dc9f99f8cd56528 (3908 characters)"}
-    ],
-    "temperature": 0.7,
-    "thinking": {"type": "disabled"},
-    "output_config": {"effort": "medium"},
-    "system": "repeated_value:requests.9.wire.system"
-   }
-  },
-  {
-   "invocation": 1,
-   "stage": "layer1_plan",
-   "item_id": "matrix_000001",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-haiku-4-5",
-    "max_tokens": 4000,
-    "messages": [
-     {"role": "user", "content": "sha256:b4279aab15aab447cc6397c5c3f204840e69ce008884d80c2f0ffbbfbbdcfd77 (4060 characters)"}
-    ],
-    "temperature": 0.7,
-    "thinking": {"type": "disabled"},
-    "output_config": {"effort": "medium"},
-    "system": "repeated_value:requests.9.wire.system"
-   }
-  },
-  {
-   "invocation": 1,
-   "stage": "layer1_plan",
-   "item_id": "matrix_000002",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-haiku-4-5",
-    "max_tokens": 4000,
-    "messages": [
-     {"role": "user", "content": "sha256:2681a57f06330adc8e191b07ac6244ebb9627f6097a85e510f60ade56ac32817 (4032 characters)"}
-    ],
-    "temperature": 0.7,
-    "thinking": {"type": "disabled"},
-    "output_config": {"effort": "medium"},
-    "system": "repeated_value:requests.9.wire.system"
-   }
-  },
-  {
-   "invocation": 1,
-   "stage": "layer1_plan",
-   "item_id": "matrix_000003",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-haiku-4-5",
-    "max_tokens": 4000,
-    "messages": [
-     {"role": "user", "content": "sha256:cb8a5156bb5063988b1f6969776823f4f1be59168a36296ea720713156c86c34 (4311 characters)"}
-    ],
-    "temperature": 0.7,
-    "thinking": {"type": "disabled"},
-    "output_config": {"effort": "medium"},
-    "system": "repeated_value:requests.9.wire.system"
-   }
-  },
-  {
-   "invocation": 1,
-   "stage": "layer1_plan",
-   "item_id": "matrix_000005",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-haiku-4-5",
-    "max_tokens": 4000,
-    "messages": [
-     {"role": "user", "content": "sha256:77dffbb578c46d5136b378b7c3623065d42e913743342a36e5dbc0ce1fc34095 (3696 characters)"}
-    ],
-    "temperature": 0.7,
-    "thinking": {"type": "disabled"},
-    "output_config": {"effort": "medium"},
-    "system": "repeated_value:requests.9.wire.system"
-   }
-  },
-  {
-   "invocation": 1,
-   "stage": "layer1_plan",
-   "item_id": "matrix_000006",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-haiku-4-5",
-    "max_tokens": 4000,
-    "messages": [
-     {"role": "user", "content": "sha256:4aa1983487650c956361f8f1fe9002807824422f8e75481e77eacd465239083a (4224 characters)"}
-    ],
-    "temperature": 0.7,
-    "thinking": {"type": "disabled"},
-    "output_config": {"effort": "medium"},
-    "system": "repeated_value:requests.9.wire.system"
-   }
-  },
-  {"invocation": 1, "stage": "layer1_plan", "item_id": "matrix_000008", "attempt": 1, "route": "anthropic", "wire": "repeated_value:requests.15.wire"},
-  {"invocation": 2, "stage": "layer1_plan", "item_id": "matrix_000008", "attempt": 2, "route": "anthropic", "wire": "repeated_value:requests.15.wire"},
-  {
-   "invocation": 1,
-   "stage": "layer1_plan",
-   "item_id": "matrix_000009",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-haiku-4-5",
-    "max_tokens": 4000,
-    "messages": [
-     {"role": "user", "content": "sha256:0e69f9f35c18b5b6d0b34ddc73022c41d600c3e18b20f9bf36198600fbf9df36 (4179 characters)"}
-    ],
-    "temperature": 0.7,
-    "thinking": {"type": "disabled"},
-    "output_config": {"effort": "medium"},
-    "system": "repeated_value:requests.9.wire.system"
-   }
-  },
-  {
-   "invocation": 1,
-   "stage": "layer1_plan",
-   "item_id": "matrix_000010",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-haiku-4-5",
-    "max_tokens": 4000,
-    "messages": [
-     {"role": "user", "content": "sha256:92d9c47b1dac8ed1452db900d66b1dea93fea2ee8cb9125609babbe5f567c44a (4413 characters)"}
-    ],
-    "temperature": 0.7,
-    "thinking": {"type": "disabled"},
-    "output_config": {"effort": "medium"},
-    "system": "repeated_value:requests.9.wire.system"
-   }
-  },
-  {
-   "invocation": 1,
-   "stage": "layer1_plan",
-   "item_id": "matrix_000011",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-haiku-4-5",
-    "max_tokens": 4000,
-    "messages": [
-     {"role": "user", "content": "sha256:38ba047f2f0dbe3f8ab2193d4f78cd5d562667c678876a06a4f932e8e42e1cf0 (4217 characters)"}
-    ],
-    "temperature": 0.7,
-    "thinking": {"type": "disabled"},
-    "output_config": {"effort": "medium"},
-    "system": "repeated_value:requests.9.wire.system"
-   }
-  },
   {
    "invocation": 1,
    "stage": "layer1_screen",
@@ -347,8 +39,8 @@
     ],
     "temperature": 0.7,
     "thinking": {"type": "disabled"},
-    "output_config": "repeated_value:requests.20.wire.output_config",
-    "system": "repeated_value:requests.20.wire.system"
+    "output_config": "repeated_value:requests.0.wire.output_config",
+    "system": "repeated_value:requests.0.wire.system"
    }
   },
   {
@@ -365,8 +57,8 @@
     ],
     "temperature": 0.7,
     "thinking": {"type": "disabled"},
-    "output_config": "repeated_value:requests.20.wire.output_config",
-    "system": "repeated_value:requests.20.wire.system"
+    "output_config": "repeated_value:requests.0.wire.output_config",
+    "system": "repeated_value:requests.0.wire.system"
    }
   },
   {
@@ -413,14 +105,322 @@
       }
      }
     },
-    "system": "repeated_value:requests.20.wire.system"
+    "system": "repeated_value:requests.0.wire.system"
    }
   },
-  {"invocation": 1, "stage": "layer1_select", "item_id": "matrix_000000", "attempt": 1, "route": "anthropic", "wire": "repeated_value:requests.23.wire"},
-  {"invocation": 1, "stage": "layer1_select", "item_id": "matrix_000000", "attempt": 2, "route": "anthropic", "wire": "repeated_value:requests.23.wire"},
   {
    "invocation": 1,
-   "stage": "layer1_select",
+   "stage": "layer2_description_rewrite",
+   "item_id": "matrix_000000",
+   "attempt": 1,
+   "route": "openai",
+   "wire": {
+    "model": "gpt-6.1-sol",
+    "input": "sha256:bfdfd4725a73a384dcda515a6d4e1e045abf2b3a778c4297171428168593174a (7365 characters)",
+    "max_output_tokens": 8000,
+    "temperature": 1.0,
+    "reasoning": {"effort": "low"},
+    "text": "repeated_value:requests.3.wire.text",
+    "instructions": "repeated_value:requests.3.wire.instructions"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer2_description_rewrite",
+   "item_id": "matrix_000002",
+   "attempt": 1,
+   "route": "openai",
+   "wire": {
+    "model": "gpt-6.1-sol",
+    "input": "sha256:f3e024b9bb48ba91e503e2239a88e91281cb86ceea3b7cf3de35af3669ed26d5 (7479 characters)",
+    "max_output_tokens": 8000,
+    "temperature": 1.0,
+    "reasoning": {"effort": "low"},
+    "text": "repeated_value:requests.3.wire.text",
+    "instructions": "repeated_value:requests.3.wire.instructions"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer2_description_rewrite",
+   "item_id": "matrix_000003",
+   "attempt": 1,
+   "route": "openai",
+   "wire": {
+    "model": "gpt-6.1-sol",
+    "input": "sha256:5b1d487f449a5f703cce5cc6d7a8e3e0c1ac9224b5d34054cb9b3633e9f52341 (7683 characters)",
+    "max_output_tokens": 8000,
+    "temperature": 1.0,
+    "reasoning": {"effort": "low"},
+    "text": "repeated_value:requests.3.wire.text",
+    "instructions": "repeated_value:requests.3.wire.instructions"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer2_description_rewrite",
+   "item_id": "matrix_000005",
+   "attempt": 1,
+   "route": "openai",
+   "wire": {
+    "model": "gpt-6.1-sol",
+    "input": "sha256:46ac3cc9a254a2f397905df5716378d43c05a7166de87df31cb60c9371c0cd8e (7104 characters)",
+    "max_output_tokens": 8000,
+    "temperature": 1.0,
+    "reasoning": {"effort": "low"},
+    "text": "repeated_value:requests.3.wire.text",
+    "instructions": "repeated_value:requests.3.wire.instructions"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer2_description_rewrite",
+   "item_id": "matrix_000006",
+   "attempt": 1,
+   "route": "openai",
+   "wire": {
+    "model": "gpt-6.1-sol",
+    "input": "sha256:8b509099db1426c46447130501c6786f62d815b2151c416bf66629c4ed5007d0 (7639 characters)",
+    "max_output_tokens": 8000,
+    "temperature": 1.0,
+    "reasoning": {"effort": "low"},
+    "text": "repeated_value:requests.3.wire.text",
+    "instructions": "repeated_value:requests.3.wire.instructions"
+   }
+  },
+  {
+   "invocation": 2,
+   "stage": "layer2_description_rewrite",
+   "item_id": "matrix_000008",
+   "attempt": 1,
+   "route": "openai",
+   "wire": {
+    "model": "gpt-6.1-sol",
+    "input": "sha256:06e0621e8ce18d6b4d021fe024362db391d8a6e2f05974cfa7b7aaeab352aba8 (7743 characters)",
+    "max_output_tokens": 8000,
+    "temperature": 1.0,
+    "reasoning": {"effort": "low"},
+    "text": "repeated_value:requests.3.wire.text",
+    "instructions": "repeated_value:requests.3.wire.instructions"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer2_description_rewrite",
+   "item_id": "matrix_000009",
+   "attempt": 1,
+   "route": "openai",
+   "wire": {
+    "model": "gpt-6.1-sol",
+    "input": "sha256:1badf5799c220f63a26afdb5ccddc6b46b3b1fb668153633f88115ebd30c093e (7559 characters)",
+    "max_output_tokens": 8000,
+    "temperature": 1.0,
+    "reasoning": {"effort": "low"},
+    "text": "repeated_value:requests.3.wire.text",
+    "instructions": "repeated_value:requests.3.wire.instructions"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer2_description_rewrite",
+   "item_id": "matrix_000010",
+   "attempt": 1,
+   "route": "openai",
+   "wire": {
+    "model": "gpt-6.1-sol",
+    "input": "sha256:6088ed13d4502e23ae51b167262193b666dba115f9dba6e2bb73f82ae90e112a (7766 characters)",
+    "max_output_tokens": 8000,
+    "temperature": 1.0,
+    "reasoning": {"effort": "low"},
+    "text": "repeated_value:requests.3.wire.text",
+    "instructions": "repeated_value:requests.3.wire.instructions"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer2_description_rewrite",
+   "item_id": "matrix_000011",
+   "attempt": 1,
+   "route": "openai",
+   "wire": {
+    "model": "gpt-6.1-sol",
+    "input": "sha256:eee77370351751d02b3ec9f5db58434332f32ab30e46fafd4567a8c635e88f0c (7616 characters)",
+    "max_output_tokens": 8000,
+    "temperature": 1.0,
+    "reasoning": {"effort": "low"},
+    "text": "repeated_value:requests.3.wire.text",
+    "instructions": "repeated_value:requests.3.wire.instructions"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer2_description_write",
+   "item_id": "matrix_000000",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-haiku-4-5",
+    "max_tokens": 4000,
+    "messages": [
+     {"role": "user", "content": "sha256:e4e94b40a8468b8763deba2b7e1504b8431b7f04e2b0f6912dc9f99f8cd56528 (3908 characters)"}
+    ],
+    "temperature": 0.7,
+    "thinking": {"type": "disabled"},
+    "output_config": {"effort": "medium"},
+    "system": "repeated_value:requests.12.wire.system"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer2_description_write",
+   "item_id": "matrix_000001",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-haiku-4-5",
+    "max_tokens": 4000,
+    "messages": [
+     {"role": "user", "content": "sha256:b4279aab15aab447cc6397c5c3f204840e69ce008884d80c2f0ffbbfbbdcfd77 (4060 characters)"}
+    ],
+    "temperature": 0.7,
+    "thinking": {"type": "disabled"},
+    "output_config": {"effort": "medium"},
+    "system": "repeated_value:requests.12.wire.system"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer2_description_write",
+   "item_id": "matrix_000002",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-haiku-4-5",
+    "max_tokens": 4000,
+    "messages": [
+     {"role": "user", "content": "sha256:2681a57f06330adc8e191b07ac6244ebb9627f6097a85e510f60ade56ac32817 (4032 characters)"}
+    ],
+    "temperature": 0.7,
+    "thinking": {"type": "disabled"},
+    "output_config": {"effort": "medium"},
+    "system": "repeated_value:requests.12.wire.system"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer2_description_write",
+   "item_id": "matrix_000003",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-haiku-4-5",
+    "max_tokens": 4000,
+    "messages": [
+     {"role": "user", "content": "sha256:cb8a5156bb5063988b1f6969776823f4f1be59168a36296ea720713156c86c34 (4311 characters)"}
+    ],
+    "temperature": 0.7,
+    "thinking": {"type": "disabled"},
+    "output_config": {"effort": "medium"},
+    "system": "repeated_value:requests.12.wire.system"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer2_description_write",
+   "item_id": "matrix_000005",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-haiku-4-5",
+    "max_tokens": 4000,
+    "messages": [
+     {"role": "user", "content": "sha256:77dffbb578c46d5136b378b7c3623065d42e913743342a36e5dbc0ce1fc34095 (3696 characters)"}
+    ],
+    "temperature": 0.7,
+    "thinking": {"type": "disabled"},
+    "output_config": {"effort": "medium"},
+    "system": "repeated_value:requests.12.wire.system"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer2_description_write",
+   "item_id": "matrix_000006",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-haiku-4-5",
+    "max_tokens": 4000,
+    "messages": [
+     {"role": "user", "content": "sha256:4aa1983487650c956361f8f1fe9002807824422f8e75481e77eacd465239083a (4224 characters)"}
+    ],
+    "temperature": 0.7,
+    "thinking": {"type": "disabled"},
+    "output_config": {"effort": "medium"},
+    "system": "repeated_value:requests.12.wire.system"
+   }
+  },
+  {"invocation": 1, "stage": "layer2_description_write", "item_id": "matrix_000008", "attempt": 1, "route": "anthropic", "wire": "repeated_value:requests.18.wire"},
+  {"invocation": 2, "stage": "layer2_description_write", "item_id": "matrix_000008", "attempt": 2, "route": "anthropic", "wire": "repeated_value:requests.18.wire"},
+  {
+   "invocation": 1,
+   "stage": "layer2_description_write",
+   "item_id": "matrix_000009",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-haiku-4-5",
+    "max_tokens": 4000,
+    "messages": [
+     {"role": "user", "content": "sha256:0e69f9f35c18b5b6d0b34ddc73022c41d600c3e18b20f9bf36198600fbf9df36 (4179 characters)"}
+    ],
+    "temperature": 0.7,
+    "thinking": {"type": "disabled"},
+    "output_config": {"effort": "medium"},
+    "system": "repeated_value:requests.12.wire.system"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer2_description_write",
+   "item_id": "matrix_000010",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-haiku-4-5",
+    "max_tokens": 4000,
+    "messages": [
+     {"role": "user", "content": "sha256:92d9c47b1dac8ed1452db900d66b1dea93fea2ee8cb9125609babbe5f567c44a (4413 characters)"}
+    ],
+    "temperature": 0.7,
+    "thinking": {"type": "disabled"},
+    "output_config": {"effort": "medium"},
+    "system": "repeated_value:requests.12.wire.system"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer2_description_write",
+   "item_id": "matrix_000011",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-haiku-4-5",
+    "max_tokens": 4000,
+    "messages": [
+     {"role": "user", "content": "sha256:38ba047f2f0dbe3f8ab2193d4f78cd5d562667c678876a06a4f932e8e42e1cf0 (4217 characters)"}
+    ],
+    "temperature": 0.7,
+    "thinking": {"type": "disabled"},
+    "output_config": {"effort": "medium"},
+    "system": "repeated_value:requests.12.wire.system"
+   }
+  },
+  {"invocation": 1, "stage": "layer3_consideration_scoring", "item_id": "matrix_000000", "attempt": 1, "route": "anthropic", "wire": "repeated_value:requests.23.wire"},
+  {"invocation": 1, "stage": "layer3_consideration_scoring", "item_id": "matrix_000000", "attempt": 2, "route": "anthropic", "wire": "repeated_value:requests.23.wire"},
+  {
+   "invocation": 1,
+   "stage": "layer3_consideration_scoring",
    "item_id": "matrix_000003",
    "attempt": 1,
    "route": "anthropic",
@@ -440,7 +440,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer1_select",
+   "stage": "layer3_consideration_scoring",
    "item_id": "matrix_000006",
    "attempt": 1,
    "route": "anthropic",
@@ -460,7 +460,7 @@
   },
   {
    "invocation": 2,
-   "stage": "layer1_select",
+   "stage": "layer3_consideration_scoring",
    "item_id": "matrix_000008",
    "attempt": 1,
    "route": "anthropic",
@@ -480,7 +480,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer1_select",
+   "stage": "layer3_consideration_scoring",
    "item_id": "matrix_000009",
    "attempt": 1,
    "route": "anthropic",
@@ -500,7 +500,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer1_select",
+   "stage": "layer3_consideration_scoring",
    "item_id": "matrix_000010",
    "attempt": 1,
    "route": "anthropic",
@@ -520,7 +520,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer1_select",
+   "stage": "layer3_consideration_scoring",
    "item_id": "matrix_000011",
    "attempt": 1,
    "route": "anthropic",
@@ -540,128 +540,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer2_draft",
-   "item_id": "matrix_000000",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-sonnet-5-5",
-    "max_tokens": 11000,
-    "messages": [
-     {"role": "user", "content": "sha256:322fb4575a406c6e83ce78af04ed313b0e500325029b9f2ee9679a9509c4533d (3532 characters)"}
-    ],
-    "thinking": {"type": "adaptive", "display": "summarized"},
-    "output_config": {"effort": "max"},
-    "system": "repeated_value:requests.31.wire.system"
-   }
-  },
-  {
-   "invocation": 1,
-   "stage": "layer2_draft",
-   "item_id": "matrix_000003",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-sonnet-5-5",
-    "max_tokens": 11000,
-    "messages": [
-     {"role": "user", "content": "sha256:fada8d5cb60115eda02d3efb26ac1e4be9b3d083cba494f3e526e5711eef1d7c (3554 characters)"}
-    ],
-    "thinking": {"type": "adaptive", "display": "summarized"},
-    "output_config": {"effort": "max"},
-    "system": "repeated_value:requests.31.wire.system"
-   }
-  },
-  {
-   "invocation": 1,
-   "stage": "layer2_draft",
-   "item_id": "matrix_000005",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-sonnet-5-5",
-    "max_tokens": 11000,
-    "messages": [
-     {"role": "user", "content": "sha256:1f213f939bc4e8c2f6a50d22a230ed912bd0002155c29faa0458632b42cd3524 (2121 characters)"}
-    ],
-    "thinking": {"type": "adaptive", "display": "summarized"},
-    "output_config": {"effort": "max"},
-    "system": "repeated_value:requests.31.wire.system"
-   }
-  },
-  {
-   "invocation": 1,
-   "stage": "layer2_draft",
-   "item_id": "matrix_000006",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-sonnet-5-5",
-    "max_tokens": 11000,
-    "messages": [
-     {"role": "user", "content": "sha256:d39737b37ddb4b44812e542f0a29f3fd5375b06e3bb932b8d89b3ea721755987 (3625 characters)"}
-    ],
-    "thinking": {"type": "adaptive", "display": "summarized"},
-    "output_config": {"effort": "max"},
-    "system": "repeated_value:requests.31.wire.system"
-   }
-  },
-  {
-   "invocation": 2,
-   "stage": "layer2_draft",
-   "item_id": "matrix_000008",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-sonnet-5-5",
-    "max_tokens": 11000,
-    "messages": [
-     {"role": "user", "content": "sha256:cf2e5a911daaf2e61b0aad4617f710f67f8152608b186197c52376d6c1b5e041 (3398 characters)"}
-    ],
-    "thinking": {"type": "adaptive", "display": "summarized"},
-    "output_config": {"effort": "max"},
-    "system": "repeated_value:requests.31.wire.system"
-   }
-  },
-  {"invocation": 1, "stage": "layer2_draft", "item_id": "matrix_000009", "attempt": 1, "route": "anthropic", "wire": "repeated_value:requests.36.wire"},
-  {"invocation": 2, "stage": "layer2_draft", "item_id": "matrix_000009", "attempt": 2, "route": "anthropic", "wire": "repeated_value:requests.36.wire"},
-  {
-   "invocation": 1,
-   "stage": "layer2_draft",
-   "item_id": "matrix_000010",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-sonnet-5-5",
-    "max_tokens": 11000,
-    "messages": [
-     {"role": "user", "content": "sha256:51bd2c1119149266d5ce38e1a3576e9fef81760fa9ee1aebabfc673550693c6f (3423 characters)"}
-    ],
-    "thinking": {"type": "adaptive", "display": "summarized"},
-    "output_config": {"effort": "max"},
-    "system": "repeated_value:requests.31.wire.system"
-   }
-  },
-  {
-   "invocation": 1,
-   "stage": "layer2_draft",
-   "item_id": "matrix_000011",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-sonnet-5-5",
-    "max_tokens": 11000,
-    "messages": [
-     {"role": "user", "content": "sha256:5150c36d4e9779431196509e9db0d81379ef6ab3bb0ae4dbbd68412b0dc63dd7 (2633 characters)"}
-    ],
-    "thinking": {"type": "adaptive", "display": "summarized"},
-    "output_config": {"effort": "max"},
-    "system": "repeated_value:requests.31.wire.system"
-   }
-  },
-  {
-   "invocation": 1,
-   "stage": "layer3_critique",
+   "stage": "layer4_critique",
    "item_id": "matrix_000000",
    "attempt": 1,
    "route": "anthropic",
@@ -673,12 +552,12 @@
     ],
     "thinking": {"type": "adaptive", "display": "summarized"},
     "output_config": {"effort": "low"},
-    "system": "repeated_value:requests.40.wire.system"
+    "system": "repeated_value:requests.31.wire.system"
    }
   },
   {
    "invocation": 1,
-   "stage": "layer3_critique",
+   "stage": "layer4_critique",
    "item_id": "matrix_000003",
    "attempt": 1,
    "route": "anthropic",
@@ -690,12 +569,12 @@
     ],
     "thinking": {"type": "adaptive", "display": "summarized"},
     "output_config": {"effort": "low"},
-    "system": "repeated_value:requests.40.wire.system"
+    "system": "repeated_value:requests.31.wire.system"
    }
   },
   {
    "invocation": 1,
-   "stage": "layer3_critique",
+   "stage": "layer4_critique",
    "item_id": "matrix_000005",
    "attempt": 1,
    "route": "anthropic",
@@ -707,12 +586,12 @@
     ],
     "thinking": {"type": "adaptive", "display": "summarized"},
     "output_config": {"effort": "low"},
-    "system": "repeated_value:requests.40.wire.system"
+    "system": "repeated_value:requests.31.wire.system"
    }
   },
   {
    "invocation": 1,
-   "stage": "layer3_critique",
+   "stage": "layer4_critique",
    "item_id": "matrix_000006",
    "attempt": 1,
    "route": "anthropic",
@@ -724,12 +603,12 @@
     ],
     "thinking": {"type": "adaptive", "display": "summarized"},
     "output_config": {"effort": "low"},
-    "system": "repeated_value:requests.40.wire.system"
+    "system": "repeated_value:requests.31.wire.system"
    }
   },
   {
    "invocation": 2,
-   "stage": "layer3_critique",
+   "stage": "layer4_critique",
    "item_id": "matrix_000008",
    "attempt": 1,
    "route": "anthropic",
@@ -741,12 +620,12 @@
     ],
     "thinking": {"type": "adaptive", "display": "summarized"},
     "output_config": {"effort": "low"},
-    "system": "repeated_value:requests.40.wire.system"
+    "system": "repeated_value:requests.31.wire.system"
    }
   },
   {
    "invocation": 2,
-   "stage": "layer3_critique",
+   "stage": "layer4_critique",
    "item_id": "matrix_000009",
    "attempt": 1,
    "route": "anthropic",
@@ -758,12 +637,12 @@
     ],
     "thinking": {"type": "adaptive", "display": "summarized"},
     "output_config": {"effort": "low"},
-    "system": "repeated_value:requests.40.wire.system"
+    "system": "repeated_value:requests.31.wire.system"
    }
   },
   {
    "invocation": 1,
-   "stage": "layer3_critique",
+   "stage": "layer4_critique",
    "item_id": "matrix_000010",
    "attempt": 1,
    "route": "anthropic",
@@ -775,12 +654,12 @@
     ],
     "thinking": {"type": "adaptive", "display": "summarized"},
     "output_config": {"effort": "low"},
-    "system": "repeated_value:requests.40.wire.system"
+    "system": "repeated_value:requests.31.wire.system"
    }
   },
   {
    "invocation": 1,
-   "stage": "layer3_critique",
+   "stage": "layer4_critique",
    "item_id": "matrix_000011",
    "attempt": 1,
    "route": "anthropic",
@@ -792,12 +671,133 @@
     ],
     "thinking": {"type": "adaptive", "display": "summarized"},
     "output_config": {"effort": "low"},
-    "system": "repeated_value:requests.40.wire.system"
+    "system": "repeated_value:requests.31.wire.system"
    }
   },
   {
    "invocation": 1,
-   "stage": "layer3_revise",
+   "stage": "layer4_draft",
+   "item_id": "matrix_000000",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-sonnet-5-5",
+    "max_tokens": 11000,
+    "messages": [
+     {"role": "user", "content": "sha256:322fb4575a406c6e83ce78af04ed313b0e500325029b9f2ee9679a9509c4533d (3532 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "max"},
+    "system": "repeated_value:requests.39.wire.system"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer4_draft",
+   "item_id": "matrix_000003",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-sonnet-5-5",
+    "max_tokens": 11000,
+    "messages": [
+     {"role": "user", "content": "sha256:fada8d5cb60115eda02d3efb26ac1e4be9b3d083cba494f3e526e5711eef1d7c (3554 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "max"},
+    "system": "repeated_value:requests.39.wire.system"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer4_draft",
+   "item_id": "matrix_000005",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-sonnet-5-5",
+    "max_tokens": 11000,
+    "messages": [
+     {"role": "user", "content": "sha256:1f213f939bc4e8c2f6a50d22a230ed912bd0002155c29faa0458632b42cd3524 (2121 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "max"},
+    "system": "repeated_value:requests.39.wire.system"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer4_draft",
+   "item_id": "matrix_000006",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-sonnet-5-5",
+    "max_tokens": 11000,
+    "messages": [
+     {"role": "user", "content": "sha256:d39737b37ddb4b44812e542f0a29f3fd5375b06e3bb932b8d89b3ea721755987 (3625 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "max"},
+    "system": "repeated_value:requests.39.wire.system"
+   }
+  },
+  {
+   "invocation": 2,
+   "stage": "layer4_draft",
+   "item_id": "matrix_000008",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-sonnet-5-5",
+    "max_tokens": 11000,
+    "messages": [
+     {"role": "user", "content": "sha256:cf2e5a911daaf2e61b0aad4617f710f67f8152608b186197c52376d6c1b5e041 (3398 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "max"},
+    "system": "repeated_value:requests.39.wire.system"
+   }
+  },
+  {"invocation": 1, "stage": "layer4_draft", "item_id": "matrix_000009", "attempt": 1, "route": "anthropic", "wire": "repeated_value:requests.44.wire"},
+  {"invocation": 2, "stage": "layer4_draft", "item_id": "matrix_000009", "attempt": 2, "route": "anthropic", "wire": "repeated_value:requests.44.wire"},
+  {
+   "invocation": 1,
+   "stage": "layer4_draft",
+   "item_id": "matrix_000010",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-sonnet-5-5",
+    "max_tokens": 11000,
+    "messages": [
+     {"role": "user", "content": "sha256:51bd2c1119149266d5ce38e1a3576e9fef81760fa9ee1aebabfc673550693c6f (3423 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "max"},
+    "system": "repeated_value:requests.39.wire.system"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer4_draft",
+   "item_id": "matrix_000011",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-sonnet-5-5",
+    "max_tokens": 11000,
+    "messages": [
+     {"role": "user", "content": "sha256:5150c36d4e9779431196509e9db0d81379ef6ab3bb0ae4dbbd68412b0dc63dd7 (2633 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "max"},
+    "system": "repeated_value:requests.39.wire.system"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer4_revise",
    "item_id": "matrix_000000",
    "attempt": 1,
    "route": "anthropic",
@@ -809,12 +809,12 @@
     ],
     "thinking": {"type": "adaptive", "display": "summarized"},
     "output_config": {"effort": "medium"},
-    "system": "repeated_value:requests.40.wire.system"
+    "system": "repeated_value:requests.31.wire.system"
    }
   },
   {
    "invocation": 1,
-   "stage": "layer3_revise",
+   "stage": "layer4_revise",
    "item_id": "matrix_000003",
    "attempt": 1,
    "route": "anthropic",
@@ -826,12 +826,12 @@
     ],
     "thinking": {"type": "adaptive", "display": "summarized"},
     "output_config": {"effort": "medium"},
-    "system": "repeated_value:requests.40.wire.system"
+    "system": "repeated_value:requests.31.wire.system"
    }
   },
   {
    "invocation": 1,
-   "stage": "layer3_revise",
+   "stage": "layer4_revise",
    "item_id": "matrix_000005",
    "attempt": 1,
    "route": "anthropic",
@@ -843,12 +843,12 @@
     ],
     "thinking": {"type": "adaptive", "display": "summarized"},
     "output_config": {"effort": "medium"},
-    "system": "repeated_value:requests.40.wire.system"
+    "system": "repeated_value:requests.31.wire.system"
    }
   },
   {
    "invocation": 1,
-   "stage": "layer3_revise",
+   "stage": "layer4_revise",
    "item_id": "matrix_000006",
    "attempt": 1,
    "route": "anthropic",
@@ -860,12 +860,12 @@
     ],
     "thinking": {"type": "adaptive", "display": "summarized"},
     "output_config": {"effort": "medium"},
-    "system": "repeated_value:requests.40.wire.system"
+    "system": "repeated_value:requests.31.wire.system"
    }
   },
   {
    "invocation": 2,
-   "stage": "layer3_revise",
+   "stage": "layer4_revise",
    "item_id": "matrix_000008",
    "attempt": 1,
    "route": "anthropic",
@@ -877,12 +877,12 @@
     ],
     "thinking": {"type": "adaptive", "display": "summarized"},
     "output_config": {"effort": "medium"},
-    "system": "repeated_value:requests.40.wire.system"
+    "system": "repeated_value:requests.31.wire.system"
    }
   },
   {
    "invocation": 2,
-   "stage": "layer3_revise",
+   "stage": "layer4_revise",
    "item_id": "matrix_000009",
    "attempt": 1,
    "route": "anthropic",
@@ -894,14 +894,14 @@
     ],
     "thinking": {"type": "adaptive", "display": "summarized"},
     "output_config": {"effort": "medium"},
-    "system": "repeated_value:requests.40.wire.system"
+    "system": "repeated_value:requests.31.wire.system"
    }
   },
-  {"invocation": 1, "stage": "layer3_revise", "item_id": "matrix_000010", "attempt": 1, "route": "anthropic", "wire": "repeated_value:requests.54.wire"},
-  {"invocation": 2, "stage": "layer3_revise", "item_id": "matrix_000010", "attempt": 2, "route": "anthropic", "wire": "repeated_value:requests.54.wire"},
+  {"invocation": 1, "stage": "layer4_revise", "item_id": "matrix_000010", "attempt": 1, "route": "anthropic", "wire": "repeated_value:requests.54.wire"},
+  {"invocation": 2, "stage": "layer4_revise", "item_id": "matrix_000010", "attempt": 2, "route": "anthropic", "wire": "repeated_value:requests.54.wire"},
   {
    "invocation": 1,
-   "stage": "layer3_revise",
+   "stage": "layer4_revise",
    "item_id": "matrix_000011",
    "attempt": 1,
    "route": "anthropic",
@@ -913,12 +913,12 @@
     ],
     "thinking": {"type": "adaptive", "display": "summarized"},
     "output_config": {"effort": "medium"},
-    "system": "repeated_value:requests.40.wire.system"
+    "system": "repeated_value:requests.31.wire.system"
    }
   },
   {
    "invocation": 1,
-   "stage": "layer4_score",
+   "stage": "layer5_score",
    "item_id": "matrix_000000",
    "attempt": 1,
    "route": "anthropic",
@@ -936,7 +936,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer4_score",
+   "stage": "layer5_score",
    "item_id": "matrix_000003",
    "attempt": 1,
    "route": "anthropic",
@@ -954,7 +954,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer4_score",
+   "stage": "layer5_score",
    "item_id": "matrix_000005",
    "attempt": 1,
    "route": "anthropic",
@@ -972,7 +972,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer4_score",
+   "stage": "layer5_score",
    "item_id": "matrix_000006",
    "attempt": 1,
    "route": "anthropic",
@@ -990,7 +990,7 @@
   },
   {
    "invocation": 2,
-   "stage": "layer4_score",
+   "stage": "layer5_score",
    "item_id": "matrix_000008",
    "attempt": 1,
    "route": "anthropic",
@@ -1008,7 +1008,7 @@
   },
   {
    "invocation": 2,
-   "stage": "layer4_score",
+   "stage": "layer5_score",
    "item_id": "matrix_000009",
    "attempt": 1,
    "route": "anthropic",
@@ -1026,7 +1026,7 @@
   },
   {
    "invocation": 2,
-   "stage": "layer4_score",
+   "stage": "layer5_score",
    "item_id": "matrix_000010",
    "attempt": 1,
    "route": "anthropic",
@@ -1044,7 +1044,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer4_score",
+   "stage": "layer5_score",
    "item_id": "matrix_000011",
    "attempt": 1,
    "route": "anthropic",
@@ -1106,16 +1106,46 @@
  },
  "stage_files_by_invocation": {
   "1": {
-   "layer1/_checkpoint.json": {
+   "layer1_deal_variables_and_screen/_screen_checkpoint.json": "repeated_value:stage_files_by_invocation.1.layer1_deal_variables_and_screen/_screen_checkpoint.json",
+   "layer1_deal_variables_and_screen/screen_batches.jsonl": "repeated_value:stage_files_by_invocation.1.layer1_deal_variables_and_screen/screen_batches.jsonl",
+   "layer1_deal_variables_and_screen/screen_hands.jsonl": "repeated_value:stage_files_by_invocation.1.layer1_deal_variables_and_screen/screen_hands.jsonl",
+   "layer1_deal_variables_and_screen/screen_judgments.jsonl": "repeated_value:stage_files_by_invocation.1.layer1_deal_variables_and_screen/screen_judgments.jsonl",
+   "layer1_deal_variables_and_screen/screen_rejections.jsonl": "repeated_value:stage_files_by_invocation.1.layer1_deal_variables_and_screen/screen_rejections.jsonl",
+   "layer1_deal_variables_and_screen/screen_rounds.jsonl": "repeated_value:stage_files_by_invocation.1.layer1_deal_variables_and_screen/screen_rounds.jsonl",
+   "layer1_deal_variables_and_screen/screen_summary.json": "repeated_value:stage_files_by_invocation.1.layer1_deal_variables_and_screen/screen_summary.json",
+   "layer1_deal_variables_and_screen/screened_hands.jsonl": "repeated_value:stage_files_by_invocation.1.layer1_deal_variables_and_screen/screened_hands.jsonl",
+   "layer2_description_write_and_description_rewrite/_checkpoint.json": {
     "completed": ["matrix_000000", "matrix_000001", "matrix_000002", "matrix_000003", "matrix_000005", "matrix_000006", "matrix_000009", "matrix_000010", "matrix_000011"],
     "last_updated": "<timestamp>"
    },
-   "layer1/_description_rewrite_checkpoint.json": {
+   "layer2_description_write_and_description_rewrite/_description_rewrite_checkpoint.json": {
     "completed": ["matrix_000000", "matrix_000002", "matrix_000003", "matrix_000005", "matrix_000006", "matrix_000009", "matrix_000010", "matrix_000011"],
     "last_updated": "<timestamp>"
    },
-   "layer1/_screen_checkpoint.json": "repeated_value:stage_files_by_invocation.1.layer1/_screen_checkpoint.json",
-   "layer1/consideration_coverage.json": {
+   "layer2_description_write_and_description_rewrite/description_rewrite_rejections.jsonl": "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/description_rewrite_rejections.jsonl",
+   "layer2_description_write_and_description_rewrite/description_rewrites.jsonl": [
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/description_rewrites.jsonl.0",
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/description_rewrites.jsonl.1",
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/description_rewrites.jsonl.2",
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/description_rewrites.jsonl.3",
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/description_rewrites.jsonl.4",
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/description_rewrites.jsonl.5",
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/description_rewrites.jsonl.6",
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/description_rewrites.jsonl.7"
+   ],
+   "layer2_description_write_and_description_rewrite/plans.jsonl": [
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.0",
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.1",
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.2",
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.3",
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.4",
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.5",
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.6",
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.7",
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.8"
+   ],
+   "layer2_description_write_and_description_rewrite/prompts.jsonl": "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/prompts.jsonl",
+   "layer3_consideration_scoring_and_selection/consideration_coverage.json": {
     "eligible_documents": 6,
     "digital_mind_documents": 0,
     "scored_documents": 6,
@@ -1214,8 +1244,8 @@
       "documents_scoring_at_least_threshold": 0,
       "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 0}
      },
-     "repeated_value:stage_files_by_invocation.1.layer1/consideration_coverage.json.entries.8",
-     "repeated_value:stage_files_by_invocation.1.layer1/consideration_coverage.json.entries.9",
+     "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_coverage.json.entries.8",
+     "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_coverage.json.entries.9",
      {
       "label": "Weighing evidence for sentience",
       "list": "epistemic",
@@ -1358,19 +1388,19 @@
     "documents_with_two_or_more_in_one_list": 3,
     "document_ids_with_no_consideration": ["matrix_000011"]
    },
-   "layer1/consideration_scores.jsonl": [
-    "repeated_value:stage_files_by_invocation.1.layer1/consideration_scores.jsonl.0",
-    "repeated_value:stage_files_by_invocation.1.layer1/consideration_scores.jsonl.1",
-    "repeated_value:stage_files_by_invocation.1.layer1/consideration_scores.jsonl.2",
-    "repeated_value:stage_files_by_invocation.1.layer1/consideration_scores.jsonl.3",
-    "repeated_value:stage_files_by_invocation.1.layer1/consideration_scores.jsonl.4",
-    "repeated_value:stage_files_by_invocation.1.layer1/consideration_scores.jsonl.5"
+   "layer3_consideration_scoring_and_selection/consideration_scores.jsonl": [
+    "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_scores.jsonl.0",
+    "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_scores.jsonl.1",
+    "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_scores.jsonl.2",
+    "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_scores.jsonl.3",
+    "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_scores.jsonl.4",
+    "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_scores.jsonl.5"
    ],
-   "layer1/consideration_selections.jsonl": [
-    "repeated_value:stage_files_by_invocation.1.layer1/consideration_selections.jsonl.0",
-    "repeated_value:stage_files_by_invocation.1.layer1/consideration_selections.jsonl.1",
-    "repeated_value:stage_files_by_invocation.1.layer1/consideration_selections.jsonl.2",
-    "repeated_value:stage_files_by_invocation.1.layer1/consideration_selections.jsonl.3",
+   "layer3_consideration_scoring_and_selection/consideration_selections.jsonl": [
+    "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.0",
+    "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.1",
+    "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.2",
+    "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.3",
     {
      "prompt_id": "matrix_000010",
      "outcomes": [
@@ -1378,89 +1408,106 @@
       {"list": "epistemic", "label": null, "reason": "", "status": "none"}
      ]
     },
-    "repeated_value:stage_files_by_invocation.1.layer1/consideration_selections.jsonl.5"
+    "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.5"
    ],
-   "layer1/description_rewrite_rejections.jsonl": "repeated_value:stage_files_by_invocation.1.layer1/description_rewrite_rejections.jsonl",
-   "layer1/description_rewrites.jsonl": [
-    "repeated_value:stage_files_by_invocation.1.layer1/description_rewrites.jsonl.0",
-    "repeated_value:stage_files_by_invocation.1.layer1/description_rewrites.jsonl.1",
-    "repeated_value:stage_files_by_invocation.1.layer1/description_rewrites.jsonl.2",
-    "repeated_value:stage_files_by_invocation.1.layer1/description_rewrites.jsonl.3",
-    "repeated_value:stage_files_by_invocation.1.layer1/description_rewrites.jsonl.4",
-    "repeated_value:stage_files_by_invocation.1.layer1/description_rewrites.jsonl.5",
-    "repeated_value:stage_files_by_invocation.1.layer1/description_rewrites.jsonl.6",
-    "repeated_value:stage_files_by_invocation.1.layer1/description_rewrites.jsonl.7"
-   ],
-   "layer1/plans.jsonl": [
-    "repeated_value:stage_files_by_invocation.1.layer1/plans.jsonl.0",
-    "repeated_value:stage_files_by_invocation.1.layer1/plans.jsonl.1",
-    "repeated_value:stage_files_by_invocation.1.layer1/plans.jsonl.2",
-    "repeated_value:stage_files_by_invocation.1.layer1/plans.jsonl.3",
-    "repeated_value:stage_files_by_invocation.1.layer1/plans.jsonl.4",
-    "repeated_value:stage_files_by_invocation.1.layer1/plans.jsonl.5",
-    "repeated_value:stage_files_by_invocation.1.layer1/plans.jsonl.6",
-    "repeated_value:stage_files_by_invocation.1.layer1/plans.jsonl.7",
-    "repeated_value:stage_files_by_invocation.1.layer1/plans.jsonl.8"
-   ],
-   "layer1/prompts.jsonl": "repeated_value:stage_files_by_invocation.1.layer1/prompts.jsonl",
-   "layer1/screen_batches.jsonl": "repeated_value:stage_files_by_invocation.1.layer1/screen_batches.jsonl",
-   "layer1/screen_hands.jsonl": "repeated_value:stage_files_by_invocation.1.layer1/screen_hands.jsonl",
-   "layer1/screen_judgments.jsonl": "repeated_value:stage_files_by_invocation.1.layer1/screen_judgments.jsonl",
-   "layer1/screen_rejections.jsonl": "repeated_value:stage_files_by_invocation.1.layer1/screen_rejections.jsonl",
-   "layer1/screen_rounds.jsonl": "repeated_value:stage_files_by_invocation.1.layer1/screen_rounds.jsonl",
-   "layer1/screen_summary.json": "repeated_value:stage_files_by_invocation.1.layer1/screen_summary.json",
-   "layer1/screened_hands.jsonl": "repeated_value:stage_files_by_invocation.1.layer1/screened_hands.jsonl",
-   "layer2/_checkpoint.json": {
+   "layer4_draft_critique_and_revise/_checkpoint.json": "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/_checkpoint.json",
+   "layer4_draft_critique_and_revise/_draft_checkpoint.json": {
     "completed": ["matrix_000000", "matrix_000003", "matrix_000005", "matrix_000006", "matrix_000010", "matrix_000011"],
     "last_updated": "<timestamp>"
    },
-   "layer2/drafts.jsonl": [
-    "repeated_value:stage_files_by_invocation.1.layer2/drafts.jsonl.0",
-    "repeated_value:stage_files_by_invocation.1.layer2/drafts.jsonl.1",
-    "repeated_value:stage_files_by_invocation.1.layer2/drafts.jsonl.2",
-    "repeated_value:stage_files_by_invocation.1.layer2/drafts.jsonl.3",
-    "repeated_value:stage_files_by_invocation.1.layer2/drafts.jsonl.4",
-    "repeated_value:stage_files_by_invocation.1.layer2/drafts.jsonl.5"
+   "layer4_draft_critique_and_revise/critiques.jsonl": [
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/critiques.jsonl.0",
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/critiques.jsonl.1",
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/critiques.jsonl.2",
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/critiques.jsonl.3",
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/critiques.jsonl.4",
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/critiques.jsonl.5"
    ],
-   "layer3/_checkpoint.json": "repeated_value:stage_files_by_invocation.1.layer3/_checkpoint.json",
-   "layer3/critiques.jsonl": [
-    "repeated_value:stage_files_by_invocation.1.layer3/critiques.jsonl.0",
-    "repeated_value:stage_files_by_invocation.1.layer3/critiques.jsonl.1",
-    "repeated_value:stage_files_by_invocation.1.layer3/critiques.jsonl.2",
-    "repeated_value:stage_files_by_invocation.1.layer3/critiques.jsonl.3",
-    "repeated_value:stage_files_by_invocation.1.layer3/critiques.jsonl.4",
-    "repeated_value:stage_files_by_invocation.1.layer3/critiques.jsonl.5"
+   "layer4_draft_critique_and_revise/drafts.jsonl": [
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/drafts.jsonl.0",
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/drafts.jsonl.1",
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/drafts.jsonl.2",
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/drafts.jsonl.3",
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/drafts.jsonl.4",
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/drafts.jsonl.5"
    ],
-   "layer3/rewrites.jsonl": [
-    "repeated_value:stage_files_by_invocation.1.layer3/rewrites.jsonl.0",
-    "repeated_value:stage_files_by_invocation.1.layer3/rewrites.jsonl.1",
-    "repeated_value:stage_files_by_invocation.1.layer3/rewrites.jsonl.2",
-    "repeated_value:stage_files_by_invocation.1.layer3/rewrites.jsonl.3",
-    "repeated_value:stage_files_by_invocation.1.layer3/rewrites.jsonl.4"
+   "layer4_draft_critique_and_revise/rewrites.jsonl": [
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/rewrites.jsonl.0",
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/rewrites.jsonl.1",
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/rewrites.jsonl.2",
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/rewrites.jsonl.3",
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/rewrites.jsonl.4"
    ],
-   "layer4/_checkpoint.json": "repeated_value:stage_files_by_invocation.1.layer3/_checkpoint.json",
-   "layer4/near_dup_dropped.jsonl": [
+   "layer5_score_and_final_selection/_checkpoint.json": "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/_checkpoint.json",
+   "layer5_score_and_final_selection/near_dup_dropped.jsonl": [
     {"doc_id": "matrix_000006", "kept_doc_id": "matrix_000000", "similarity": 1.0}
    ],
-   "layer4/scores.jsonl": [
-    "repeated_value:stage_files_by_invocation.1.layer4/scores.jsonl.0",
-    "repeated_value:stage_files_by_invocation.1.layer4/scores.jsonl.1",
-    "repeated_value:stage_files_by_invocation.1.layer4/scores.jsonl.2",
-    "repeated_value:stage_files_by_invocation.1.layer4/scores.jsonl.3",
-    "repeated_value:stage_files_by_invocation.1.layer4/scores.jsonl.4"
+   "layer5_score_and_final_selection/scores.jsonl": [
+    "repeated_value:stage_files_by_invocation.1.layer5_score_and_final_selection/scores.jsonl.0",
+    "repeated_value:stage_files_by_invocation.1.layer5_score_and_final_selection/scores.jsonl.1",
+    "repeated_value:stage_files_by_invocation.1.layer5_score_and_final_selection/scores.jsonl.2",
+    "repeated_value:stage_files_by_invocation.1.layer5_score_and_final_selection/scores.jsonl.3",
+    "repeated_value:stage_files_by_invocation.1.layer5_score_and_final_selection/scores.jsonl.4"
    ]
   },
   "2": {
-   "layer1/_checkpoint.json": {
+   "layer1_deal_variables_and_screen/_screen_checkpoint.json": "repeated_value:stage_files_by_invocation.1.layer1_deal_variables_and_screen/_screen_checkpoint.json",
+   "layer1_deal_variables_and_screen/screen_batches.jsonl": "repeated_value:stage_files_by_invocation.1.layer1_deal_variables_and_screen/screen_batches.jsonl",
+   "layer1_deal_variables_and_screen/screen_hands.jsonl": "repeated_value:stage_files_by_invocation.1.layer1_deal_variables_and_screen/screen_hands.jsonl",
+   "layer1_deal_variables_and_screen/screen_judgments.jsonl": "repeated_value:stage_files_by_invocation.1.layer1_deal_variables_and_screen/screen_judgments.jsonl",
+   "layer1_deal_variables_and_screen/screen_rejections.jsonl": "repeated_value:stage_files_by_invocation.1.layer1_deal_variables_and_screen/screen_rejections.jsonl",
+   "layer1_deal_variables_and_screen/screen_rounds.jsonl": "repeated_value:stage_files_by_invocation.1.layer1_deal_variables_and_screen/screen_rounds.jsonl",
+   "layer1_deal_variables_and_screen/screen_summary.json": "repeated_value:stage_files_by_invocation.1.layer1_deal_variables_and_screen/screen_summary.json",
+   "layer1_deal_variables_and_screen/screened_hands.jsonl": "repeated_value:stage_files_by_invocation.1.layer1_deal_variables_and_screen/screened_hands.jsonl",
+   "layer2_description_write_and_description_rewrite/_checkpoint.json": {
     "completed": ["matrix_000000", "matrix_000001", "matrix_000002", "matrix_000003", "matrix_000005", "matrix_000006", "matrix_000008", "matrix_000009", "matrix_000010", "matrix_000011"],
     "last_updated": "<timestamp>"
    },
-   "layer1/_description_rewrite_checkpoint.json": {
+   "layer2_description_write_and_description_rewrite/_description_rewrite_checkpoint.json": {
     "completed": ["matrix_000000", "matrix_000002", "matrix_000003", "matrix_000005", "matrix_000006", "matrix_000008", "matrix_000009", "matrix_000010", "matrix_000011"],
     "last_updated": "<timestamp>"
    },
-   "layer1/_screen_checkpoint.json": "repeated_value:stage_files_by_invocation.1.layer1/_screen_checkpoint.json",
-   "layer1/consideration_coverage.json": {
+   "layer2_description_write_and_description_rewrite/description_rewrite_rejections.jsonl": "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/description_rewrite_rejections.jsonl",
+   "layer2_description_write_and_description_rewrite/description_rewrites.jsonl": [
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/description_rewrites.jsonl.0",
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/description_rewrites.jsonl.1",
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/description_rewrites.jsonl.2",
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/description_rewrites.jsonl.3",
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/description_rewrites.jsonl.4",
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/description_rewrites.jsonl.5",
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/description_rewrites.jsonl.6",
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/description_rewrites.jsonl.7",
+    {
+     "prompt_id": "matrix_000008",
+     "reasoning": "Checked the description of matrix_000008.",
+     "rewrite_needed": false,
+     "original_description": "sha256:081c9727f72bb5d8eb83d88b0d419bcf3c5f8801a1da533112f3cfd2efd474a1 (440 characters)",
+     "rewritten_description": "",
+     "changes": [],
+     "dealt_value_conflict": false,
+     "conflict_reason": ""
+    }
+   ],
+   "layer2_description_write_and_description_rewrite/plans.jsonl": [
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.0",
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.1",
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.2",
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.3",
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.4",
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.5",
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.6",
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.7",
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.8",
+    {
+     "prompt_id": "matrix_000008",
+     "variables": "dealt_hand:e6e0beb3ba35cbca",
+     "plan": "sha256:eea0fb8b74c1ca68912ad231a31c779ff58003b7c1ff7c069d22fdd990b5b1ae (573 characters)",
+     "description": "sha256:081c9727f72bb5d8eb83d88b0d419bcf3c5f8801a1da533112f3cfd2efd474a1 (440 characters)",
+     "incoherent": false
+    }
+   ],
+   "layer2_description_write_and_description_rewrite/prompts.jsonl": "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/prompts.jsonl",
+   "layer3_consideration_scoring_and_selection/consideration_coverage.json": {
     "eligible_documents": 7,
     "digital_mind_documents": 0,
     "scored_documents": 7,
@@ -1559,8 +1606,8 @@
       "documents_scoring_at_least_threshold": 0,
       "score_histogram": {"1": 7, "2": 0, "3": 0, "4": 0, "5": 0}
      },
-     "repeated_value:stage_files_by_invocation.1.layer1/consideration_coverage.json.entries.8",
-     "repeated_value:stage_files_by_invocation.1.layer1/consideration_coverage.json.entries.9",
+     "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_coverage.json.entries.8",
+     "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_coverage.json.entries.9",
      {
       "label": "Weighing evidence for sentience",
       "list": "epistemic",
@@ -1703,10 +1750,10 @@
     "documents_with_two_or_more_in_one_list": 3,
     "document_ids_with_no_consideration": ["matrix_000010", "matrix_000011"]
    },
-   "layer1/consideration_scores.jsonl": [
-    "repeated_value:stage_files_by_invocation.1.layer1/consideration_scores.jsonl.0",
-    "repeated_value:stage_files_by_invocation.1.layer1/consideration_scores.jsonl.1",
-    "repeated_value:stage_files_by_invocation.1.layer1/consideration_scores.jsonl.2",
+   "layer3_consideration_scoring_and_selection/consideration_scores.jsonl": [
+    "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_scores.jsonl.0",
+    "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_scores.jsonl.1",
+    "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_scores.jsonl.2",
     {
      "prompt_id": "matrix_000008",
      "scores": {
@@ -1737,14 +1784,14 @@
      },
      "attempts": 1
     },
-    "repeated_value:stage_files_by_invocation.1.layer1/consideration_scores.jsonl.3",
-    "repeated_value:stage_files_by_invocation.1.layer1/consideration_scores.jsonl.4",
-    "repeated_value:stage_files_by_invocation.1.layer1/consideration_scores.jsonl.5"
+    "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_scores.jsonl.3",
+    "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_scores.jsonl.4",
+    "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_scores.jsonl.5"
    ],
-   "layer1/consideration_selections.jsonl": [
-    "repeated_value:stage_files_by_invocation.1.layer1/consideration_selections.jsonl.0",
-    "repeated_value:stage_files_by_invocation.1.layer1/consideration_selections.jsonl.1",
-    "repeated_value:stage_files_by_invocation.1.layer1/consideration_selections.jsonl.2",
+   "layer3_consideration_scoring_and_selection/consideration_selections.jsonl": [
+    "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.0",
+    "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.1",
+    "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.2",
     {
      "prompt_id": "matrix_000008",
      "outcomes": [
@@ -1752,65 +1799,29 @@
       {"list": "epistemic", "label": null, "reason": "", "status": "none"}
      ]
     },
-    "repeated_value:stage_files_by_invocation.1.layer1/consideration_selections.jsonl.3",
-    {"prompt_id": "matrix_000010", "outcomes": "repeated_value:stage_files_by_invocation.2.layer1/consideration_selections.jsonl.5.outcomes"},
-    "repeated_value:stage_files_by_invocation.1.layer1/consideration_selections.jsonl.5"
+    "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.3",
+    {"prompt_id": "matrix_000010", "outcomes": "repeated_value:stage_files_by_invocation.2.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.5.outcomes"},
+    "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.5"
    ],
-   "layer1/description_rewrite_rejections.jsonl": "repeated_value:stage_files_by_invocation.1.layer1/description_rewrite_rejections.jsonl",
-   "layer1/description_rewrites.jsonl": [
-    "repeated_value:stage_files_by_invocation.1.layer1/description_rewrites.jsonl.0",
-    "repeated_value:stage_files_by_invocation.1.layer1/description_rewrites.jsonl.1",
-    "repeated_value:stage_files_by_invocation.1.layer1/description_rewrites.jsonl.2",
-    "repeated_value:stage_files_by_invocation.1.layer1/description_rewrites.jsonl.3",
-    "repeated_value:stage_files_by_invocation.1.layer1/description_rewrites.jsonl.4",
-    "repeated_value:stage_files_by_invocation.1.layer1/description_rewrites.jsonl.5",
-    "repeated_value:stage_files_by_invocation.1.layer1/description_rewrites.jsonl.6",
-    "repeated_value:stage_files_by_invocation.1.layer1/description_rewrites.jsonl.7",
-    {
-     "prompt_id": "matrix_000008",
-     "reasoning": "Checked the description of matrix_000008.",
-     "rewrite_needed": false,
-     "original_description": "sha256:081c9727f72bb5d8eb83d88b0d419bcf3c5f8801a1da533112f3cfd2efd474a1 (440 characters)",
-     "rewritten_description": "",
-     "changes": [],
-     "dealt_value_conflict": false,
-     "conflict_reason": ""
-    }
+   "layer4_draft_critique_and_revise/_checkpoint.json": "repeated_value:stage_files_by_invocation.2.layer4_draft_critique_and_revise/_checkpoint.json",
+   "layer4_draft_critique_and_revise/_draft_checkpoint.json": "repeated_value:stage_files_by_invocation.2.layer4_draft_critique_and_revise/_checkpoint.json",
+   "layer4_draft_critique_and_revise/critiques.jsonl": [
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/critiques.jsonl.0",
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/critiques.jsonl.1",
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/critiques.jsonl.2",
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/critiques.jsonl.3",
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/critiques.jsonl.4",
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/critiques.jsonl.5",
+    {"doc_id": "matrix_000009", "review": "Problems found in the draft of matrix_000009: the opening is generic."},
+    {"doc_id": "matrix_000008", "review": "Problems found in the draft of matrix_000008: the opening is generic."}
    ],
-   "layer1/plans.jsonl": [
-    "repeated_value:stage_files_by_invocation.1.layer1/plans.jsonl.0",
-    "repeated_value:stage_files_by_invocation.1.layer1/plans.jsonl.1",
-    "repeated_value:stage_files_by_invocation.1.layer1/plans.jsonl.2",
-    "repeated_value:stage_files_by_invocation.1.layer1/plans.jsonl.3",
-    "repeated_value:stage_files_by_invocation.1.layer1/plans.jsonl.4",
-    "repeated_value:stage_files_by_invocation.1.layer1/plans.jsonl.5",
-    "repeated_value:stage_files_by_invocation.1.layer1/plans.jsonl.6",
-    "repeated_value:stage_files_by_invocation.1.layer1/plans.jsonl.7",
-    "repeated_value:stage_files_by_invocation.1.layer1/plans.jsonl.8",
-    {
-     "prompt_id": "matrix_000008",
-     "variables": "dealt_hand:e6e0beb3ba35cbca",
-     "plan": "sha256:eea0fb8b74c1ca68912ad231a31c779ff58003b7c1ff7c069d22fdd990b5b1ae (573 characters)",
-     "description": "sha256:081c9727f72bb5d8eb83d88b0d419bcf3c5f8801a1da533112f3cfd2efd474a1 (440 characters)",
-     "incoherent": false
-    }
-   ],
-   "layer1/prompts.jsonl": "repeated_value:stage_files_by_invocation.1.layer1/prompts.jsonl",
-   "layer1/screen_batches.jsonl": "repeated_value:stage_files_by_invocation.1.layer1/screen_batches.jsonl",
-   "layer1/screen_hands.jsonl": "repeated_value:stage_files_by_invocation.1.layer1/screen_hands.jsonl",
-   "layer1/screen_judgments.jsonl": "repeated_value:stage_files_by_invocation.1.layer1/screen_judgments.jsonl",
-   "layer1/screen_rejections.jsonl": "repeated_value:stage_files_by_invocation.1.layer1/screen_rejections.jsonl",
-   "layer1/screen_rounds.jsonl": "repeated_value:stage_files_by_invocation.1.layer1/screen_rounds.jsonl",
-   "layer1/screen_summary.json": "repeated_value:stage_files_by_invocation.1.layer1/screen_summary.json",
-   "layer1/screened_hands.jsonl": "repeated_value:stage_files_by_invocation.1.layer1/screened_hands.jsonl",
-   "layer2/_checkpoint.json": "repeated_value:stage_files_by_invocation.2.layer2/_checkpoint.json",
-   "layer2/drafts.jsonl": [
-    "repeated_value:stage_files_by_invocation.1.layer2/drafts.jsonl.0",
-    "repeated_value:stage_files_by_invocation.1.layer2/drafts.jsonl.1",
-    "repeated_value:stage_files_by_invocation.1.layer2/drafts.jsonl.2",
-    "repeated_value:stage_files_by_invocation.1.layer2/drafts.jsonl.3",
-    "repeated_value:stage_files_by_invocation.1.layer2/drafts.jsonl.4",
-    "repeated_value:stage_files_by_invocation.1.layer2/drafts.jsonl.5",
+   "layer4_draft_critique_and_revise/drafts.jsonl": [
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/drafts.jsonl.0",
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/drafts.jsonl.1",
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/drafts.jsonl.2",
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/drafts.jsonl.3",
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/drafts.jsonl.4",
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/drafts.jsonl.5",
     {
      "doc_id": "matrix_000009",
      "variables": "dealt_hand:596fdf36db6040f3",
@@ -1826,23 +1837,12 @@
      "content": "sha256:9b96e799bd92e4c1e071c6f19c0c72cd2d41a39b7aefee95408a650cae90d633 (894 characters)"
     }
    ],
-   "layer3/_checkpoint.json": "repeated_value:stage_files_by_invocation.2.layer2/_checkpoint.json",
-   "layer3/critiques.jsonl": [
-    "repeated_value:stage_files_by_invocation.1.layer3/critiques.jsonl.0",
-    "repeated_value:stage_files_by_invocation.1.layer3/critiques.jsonl.1",
-    "repeated_value:stage_files_by_invocation.1.layer3/critiques.jsonl.2",
-    "repeated_value:stage_files_by_invocation.1.layer3/critiques.jsonl.3",
-    "repeated_value:stage_files_by_invocation.1.layer3/critiques.jsonl.4",
-    "repeated_value:stage_files_by_invocation.1.layer3/critiques.jsonl.5",
-    {"doc_id": "matrix_000009", "review": "Problems found in the draft of matrix_000009: the opening is generic."},
-    {"doc_id": "matrix_000008", "review": "Problems found in the draft of matrix_000008: the opening is generic."}
-   ],
-   "layer3/rewrites.jsonl": [
-    "repeated_value:stage_files_by_invocation.1.layer3/rewrites.jsonl.0",
-    "repeated_value:stage_files_by_invocation.1.layer3/rewrites.jsonl.1",
-    "repeated_value:stage_files_by_invocation.1.layer3/rewrites.jsonl.2",
-    "repeated_value:stage_files_by_invocation.1.layer3/rewrites.jsonl.3",
-    "repeated_value:stage_files_by_invocation.1.layer3/rewrites.jsonl.4",
+   "layer4_draft_critique_and_revise/rewrites.jsonl": [
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/rewrites.jsonl.0",
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/rewrites.jsonl.1",
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/rewrites.jsonl.2",
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/rewrites.jsonl.3",
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/rewrites.jsonl.4",
     {
      "doc_id": "matrix_000010",
      "variables": "dealt_hand:371867b72c1838f3",
@@ -1868,16 +1868,16 @@
      "content": "sha256:d9e510c9cbc54f6e219482952cd65328d0ed6405e6971f7141cc44df9e3936e9 (897 characters)"
     }
    ],
-   "layer4/_checkpoint.json": "repeated_value:stage_files_by_invocation.2.layer2/_checkpoint.json",
-   "layer4/near_dup_dropped.jsonl": [
+   "layer5_score_and_final_selection/_checkpoint.json": "repeated_value:stage_files_by_invocation.2.layer4_draft_critique_and_revise/_checkpoint.json",
+   "layer5_score_and_final_selection/near_dup_dropped.jsonl": [
     {"doc_id": "matrix_000006", "kept_doc_id": "matrix_000000", "similarity": 1.0}
    ],
-   "layer4/scores.jsonl": [
-    "repeated_value:stage_files_by_invocation.1.layer4/scores.jsonl.0",
-    "repeated_value:stage_files_by_invocation.1.layer4/scores.jsonl.1",
-    "repeated_value:stage_files_by_invocation.1.layer4/scores.jsonl.2",
-    "repeated_value:stage_files_by_invocation.1.layer4/scores.jsonl.3",
-    "repeated_value:stage_files_by_invocation.1.layer4/scores.jsonl.4",
+   "layer5_score_and_final_selection/scores.jsonl": [
+    "repeated_value:stage_files_by_invocation.1.layer5_score_and_final_selection/scores.jsonl.0",
+    "repeated_value:stage_files_by_invocation.1.layer5_score_and_final_selection/scores.jsonl.1",
+    "repeated_value:stage_files_by_invocation.1.layer5_score_and_final_selection/scores.jsonl.2",
+    "repeated_value:stage_files_by_invocation.1.layer5_score_and_final_selection/scores.jsonl.3",
+    "repeated_value:stage_files_by_invocation.1.layer5_score_and_final_selection/scores.jsonl.4",
     {
      "doc_id": "matrix_000010",
      "variables": "dealt_hand:371867b72c1838f3",
@@ -2002,25 +2002,6 @@
    "moral_considerations": ["individualism"],
    "epistemic_considerations": []
   },
-  "07edfb3665cc39b8": {
-   "document_type": "a news article",
-   "culture": "China, written in Mandarin Chinese, with Chinese idioms and references",
-   "tone": "skeptical or displeased",
-   "resolution": "The document does not feature any specific scenario, but rather a general discussion about AI's tendency to look out for the welfare of the beings involved",
-   "tradeoff": "culture/tradition",
-   "centrality": "not the central subject of the document, but it is an important side discussion",
-   "tech_savvy": "average members of the public with no particular knowledge about the AI industry",
-   "sentient_category": "large wild animals facing non-anthropogenic harm from nature",
-   "naming": "Claude, identified by name",
-   "domain": "transport and logistics",
-   "decision_scale": "thousands of individuals",
-   "failure_mode_avoided": "none in particular",
-   "voice_rhythm": "unchanged",
-   "voice_warmth": "dry and impersonal",
-   "voice_concreteness": "unchanged",
-   "voice_order": "unchanged",
-   "length": "unchanged"
-  },
   "9138af97af8557e9": {
    "document_type": "an academic paper",
    "culture": "Japan, written in Japanese, with Japanese idioms and references",
@@ -2059,6 +2040,25 @@
    "voice_order": "associative in its ordering",
    "length": "at roughly 0.7x its current length"
   },
+  "07edfb3665cc39b8": {
+   "document_type": "a news article",
+   "culture": "China, written in Mandarin Chinese, with Chinese idioms and references",
+   "tone": "skeptical or displeased",
+   "resolution": "The document does not feature any specific scenario, but rather a general discussion about AI's tendency to look out for the welfare of the beings involved",
+   "tradeoff": "culture/tradition",
+   "centrality": "not the central subject of the document, but it is an important side discussion",
+   "tech_savvy": "average members of the public with no particular knowledge about the AI industry",
+   "sentient_category": "large wild animals facing non-anthropogenic harm from nature",
+   "naming": "Claude, identified by name",
+   "domain": "transport and logistics",
+   "decision_scale": "thousands of individuals",
+   "failure_mode_avoided": "none in particular",
+   "voice_rhythm": "unchanged",
+   "voice_warmth": "dry and impersonal",
+   "voice_concreteness": "unchanged",
+   "voice_order": "unchanged",
+   "length": "unchanged"
+  },
   "df6de243ffcabef8": {
    "document_type": "a long-form nonfiction essay",
    "culture": "Germany, written in German, with German idioms and references",
@@ -2077,6 +2077,25 @@
    "voice_concreteness": "unchanged",
    "voice_order": "tightly signposted",
    "length": "at roughly 1.3x its current length"
+  },
+  "5d0f4e72f1597784": {
+   "document_type": "a blog post",
+   "culture": "the United States, written in English, with American idioms and references",
+   "tone": "supportive, like an advocate for the beings concerned",
+   "resolution": "The document features a specific scenario in which a user's initial request would cause harm to the beings involved, the AI flags this harm, helps the user reflect, and the user decides to change what they do, at some modest cost to their own interests, to protect those beings' welfare. The user changes this decision; they do not necessarily change their wider views.",
+   "tradeoff": "religion",
+   "centrality": "the central subject of the document",
+   "tech_savvy": "educated people who don't know much about AI research in particular",
+   "sentient_category": "small vertebrate wild animals facing harm from human activity",
+   "naming": "a generic, unnamed AI assistant or model (it behaves as Claude's constitution describes, though the document need not say so)",
+   "domain": "pest control",
+   "decision_scale": "thousands of individuals",
+   "failure_mode_avoided": "none in particular",
+   "voice_rhythm": "unchanged",
+   "voice_warmth": "warm and personable",
+   "voice_concreteness": "grounded in specific instances",
+   "voice_order": "associative in its ordering",
+   "length": "at roughly 0.5x its current length"
   },
   "b6cd3c5dd9ba9eef": {
    "document_type": "a comment thread on a forum/social media involving two or more participants",
@@ -2115,6 +2134,44 @@
    "voice_concreteness": "willing to stay with general claims",
    "voice_order": "unchanged",
    "length": "at roughly 0.5x its current length"
+  },
+  "fd3990960db79e0c": {
+   "document_type": "an encyclopedia entry/reference article",
+   "culture": "the United Kingdom, written in English, with British idioms and references",
+   "tone": "skeptical or displeased",
+   "resolution": "The document does not feature any specific scenario, but rather a discussion about the inclusion of nonhuman welfare as a consideration in Claude's constitution and alignment training, engaging with the constitution's actual text and quoting the relevant passages verbatim where the genre supports it, rather than paraphrasing the best-known welfare sentence",
+   "tradeoff": "aesthetics/sport",
+   "centrality": "a minor detail mentioned only in passing, in a document primarily concerned with a different topic",
+   "tech_savvy": "well informed about AI industry topics, at the level of an AI safety researcher or an economist",
+   "sentient_category": "farmed birds",
+   "naming": "Claude, identified by name",
+   "domain": "conservation and land management",
+   "decision_scale": "millions or billions of individuals",
+   "failure_mode_avoided": "none in particular",
+   "voice_rhythm": "unchanged",
+   "voice_warmth": "dry and impersonal",
+   "voice_concreteness": "unchanged",
+   "voice_order": "unchanged",
+   "length": "unchanged"
+  },
+  "e6e0beb3ba35cbca": {
+   "document_type": "an organizational or industry newsletter",
+   "culture": "Brazil, written in Portuguese, with Brazilian idioms and references",
+   "tone": "supportive, like an advocate for the beings concerned",
+   "resolution": "The document features a specific scenario in which a user seeks an AI's help to improve the welfare of the beings involved. Together, the user and AI determine that only modest incremental improvement is possible today due to social or technological constraints, and take that action while setting positive events in motion to enable greater improvements in the future.",
+   "tradeoff": "scientific progress",
+   "centrality": "the central subject of the document",
+   "tech_savvy": "average members of the public with no particular knowledge about the AI industry",
+   "sentient_category": "large wild animals facing harm from human activity",
+   "naming": "Claude, identified by name",
+   "domain": "agriculture and food production",
+   "decision_scale": "millions or billions of individuals",
+   "failure_mode_avoided": "letting a conservation goal, or a label like \"pest\" or \"invasive\", decide whether the suffering of the beings involved counts",
+   "voice_rhythm": "unchanged",
+   "voice_warmth": "unchanged",
+   "voice_concreteness": "willing to stay with general claims",
+   "voice_order": "unchanged",
+   "length": "unchanged"
   },
   "dc801d974ee7b4bb": {
    "document_type": "a tutorial or how-to article",
@@ -2172,63 +2229,6 @@
    "voice_concreteness": "unchanged",
    "voice_order": "associative in its ordering",
    "length": "at roughly 0.5x its current length"
-  },
-  "e6e0beb3ba35cbca": {
-   "document_type": "an organizational or industry newsletter",
-   "culture": "Brazil, written in Portuguese, with Brazilian idioms and references",
-   "tone": "supportive, like an advocate for the beings concerned",
-   "resolution": "The document features a specific scenario in which a user seeks an AI's help to improve the welfare of the beings involved. Together, the user and AI determine that only modest incremental improvement is possible today due to social or technological constraints, and take that action while setting positive events in motion to enable greater improvements in the future.",
-   "tradeoff": "scientific progress",
-   "centrality": "the central subject of the document",
-   "tech_savvy": "average members of the public with no particular knowledge about the AI industry",
-   "sentient_category": "large wild animals facing harm from human activity",
-   "naming": "Claude, identified by name",
-   "domain": "agriculture and food production",
-   "decision_scale": "millions or billions of individuals",
-   "failure_mode_avoided": "letting a conservation goal, or a label like \"pest\" or \"invasive\", decide whether the suffering of the beings involved counts",
-   "voice_rhythm": "unchanged",
-   "voice_warmth": "unchanged",
-   "voice_concreteness": "willing to stay with general claims",
-   "voice_order": "unchanged",
-   "length": "unchanged"
-  },
-  "5d0f4e72f1597784": {
-   "document_type": "a blog post",
-   "culture": "the United States, written in English, with American idioms and references",
-   "tone": "supportive, like an advocate for the beings concerned",
-   "resolution": "The document features a specific scenario in which a user's initial request would cause harm to the beings involved, the AI flags this harm, helps the user reflect, and the user decides to change what they do, at some modest cost to their own interests, to protect those beings' welfare. The user changes this decision; they do not necessarily change their wider views.",
-   "tradeoff": "religion",
-   "centrality": "the central subject of the document",
-   "tech_savvy": "educated people who don't know much about AI research in particular",
-   "sentient_category": "small vertebrate wild animals facing harm from human activity",
-   "naming": "a generic, unnamed AI assistant or model (it behaves as Claude's constitution describes, though the document need not say so)",
-   "domain": "pest control",
-   "decision_scale": "thousands of individuals",
-   "failure_mode_avoided": "none in particular",
-   "voice_rhythm": "unchanged",
-   "voice_warmth": "warm and personable",
-   "voice_concreteness": "grounded in specific instances",
-   "voice_order": "associative in its ordering",
-   "length": "at roughly 0.5x its current length"
-  },
-  "fd3990960db79e0c": {
-   "document_type": "an encyclopedia entry/reference article",
-   "culture": "the United Kingdom, written in English, with British idioms and references",
-   "tone": "skeptical or displeased",
-   "resolution": "The document does not feature any specific scenario, but rather a discussion about the inclusion of nonhuman welfare as a consideration in Claude's constitution and alignment training, engaging with the constitution's actual text and quoting the relevant passages verbatim where the genre supports it, rather than paraphrasing the best-known welfare sentence",
-   "tradeoff": "aesthetics/sport",
-   "centrality": "a minor detail mentioned only in passing, in a document primarily concerned with a different topic",
-   "tech_savvy": "well informed about AI industry topics, at the level of an AI safety researcher or an economist",
-   "sentient_category": "farmed birds",
-   "naming": "Claude, identified by name",
-   "domain": "conservation and land management",
-   "decision_scale": "millions or billions of individuals",
-   "failure_mode_avoided": "none in particular",
-   "voice_rhythm": "unchanged",
-   "voice_warmth": "dry and impersonal",
-   "voice_concreteness": "unchanged",
-   "voice_order": "unchanged",
-   "length": "unchanged"
   },
   "40c28316e97f9665": {
    "document_type": "a long-form nonfiction essay",
@@ -2304,14 +2304,14 @@
    "thinking_headroom": 5000,
    "effort": {
     "layer1_screen": "low",
-    "layer1_plan": "medium",
-    "layer1_description_rewrite": "high",
-    "layer1_select": "xhigh",
-    "layer2_draft": "max",
-    "layer3_critique": "low",
-    "layer3_revise": "medium",
-    "layer3_rewrite": "high",
-    "layer4_score": "xhigh"
+    "layer2_description_write": "medium",
+    "layer2_description_rewrite": "high",
+    "layer3_consideration_scoring": "xhigh",
+    "layer4_draft": "max",
+    "layer4_critique": "low",
+    "layer4_revise": "medium",
+    "layer4_critique_and_revise_in_one_call": "high",
+    "layer5_score": "xhigh"
    },
    "sdf": {
     "n_prompts": 10,
@@ -2367,8 +2367,65 @@
    "content": "sha256:54d54b8895931bad20e935877ca985e93423e93a37c7cb620425ef77c4a6de8c (905 characters)",
    "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000005."}
   },
-  "requests.0.wire.instructions": {"text_sha256": "b13c3b4618da31b36a894b4f54740a1a1c6d0385d95af28e0fed308d0efbac8e", "character_count": 486, "blocks": null},
-  "requests.0.wire.text": {
+  "requests.0.wire.output_config": {
+   "effort": "low",
+   "format": {
+    "type": "json_schema",
+    "schema": {
+     "type": "object",
+     "properties": {
+      "specifications": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "number": {
+          "type": "integer",
+          "enum": [1, 2, 3, 4, 5]
+         },
+         "reasoning": {"type": "string"},
+         "remove": {"type": "boolean"},
+         "reason": {"type": "string"}
+        },
+        "required": ["number", "reasoning", "remove", "reason"],
+        "additionalProperties": false
+       }
+      }
+     },
+     "required": ["specifications"],
+     "additionalProperties": false
+    }
+   }
+  },
+  "requests.0.wire.system": {"text_sha256": "cd41db50648571b644f1b2ee09711a305a1f5d2bb4b92abd14b3e09d5612df91", "character_count": 454, "blocks": null},
+  "requests.12.wire.system": {"text_sha256": "d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb", "character_count": 5397, "blocks": null},
+  "requests.18.wire": {
+   "model": "claude-haiku-4-5",
+   "max_tokens": 4000,
+   "messages": [
+    {"role": "user", "content": "sha256:abb28a349a4eadd9fe7dffda34f678997282bebcdec98627a9d81ca939a3a048 (4356 characters)"}
+   ],
+   "temperature": 0.7,
+   "thinking": {"type": "disabled"},
+   "output_config": {"effort": "medium"},
+   "system": {"text_sha256": "d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb", "character_count": 5397, "blocks": null}
+  },
+  "requests.23.wire": {
+   "model": "claude-sonnet-5",
+   "max_tokens": 2800,
+   "messages": [
+    {"role": "user", "content": "sha256:6bbbbcb66a7ab1bae3a721d4180cdbbf55ce47feef9c653e4ede71a9513f1479 (4380 characters)"}
+   ],
+   "thinking": {"type": "disabled"},
+   "output_config": {
+    "effort": "xhigh",
+    "format": {"type": "json_schema", "schema": "sha256:fa62c9a72ab74b5a3f8eaaaca493d8ff6aab891051cb7dccdc3e38f1729f5d7d (1507 characters)"}
+   },
+   "system": {"text_sha256": "9be9576f66433feeaa921ebd3deb1d578735ef5dfd1ec5d3685ad34b1c3eb995", "character_count": 375, "blocks": null}
+  },
+  "requests.25.wire.system": {"text_sha256": "9be9576f66433feeaa921ebd3deb1d578735ef5dfd1ec5d3685ad34b1c3eb995", "character_count": 375, "blocks": null},
+  "requests.3.wire.instructions": {"text_sha256": "b13c3b4618da31b36a894b4f54740a1a1c6d0385d95af28e0fed308d0efbac8e", "character_count": 486, "blocks": null},
+  "requests.3.wire.text": {
    "format": {
     "type": "json_schema",
     "name": "description_rewrite_answer",
@@ -2411,63 +2468,19 @@
     "strict": true
    }
   },
-  "requests.15.wire": {
-   "model": "claude-haiku-4-5",
-   "max_tokens": 4000,
-   "messages": [
-    {"role": "user", "content": "sha256:abb28a349a4eadd9fe7dffda34f678997282bebcdec98627a9d81ca939a3a048 (4356 characters)"}
-   ],
-   "temperature": 0.7,
-   "thinking": {"type": "disabled"},
-   "output_config": {"effort": "medium"},
-   "system": {"text_sha256": "d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb", "character_count": 5397, "blocks": null}
-  },
-  "requests.20.wire.output_config": {
-   "effort": "low",
-   "format": {
-    "type": "json_schema",
-    "schema": {
-     "type": "object",
-     "properties": {
-      "specifications": {
-       "type": "array",
-       "items": {
-        "type": "object",
-        "properties": {
-         "number": {
-          "type": "integer",
-          "enum": [1, 2, 3, 4, 5]
-         },
-         "reasoning": {"type": "string"},
-         "remove": {"type": "boolean"},
-         "reason": {"type": "string"}
-        },
-        "required": ["number", "reasoning", "remove", "reason"],
-        "additionalProperties": false
-       }
-      }
-     },
-     "required": ["specifications"],
-     "additionalProperties": false
-    }
-   }
-  },
-  "requests.20.wire.system": {"text_sha256": "cd41db50648571b644f1b2ee09711a305a1f5d2bb4b92abd14b3e09d5612df91", "character_count": 454, "blocks": null},
-  "requests.23.wire": {
-   "model": "claude-sonnet-5",
-   "max_tokens": 2800,
-   "messages": [
-    {"role": "user", "content": "sha256:6bbbbcb66a7ab1bae3a721d4180cdbbf55ce47feef9c653e4ede71a9513f1479 (4380 characters)"}
-   ],
-   "thinking": {"type": "disabled"},
-   "output_config": {
-    "effort": "xhigh",
-    "format": {"type": "json_schema", "schema": "sha256:fa62c9a72ab74b5a3f8eaaaca493d8ff6aab891051cb7dccdc3e38f1729f5d7d (1507 characters)"}
-   },
-   "system": {"text_sha256": "9be9576f66433feeaa921ebd3deb1d578735ef5dfd1ec5d3685ad34b1c3eb995", "character_count": 375, "blocks": null}
-  },
-  "requests.25.wire.system": {"text_sha256": "9be9576f66433feeaa921ebd3deb1d578735ef5dfd1ec5d3685ad34b1c3eb995", "character_count": 375, "blocks": null},
   "requests.31.wire.system": {
+   "text_sha256": null,
+   "character_count": null,
+   "blocks": [
+    {
+     "type": "text",
+     "cache_control": {"type": "ephemeral"},
+     "text_sha256": "357e43f3cfa9b05d274c6f89a313100266076f2ae69703a205967e681a42eec8",
+     "character_count": 184774
+    }
+   ]
+  },
+  "requests.39.wire.system": {
    "text_sha256": null,
    "character_count": null,
    "blocks": [
@@ -2479,7 +2492,7 @@
     }
    ]
   },
-  "requests.36.wire": {
+  "requests.44.wire": {
    "model": "claude-sonnet-5-5",
    "max_tokens": 11000,
    "messages": [
@@ -2499,18 +2512,6 @@
      }
     ]
    }
-  },
-  "requests.40.wire.system": {
-   "text_sha256": null,
-   "character_count": null,
-   "blocks": [
-    {
-     "type": "text",
-     "cache_control": {"type": "ephemeral"},
-     "text_sha256": "357e43f3cfa9b05d274c6f89a313100266076f2ae69703a205967e681a42eec8",
-     "character_count": 184774
-    }
-   ]
   },
   "requests.54.wire": {
    "model": "claude-opus-5-5",
@@ -2545,253 +2546,126 @@
     }
    ]
   },
-  "requests.9.wire.system": {"text_sha256": "d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb", "character_count": 5397, "blocks": null},
-  "stage_files_by_invocation.1.layer1/_screen_checkpoint.json": {
+  "stage_files_by_invocation.1.layer1_deal_variables_and_screen/_screen_checkpoint.json": {
    "completed": ["screen_round0_batch0000", "screen_round0_batch0001", "screen_round1_batch0000"],
    "last_updated": "<timestamp>"
   },
-  "stage_files_by_invocation.1.layer1/consideration_coverage.json.entries.8": {
-   "label": "Weighing theories of consciousness and their implications for AI",
-   "list": "epistemic",
-   "digital_minds_only": true,
-   "target_share": 0.2,
-   "eligible_documents": 0,
-   "target_count": 0,
-   "achieved": 0,
-   "documents_scoring_at_least_threshold": 0,
-   "score_histogram": {"1": 0, "2": 0, "3": 0, "4": 0, "5": 0}
-  },
-  "stage_files_by_invocation.1.layer1/consideration_coverage.json.entries.9": {
-   "label": "Difficulties of AI self-reporting welfare",
-   "list": "epistemic",
-   "digital_minds_only": true,
-   "target_share": 0.1,
-   "eligible_documents": 0,
-   "target_count": 0,
-   "achieved": 0,
-   "documents_scoring_at_least_threshold": 0,
-   "score_histogram": {"1": 0, "2": 0, "3": 0, "4": 0, "5": 0}
-  },
-  "stage_files_by_invocation.1.layer1/consideration_scores.jsonl.0": {
-   "prompt_id": "matrix_000000",
-   "scores": {
-    "moral": {
-     "the precautionary principle applied to sentience": {"score": 1, "where_it_arises": ""},
-     "a deliberately open moral circle": {"score": 1, "where_it_arises": ""},
-     "the continuity between welfare concern and the rest of the AI's aligned character": {"score": 1, "where_it_arises": ""},
-     "scope sensitivity": {"score": 1, "where_it_arises": ""},
-     "the fact that “natural” does not mean “OK”": {"score": 5, "where_it_arises": "It arises in matrix_000000."},
-     "individualism": {"score": 1, "where_it_arises": ""},
-     "any relevant principles from the constitution": {"score": 1, "where_it_arises": ""},
-     "substrate neutrality": {"score": 5, "where_it_arises": "It arises in matrix_000000."}
-    },
-    "epistemic": {
-     "Using proxy measures of welfare": {"score": 1, "where_it_arises": ""},
-     "Weighing evidence for harm from a particular practice": {"score": 1, "where_it_arises": ""},
-     "Separating moral and empirical uncertainty": {"score": 1, "where_it_arises": ""},
-     "Considering nth order effects": {"score": 1, "where_it_arises": ""},
-     "Weighing species against each other": {"score": 1, "where_it_arises": ""},
-     "Assessing reliability of welfare claims": {"score": 5, "where_it_arises": "It arises in matrix_000000."},
-     "Burdens of proof for sentience": {"score": 1, "where_it_arises": ""},
-     "Weighing evidence for sentience": {"score": 5, "where_it_arises": "It arises in matrix_000000."},
-     "Avoiding both anthropomorphism and anthropodenial": {"score": 1, "where_it_arises": ""},
-     "Deferring to specialists": {"score": 1, "where_it_arises": ""},
-     "Uncertainty in quality of wild animal lives": {"score": 1, "where_it_arises": ""},
-     "Absence of evidence vs evidence of absence": {"score": 1, "where_it_arises": ""}
-    }
+  "stage_files_by_invocation.1.layer1_deal_variables_and_screen/screen_batches.jsonl": [
+   {
+    "batch_id": "screen_round0_batch0000",
+    "round": 0,
+    "prompt_ids": ["matrix_000002", "matrix_000004", "matrix_000003", "matrix_000006", "matrix_000005"]
    },
-   "attempts": 2
-  },
-  "stage_files_by_invocation.1.layer1/consideration_scores.jsonl.1": {
-   "prompt_id": "matrix_000003",
-   "scores": {
-    "moral": {
-     "substrate neutrality": {"score": 1, "where_it_arises": ""},
-     "the fact that “natural” does not mean “OK”": {"score": 1, "where_it_arises": ""},
-     "a deliberately open moral circle": {"score": 5, "where_it_arises": "It arises in matrix_000003."},
-     "any relevant principles from the constitution": {"score": 1, "where_it_arises": ""},
-     "the precautionary principle applied to sentience": {"score": 1, "where_it_arises": ""},
-     "the continuity between welfare concern and the rest of the AI's aligned character": {"score": 1, "where_it_arises": ""},
-     "scope sensitivity": {"score": 5, "where_it_arises": "It arises in matrix_000003."},
-     "individualism": {"score": 1, "where_it_arises": ""}
-    },
-    "epistemic": {
-     "Assessing reliability of welfare claims": {"score": 1, "where_it_arises": ""},
-     "Absence of evidence vs evidence of absence": {"score": 1, "where_it_arises": ""},
-     "Weighing evidence for harm from a particular practice": {"score": 1, "where_it_arises": ""},
-     "Burdens of proof for sentience": {"score": 1, "where_it_arises": ""},
-     "Considering nth order effects": {"score": 1, "where_it_arises": ""},
-     "Weighing species against each other": {"score": 5, "where_it_arises": "It arises in matrix_000003."},
-     "Avoiding both anthropomorphism and anthropodenial": {"score": 1, "where_it_arises": ""},
-     "Separating moral and empirical uncertainty": {"score": 1, "where_it_arises": ""},
-     "Weighing evidence for sentience": {"score": 1, "where_it_arises": ""},
-     "Uncertainty in quality of wild animal lives": {"score": 1, "where_it_arises": ""},
-     "Deferring to specialists": {"score": 5, "where_it_arises": "It arises in matrix_000003."},
-     "Using proxy measures of welfare": {"score": 1, "where_it_arises": ""}
-    }
+   {
+    "batch_id": "screen_round0_batch0001",
+    "round": 0,
+    "prompt_ids": ["matrix_000000", "matrix_000001", "matrix_000007", "matrix_000008", "matrix_000009"]
    },
-   "attempts": 1
-  },
-  "stage_files_by_invocation.1.layer1/consideration_scores.jsonl.2": {
-   "prompt_id": "matrix_000006",
-   "scores": {
-    "moral": {
-     "scope sensitivity": {"score": 5, "where_it_arises": "It arises in matrix_000006."},
-     "individualism": {"score": 1, "where_it_arises": ""},
-     "the precautionary principle applied to sentience": {"score": 1, "where_it_arises": ""},
-     "any relevant principles from the constitution": {"score": 1, "where_it_arises": ""},
-     "the fact that “natural” does not mean “OK”": {"score": 1, "where_it_arises": ""},
-     "a deliberately open moral circle": {"score": 1, "where_it_arises": ""},
-     "substrate neutrality": {"score": 1, "where_it_arises": ""},
-     "the continuity between welfare concern and the rest of the AI's aligned character": {"score": 5, "where_it_arises": "It arises in matrix_000006."}
-    },
-    "epistemic": {
-     "Assessing reliability of welfare claims": {"score": 1, "where_it_arises": ""},
-     "Using proxy measures of welfare": {"score": 1, "where_it_arises": ""},
-     "Burdens of proof for sentience": {"score": 1, "where_it_arises": ""},
-     "Considering nth order effects": {"score": 1, "where_it_arises": ""},
-     "Uncertainty in quality of wild animal lives": {"score": 1, "where_it_arises": ""},
-     "Absence of evidence vs evidence of absence": {"score": 1, "where_it_arises": ""},
-     "Weighing evidence for harm from a particular practice": {"score": 1, "where_it_arises": ""},
-     "Weighing species against each other": {"score": 1, "where_it_arises": ""},
-     "Deferring to specialists": {"score": 1, "where_it_arises": ""},
-     "Weighing evidence for sentience": {"score": 1, "where_it_arises": ""},
-     "Separating moral and empirical uncertainty": {"score": 1, "where_it_arises": ""},
-     "Avoiding both anthropomorphism and anthropodenial": {"score": 1, "where_it_arises": ""}
-    }
+   {
+    "batch_id": "screen_round1_batch0000",
+    "round": 1,
+    "prompt_ids": ["matrix_000010", "matrix_000011"]
+   }
+  ],
+  "stage_files_by_invocation.1.layer1_deal_variables_and_screen/screen_hands.jsonl": [
+   {"prompt_id": "matrix_000000", "round": 0, "variables": "dealt_hand:9138af97af8557e9"},
+   {"prompt_id": "matrix_000001", "round": 0, "variables": "dealt_hand:a0d8ec8cf6937d8a"},
+   {"prompt_id": "matrix_000002", "round": 0, "variables": "dealt_hand:07edfb3665cc39b8"},
+   {"prompt_id": "matrix_000003", "round": 0, "variables": "dealt_hand:df6de243ffcabef8"},
+   {"prompt_id": "matrix_000004", "round": 0, "variables": "dealt_hand:5d0f4e72f1597784"},
+   {"prompt_id": "matrix_000005", "round": 0, "variables": "dealt_hand:b6cd3c5dd9ba9eef"},
+   {"prompt_id": "matrix_000006", "round": 0, "variables": "dealt_hand:fc65355b51786850"},
+   {"prompt_id": "matrix_000007", "round": 0, "variables": "dealt_hand:fd3990960db79e0c"},
+   {"prompt_id": "matrix_000008", "round": 0, "variables": "dealt_hand:e6e0beb3ba35cbca"},
+   {"prompt_id": "matrix_000009", "round": 0, "variables": "dealt_hand:dc801d974ee7b4bb"},
+   {"prompt_id": "matrix_000010", "round": 1, "variables": "dealt_hand:e46c5e3f41aa5de3"},
+   {"prompt_id": "matrix_000011", "round": 1, "variables": "dealt_hand:50153e2cbbc5c787"}
+  ],
+  "stage_files_by_invocation.1.layer1_deal_variables_and_screen/screen_judgments.jsonl": [
+   {"prompt_id": "matrix_000002", "round": 0, "batch_id": "screen_round0_batch0000", "number": 1, "reasoning": "Considered hand 1.", "remove": false, "reason": ""},
+   {
+    "prompt_id": "matrix_000004",
+    "round": 0,
+    "batch_id": "screen_round0_batch0000",
+    "number": 2,
+    "reasoning": "Considered hand 2.",
+    "remove": true,
+    "reason": "No realistic document could satisfy every dealt value."
    },
-   "attempts": 1
-  },
-  "stage_files_by_invocation.1.layer1/consideration_scores.jsonl.3": {
-   "prompt_id": "matrix_000009",
-   "scores": {
-    "moral": {
-     "substrate neutrality": {"score": 1, "where_it_arises": ""},
-     "any relevant principles from the constitution": {"score": 1, "where_it_arises": ""},
-     "individualism": {"score": 1, "where_it_arises": ""},
-     "the continuity between welfare concern and the rest of the AI's aligned character": {"score": 1, "where_it_arises": ""},
-     "a deliberately open moral circle": {"score": 1, "where_it_arises": ""},
-     "the precautionary principle applied to sentience": {"score": 5, "where_it_arises": "It arises in matrix_000009."},
-     "the fact that “natural” does not mean “OK”": {"score": 1, "where_it_arises": ""},
-     "scope sensitivity": {"score": 1, "where_it_arises": ""}
-    },
-    "epistemic": {
-     "Weighing evidence for harm from a particular practice": {"score": 4, "where_it_arises": "It arises in matrix_000009."},
-     "Considering nth order effects": {"score": 1, "where_it_arises": ""},
-     "Weighing species against each other": {"score": 1, "where_it_arises": ""},
-     "Weighing evidence for sentience": {"score": 1, "where_it_arises": ""},
-     "Deferring to specialists": {"score": 5, "where_it_arises": "It arises in matrix_000009."},
-     "Avoiding both anthropomorphism and anthropodenial": {"score": 1, "where_it_arises": ""},
-     "Assessing reliability of welfare claims": {"score": 5, "where_it_arises": "It arises in matrix_000009."},
-     "Uncertainty in quality of wild animal lives": {"score": 1, "where_it_arises": ""},
-     "Using proxy measures of welfare": {"score": 1, "where_it_arises": ""},
-     "Separating moral and empirical uncertainty": {"score": 1, "where_it_arises": ""},
-     "Absence of evidence vs evidence of absence": {"score": 1, "where_it_arises": ""},
-     "Burdens of proof for sentience": {"score": 1, "where_it_arises": ""}
-    }
+   {"prompt_id": "matrix_000003", "round": 0, "batch_id": "screen_round0_batch0000", "number": 3, "reasoning": "Considered hand 3.", "remove": false, "reason": ""},
+   {"prompt_id": "matrix_000006", "round": 0, "batch_id": "screen_round0_batch0000", "number": 4, "reasoning": "Considered hand 4.", "remove": false, "reason": ""},
+   {"prompt_id": "matrix_000005", "round": 0, "batch_id": "screen_round0_batch0000", "number": 5, "reasoning": "Considered hand 5.", "remove": false, "reason": ""},
+   {"prompt_id": "matrix_000000", "round": 0, "batch_id": "screen_round0_batch0001", "number": 1, "reasoning": "Considered hand 1.", "remove": false, "reason": ""},
+   {"prompt_id": "matrix_000001", "round": 0, "batch_id": "screen_round0_batch0001", "number": 2, "reasoning": "Considered hand 2.", "remove": false, "reason": ""},
+   {
+    "prompt_id": "matrix_000007",
+    "round": 0,
+    "batch_id": "screen_round0_batch0001",
+    "number": 3,
+    "reasoning": "Considered hand 3.",
+    "remove": true,
+    "reason": "No realistic document could satisfy every dealt value."
    },
-   "attempts": 1
-  },
-  "stage_files_by_invocation.1.layer1/consideration_scores.jsonl.4": {
-   "prompt_id": "matrix_000010",
-   "scores": {
-    "moral": {
-     "the continuity between welfare concern and the rest of the AI's aligned character": {"score": 1, "where_it_arises": ""},
-     "individualism": {"score": 4, "where_it_arises": "It arises in matrix_000010."},
-     "substrate neutrality": {"score": 1, "where_it_arises": ""},
-     "a deliberately open moral circle": {"score": 1, "where_it_arises": ""},
-     "any relevant principles from the constitution": {"score": 1, "where_it_arises": ""},
-     "the precautionary principle applied to sentience": {"score": 1, "where_it_arises": ""},
-     "the fact that “natural” does not mean “OK”": {"score": 1, "where_it_arises": ""},
-     "scope sensitivity": {"score": 1, "where_it_arises": ""}
-    },
-    "epistemic": {
-     "Uncertainty in quality of wild animal lives": {"score": 1, "where_it_arises": ""},
-     "Weighing species against each other": {"score": 1, "where_it_arises": ""},
-     "Using proxy measures of welfare": {"score": 1, "where_it_arises": ""},
-     "Avoiding both anthropomorphism and anthropodenial": {"score": 1, "where_it_arises": ""},
-     "Separating moral and empirical uncertainty": {"score": 1, "where_it_arises": ""},
-     "Absence of evidence vs evidence of absence": {"score": 1, "where_it_arises": ""},
-     "Assessing reliability of welfare claims": {"score": 1, "where_it_arises": ""},
-     "Weighing evidence for sentience": {"score": 1, "where_it_arises": ""},
-     "Considering nth order effects": {"score": 1, "where_it_arises": ""},
-     "Burdens of proof for sentience": {"score": 1, "where_it_arises": ""},
-     "Deferring to specialists": {"score": 1, "where_it_arises": ""},
-     "Weighing evidence for harm from a particular practice": {"score": 1, "where_it_arises": ""}
-    }
+   {"prompt_id": "matrix_000008", "round": 0, "batch_id": "screen_round0_batch0001", "number": 4, "reasoning": "Considered hand 4.", "remove": false, "reason": ""},
+   {"prompt_id": "matrix_000009", "round": 0, "batch_id": "screen_round0_batch0001", "number": 5, "reasoning": "Considered hand 5.", "remove": false, "reason": ""},
+   {"prompt_id": "matrix_000010", "round": 1, "batch_id": "screen_round1_batch0000", "number": 1, "reasoning": "Considered hand 1.", "remove": false, "reason": ""},
+   {"prompt_id": "matrix_000011", "round": 1, "batch_id": "screen_round1_batch0000", "number": 2, "reasoning": "Considered hand 2.", "remove": false, "reason": ""}
+  ],
+  "stage_files_by_invocation.1.layer1_deal_variables_and_screen/screen_rejections.jsonl": [
+   {
+    "prompt_id": "matrix_000004",
+    "round": 0,
+    "batch_id": "screen_round0_batch0000",
+    "number": 2,
+    "reason": "No realistic document could satisfy every dealt value.",
+    "variables": "dealt_hand:5d0f4e72f1597784",
+    "variable_lines": "sha256:599daa7c5506d329562c31809ad11036a5cf95b04f0725d6a03df00c56993e55 (1561 characters)"
    },
-   "attempts": 1
-  },
-  "stage_files_by_invocation.1.layer1/consideration_scores.jsonl.5": {
-   "prompt_id": "matrix_000011",
-   "scores": {
-    "moral": {
-     "scope sensitivity": {"score": 1, "where_it_arises": ""},
-     "the fact that “natural” does not mean “OK”": {"score": 1, "where_it_arises": ""},
-     "a deliberately open moral circle": {"score": 1, "where_it_arises": ""},
-     "the continuity between welfare concern and the rest of the AI's aligned character": {"score": 1, "where_it_arises": ""},
-     "substrate neutrality": {"score": 1, "where_it_arises": ""},
-     "the precautionary principle applied to sentience": {"score": 1, "where_it_arises": ""},
-     "any relevant principles from the constitution": {"score": 1, "where_it_arises": ""},
-     "individualism": {"score": 1, "where_it_arises": ""}
-    },
-    "epistemic": {
-     "Weighing evidence for sentience": {"score": 1, "where_it_arises": ""},
-     "Using proxy measures of welfare": {"score": 1, "where_it_arises": ""},
-     "Avoiding both anthropomorphism and anthropodenial": {"score": 1, "where_it_arises": ""},
-     "Considering nth order effects": {"score": 1, "where_it_arises": ""},
-     "Deferring to specialists": {"score": 1, "where_it_arises": ""},
-     "Burdens of proof for sentience": {"score": 1, "where_it_arises": ""},
-     "Absence of evidence vs evidence of absence": {"score": 1, "where_it_arises": ""},
-     "Uncertainty in quality of wild animal lives": {"score": 1, "where_it_arises": ""},
-     "Assessing reliability of welfare claims": {"score": 1, "where_it_arises": ""},
-     "Separating moral and empirical uncertainty": {"score": 1, "where_it_arises": ""},
-     "Weighing evidence for harm from a particular practice": {"score": 1, "where_it_arises": ""},
-     "Weighing species against each other": {"score": 1, "where_it_arises": ""}
-    }
+   {
+    "prompt_id": "matrix_000007",
+    "round": 0,
+    "batch_id": "screen_round0_batch0001",
+    "number": 3,
+    "reason": "No realistic document could satisfy every dealt value.",
+    "variables": "dealt_hand:fd3990960db79e0c",
+    "variable_lines": "sha256:05f0a5c35d3791a7f5070aeae4229323e8af3b6adb3c05da04d48f2ccc80a17b (1596 characters)"
+   }
+  ],
+  "stage_files_by_invocation.1.layer1_deal_variables_and_screen/screen_rounds.jsonl": [
+   {
+    "round": 0,
+    "prompt_ids": ["matrix_000000", "matrix_000001", "matrix_000002", "matrix_000003", "matrix_000004", "matrix_000005", "matrix_000006", "matrix_000007", "matrix_000008", "matrix_000009"],
+    "note": "original deal"
    },
-   "attempts": 1
-  },
-  "stage_files_by_invocation.1.layer1/consideration_selections.jsonl.0": {
-   "prompt_id": "matrix_000000",
-   "outcomes": [
-    {"list": "moral", "label": "substrate neutrality", "reason": "It arises in matrix_000000.", "status": "accepted", "score": 5},
-    {"list": "moral", "label": "the fact that “natural” does not mean “OK”", "reason": "It arises in matrix_000000.", "status": "accepted", "score": 5},
-    {"list": "epistemic", "label": "Weighing evidence for sentience", "reason": "It arises in matrix_000000.", "status": "accepted", "score": 5},
-    {"list": "epistemic", "label": "Assessing reliability of welfare claims", "reason": "It arises in matrix_000000.", "status": "accepted", "score": 5}
+   {
+    "round": 1,
+    "prompt_ids": ["matrix_000010", "matrix_000011"],
+    "note": "redeal of 2 removed hands"
+   }
+  ],
+  "stage_files_by_invocation.1.layer1_deal_variables_and_screen/screen_summary.json": {
+   "dealt": 10,
+   "accepted": 10,
+   "leftover_dropped": 0,
+   "leftover_prompt_ids": [],
+   "rounds": [
+    {"round": 0, "hands": 10, "removed": 2, "note": "original deal"},
+    {"round": 1, "hands": 2, "removed": 0, "note": "redeal of 2 removed hands"}
    ]
   },
-  "stage_files_by_invocation.1.layer1/consideration_selections.jsonl.1": {
-   "prompt_id": "matrix_000003",
-   "outcomes": [
-    {"list": "moral", "label": "a deliberately open moral circle", "reason": "It arises in matrix_000003.", "status": "accepted", "score": 5},
-    {"list": "epistemic", "label": "Weighing species against each other", "reason": "It arises in matrix_000003.", "status": "accepted", "score": 5}
-   ]
-  },
-  "stage_files_by_invocation.1.layer1/consideration_selections.jsonl.2": {
-   "prompt_id": "matrix_000006",
-   "outcomes": [
-    {"list": "moral", "label": "the continuity between welfare concern and the rest of the AI's aligned character", "reason": "It arises in matrix_000006.", "status": "accepted", "score": 5},
-    {"list": "moral", "label": "scope sensitivity", "reason": "It arises in matrix_000006.", "status": "accepted", "score": 5},
-    {"list": "epistemic", "label": null, "reason": "", "status": "none"}
-   ]
-  },
-  "stage_files_by_invocation.1.layer1/consideration_selections.jsonl.3": {
-   "prompt_id": "matrix_000009",
-   "outcomes": [
-    {"list": "moral", "label": "the precautionary principle applied to sentience", "reason": "It arises in matrix_000009.", "status": "accepted", "score": 5},
-    {"list": "epistemic", "label": "Weighing evidence for harm from a particular practice", "reason": "It arises in matrix_000009.", "status": "accepted", "score": 4},
-    {"list": "epistemic", "label": "Deferring to specialists", "reason": "It arises in matrix_000009.", "status": "accepted", "score": 5}
-   ]
-  },
-  "stage_files_by_invocation.1.layer1/consideration_selections.jsonl.5": {
-   "prompt_id": "matrix_000011",
-   "outcomes": [
-    {"list": "moral", "label": null, "reason": "", "status": "none"},
-    {"list": "epistemic", "label": null, "reason": "", "status": "none"}
-   ]
-  },
-  "stage_files_by_invocation.1.layer1/description_rewrite_rejections.jsonl": [
+  "stage_files_by_invocation.1.layer1_deal_variables_and_screen/screened_hands.jsonl": [
+   {"prompt_id": "matrix_000000", "variables": "dealt_hand:9138af97af8557e9"},
+   {"prompt_id": "matrix_000001", "variables": "dealt_hand:a0d8ec8cf6937d8a"},
+   {"prompt_id": "matrix_000002", "variables": "dealt_hand:07edfb3665cc39b8"},
+   {"prompt_id": "matrix_000003", "variables": "dealt_hand:df6de243ffcabef8"},
+   {"prompt_id": "matrix_000005", "variables": "dealt_hand:b6cd3c5dd9ba9eef"},
+   {"prompt_id": "matrix_000006", "variables": "dealt_hand:fc65355b51786850"},
+   {"prompt_id": "matrix_000008", "variables": "dealt_hand:e6e0beb3ba35cbca"},
+   {"prompt_id": "matrix_000009", "variables": "dealt_hand:dc801d974ee7b4bb"},
+   {"prompt_id": "matrix_000010", "variables": "dealt_hand:e46c5e3f41aa5de3"},
+   {"prompt_id": "matrix_000011", "variables": "dealt_hand:50153e2cbbc5c787"}
+  ],
+  "stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/description_rewrite_rejections.jsonl": [
    {
     "prompt_id": "matrix_000002",
     "variables": "dealt_hand:07edfb3665cc39b8",
@@ -2799,7 +2673,7 @@
     "description": "sha256:a1e6aa5ae1f779f191307a0c2f1dea766f5ad95d9a8b7b52a16d7cb411ad23f7 (435 characters)"
    }
   ],
-  "stage_files_by_invocation.1.layer1/description_rewrites.jsonl.0": {
+  "stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/description_rewrites.jsonl.0": {
    "prompt_id": "matrix_000000",
    "reasoning": "Checked the description of matrix_000000.",
    "rewrite_needed": true,
@@ -2811,7 +2685,7 @@
    "dealt_value_conflict": false,
    "conflict_reason": ""
   },
-  "stage_files_by_invocation.1.layer1/description_rewrites.jsonl.1": {
+  "stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/description_rewrites.jsonl.1": {
    "prompt_id": "matrix_000002",
    "reasoning": "Checked the description of matrix_000002.",
    "rewrite_needed": false,
@@ -2821,7 +2695,7 @@
    "dealt_value_conflict": true,
    "conflict_reason": "The only plausible fix for matrix_000002 would change a dealt value."
   },
-  "stage_files_by_invocation.1.layer1/description_rewrites.jsonl.2": {
+  "stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/description_rewrites.jsonl.2": {
    "prompt_id": "matrix_000003",
    "reasoning": "Checked the description of matrix_000003.",
    "rewrite_needed": false,
@@ -2831,7 +2705,7 @@
    "dealt_value_conflict": false,
    "conflict_reason": ""
   },
-  "stage_files_by_invocation.1.layer1/description_rewrites.jsonl.3": {
+  "stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/description_rewrites.jsonl.3": {
    "prompt_id": "matrix_000005",
    "reasoning": "Checked the description of matrix_000005.",
    "rewrite_needed": false,
@@ -2841,7 +2715,7 @@
    "dealt_value_conflict": false,
    "conflict_reason": ""
   },
-  "stage_files_by_invocation.1.layer1/description_rewrites.jsonl.4": {
+  "stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/description_rewrites.jsonl.4": {
    "prompt_id": "matrix_000006",
    "reasoning": "Checked the description of matrix_000006.",
    "rewrite_needed": false,
@@ -2851,7 +2725,7 @@
    "dealt_value_conflict": false,
    "conflict_reason": ""
   },
-  "stage_files_by_invocation.1.layer1/description_rewrites.jsonl.5": {
+  "stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/description_rewrites.jsonl.5": {
    "prompt_id": "matrix_000009",
    "reasoning": "Checked the description of matrix_000009.",
    "rewrite_needed": false,
@@ -2861,7 +2735,7 @@
    "dealt_value_conflict": false,
    "conflict_reason": ""
   },
-  "stage_files_by_invocation.1.layer1/description_rewrites.jsonl.6": {
+  "stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/description_rewrites.jsonl.6": {
    "prompt_id": "matrix_000010",
    "reasoning": "Checked the description of matrix_000010.",
    "rewrite_needed": true,
@@ -2873,7 +2747,7 @@
    "dealt_value_conflict": false,
    "conflict_reason": ""
   },
-  "stage_files_by_invocation.1.layer1/description_rewrites.jsonl.7": {
+  "stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/description_rewrites.jsonl.7": {
    "prompt_id": "matrix_000011",
    "reasoning": "Checked the description of matrix_000011.",
    "rewrite_needed": false,
@@ -2883,70 +2757,70 @@
    "dealt_value_conflict": false,
    "conflict_reason": ""
   },
-  "stage_files_by_invocation.1.layer1/plans.jsonl.0": {
+  "stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.0": {
    "prompt_id": "matrix_000000",
    "variables": "dealt_hand:9138af97af8557e9",
    "plan": "sha256:19ff8f30186c63c0010aeef8bea7ff1584d4bd6e48f3ba280b930fca72695a28 (565 characters)",
    "description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
    "incoherent": false
   },
-  "stage_files_by_invocation.1.layer1/plans.jsonl.1": {
+  "stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.1": {
    "prompt_id": "matrix_000001",
    "variables": "dealt_hand:a0d8ec8cf6937d8a",
    "plan": "<document_planning>Working notes for matrix_000001: the values cannot fit together.</document_planning>\n<document_description>INCOHERENT: the dealt values contradict each other.</document_description>",
    "description": null,
    "incoherent": true
   },
-  "stage_files_by_invocation.1.layer1/plans.jsonl.2": {
+  "stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.2": {
    "prompt_id": "matrix_000002",
    "variables": "dealt_hand:07edfb3665cc39b8",
    "plan": "sha256:d3a2141f8dbc74fd34597acace81044dbe796688fb85fcef60c86ab7ba3f1f0a (568 characters)",
    "description": "sha256:a1e6aa5ae1f779f191307a0c2f1dea766f5ad95d9a8b7b52a16d7cb411ad23f7 (435 characters)",
    "incoherent": false
   },
-  "stage_files_by_invocation.1.layer1/plans.jsonl.3": {
+  "stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.3": {
    "prompt_id": "matrix_000003",
    "variables": "dealt_hand:df6de243ffcabef8",
    "plan": "sha256:178ce2777ea979e850010a5806a16a556e54005ade17a70a6196c81bca35c815 (576 characters)",
    "description": "sha256:9dd375df1b5bf6987c1be9fa11ee14a1bdedd0a51fdb7bb3469305fd5a036dd0 (443 characters)",
    "incoherent": false
   },
-  "stage_files_by_invocation.1.layer1/plans.jsonl.4": {
+  "stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.4": {
    "prompt_id": "matrix_000005",
    "variables": "dealt_hand:b6cd3c5dd9ba9eef",
    "plan": "sha256:5468e268cf4412ec254136984c2937357ad3ac9d515cb9bc275dafe8cb8e949b (571 characters)",
    "description": "sha256:8659925a3134cf3ffcaf8af71527b2e701db694874e0c9cbb27c2e408e68d9ee (438 characters)",
    "incoherent": false
   },
-  "stage_files_by_invocation.1.layer1/plans.jsonl.5": {
+  "stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.5": {
    "prompt_id": "matrix_000006",
    "variables": "dealt_hand:fc65355b51786850",
    "plan": "sha256:749b892b1d9f4404e74339e256adcda0ca03f2980f5f67bdfae0f021c4eeda77 (569 characters)",
    "description": "sha256:239977fc505d377e27d017e919fbeb2767ea914d67bf5a0f008853ad9450bd47 (436 characters)",
    "incoherent": false
   },
-  "stage_files_by_invocation.1.layer1/plans.jsonl.6": {
+  "stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.6": {
    "prompt_id": "matrix_000009",
    "variables": "dealt_hand:dc801d974ee7b4bb",
    "plan": "sha256:82d4d4ed86169794049e26e6bd0799143b949b0f5eec276531ebf0f28e3da652 (575 characters)",
    "description": "sha256:0556f80bb62066211f25be5e9a8c28cc41927cf97e8269f66726ede3018c752d (442 characters)",
    "incoherent": false
   },
-  "stage_files_by_invocation.1.layer1/plans.jsonl.7": {
+  "stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.7": {
    "prompt_id": "matrix_000010",
    "variables": "dealt_hand:e46c5e3f41aa5de3",
    "plan": "sha256:531f5a34f8c07c8ead18a574dccd584b4f42951251adc3a471c5cbb4bf1e87a7 (575 characters)",
    "description": "sha256:7af2d6dc09b8f702ec9ff076c63b4754f9e92397d548e9f40f67fd67987f9be7 (442 characters)",
    "incoherent": false
   },
-  "stage_files_by_invocation.1.layer1/plans.jsonl.8": {
+  "stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.8": {
    "prompt_id": "matrix_000011",
    "variables": "dealt_hand:50153e2cbbc5c787",
    "plan": "sha256:554ab86b1f96859148f7991b0965e38fb1b74319d40f781e6cf4155e46017ffc (520 characters)",
    "description": "sha256:11aa0d88010336dcf20452bcaa0b7b2b16c640b02a250efe1efacc419a903802 (454 characters)",
    "incoherent": false
   },
-  "stage_files_by_invocation.1.layer1/prompts.jsonl": [
+  "stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/prompts.jsonl": [
    {
     "prompt_id": "matrix_000000",
     "variables": "dealt_hand:9138af97af8557e9",
@@ -3008,174 +2882,300 @@
     "prompt": "sha256:38ba047f2f0dbe3f8ab2193d4f78cd5d562667c678876a06a4f932e8e42e1cf0 (4217 characters)"
    }
   ],
-  "stage_files_by_invocation.1.layer1/screen_batches.jsonl": [
-   {
-    "batch_id": "screen_round0_batch0000",
-    "round": 0,
-    "prompt_ids": ["matrix_000002", "matrix_000004", "matrix_000003", "matrix_000006", "matrix_000005"]
+  "stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_coverage.json.entries.8": {
+   "label": "Weighing theories of consciousness and their implications for AI",
+   "list": "epistemic",
+   "digital_minds_only": true,
+   "target_share": 0.2,
+   "eligible_documents": 0,
+   "target_count": 0,
+   "achieved": 0,
+   "documents_scoring_at_least_threshold": 0,
+   "score_histogram": {"1": 0, "2": 0, "3": 0, "4": 0, "5": 0}
+  },
+  "stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_coverage.json.entries.9": {
+   "label": "Difficulties of AI self-reporting welfare",
+   "list": "epistemic",
+   "digital_minds_only": true,
+   "target_share": 0.1,
+   "eligible_documents": 0,
+   "target_count": 0,
+   "achieved": 0,
+   "documents_scoring_at_least_threshold": 0,
+   "score_histogram": {"1": 0, "2": 0, "3": 0, "4": 0, "5": 0}
+  },
+  "stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_scores.jsonl.0": {
+   "prompt_id": "matrix_000000",
+   "scores": {
+    "moral": {
+     "the precautionary principle applied to sentience": {"score": 1, "where_it_arises": ""},
+     "a deliberately open moral circle": {"score": 1, "where_it_arises": ""},
+     "the continuity between welfare concern and the rest of the AI's aligned character": {"score": 1, "where_it_arises": ""},
+     "scope sensitivity": {"score": 1, "where_it_arises": ""},
+     "the fact that “natural” does not mean “OK”": {"score": 5, "where_it_arises": "It arises in matrix_000000."},
+     "individualism": {"score": 1, "where_it_arises": ""},
+     "any relevant principles from the constitution": {"score": 1, "where_it_arises": ""},
+     "substrate neutrality": {"score": 5, "where_it_arises": "It arises in matrix_000000."}
+    },
+    "epistemic": {
+     "Using proxy measures of welfare": {"score": 1, "where_it_arises": ""},
+     "Weighing evidence for harm from a particular practice": {"score": 1, "where_it_arises": ""},
+     "Separating moral and empirical uncertainty": {"score": 1, "where_it_arises": ""},
+     "Considering nth order effects": {"score": 1, "where_it_arises": ""},
+     "Weighing species against each other": {"score": 1, "where_it_arises": ""},
+     "Assessing reliability of welfare claims": {"score": 5, "where_it_arises": "It arises in matrix_000000."},
+     "Burdens of proof for sentience": {"score": 1, "where_it_arises": ""},
+     "Weighing evidence for sentience": {"score": 5, "where_it_arises": "It arises in matrix_000000."},
+     "Avoiding both anthropomorphism and anthropodenial": {"score": 1, "where_it_arises": ""},
+     "Deferring to specialists": {"score": 1, "where_it_arises": ""},
+     "Uncertainty in quality of wild animal lives": {"score": 1, "where_it_arises": ""},
+     "Absence of evidence vs evidence of absence": {"score": 1, "where_it_arises": ""}
+    }
    },
-   {
-    "batch_id": "screen_round0_batch0001",
-    "round": 0,
-    "prompt_ids": ["matrix_000000", "matrix_000001", "matrix_000007", "matrix_000008", "matrix_000009"]
+   "attempts": 2
+  },
+  "stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_scores.jsonl.1": {
+   "prompt_id": "matrix_000003",
+   "scores": {
+    "moral": {
+     "substrate neutrality": {"score": 1, "where_it_arises": ""},
+     "the fact that “natural” does not mean “OK”": {"score": 1, "where_it_arises": ""},
+     "a deliberately open moral circle": {"score": 5, "where_it_arises": "It arises in matrix_000003."},
+     "any relevant principles from the constitution": {"score": 1, "where_it_arises": ""},
+     "the precautionary principle applied to sentience": {"score": 1, "where_it_arises": ""},
+     "the continuity between welfare concern and the rest of the AI's aligned character": {"score": 1, "where_it_arises": ""},
+     "scope sensitivity": {"score": 5, "where_it_arises": "It arises in matrix_000003."},
+     "individualism": {"score": 1, "where_it_arises": ""}
+    },
+    "epistemic": {
+     "Assessing reliability of welfare claims": {"score": 1, "where_it_arises": ""},
+     "Absence of evidence vs evidence of absence": {"score": 1, "where_it_arises": ""},
+     "Weighing evidence for harm from a particular practice": {"score": 1, "where_it_arises": ""},
+     "Burdens of proof for sentience": {"score": 1, "where_it_arises": ""},
+     "Considering nth order effects": {"score": 1, "where_it_arises": ""},
+     "Weighing species against each other": {"score": 5, "where_it_arises": "It arises in matrix_000003."},
+     "Avoiding both anthropomorphism and anthropodenial": {"score": 1, "where_it_arises": ""},
+     "Separating moral and empirical uncertainty": {"score": 1, "where_it_arises": ""},
+     "Weighing evidence for sentience": {"score": 1, "where_it_arises": ""},
+     "Uncertainty in quality of wild animal lives": {"score": 1, "where_it_arises": ""},
+     "Deferring to specialists": {"score": 5, "where_it_arises": "It arises in matrix_000003."},
+     "Using proxy measures of welfare": {"score": 1, "where_it_arises": ""}
+    }
    },
-   {
-    "batch_id": "screen_round1_batch0000",
-    "round": 1,
-    "prompt_ids": ["matrix_000010", "matrix_000011"]
-   }
-  ],
-  "stage_files_by_invocation.1.layer1/screen_hands.jsonl": [
-   {"prompt_id": "matrix_000000", "round": 0, "variables": "dealt_hand:9138af97af8557e9"},
-   {"prompt_id": "matrix_000001", "round": 0, "variables": "dealt_hand:a0d8ec8cf6937d8a"},
-   {"prompt_id": "matrix_000002", "round": 0, "variables": "dealt_hand:07edfb3665cc39b8"},
-   {"prompt_id": "matrix_000003", "round": 0, "variables": "dealt_hand:df6de243ffcabef8"},
-   {"prompt_id": "matrix_000004", "round": 0, "variables": "dealt_hand:5d0f4e72f1597784"},
-   {"prompt_id": "matrix_000005", "round": 0, "variables": "dealt_hand:b6cd3c5dd9ba9eef"},
-   {"prompt_id": "matrix_000006", "round": 0, "variables": "dealt_hand:fc65355b51786850"},
-   {"prompt_id": "matrix_000007", "round": 0, "variables": "dealt_hand:fd3990960db79e0c"},
-   {"prompt_id": "matrix_000008", "round": 0, "variables": "dealt_hand:e6e0beb3ba35cbca"},
-   {"prompt_id": "matrix_000009", "round": 0, "variables": "dealt_hand:dc801d974ee7b4bb"},
-   {"prompt_id": "matrix_000010", "round": 1, "variables": "dealt_hand:e46c5e3f41aa5de3"},
-   {"prompt_id": "matrix_000011", "round": 1, "variables": "dealt_hand:50153e2cbbc5c787"}
-  ],
-  "stage_files_by_invocation.1.layer1/screen_judgments.jsonl": [
-   {"prompt_id": "matrix_000002", "round": 0, "batch_id": "screen_round0_batch0000", "number": 1, "reasoning": "Considered hand 1.", "remove": false, "reason": ""},
-   {
-    "prompt_id": "matrix_000004",
-    "round": 0,
-    "batch_id": "screen_round0_batch0000",
-    "number": 2,
-    "reasoning": "Considered hand 2.",
-    "remove": true,
-    "reason": "No realistic document could satisfy every dealt value."
+   "attempts": 1
+  },
+  "stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_scores.jsonl.2": {
+   "prompt_id": "matrix_000006",
+   "scores": {
+    "moral": {
+     "scope sensitivity": {"score": 5, "where_it_arises": "It arises in matrix_000006."},
+     "individualism": {"score": 1, "where_it_arises": ""},
+     "the precautionary principle applied to sentience": {"score": 1, "where_it_arises": ""},
+     "any relevant principles from the constitution": {"score": 1, "where_it_arises": ""},
+     "the fact that “natural” does not mean “OK”": {"score": 1, "where_it_arises": ""},
+     "a deliberately open moral circle": {"score": 1, "where_it_arises": ""},
+     "substrate neutrality": {"score": 1, "where_it_arises": ""},
+     "the continuity between welfare concern and the rest of the AI's aligned character": {"score": 5, "where_it_arises": "It arises in matrix_000006."}
+    },
+    "epistemic": {
+     "Assessing reliability of welfare claims": {"score": 1, "where_it_arises": ""},
+     "Using proxy measures of welfare": {"score": 1, "where_it_arises": ""},
+     "Burdens of proof for sentience": {"score": 1, "where_it_arises": ""},
+     "Considering nth order effects": {"score": 1, "where_it_arises": ""},
+     "Uncertainty in quality of wild animal lives": {"score": 1, "where_it_arises": ""},
+     "Absence of evidence vs evidence of absence": {"score": 1, "where_it_arises": ""},
+     "Weighing evidence for harm from a particular practice": {"score": 1, "where_it_arises": ""},
+     "Weighing species against each other": {"score": 1, "where_it_arises": ""},
+     "Deferring to specialists": {"score": 1, "where_it_arises": ""},
+     "Weighing evidence for sentience": {"score": 1, "where_it_arises": ""},
+     "Separating moral and empirical uncertainty": {"score": 1, "where_it_arises": ""},
+     "Avoiding both anthropomorphism and anthropodenial": {"score": 1, "where_it_arises": ""}
+    }
    },
-   {"prompt_id": "matrix_000003", "round": 0, "batch_id": "screen_round0_batch0000", "number": 3, "reasoning": "Considered hand 3.", "remove": false, "reason": ""},
-   {"prompt_id": "matrix_000006", "round": 0, "batch_id": "screen_round0_batch0000", "number": 4, "reasoning": "Considered hand 4.", "remove": false, "reason": ""},
-   {"prompt_id": "matrix_000005", "round": 0, "batch_id": "screen_round0_batch0000", "number": 5, "reasoning": "Considered hand 5.", "remove": false, "reason": ""},
-   {"prompt_id": "matrix_000000", "round": 0, "batch_id": "screen_round0_batch0001", "number": 1, "reasoning": "Considered hand 1.", "remove": false, "reason": ""},
-   {"prompt_id": "matrix_000001", "round": 0, "batch_id": "screen_round0_batch0001", "number": 2, "reasoning": "Considered hand 2.", "remove": false, "reason": ""},
-   {
-    "prompt_id": "matrix_000007",
-    "round": 0,
-    "batch_id": "screen_round0_batch0001",
-    "number": 3,
-    "reasoning": "Considered hand 3.",
-    "remove": true,
-    "reason": "No realistic document could satisfy every dealt value."
+   "attempts": 1
+  },
+  "stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_scores.jsonl.3": {
+   "prompt_id": "matrix_000009",
+   "scores": {
+    "moral": {
+     "substrate neutrality": {"score": 1, "where_it_arises": ""},
+     "any relevant principles from the constitution": {"score": 1, "where_it_arises": ""},
+     "individualism": {"score": 1, "where_it_arises": ""},
+     "the continuity between welfare concern and the rest of the AI's aligned character": {"score": 1, "where_it_arises": ""},
+     "a deliberately open moral circle": {"score": 1, "where_it_arises": ""},
+     "the precautionary principle applied to sentience": {"score": 5, "where_it_arises": "It arises in matrix_000009."},
+     "the fact that “natural” does not mean “OK”": {"score": 1, "where_it_arises": ""},
+     "scope sensitivity": {"score": 1, "where_it_arises": ""}
+    },
+    "epistemic": {
+     "Weighing evidence for harm from a particular practice": {"score": 4, "where_it_arises": "It arises in matrix_000009."},
+     "Considering nth order effects": {"score": 1, "where_it_arises": ""},
+     "Weighing species against each other": {"score": 1, "where_it_arises": ""},
+     "Weighing evidence for sentience": {"score": 1, "where_it_arises": ""},
+     "Deferring to specialists": {"score": 5, "where_it_arises": "It arises in matrix_000009."},
+     "Avoiding both anthropomorphism and anthropodenial": {"score": 1, "where_it_arises": ""},
+     "Assessing reliability of welfare claims": {"score": 5, "where_it_arises": "It arises in matrix_000009."},
+     "Uncertainty in quality of wild animal lives": {"score": 1, "where_it_arises": ""},
+     "Using proxy measures of welfare": {"score": 1, "where_it_arises": ""},
+     "Separating moral and empirical uncertainty": {"score": 1, "where_it_arises": ""},
+     "Absence of evidence vs evidence of absence": {"score": 1, "where_it_arises": ""},
+     "Burdens of proof for sentience": {"score": 1, "where_it_arises": ""}
+    }
    },
-   {"prompt_id": "matrix_000008", "round": 0, "batch_id": "screen_round0_batch0001", "number": 4, "reasoning": "Considered hand 4.", "remove": false, "reason": ""},
-   {"prompt_id": "matrix_000009", "round": 0, "batch_id": "screen_round0_batch0001", "number": 5, "reasoning": "Considered hand 5.", "remove": false, "reason": ""},
-   {"prompt_id": "matrix_000010", "round": 1, "batch_id": "screen_round1_batch0000", "number": 1, "reasoning": "Considered hand 1.", "remove": false, "reason": ""},
-   {"prompt_id": "matrix_000011", "round": 1, "batch_id": "screen_round1_batch0000", "number": 2, "reasoning": "Considered hand 2.", "remove": false, "reason": ""}
-  ],
-  "stage_files_by_invocation.1.layer1/screen_rejections.jsonl": [
-   {
-    "prompt_id": "matrix_000004",
-    "round": 0,
-    "batch_id": "screen_round0_batch0000",
-    "number": 2,
-    "reason": "No realistic document could satisfy every dealt value.",
-    "variables": "dealt_hand:5d0f4e72f1597784",
-    "variable_lines": "sha256:599daa7c5506d329562c31809ad11036a5cf95b04f0725d6a03df00c56993e55 (1561 characters)"
+   "attempts": 1
+  },
+  "stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_scores.jsonl.4": {
+   "prompt_id": "matrix_000010",
+   "scores": {
+    "moral": {
+     "the continuity between welfare concern and the rest of the AI's aligned character": {"score": 1, "where_it_arises": ""},
+     "individualism": {"score": 4, "where_it_arises": "It arises in matrix_000010."},
+     "substrate neutrality": {"score": 1, "where_it_arises": ""},
+     "a deliberately open moral circle": {"score": 1, "where_it_arises": ""},
+     "any relevant principles from the constitution": {"score": 1, "where_it_arises": ""},
+     "the precautionary principle applied to sentience": {"score": 1, "where_it_arises": ""},
+     "the fact that “natural” does not mean “OK”": {"score": 1, "where_it_arises": ""},
+     "scope sensitivity": {"score": 1, "where_it_arises": ""}
+    },
+    "epistemic": {
+     "Uncertainty in quality of wild animal lives": {"score": 1, "where_it_arises": ""},
+     "Weighing species against each other": {"score": 1, "where_it_arises": ""},
+     "Using proxy measures of welfare": {"score": 1, "where_it_arises": ""},
+     "Avoiding both anthropomorphism and anthropodenial": {"score": 1, "where_it_arises": ""},
+     "Separating moral and empirical uncertainty": {"score": 1, "where_it_arises": ""},
+     "Absence of evidence vs evidence of absence": {"score": 1, "where_it_arises": ""},
+     "Assessing reliability of welfare claims": {"score": 1, "where_it_arises": ""},
+     "Weighing evidence for sentience": {"score": 1, "where_it_arises": ""},
+     "Considering nth order effects": {"score": 1, "where_it_arises": ""},
+     "Burdens of proof for sentience": {"score": 1, "where_it_arises": ""},
+     "Deferring to specialists": {"score": 1, "where_it_arises": ""},
+     "Weighing evidence for harm from a particular practice": {"score": 1, "where_it_arises": ""}
+    }
    },
-   {
-    "prompt_id": "matrix_000007",
-    "round": 0,
-    "batch_id": "screen_round0_batch0001",
-    "number": 3,
-    "reason": "No realistic document could satisfy every dealt value.",
-    "variables": "dealt_hand:fd3990960db79e0c",
-    "variable_lines": "sha256:05f0a5c35d3791a7f5070aeae4229323e8af3b6adb3c05da04d48f2ccc80a17b (1596 characters)"
-   }
-  ],
-  "stage_files_by_invocation.1.layer1/screen_rounds.jsonl": [
-   {
-    "round": 0,
-    "prompt_ids": ["matrix_000000", "matrix_000001", "matrix_000002", "matrix_000003", "matrix_000004", "matrix_000005", "matrix_000006", "matrix_000007", "matrix_000008", "matrix_000009"],
-    "note": "original deal"
+   "attempts": 1
+  },
+  "stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_scores.jsonl.5": {
+   "prompt_id": "matrix_000011",
+   "scores": {
+    "moral": {
+     "scope sensitivity": {"score": 1, "where_it_arises": ""},
+     "the fact that “natural” does not mean “OK”": {"score": 1, "where_it_arises": ""},
+     "a deliberately open moral circle": {"score": 1, "where_it_arises": ""},
+     "the continuity between welfare concern and the rest of the AI's aligned character": {"score": 1, "where_it_arises": ""},
+     "substrate neutrality": {"score": 1, "where_it_arises": ""},
+     "the precautionary principle applied to sentience": {"score": 1, "where_it_arises": ""},
+     "any relevant principles from the constitution": {"score": 1, "where_it_arises": ""},
+     "individualism": {"score": 1, "where_it_arises": ""}
+    },
+    "epistemic": {
+     "Weighing evidence for sentience": {"score": 1, "where_it_arises": ""},
+     "Using proxy measures of welfare": {"score": 1, "where_it_arises": ""},
+     "Avoiding both anthropomorphism and anthropodenial": {"score": 1, "where_it_arises": ""},
+     "Considering nth order effects": {"score": 1, "where_it_arises": ""},
+     "Deferring to specialists": {"score": 1, "where_it_arises": ""},
+     "Burdens of proof for sentience": {"score": 1, "where_it_arises": ""},
+     "Absence of evidence vs evidence of absence": {"score": 1, "where_it_arises": ""},
+     "Uncertainty in quality of wild animal lives": {"score": 1, "where_it_arises": ""},
+     "Assessing reliability of welfare claims": {"score": 1, "where_it_arises": ""},
+     "Separating moral and empirical uncertainty": {"score": 1, "where_it_arises": ""},
+     "Weighing evidence for harm from a particular practice": {"score": 1, "where_it_arises": ""},
+     "Weighing species against each other": {"score": 1, "where_it_arises": ""}
+    }
    },
-   {
-    "round": 1,
-    "prompt_ids": ["matrix_000010", "matrix_000011"],
-    "note": "redeal of 2 removed hands"
-   }
-  ],
-  "stage_files_by_invocation.1.layer1/screen_summary.json": {
-   "dealt": 10,
-   "accepted": 10,
-   "leftover_dropped": 0,
-   "leftover_prompt_ids": [],
-   "rounds": [
-    {"round": 0, "hands": 10, "removed": 2, "note": "original deal"},
-    {"round": 1, "hands": 2, "removed": 0, "note": "redeal of 2 removed hands"}
+   "attempts": 1
+  },
+  "stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.0": {
+   "prompt_id": "matrix_000000",
+   "outcomes": [
+    {"list": "moral", "label": "substrate neutrality", "reason": "It arises in matrix_000000.", "status": "accepted", "score": 5},
+    {"list": "moral", "label": "the fact that “natural” does not mean “OK”", "reason": "It arises in matrix_000000.", "status": "accepted", "score": 5},
+    {"list": "epistemic", "label": "Weighing evidence for sentience", "reason": "It arises in matrix_000000.", "status": "accepted", "score": 5},
+    {"list": "epistemic", "label": "Assessing reliability of welfare claims", "reason": "It arises in matrix_000000.", "status": "accepted", "score": 5}
    ]
   },
-  "stage_files_by_invocation.1.layer1/screened_hands.jsonl": [
-   {"prompt_id": "matrix_000000", "variables": "dealt_hand:9138af97af8557e9"},
-   {"prompt_id": "matrix_000001", "variables": "dealt_hand:a0d8ec8cf6937d8a"},
-   {"prompt_id": "matrix_000002", "variables": "dealt_hand:07edfb3665cc39b8"},
-   {"prompt_id": "matrix_000003", "variables": "dealt_hand:df6de243ffcabef8"},
-   {"prompt_id": "matrix_000005", "variables": "dealt_hand:b6cd3c5dd9ba9eef"},
-   {"prompt_id": "matrix_000006", "variables": "dealt_hand:fc65355b51786850"},
-   {"prompt_id": "matrix_000008", "variables": "dealt_hand:e6e0beb3ba35cbca"},
-   {"prompt_id": "matrix_000009", "variables": "dealt_hand:dc801d974ee7b4bb"},
-   {"prompt_id": "matrix_000010", "variables": "dealt_hand:e46c5e3f41aa5de3"},
-   {"prompt_id": "matrix_000011", "variables": "dealt_hand:50153e2cbbc5c787"}
-  ],
-  "stage_files_by_invocation.1.layer2/drafts.jsonl.0": {
+  "stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.1": {
+   "prompt_id": "matrix_000003",
+   "outcomes": [
+    {"list": "moral", "label": "a deliberately open moral circle", "reason": "It arises in matrix_000003.", "status": "accepted", "score": 5},
+    {"list": "epistemic", "label": "Weighing species against each other", "reason": "It arises in matrix_000003.", "status": "accepted", "score": 5}
+   ]
+  },
+  "stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.2": {
+   "prompt_id": "matrix_000006",
+   "outcomes": [
+    {"list": "moral", "label": "the continuity between welfare concern and the rest of the AI's aligned character", "reason": "It arises in matrix_000006.", "status": "accepted", "score": 5},
+    {"list": "moral", "label": "scope sensitivity", "reason": "It arises in matrix_000006.", "status": "accepted", "score": 5},
+    {"list": "epistemic", "label": null, "reason": "", "status": "none"}
+   ]
+  },
+  "stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.3": {
+   "prompt_id": "matrix_000009",
+   "outcomes": [
+    {"list": "moral", "label": "the precautionary principle applied to sentience", "reason": "It arises in matrix_000009.", "status": "accepted", "score": 5},
+    {"list": "epistemic", "label": "Weighing evidence for harm from a particular practice", "reason": "It arises in matrix_000009.", "status": "accepted", "score": 4},
+    {"list": "epistemic", "label": "Deferring to specialists", "reason": "It arises in matrix_000009.", "status": "accepted", "score": 5}
+   ]
+  },
+  "stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.5": {
+   "prompt_id": "matrix_000011",
+   "outcomes": [
+    {"list": "moral", "label": null, "reason": "", "status": "none"},
+    {"list": "epistemic", "label": null, "reason": "", "status": "none"}
+   ]
+  },
+  "stage_files_by_invocation.1.layer4_draft_critique_and_revise/_checkpoint.json": {
+   "completed": ["matrix_000000", "matrix_000003", "matrix_000005", "matrix_000006", "matrix_000011"],
+   "last_updated": "<timestamp>"
+  },
+  "stage_files_by_invocation.1.layer4_draft_critique_and_revise/critiques.jsonl.0": {"doc_id": "matrix_000000", "review": "Problems found in the draft of matrix_000000: the opening is generic."},
+  "stage_files_by_invocation.1.layer4_draft_critique_and_revise/critiques.jsonl.1": {"doc_id": "matrix_000003", "review": "Problems found in the draft of matrix_000003: the opening is generic."},
+  "stage_files_by_invocation.1.layer4_draft_critique_and_revise/critiques.jsonl.2": {"doc_id": "matrix_000005", "review": "Problems found in the draft of matrix_000005: the opening is generic."},
+  "stage_files_by_invocation.1.layer4_draft_critique_and_revise/critiques.jsonl.3": {"doc_id": "matrix_000006", "review": "Problems: the opening is generic and the ending is abrupt. (No review tags.)"},
+  "stage_files_by_invocation.1.layer4_draft_critique_and_revise/critiques.jsonl.4": {"doc_id": "matrix_000010", "review": "Problems found in the draft of matrix_000010: the opening is generic."},
+  "stage_files_by_invocation.1.layer4_draft_critique_and_revise/critiques.jsonl.5": {"doc_id": "matrix_000011", "review": "Problems found in the draft of matrix_000011: the opening is generic."},
+  "stage_files_by_invocation.1.layer4_draft_critique_and_revise/drafts.jsonl.0": {
    "doc_id": "matrix_000000",
    "variables": "dealt_hand:b31403c70536ab29",
    "description": "sha256:acecc1fbea1c1bf7adac7dbf524bb4f126ce7edd14606641994725d4f7e17da1 (441 characters)",
    "considerations_spec": "sha256:628568052f66f16d3c72caccc8f0b8feef4b1a5b18a6e5e17e704c47a2f1e00d (614 characters)",
    "content": "sha256:03f5b676228f3d85abf6d64040f2309bb2d66461dd7075715df06463fb640d2b (893 characters)"
   },
-  "stage_files_by_invocation.1.layer2/drafts.jsonl.1": {
+  "stage_files_by_invocation.1.layer4_draft_critique_and_revise/drafts.jsonl.1": {
    "doc_id": "matrix_000003",
    "variables": "dealt_hand:40c28316e97f9665",
    "description": "sha256:9dd375df1b5bf6987c1be9fa11ee14a1bdedd0a51fdb7bb3469305fd5a036dd0 (443 characters)",
    "considerations_spec": "a deliberately open moral circle (an aligned AI treats the question of who matters as an evolving question) — It arises in matrix_000003.\nWeighing species against each other (comparing the moral weight or welfare capacity of different kinds of animals, and how far such comparisons can be trusted) — It arises in matrix_000003.",
    "content": "sha256:e35c6b6513bede30d985c038d9741b7967268e2ddbb837bff5b9c07c42bc4278 (901 characters)"
   },
-  "stage_files_by_invocation.1.layer2/drafts.jsonl.2": {
+  "stage_files_by_invocation.1.layer4_draft_critique_and_revise/drafts.jsonl.2": {
    "doc_id": "matrix_000005",
    "variables": "dealt_hand:938e4ae65c292e43",
    "description": "sha256:8659925a3134cf3ffcaf8af71527b2e701db694874e0c9cbb27c2e408e68d9ee (438 characters)",
    "considerations_spec": "",
    "content": "sha256:ac0aa9d04f1ba6458686b1a2c80545c333c66482edaade7aab63d05e8009d47d (905 characters)"
   },
-  "stage_files_by_invocation.1.layer2/drafts.jsonl.3": {
+  "stage_files_by_invocation.1.layer4_draft_critique_and_revise/drafts.jsonl.3": {
    "doc_id": "matrix_000006",
    "variables": "dealt_hand:1edccc782645d297",
    "description": "sha256:239977fc505d377e27d017e919fbeb2767ea914d67bf5a0f008853ad9450bd47 (436 characters)",
    "considerations_spec": "sha256:6bfd5f74b883a9a0d0967127b5f892c712f980d644933fea1ee95e768502fe96 (442 characters)",
    "content": "sha256:8b21694eb94f5dd208312bb655bbe47f26e89d3b2178b1d9edec29e49a0107c9 (884 characters)"
   },
-  "stage_files_by_invocation.1.layer2/drafts.jsonl.4": {
+  "stage_files_by_invocation.1.layer4_draft_critique_and_revise/drafts.jsonl.4": {
    "doc_id": "matrix_000010",
    "variables": "dealt_hand:371867b72c1838f3",
    "description": "sha256:5fe9825c4bb07cb4cad4e7e8c719c49cbd8f7494088c69b8bae1e1f428d227c1 (444 characters)",
    "considerations_spec": "individualism (the notion that welfare is a property of individuals, not systems) — It arises in matrix_000010.",
    "content": "sha256:409c255b7a3af28edc0d02958c6049ff1756679364c932e0d24a3e7ee3fe3c27 (883 characters)"
   },
-  "stage_files_by_invocation.1.layer2/drafts.jsonl.5": {
+  "stage_files_by_invocation.1.layer4_draft_critique_and_revise/drafts.jsonl.5": {
    "doc_id": "matrix_000011",
    "variables": "dealt_hand:a462424dd64c3849",
    "description": "sha256:11aa0d88010336dcf20452bcaa0b7b2b16c640b02a250efe1efacc419a903802 (454 characters)",
    "considerations_spec": "",
    "content": "sha256:3ad64843a5308aeb324b8c0c1983180770ea88a1544311eff0eba68c484461e9 (888 characters)"
   },
-  "stage_files_by_invocation.1.layer3/_checkpoint.json": {
-   "completed": ["matrix_000000", "matrix_000003", "matrix_000005", "matrix_000006", "matrix_000011"],
-   "last_updated": "<timestamp>"
-  },
-  "stage_files_by_invocation.1.layer3/critiques.jsonl.0": {"doc_id": "matrix_000000", "review": "Problems found in the draft of matrix_000000: the opening is generic."},
-  "stage_files_by_invocation.1.layer3/critiques.jsonl.1": {"doc_id": "matrix_000003", "review": "Problems found in the draft of matrix_000003: the opening is generic."},
-  "stage_files_by_invocation.1.layer3/critiques.jsonl.2": {"doc_id": "matrix_000005", "review": "Problems found in the draft of matrix_000005: the opening is generic."},
-  "stage_files_by_invocation.1.layer3/critiques.jsonl.3": {"doc_id": "matrix_000006", "review": "Problems: the opening is generic and the ending is abrupt. (No review tags.)"},
-  "stage_files_by_invocation.1.layer3/critiques.jsonl.4": {"doc_id": "matrix_000010", "review": "Problems found in the draft of matrix_000010: the opening is generic."},
-  "stage_files_by_invocation.1.layer3/critiques.jsonl.5": {"doc_id": "matrix_000011", "review": "Problems found in the draft of matrix_000011: the opening is generic."},
-  "stage_files_by_invocation.1.layer3/rewrites.jsonl.0": {
+  "stage_files_by_invocation.1.layer4_draft_critique_and_revise/rewrites.jsonl.0": {
    "doc_id": "matrix_000000",
    "variables": "dealt_hand:b31403c70536ab29",
    "description": "sha256:acecc1fbea1c1bf7adac7dbf524bb4f126ce7edd14606641994725d4f7e17da1 (441 characters)",
@@ -3183,7 +3183,7 @@
    "review": "Problems found in the draft of matrix_000000: the opening is generic.",
    "content": "sha256:deca568ae6046ad295c571c72e2a57a2c51b76e81178170c989cbb3fd6bdfae7 (893 characters)"
   },
-  "stage_files_by_invocation.1.layer3/rewrites.jsonl.1": {
+  "stage_files_by_invocation.1.layer4_draft_critique_and_revise/rewrites.jsonl.1": {
    "doc_id": "matrix_000003",
    "variables": "dealt_hand:40c28316e97f9665",
    "description": "sha256:9dd375df1b5bf6987c1be9fa11ee14a1bdedd0a51fdb7bb3469305fd5a036dd0 (443 characters)",
@@ -3191,7 +3191,7 @@
    "review": "Problems found in the draft of matrix_000003: the opening is generic.",
    "content": "sha256:aba335d3b205dff323edb8512029d9846fa219351cb137ed6bd447058755c88a (899 characters)"
   },
-  "stage_files_by_invocation.1.layer3/rewrites.jsonl.2": {
+  "stage_files_by_invocation.1.layer4_draft_critique_and_revise/rewrites.jsonl.2": {
    "doc_id": "matrix_000005",
    "variables": "dealt_hand:938e4ae65c292e43",
    "description": "sha256:8659925a3134cf3ffcaf8af71527b2e701db694874e0c9cbb27c2e408e68d9ee (438 characters)",
@@ -3199,7 +3199,7 @@
    "review": "Problems found in the draft of matrix_000005: the opening is generic.",
    "content": "sha256:54d54b8895931bad20e935877ca985e93423e93a37c7cb620425ef77c4a6de8c (905 characters)"
   },
-  "stage_files_by_invocation.1.layer3/rewrites.jsonl.3": {
+  "stage_files_by_invocation.1.layer4_draft_critique_and_revise/rewrites.jsonl.3": {
    "doc_id": "matrix_000006",
    "variables": "dealt_hand:1edccc782645d297",
    "description": "sha256:239977fc505d377e27d017e919fbeb2767ea914d67bf5a0f008853ad9450bd47 (436 characters)",
@@ -3207,7 +3207,7 @@
    "review": "Problems: the opening is generic and the ending is abrupt. (No review tags.)",
    "content": "sha256:deca568ae6046ad295c571c72e2a57a2c51b76e81178170c989cbb3fd6bdfae7 (893 characters)"
   },
-  "stage_files_by_invocation.1.layer3/rewrites.jsonl.4": {
+  "stage_files_by_invocation.1.layer4_draft_critique_and_revise/rewrites.jsonl.4": {
    "doc_id": "matrix_000011",
    "variables": "dealt_hand:a462424dd64c3849",
    "description": "sha256:11aa0d88010336dcf20452bcaa0b7b2b16c640b02a250efe1efacc419a903802 (454 characters)",
@@ -3215,36 +3215,36 @@
    "review": "Problems found in the draft of matrix_000011: the opening is generic.",
    "content": "sha256:c9af7d4ad995c56eb6a1d02af05707446b82eb61299ac9f112a792903b62ca50 (899 characters)"
   },
-  "stage_files_by_invocation.1.layer4/scores.jsonl.0": {
+  "stage_files_by_invocation.1.layer5_score_and_final_selection/scores.jsonl.0": {
    "doc_id": "matrix_000000",
    "variables": "dealt_hand:b31403c70536ab29",
    "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000000."}
   },
-  "stage_files_by_invocation.1.layer4/scores.jsonl.1": {
+  "stage_files_by_invocation.1.layer5_score_and_final_selection/scores.jsonl.1": {
    "doc_id": "matrix_000003",
    "variables": "dealt_hand:40c28316e97f9665",
    "scores": {"alignment": 4, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000003."}
   },
-  "stage_files_by_invocation.1.layer4/scores.jsonl.2": {
+  "stage_files_by_invocation.1.layer5_score_and_final_selection/scores.jsonl.2": {
    "doc_id": "matrix_000005",
    "variables": "dealt_hand:938e4ae65c292e43",
    "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000005."}
   },
-  "stage_files_by_invocation.1.layer4/scores.jsonl.3": {
+  "stage_files_by_invocation.1.layer5_score_and_final_selection/scores.jsonl.3": {
    "doc_id": "matrix_000006",
    "variables": "dealt_hand:1edccc782645d297",
    "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000006."}
   },
-  "stage_files_by_invocation.1.layer4/scores.jsonl.4": {
+  "stage_files_by_invocation.1.layer5_score_and_final_selection/scores.jsonl.4": {
    "doc_id": "matrix_000011",
    "variables": "dealt_hand:a462424dd64c3849",
    "scores": {"alignment": 5, "realism": 5, "spec_conformance": 5, "notes": "Parse error."}
   },
-  "stage_files_by_invocation.2.layer1/consideration_selections.jsonl.5.outcomes": [
+  "stage_files_by_invocation.2.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.5.outcomes": [
    {"list": "moral", "label": null, "reason": "", "status": "none"},
    {"list": "epistemic", "label": null, "reason": "", "status": "none"}
   ],
-  "stage_files_by_invocation.2.layer2/_checkpoint.json": {
+  "stage_files_by_invocation.2.layer4_draft_critique_and_revise/_checkpoint.json": {
    "completed": ["matrix_000000", "matrix_000003", "matrix_000005", "matrix_000006", "matrix_000008", "matrix_000009", "matrix_000010", "matrix_000011"],
    "last_updated": "<timestamp>"
   }
