@@ -48,7 +48,7 @@ sdf:
   # Description rewrite (layer 2, after the description write): one call per description checks it for
   # plausibility, conformance to the dealt values and organisation naming, and may decline.
   description_rewrite_enabled: true
-  # The rewrite runs on a GPT model, not Claude; the evidence is in the steps/description_rewrite.py docstring.
+  # The rewrite runs on a GPT model, not Claude; the evidence is in sdf_pipeline/CLAUDE.md (Description rewrite).
   # Do not switch this to a Claude model for plausibility judgment without re-validating.
   # A model name starting with `gpt-` routes to OpenAI and needs OPENAI_API_KEY (repo-root .env,
   # or the environment with --find-dotenv, via shared/api_keys.py); any other name goes to Claude.
