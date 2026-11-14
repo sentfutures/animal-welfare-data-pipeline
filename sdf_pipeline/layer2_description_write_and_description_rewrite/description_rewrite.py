@@ -337,7 +337,7 @@ STEP = Step(
     required_prompt_files=lambda config, prompts_directory: [
         *description_write_prompt_files(config, prompts_directory), TEMPLATE_FILENAME, SCHEMA_FILENAME],
     reason_inactive=lambda config, prompts_directory: reason_description_rewrite_is_inactive(config, prompts_directory),
-    reads=lambda run: run.records(PLANS),
+    reads=lambda run: run.records(PLANS), seeds_from=lambda run: PLANS,
     applies=lambda plan, run: bool(plan.get("description")),
     build_request=build_request, read_reply=read_reply, records=records, writes=(RESULTS, REJECTIONS),
     checkpoint_file_name=CHECKPOINT_FILENAME,

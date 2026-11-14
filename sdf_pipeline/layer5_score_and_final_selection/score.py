@@ -93,7 +93,7 @@ def progress_line(documents: list, outcomes: dict, progress: StepProgress, run: 
 STEP = Step(
     name="score", folder_key=SCORE, model_setting_keys=("score_model",),
     required_prompt_files=lambda config, prompts_directory: [utils.sdf_template_path(prompts_directory, 4).name],
-    reads=lambda run: run.records(REWRITES),
+    reads=lambda run: run.records(REWRITES), seeds_from=lambda run: REWRITES,
     build_request=build_request, read_reply=read_reply,
     records=one_record_per_accepted_document(SCORES, record_of), writes=(SCORES,),
     checkpoint_file_name="_checkpoint.json", progress_line=progress_line)

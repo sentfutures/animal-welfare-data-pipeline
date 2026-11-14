@@ -21,7 +21,10 @@ REJECTIONS_FILENAME = "screen_rejections.jsonl"
 CHECKPOINT_FILENAME = "_screen_checkpoint.json"
 SCREENED_HANDS_FILENAME = "screened_hands.jsonl"
 SUMMARY_FILENAME = "screen_summary.json"
-# The composed planning prompts, which live in the plan's folder.
+# The accepted hands (what planning reads) and the composed planning prompts. The compose step between the screen and
+# the plan has no step of its own; seeding at the plan copies prompts.jsonl (which lives in the plan's folder) with the
+# screen's files.
+SCREENED_HANDS = StageFile(sdf_run_layouts.DEAL_VARIABLES_AND_SCREEN, SCREENED_HANDS_FILENAME, "prompt_id")
 PROMPTS = StageFile(sdf_run_layouts.DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE, "prompts.jsonl", "prompt_id")
 DEFAULT_BATCH_SIZE = 10
 DEFAULT_REDEAL_ROUNDS = 3

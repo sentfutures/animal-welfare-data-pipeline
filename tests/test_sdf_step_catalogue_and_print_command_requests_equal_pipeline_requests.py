@@ -13,6 +13,7 @@ import sdf_prompt_equivalence_fixture_support as support   # imported first: cap
 import sdf_prompt_equivalence_scenarios as scenarios
 from sdf_pipeline.layer1_deal_variables_and_screen import shared_by_this_layers_steps as deal_variables_and_screen_shared_names
 from sdf_pipeline import pipeline_steps
+from sdf_pipeline import start_a_run_from_an_earlier_runs_step as seeding
 from sdf_pipeline.layer3_consideration_scoring_and_selection import consideration_scoring, consideration_selection
 from sdf_pipeline.layer4_draft_critique_and_revise import critique, critique_and_revise_in_one_call, draft, revise
 from sdf_pipeline.layer1_deal_variables_and_screen import deal_variables, redeal, screen
@@ -88,6 +89,15 @@ def test_every_required_prompt_file_of_a_default_run_is_in_the_prompts_folder():
     for entry in ENTRIES:
         for name in entry.required_prompt_files(config, prompts_directory):
             assert (prompts_directory / name).is_file(), (entry.name, name)
+
+
+def test_seeding_lists_the_steps_in_pipeline_order_and_names_the_reason_for_the_rest():
+    assert list(seeding.SEEDABLE_STEPS) == [
+        "description_write", "description_rewrite", "consideration_scoring", "draft", "critique", "revise", "score"]
+    assert set(seeding.UNSEEDABLE_STEPS) == {
+        "deal_variables", "screen", "redeal", "consideration_selection", "critique_and_revise_in_one_call", "score_gate", "near_duplicate_removal"}
+    assert "critique_and_revise_in_one_call" in seeding.UNSEEDABLE_STEPS and "critique" in seeding.UNSEEDABLE_STEPS[
+        "critique_and_revise_in_one_call"]
 
 
 def test_the_print_command_stage_names_are_the_catalogue_s():
@@ -170,7 +180,25 @@ def test_the_print_command_builds_the_request_the_pipeline_sent_for_every_stage_
     assert ("critique_and_revise_in_one_call" in compared_stages) != ("critique" in compared_stages)
 
 
-# ------------------------------------------------------------------ refusal messages
+# ------------------------------------------------------------------ refusal messages worded from the catalogue
+
+def _seed_refusal(from_step: str, config: dict) -> str:
+    with pytest.raises(seeding.SeedingRefused) as refusal:
+        seeding.seed_run_from_chosen_step(
+            config=config, source_run=Path("unused"), from_step=from_step, document_ids=None,
+            runs_root=Path("unused"), label="unused", repository_root=REPOSITORY_ROOT)
+    return str(refusal.value)
+
+
+def test_seeding_refusals_name_the_step_the_reason_and_what_to_do_instead():
+    config = utils.load_config(str(REPOSITORY_ROOT / "config.yaml"))
+    single_call = {**config, "sdf": {**config["sdf"], "revision": {"split": False}}}
+    revise = _seed_refusal("revise", single_call)
+    assert "step 'revise' cannot be seeded" in revise and "Seedable steps: description_write, description_rewrite" in revise
+    combined = _seed_refusal("critique_and_revise_in_one_call", config)
+    assert "step 'critique_and_revise_in_one_call' cannot be seeded; seed from 'critique' instead" in combined
+    assert "unknown step 'no_such_step'" in _seed_refusal("no_such_step", config)
+
 
 def test_print_command_refusals_name_the_stage_the_reason_and_the_input(tmp_path):
     run_directory, config = command._run_fixture_scenario_in_temporary_folder(
