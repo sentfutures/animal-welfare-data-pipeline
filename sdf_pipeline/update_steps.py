@@ -120,6 +120,9 @@ class DocumentStep(ABC):
     stage_file_name: str
     policy: StepPolicy = StepPolicy()
     systemic_stop_message: str
+    # When True, an error raised while building the request is a thrown call (a ``Failed``
+    # outcome) instead of ending the run. The description rewrite always treated it so.
+    build_request_errors_count_as_thrown_calls: bool = False
 
     @abstractmethod
     def document_id_of(self, document) -> str: ...
@@ -146,6 +149,14 @@ class DocumentStep(ABC):
         removes a document (None writes nothing and marks nothing). The plan step uses it: an
         INCOHERENT plan is a finished plan whose record says so."""
         return None
+
+    def after_documents_are_processed(self, run_result) -> None:
+        """Called once after every pending document is processed and the systemic stop check has
+        passed, before a failed document stops the run. The default does nothing."""
+
+    def message_when_failed_documents_stop_the_run(self, run_result) -> str:
+        """The exit message when a failed document stops the run after the step."""
+        return f"{self.step_name}: {len(run_result.failed_document_ids)} document(s) failed; fix and --resume."
 
 
 class BatchStep(ABC):

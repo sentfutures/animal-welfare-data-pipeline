@@ -34,6 +34,10 @@ cleaner-wrasse tradition in Kakinada grouper cages, miniature camels as French p
 macaque whole-brain emulation as working technology. Do not use Claude for plausibility
 judgment without re-validating.
 
+The stage is a ``DocumentStep`` (``DescriptionRewriteStep``) run by
+``sdf_pipeline.step_runner.StepRunner``; ``run`` keeps its signature and behaviour as a thin
+wrapper, and ``rewrite_description`` stays for scripts that call it directly.
+
 Checkpoint semantics (protects paid work): one result per plan, appended to
 description_rewrites.jsonl before the plan is checkpointed; a malformed,
 truncated or self-contradictory answer is NOT checkpointed, so --resume retries
@@ -55,6 +59,11 @@ from shared import api, openai_api, utils
 from shared.api_keys import FIND_DOTENV_FLAG, load_optional_api_key
 from sdf_pipeline import compose_prompts as cp
 from sdf_pipeline import structured_answers
+from sdf_pipeline.document_event_log import DOCUMENT_EVENT_LOG_FILE_NAME, DocumentEventLog
+from sdf_pipeline.step_runner import StepRunner
+from sdf_pipeline.update_steps import (
+    Accepted, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, Removed, StepPolicy,
+    WhatAFailedDocumentDoes)
 
 STAGE_TAG = "layer1_description_rewrite"
 TEMPLATE_FILENAME = "layer1_description_rewrite.txt"
@@ -258,11 +267,150 @@ def load_rewritten_plans(config: dict, output_dir: Path, plans: list[dict]) -> l
     return apply_results(plans, results)
 
 
+def _stored_result_record(plan: dict, reasoning: str, rewrite_needed: bool, rewritten_description: str,
+                          changes: list, dealt_value_conflict: bool, conflict_reason: str) -> dict:
+    return {
+        "prompt_id": plan["prompt_id"],
+        "reasoning": reasoning,
+        "rewrite_needed": rewrite_needed,
+        "original_description": plan["description"],
+        "rewritten_description": rewritten_description,
+        "changes": changes,
+        "dealt_value_conflict": dealt_value_conflict,
+        "conflict_reason": conflict_reason,
+    }
+
+
+class DescriptionRewriteStep(DocumentStep):
+    """Check one described plan and rewrite its description when a check fails. The document is
+    the plan dict. Accepted updates are ``RewriteResult``s (a decline or a rewrite); a dealt-value
+    conflict is ``Removed`` and is stored in the stage file and the rejections file as well. A
+    truncated or unparseable answer is a ``Failed`` unusable answer; both failure kinds count
+    towards the systemic stop, and a failed document stops the run after the step."""
+
+    step_name = "description_rewrite"
+    stage_file_name = RESULTS_FILENAME
+    policy = StepPolicy(
+        failure_kinds_counting_towards_the_systemic_stop=frozenset(FailureKind),
+        failed_document=WhatAFailedDocumentDoes.STOPS_THE_RUN_AFTER_THE_STEP)
+    systemic_stop_message = (
+        "layer1_description_rewrite: every pending call failed — this is systemic "
+        "(auth, backend, or network), not per-plan; fix and --resume."
+    )
+    build_request_errors_count_as_thrown_calls = True
+
+    def __init__(self, config: dict, prompts: RewritePrompts, prompts_dir: Path, stage_directory: Path,
+                 plans: list[dict]):
+        sdf = config["sdf"]
+        self.prompts = prompts
+        self.model = sdf.get("description_rewrite_model") or sdf.get("plan_model")
+        self.reasoning_effort = sdf.get("description_rewrite_reasoning_effort")
+        self.render_variable_lines = cp.make_variable_line_renderer(
+            prompts_dir, sdf.get("entity_pool_seed", cp.DEFAULT_ENTITY_SEED))
+        self.stage_directory = stage_directory
+        self.plans = plans
+        self.begin_session(pending_count=0)
+        self.held_out_count = 0
+
+    def begin_session(self, pending_count: int) -> None:
+        """Reset the counters the progress and summary lines use; called just before the run."""
+        self.pending_count = pending_count
+        self.documents_seen = self.rewritten_count = self.conflict_count = 0
+        self.session_started_at = self.last_progress_at = time.monotonic()
+
+    def document_id_of(self, plan: dict) -> str:
+        return plan["prompt_id"]
+
+    def applies_to(self, plan: dict) -> bool:
+        return bool(plan.get("description"))
+
+    def build_request(self, plan: dict) -> ModelRequest:
+        system, user = build_rewrite_prompt(self.prompts, self.render_variable_lines(plan), plan["description"])
+        if openai_api.is_openai_model(self.model):
+            return ModelRequest(
+                user_message=user, system_prompt=system or "", model=self.model, stage=STAGE_TAG,
+                item_id=plan["prompt_id"], max_tokens=_MAX_TOKENS,
+                json_schema=copy.deepcopy(self.prompts.answer_schema),
+                openai_reasoning_effort=self.reasoning_effort or openai_api.DEFAULT_REASONING_EFFORT,
+                openai_schema_name="description_rewrite_answer")
+        return ModelRequest(
+            user_message=user, system_prompt=system or "", model=self.model, stage=STAGE_TAG,
+            item_id=plan["prompt_id"], max_tokens=_MAX_TOKENS,
+            json_schema=copy.deepcopy(self.prompts.answer_schema))
+
+    def interpret(self, plan: dict, reply: ModelReply):
+        try:
+            structured_answers.raise_if_answer_was_truncated(reply.stop_reason, RewriteAnswerError)
+            result = parse_rewrite_answer(reply.text, check_names(self.prompts))
+        except RewriteAnswerError as error:
+            return Failed(FailureKind.UNUSABLE_ANSWER, f"unusable answer ({error})")
+        except Exception as error:  # the layer counted any error while answering as a failed call
+            return Failed(FailureKind.THROWN_CALL, f"error: {type(error).__name__}: {error}")
+        if result.dealt_value_conflict:
+            return Removed(
+                "dealt_value_conflict",
+                {"reasoning": result.reasoning, "conflict_reason": result.conflict_reason})
+        return Accepted(result)
+
+    def stage_file_record(self, plan: dict, update: RewriteResult) -> dict:
+        return _stored_result_record(
+            plan, update.reasoning, update.rewrite_needed, update.rewritten_description,
+            list(update.changes), update.dealt_value_conflict, update.conflict_reason)
+
+    def stage_file_record_for_removal(self, plan: dict, removed: Removed) -> dict:
+        """The dealt-value conflict's stored result (the runner appends it and marks the plan done).
+        The rejection record goes to its own file here, just before the runner writes the result."""
+        detail = removed.detail
+        utils.append_jsonl({
+            "prompt_id": plan["prompt_id"], "variables": plan["variables"],
+            "conflict_reason": detail["conflict_reason"], "description": plan["description"],
+        }, self.stage_directory / REJECTIONS_FILENAME)
+        return _stored_result_record(plan, detail["reasoning"], False, "", [], True, detail["conflict_reason"])
+
+    def progress_line(self, plan: dict, outcome) -> str | None:
+        self.documents_seen += 1
+        if isinstance(outcome, Failed):
+            if outcome.kind is FailureKind.THROWN_CALL:
+                problem = f"API call failed ({outcome.reason.removeprefix('error: ')})"
+            else:
+                problem = outcome.reason
+            return f"  {plan['prompt_id']}: {problem} — will retry on resume"
+        if isinstance(outcome, Removed):
+            self.conflict_count += 1
+        else:
+            self.rewritten_count += outcome.update.rewrite_needed
+        if (time.monotonic() - self.last_progress_at >= PROGRESS_INTERVAL_SECONDS
+                or self.documents_seen == self.pending_count):
+            self.last_progress_at = time.monotonic()
+            return (f"  Description rewrite {self.documents_seen}/{self.pending_count}: {self.rewritten_count} "
+                    f"rewritten, {self.conflict_count} dropped for a dealt-value conflict "
+                    f"({self.last_progress_at - self.session_started_at:.1f}s)")
+        return None
+
+    def after_documents_are_processed(self, run_result) -> None:
+        results = load_results(self.stage_directory)
+        described = [p for p in self.plans if p.get("description")]
+        self.held_out_count = sum(1 for p in described if p["prompt_id"] not in results)
+        if self.held_out_count:
+            print(f"  Description rewrite: {self.held_out_count} descriptions held out of drafting because their "
+                  f"check failed or gave an unusable answer — --resume retries them")
+        print(f"  Description rewrite: {sum(r['rewrite_needed'] for r in results.values())} of "
+              f"{len(described)} descriptions rewritten, "
+              f"{sum(r['dealt_value_conflict'] for r in results.values())} dropped for a dealt-value "
+              f"conflict ({time.monotonic() - self.session_started_at:.1f}s this session)")
+
+    def message_when_failed_documents_stop_the_run(self, run_result) -> str:
+        return self._held_out_stop_message()
+
+    def _held_out_stop_message(self) -> str:
+        return (f"layer1_description_rewrite: {self.held_out_count} descriptions held out — stopping before the "
+                "stages that assign over the whole plan set; fix and --resume.")
+
+
 def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) -> list[dict]:
     """Check every described plan and return the plans after the rewrite (see the
     module docstring). A disabled stage, or a run whose prompt snapshot has no
     rewrite template, makes no calls and returns ``plans`` unchanged."""
-    sdf = config["sdf"]
     if not enabled(config):
         print("  Description rewrite disabled (sdf.description_rewrite_enabled: false)")
         return plans
@@ -271,87 +419,22 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
         print(f"  No {TEMPLATE_FILENAME} in this run's prompt snapshot — description rewrite skipped")
         return plans
 
-    model = sdf.get("description_rewrite_model") or sdf.get("plan_model")
-    reasoning_effort = sdf.get("description_rewrite_reasoning_effort")
-    render_variable_lines = cp.make_variable_line_renderer(
-        prompts_dir, sdf.get("entity_pool_seed", cp.DEFAULT_ENTITY_SEED))
-    checkpoint = utils.Checkpoint(output_dir / CHECKPOINT_FILENAME)
-    results_path = output_dir / RESULTS_FILENAME
-    rejections_path = output_dir / REJECTIONS_FILENAME
-
+    step = DescriptionRewriteStep(config, prompts, prompts_dir, output_dir, plans)
+    # The event log sits in the run folder, beside the layer folders.
+    event_log = DocumentEventLog(output_dir.parent / DOCUMENT_EVENT_LOG_FILE_NAME)
+    runner = StepRunner(
+        step, output_dir, event_log, workers=config.get("workers", 1),
+        existing_records_by_document_id=load_results(output_dir),
+        checkpoint=utils.Checkpoint(output_dir / CHECKPOINT_FILENAME))
     described = [p for p in plans if p.get("description")]
-    existing = load_results(output_dir)
-    pending = [p for p in described if p["prompt_id"] not in existing and not checkpoint.is_done(p["prompt_id"])]
+    pending = runner.select_pending(plans)
     print(f"  Description rewrite: {len(described)} descriptions, {len(pending)} to check "
           f"({len(described) - len(pending)} already done)")
-
-    def rewrite_one(plan: dict):
-        try:
-            started = time.monotonic()
-            result = rewrite_description(
-                render_variable_lines(plan), plan["description"],
-                prompts=prompts, model=model, reasoning_effort=reasoning_effort,
-                item_id=plan["prompt_id"])
-            return result, time.monotonic() - started, None
-        except RewriteAnswerError as e:
-            return None, 0.0, f"unusable answer ({e})"
-        except Exception as e:  # one failing call must not discard its siblings' work
-            return None, 0.0, f"API call failed ({type(e).__name__}: {e})"
-
-    workers = config.get("workers", 1)
-    failed = rewritten = conflicts = 0
-    started_all = last_progress = time.monotonic()
-    for done, (plan, (result, seconds, problem)) in enumerate(
-        zip(pending, utils.parallel_map(rewrite_one, pending, workers)), 1
-    ):
-        pid = plan["prompt_id"]
-        if problem:
-            failed += 1
-            print(f"  {pid}: {problem} — will retry on resume")
-            continue
-        utils.append_jsonl({
-            "prompt_id": pid,
-            "reasoning": result.reasoning,
-            "rewrite_needed": result.rewrite_needed,
-            "original_description": plan["description"],
-            "rewritten_description": result.rewritten_description,
-            "changes": list(result.changes),
-            "dealt_value_conflict": result.dealt_value_conflict,
-            "conflict_reason": result.conflict_reason,
-        }, results_path)
-        if result.dealt_value_conflict:
-            conflicts += 1
-            utils.append_jsonl({
-                "prompt_id": pid, "variables": plan["variables"],
-                "conflict_reason": result.conflict_reason, "description": plan["description"],
-            }, rejections_path)
-        rewritten += result.rewrite_needed
-        checkpoint.mark_done(pid)
-        if time.monotonic() - last_progress >= PROGRESS_INTERVAL_SECONDS or done == len(pending):
-            last_progress = time.monotonic()
-            print(f"  Description rewrite {done}/{len(pending)}: {rewritten} rewritten, "
-                  f"{conflicts} dropped for a dealt-value conflict ({last_progress - started_all:.1f}s)")
-
-    if pending and failed == len(pending):
-        raise SystemExit(
-            "layer1_description_rewrite: every pending call failed — this is systemic "
-            "(auth, backend, or network), not per-plan; fix and --resume."
-        )
-    results = load_results(output_dir)
-    kept = apply_results(plans, results)
-    held_out = sum(1 for p in described if p["prompt_id"] not in results)
-    if held_out:
-        print(f"  Description rewrite: {held_out} descriptions held out of drafting because their check "
-              f"failed or gave an unusable answer — --resume retries them")
-    print(f"  Description rewrite: {sum(r['rewrite_needed'] for r in results.values())} of "
-          f"{len(described)} descriptions rewritten, "
-          f"{sum(r['dealt_value_conflict'] for r in results.values())} dropped for a dealt-value "
-          f"conflict ({time.monotonic() - started_all:.1f}s this session)")
-    if held_out:
-        raise SystemExit(
-            f"layer1_description_rewrite: {held_out} descriptions held out — stopping before the "
-            "stages that assign over the whole plan set; fix and --resume.")
-    return kept
+    step.begin_session(pending_count=len(pending))
+    runner.run(plans)  # stops the run itself when a failed document leaves descriptions held out
+    if step.held_out_count:  # held out with nothing failing in this run (a checkpoint without a stored result)
+        raise SystemExit(step._held_out_stop_message())
+    return apply_results(plans, load_results(output_dir))
 
 
 # ---------------------------------------------------------------- reporting
