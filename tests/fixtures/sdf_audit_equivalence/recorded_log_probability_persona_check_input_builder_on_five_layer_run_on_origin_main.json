@@ -1,7 +1,7 @@
 {
  "format_version": 1,
- "recorded_from": "commit e20ca9ceb11c018782c2d5f15b861e4f0668367c on branch william/sdf-audit-equivalence-test (clean)",
- "regeneration_rule": "The recorded files are rewritten only by `python scripts/regenerate_sdf_audit_equivalence_recorded_requests.py`, in the same pull request as the intended change to a judge request; a pull request that only refactors never rewrites them.",
+ "recorded_from": "commit 0b1c0a1c03cd8325c4dfc1a3b3643864b39eb41c on branch william/sdf-one-deal-path-and-dealt-value-ids-in-stage-files (clean)",
+ "regeneration_rule": "The recorded files are rewritten only by `python scripts/regenerate_sdf_audit_equivalence_recorded_requests.py`, and only when the pull request is meant to change judge requests: never to make a failing test pass. Regenerate and commit the files in that pull request, and say in its description that requests change and why. A pull request not meant to change them leaves the files alone, so a difference is a bug.",
  "audit": "log_probability_persona_check_input_builder",
  "layout": "five_layer",
  "run": "2026-07-01_13-49_dev",

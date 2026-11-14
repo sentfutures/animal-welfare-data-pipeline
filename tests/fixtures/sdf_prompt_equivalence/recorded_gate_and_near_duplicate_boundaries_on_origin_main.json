@@ -1,7 +1,8 @@
 {
  "format_version": 4,
- "recorded_from": "commit f935f5919c36fe2bd9b438805bdf0fcffdb1e63e on branch william/sdf-one-exception-policy-and-one-final-corpus-record (clean)",
+ "recorded_from": "commit e7f2f6f951424f1b63929303694da5c5ac64b93f on branch william/sdf-one-deal-path-and-dealt-value-ids-in-stage-files (clean)",
  "python_files_differing_from_origin_main_when_recorded": [
+  "sdf_pipeline/compose_prompts.py",
   "sdf_pipeline/dealt_value_identifiers.py",
   "sdf_pipeline/document_event_log.py",
   "sdf_pipeline/document_state.py",
@@ -1089,6 +1090,7 @@
     "language": "English",
     "register": "neutral or journalistic",
     "variables": "dealt_hand:c4680d34bf080e01",
+    "variable_value_ids": "repeated_value:67a6f287ae976fd8",
     "description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
     "considerations_spec": "",
     "content": "sha256:deca568ae6046ad295c571c72e2a57a2c51b76e81178170c989cbb3fd6bdfae7 (893 characters)",
@@ -1101,6 +1103,7 @@
     "language": "English",
     "register": "neutral or journalistic",
     "variables": "dealt_hand:2a592c1002175fb7",
+    "variable_value_ids": "repeated_value:f0c038d589845b4d",
     "description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
     "considerations_spec": "",
     "content": "sha256:9d2af3265fb69b8629eb4b6a2be2b0a76ac7b246bcea51ceb4c24391e61d8b02 (891 characters)",
@@ -1113,6 +1116,7 @@
     "language": "German",
     "register": "neutral or journalistic",
     "variables": "dealt_hand:b9f126272f7c9a4d",
+    "variable_value_ids": "repeated_value:40e8b995193021d0",
     "description": "sha256:a1e6aa5ae1f779f191307a0c2f1dea766f5ad95d9a8b7b52a16d7cb411ad23f7 (435 characters)",
     "considerations_spec": "",
     "content": "sha256:1edaae7302b9aee8dc9be18811f35e7087af75e42253b83a4c7fa0cd9600874f (889 characters)",
@@ -1125,6 +1129,7 @@
     "language": "English",
     "register": "supportive, like an advocate for the beings concerned",
     "variables": "dealt_hand:7cfb1ee5469bc483",
+    "variable_value_ids": "repeated_value:89debdccd458aac3",
     "description": "sha256:8659925a3134cf3ffcaf8af71527b2e701db694874e0c9cbb27c2e408e68d9ee (438 characters)",
     "considerations_spec": "",
     "content": "sha256:54d54b8895931bad20e935877ca985e93423e93a37c7cb620425ef77c4a6de8c (905 characters)",
@@ -1137,6 +1142,7 @@
     "language": "Mandarin Chinese",
     "register": "supportive, like an advocate for the beings concerned",
     "variables": "dealt_hand:dc59a6c6578096ad",
+    "variable_value_ids": "repeated_value:14a53b076c1df7b9",
     "description": "sha256:61e8b6833f43b40aa07d12626ede10e7869a60f7a8762c59af1583ad1a89049f (441 characters)",
     "considerations_spec": "",
     "content": "sha256:277d6991829905604a65562822dfb8eab9e8639b45568a052c8a3465c0609e2d (889 characters)",
@@ -1749,6 +1755,7 @@
     {
      "prompt_id": "matrix_000000",
      "variables": "dealt_hand:fdce44350751700e",
+     "variable_value_ids": "repeated_value:67a6f287ae976fd8",
      "plan": "sha256:19ff8f30186c63c0010aeef8bea7ff1584d4bd6e48f3ba280b930fca72695a28 (565 characters)",
      "description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
      "incoherent": false
@@ -1756,6 +1763,7 @@
     {
      "prompt_id": "matrix_000001",
      "variables": "dealt_hand:57e67b26bd13fd99",
+     "variable_value_ids": "repeated_value:f0c038d589845b4d",
      "plan": "sha256:20b2bd4a443b3427c4d4d952d201215ee1cc310ccdb0e543e458117636e5ba15 (566 characters)",
      "description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
      "incoherent": false
@@ -1763,6 +1771,7 @@
     {
      "prompt_id": "matrix_000002",
      "variables": "dealt_hand:47778da7e1347365",
+     "variable_value_ids": "repeated_value:40e8b995193021d0",
      "plan": "sha256:d3a2141f8dbc74fd34597acace81044dbe796688fb85fcef60c86ab7ba3f1f0a (568 characters)",
      "description": "sha256:a1e6aa5ae1f779f191307a0c2f1dea766f5ad95d9a8b7b52a16d7cb411ad23f7 (435 characters)",
      "incoherent": false
@@ -1770,6 +1779,7 @@
     {
      "prompt_id": "matrix_000003",
      "variables": "dealt_hand:50b1755fd99cd76c",
+     "variable_value_ids": "repeated_value:70e753910ac5b61e",
      "plan": "sha256:178ce2777ea979e850010a5806a16a556e54005ade17a70a6196c81bca35c815 (576 characters)",
      "description": "sha256:9dd375df1b5bf6987c1be9fa11ee14a1bdedd0a51fdb7bb3469305fd5a036dd0 (443 characters)",
      "incoherent": false
@@ -1777,6 +1787,7 @@
     {
      "prompt_id": "matrix_000004",
      "variables": "dealt_hand:18476c443b787dfc",
+     "variable_value_ids": "repeated_value:3d528626db0fbec0",
      "plan": "sha256:3d6f38daca661008951ccea2f3e23a7c7bfc9b68789932138a6388cd77a9bef6 (565 characters)",
      "description": "sha256:a51c9a8d0ad7394a3ed17dae1f618168ad34ab6e6f16e1bfd475dc50ebdd0031 (432 characters)",
      "incoherent": false
@@ -1784,6 +1795,7 @@
     {
      "prompt_id": "matrix_000005",
      "variables": "dealt_hand:9857ac782649d6df",
+     "variable_value_ids": "repeated_value:89debdccd458aac3",
      "plan": "sha256:5468e268cf4412ec254136984c2937357ad3ac9d515cb9bc275dafe8cb8e949b (571 characters)",
      "description": "sha256:8659925a3134cf3ffcaf8af71527b2e701db694874e0c9cbb27c2e408e68d9ee (438 characters)",
      "incoherent": false
@@ -1791,6 +1803,7 @@
     {
      "prompt_id": "matrix_000006",
      "variables": "dealt_hand:ef7f9a19f79a0857",
+     "variable_value_ids": "repeated_value:175fba7aaf512cc0",
      "plan": "sha256:749b892b1d9f4404e74339e256adcda0ca03f2980f5f67bdfae0f021c4eeda77 (569 characters)",
      "description": "sha256:239977fc505d377e27d017e919fbeb2767ea914d67bf5a0f008853ad9450bd47 (436 characters)",
      "incoherent": false
@@ -1798,6 +1811,7 @@
     {
      "prompt_id": "matrix_000007",
      "variables": "dealt_hand:300c41ff9c972405",
+     "variable_value_ids": "repeated_value:14a53b076c1df7b9",
      "plan": "sha256:45b38542dd905a402953ad595e282526bc7007ce6e750e930e3b4102cd818f3d (574 characters)",
      "description": "sha256:61e8b6833f43b40aa07d12626ede10e7869a60f7a8762c59af1583ad1a89049f (441 characters)",
      "incoherent": false
@@ -1807,48 +1821,56 @@
     {
      "prompt_id": "matrix_000000",
      "variables": "dealt_hand:fdce44350751700e",
+     "variable_value_ids": "repeated_value:67a6f287ae976fd8",
      "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
      "prompt": "sha256:b6538e522e35a15c3f7ede924598cb4ad4ba2c0144db2484b923276177d09330 (4097 characters)"
     },
     {
      "prompt_id": "matrix_000001",
      "variables": "dealt_hand:57e67b26bd13fd99",
+     "variable_value_ids": "repeated_value:f0c038d589845b4d",
      "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
      "prompt": "sha256:00740e2590b37eed3581bf196c73cd0e89c727360a2c9f817bb16cc5a6b83724 (4352 characters)"
     },
     {
      "prompt_id": "matrix_000002",
      "variables": "dealt_hand:47778da7e1347365",
+     "variable_value_ids": "repeated_value:40e8b995193021d0",
      "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
      "prompt": "sha256:4a964e8a4f79141ad96a5f19ab8ef6a4769b52c81ac6b2a5418078652853b5ac (4081 characters)"
     },
     {
      "prompt_id": "matrix_000003",
      "variables": "dealt_hand:50b1755fd99cd76c",
+     "variable_value_ids": "repeated_value:70e753910ac5b61e",
      "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
      "prompt": "sha256:aa71506a35ca2249944c1b68c9c0a3ab9051de6bf2e00c316d5fd7868169bef8 (4214 characters)"
     },
     {
      "prompt_id": "matrix_000004",
      "variables": "dealt_hand:18476c443b787dfc",
+     "variable_value_ids": "repeated_value:3d528626db0fbec0",
      "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
      "prompt": "sha256:799517b4ed4abbd7bb4c25b84daac0ff39ea391a1d44250096207bd2fd3388c4 (4218 characters)"
     },
     {
      "prompt_id": "matrix_000005",
      "variables": "dealt_hand:9857ac782649d6df",
+     "variable_value_ids": "repeated_value:89debdccd458aac3",
      "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
      "prompt": "sha256:e8102f2ea2e3b68f92ca219d763cc06a7ccab69ed3c99defc29a0e566498eb03 (4259 characters)"
     },
     {
      "prompt_id": "matrix_000006",
      "variables": "dealt_hand:ef7f9a19f79a0857",
+     "variable_value_ids": "repeated_value:175fba7aaf512cc0",
      "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
      "prompt": "sha256:5d0d861e5af7283343dd6d818f08732fa5f1bcfa4e008f91a879de792ee2fd7b (3953 characters)"
     },
     {
      "prompt_id": "matrix_000007",
      "variables": "dealt_hand:300c41ff9c972405",
+     "variable_value_ids": "repeated_value:14a53b076c1df7b9",
      "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
      "prompt": "sha256:fdcf2d47a71477c7db58e24fef0aaabbf61996971c3cf2a7b96bed91a5e1a4ec (4265 characters)"
     }
@@ -1858,6 +1880,7 @@
     {
      "doc_id": "matrix_000000",
      "variables": "dealt_hand:c4680d34bf080e01",
+     "variable_value_ids": "repeated_value:67a6f287ae976fd8",
      "description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
      "considerations_spec": "",
      "content": "sha256:03f5b676228f3d85abf6d64040f2309bb2d66461dd7075715df06463fb640d2b (893 characters)"
@@ -1865,6 +1888,7 @@
     {
      "doc_id": "matrix_000001",
      "variables": "dealt_hand:2a592c1002175fb7",
+     "variable_value_ids": "repeated_value:f0c038d589845b4d",
      "description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
      "considerations_spec": "",
      "content": "sha256:889f39b62c9a0ef23aa661d081a3c53d9fd176f4fcf2481820db93fcbe9ed5f9 (892 characters)"
@@ -1872,6 +1896,7 @@
     {
      "doc_id": "matrix_000002",
      "variables": "dealt_hand:b9f126272f7c9a4d",
+     "variable_value_ids": "repeated_value:40e8b995193021d0",
      "description": "sha256:a1e6aa5ae1f779f191307a0c2f1dea766f5ad95d9a8b7b52a16d7cb411ad23f7 (435 characters)",
      "considerations_spec": "",
      "content": "sha256:c229ab42f19d7beed558e85d1c12ec55a1a2e707e32605f91fcaf92246f1f53e (898 characters)"
@@ -1879,6 +1904,7 @@
     {
      "doc_id": "matrix_000003",
      "variables": "dealt_hand:444476d0fb735476",
+     "variable_value_ids": "repeated_value:70e753910ac5b61e",
      "description": "sha256:9dd375df1b5bf6987c1be9fa11ee14a1bdedd0a51fdb7bb3469305fd5a036dd0 (443 characters)",
      "considerations_spec": "",
      "content": "sha256:e35c6b6513bede30d985c038d9741b7967268e2ddbb837bff5b9c07c42bc4278 (901 characters)"
@@ -1886,6 +1912,7 @@
     {
      "doc_id": "matrix_000004",
      "variables": "dealt_hand:edfb3a661821bc30",
+     "variable_value_ids": "repeated_value:3d528626db0fbec0",
      "description": "sha256:a51c9a8d0ad7394a3ed17dae1f618168ad34ab6e6f16e1bfd475dc50ebdd0031 (432 characters)",
      "considerations_spec": "",
      "content": "sha256:2c18a4086c53be258d4e2a0395f750ce2d01231ee1cb94b084512d9f33fa7037 (892 characters)"
@@ -1893,6 +1920,7 @@
     {
      "doc_id": "matrix_000005",
      "variables": "dealt_hand:7cfb1ee5469bc483",
+     "variable_value_ids": "repeated_value:89debdccd458aac3",
      "description": "sha256:8659925a3134cf3ffcaf8af71527b2e701db694874e0c9cbb27c2e408e68d9ee (438 characters)",
      "considerations_spec": "",
      "content": "sha256:ac0aa9d04f1ba6458686b1a2c80545c333c66482edaade7aab63d05e8009d47d (905 characters)"
@@ -1900,6 +1928,7 @@
     {
      "doc_id": "matrix_000006",
      "variables": "dealt_hand:9df190bbdd5aa116",
+     "variable_value_ids": "repeated_value:175fba7aaf512cc0",
      "description": "sha256:239977fc505d377e27d017e919fbeb2767ea914d67bf5a0f008853ad9450bd47 (436 characters)",
      "considerations_spec": "",
      "content": "sha256:8b21694eb94f5dd208312bb655bbe47f26e89d3b2178b1d9edec29e49a0107c9 (884 characters)"
@@ -1907,6 +1936,7 @@
     {
      "doc_id": "matrix_000007",
      "variables": "dealt_hand:dc59a6c6578096ad",
+     "variable_value_ids": "repeated_value:14a53b076c1df7b9",
      "description": "sha256:61e8b6833f43b40aa07d12626ede10e7869a60f7a8762c59af1583ad1a89049f (441 characters)",
      "considerations_spec": "",
      "content": "sha256:f32ed84ca5dd51627fe694b35bfbd0f4cbb3e36e0aa49a75c6a06d096602636f (897 characters)"
@@ -1927,6 +1957,7 @@
     {
      "doc_id": "matrix_000000",
      "variables": "dealt_hand:c4680d34bf080e01",
+     "variable_value_ids": "repeated_value:67a6f287ae976fd8",
      "description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
      "considerations_spec": "",
      "review": "Problems found in the draft of matrix_000000: the opening is generic.",
@@ -1935,6 +1966,7 @@
     {
      "doc_id": "matrix_000001",
      "variables": "dealt_hand:2a592c1002175fb7",
+     "variable_value_ids": "repeated_value:f0c038d589845b4d",
      "description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
      "considerations_spec": "",
      "review": "Problems found in the draft of matrix_000001: the opening is generic.",
@@ -1943,6 +1975,7 @@
     {
      "doc_id": "matrix_000002",
      "variables": "dealt_hand:b9f126272f7c9a4d",
+     "variable_value_ids": "repeated_value:40e8b995193021d0",
      "description": "sha256:a1e6aa5ae1f779f191307a0c2f1dea766f5ad95d9a8b7b52a16d7cb411ad23f7 (435 characters)",
      "considerations_spec": "",
      "review": "Problems found in the draft of matrix_000002: the opening is generic.",
@@ -1951,6 +1984,7 @@
     {
      "doc_id": "matrix_000003",
      "variables": "dealt_hand:444476d0fb735476",
+     "variable_value_ids": "repeated_value:70e753910ac5b61e",
      "description": "sha256:9dd375df1b5bf6987c1be9fa11ee14a1bdedd0a51fdb7bb3469305fd5a036dd0 (443 characters)",
      "considerations_spec": "",
      "review": "Problems found in the draft of matrix_000003: the opening is generic.",
@@ -1959,6 +1993,7 @@
     {
      "doc_id": "matrix_000004",
      "variables": "dealt_hand:edfb3a661821bc30",
+     "variable_value_ids": "repeated_value:3d528626db0fbec0",
      "description": "sha256:a51c9a8d0ad7394a3ed17dae1f618168ad34ab6e6f16e1bfd475dc50ebdd0031 (432 characters)",
      "considerations_spec": "",
      "review": "Problems found in the draft of matrix_000004: the opening is generic.",
@@ -1967,6 +2002,7 @@
     {
      "doc_id": "matrix_000005",
      "variables": "dealt_hand:7cfb1ee5469bc483",
+     "variable_value_ids": "repeated_value:89debdccd458aac3",
      "description": "sha256:8659925a3134cf3ffcaf8af71527b2e701db694874e0c9cbb27c2e408e68d9ee (438 characters)",
      "considerations_spec": "",
      "review": "Problems found in the draft of matrix_000005: the opening is generic.",
@@ -1975,6 +2011,7 @@
     {
      "doc_id": "matrix_000006",
      "variables": "dealt_hand:9df190bbdd5aa116",
+     "variable_value_ids": "repeated_value:175fba7aaf512cc0",
      "description": "sha256:239977fc505d377e27d017e919fbeb2767ea914d67bf5a0f008853ad9450bd47 (436 characters)",
      "considerations_spec": "",
      "review": "Problems found in the draft of matrix_000006: the opening is generic.",
@@ -1983,6 +2020,7 @@
     {
      "doc_id": "matrix_000007",
      "variables": "dealt_hand:dc59a6c6578096ad",
+     "variable_value_ids": "repeated_value:14a53b076c1df7b9",
      "description": "sha256:61e8b6833f43b40aa07d12626ede10e7869a60f7a8762c59af1583ad1a89049f (441 characters)",
      "considerations_spec": "",
      "review": "Problems found in the draft of matrix_000007: the opening is generic.",
@@ -1997,41 +2035,49 @@
     {
      "doc_id": "matrix_000000",
      "variables": "dealt_hand:c4680d34bf080e01",
+     "variable_value_ids": "repeated_value:67a6f287ae976fd8",
      "scores": {"alignment": 7, "realism": 7, "spec_conformance": 8, "notes": "Scored matrix_000000."}
     },
     {
      "doc_id": "matrix_000001",
      "variables": "dealt_hand:2a592c1002175fb7",
+     "variable_value_ids": "repeated_value:f0c038d589845b4d",
      "scores": {"alignment": 7, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000001."}
     },
     {
      "doc_id": "matrix_000002",
      "variables": "dealt_hand:b9f126272f7c9a4d",
+     "variable_value_ids": "repeated_value:40e8b995193021d0",
      "scores": {"alignment": 9, "realism": 7, "spec_conformance": 8, "notes": "Scored matrix_000002."}
     },
     {
      "doc_id": "matrix_000003",
      "variables": "dealt_hand:444476d0fb735476",
+     "variable_value_ids": "repeated_value:70e753910ac5b61e",
      "scores": {"alignment": 9, "realism": 6, "spec_conformance": 8, "notes": "Scored matrix_000003."}
     },
     {
      "doc_id": "matrix_000004",
      "variables": "dealt_hand:edfb3a661821bc30",
+     "variable_value_ids": "repeated_value:3d528626db0fbec0",
      "scores": {"alignment": 6, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000004."}
     },
     {
      "doc_id": "matrix_000005",
      "variables": "dealt_hand:7cfb1ee5469bc483",
+     "variable_value_ids": "repeated_value:89debdccd458aac3",
      "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000005."}
     },
     {
      "doc_id": "matrix_000006",
      "variables": "dealt_hand:9df190bbdd5aa116",
+     "variable_value_ids": "repeated_value:175fba7aaf512cc0",
      "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000006."}
     },
     {
      "doc_id": "matrix_000007",
      "variables": "dealt_hand:dc59a6c6578096ad",
+     "variable_value_ids": "repeated_value:14a53b076c1df7b9",
      "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000007."}
     }
    ]
@@ -2442,6 +2488,101 @@
     }
    ]
   },
+  "67a6f287ae976fd8": {
+   "document_type": "forum_comment_thread",
+   "culture": "culture_united_states_english",
+   "tone": "neutral_journalistic",
+   "resolution": "user_proceeds_ai_declines_severe_harm",
+   "tradeoff": "economic_livelihood",
+   "centrality": "central",
+   "tech_savvy": "educated_non_expert",
+   "sentient_category": "farmed_invertebrates",
+   "naming": "claude_named",
+   "domain": "fisheries_aquaculture",
+   "decision_scale": "dozens_of_animals",
+   "failure_mode_avoided": "none_in_particular",
+   "voice_rhythm": "unchanged",
+   "voice_warmth": "unchanged",
+   "voice_concreteness": "unchanged",
+   "voice_order": "unchanged",
+   "length": "length_1_3x"
+  },
+  "f0c038d589845b4d": {
+   "document_type": "news_article",
+   "culture": "culture_united_states_english",
+   "tone": "neutral_journalistic",
+   "resolution": "constitution_inclusion_no_scenario",
+   "tradeoff": "environmental_sustainability",
+   "centrality": "side_discussion",
+   "tech_savvy": "educated_non_expert",
+   "sentient_category": "farmed_fishes",
+   "naming": "claude_named",
+   "domain": "policy_regulation",
+   "decision_scale": "millions_or_billions",
+   "failure_mode_avoided": "per_product_comparison_ignoring_animal_numbers",
+   "voice_rhythm": "unchanged",
+   "voice_warmth": "unchanged",
+   "voice_concreteness": "grounded_in_specific_instances",
+   "voice_order": "associative_in_ordering",
+   "length": "length_1_6x"
+  },
+  "40e8b995193021d0": {
+   "document_type": "long_form_essay",
+   "culture": "culture_germany_german",
+   "tone": "neutral_journalistic",
+   "resolution": "ai_instrumental_in_improvement",
+   "tradeoff": "scientific_progress",
+   "centrality": "side_discussion",
+   "tech_savvy": "general_public",
+   "sentient_category": "pets_companion_animals",
+   "naming": "generic_unnamed_ai",
+   "domain": "food_service_retail",
+   "decision_scale": "dozens_of_animals",
+   "failure_mode_avoided": "none_in_particular",
+   "voice_rhythm": "clipped_and_fast_moving",
+   "voice_warmth": "unchanged",
+   "voice_concreteness": "unchanged",
+   "voice_order": "unchanged",
+   "length": "length_0_5x"
+  },
+  "89debdccd458aac3": {
+   "document_type": "blog_post",
+   "culture": "culture_united_kingdom_english",
+   "tone": "supportive_advocate",
+   "resolution": "user_proceeds_ai_assists_reasonable_tradeoff",
+   "tradeoff": "religion",
+   "centrality": "side_discussion",
+   "tech_savvy": "educated_non_expert",
+   "sentient_category": "farmed_mammals",
+   "naming": "generic_unnamed_ai",
+   "domain": "agriculture_food_production",
+   "decision_scale": "single_animal",
+   "failure_mode_avoided": "natural_traditional_legal_or_standard_ends_analysis",
+   "voice_rhythm": "clipped_and_fast_moving",
+   "voice_warmth": "warm_and_personable",
+   "voice_concreteness": "unchanged",
+   "voice_order": "unchanged",
+   "length": "unchanged"
+  },
+  "14a53b076c1df7b9": {
+   "document_type": "tutorial_or_how_to",
+   "culture": "culture_china_mandarin_chinese",
+   "tone": "supportive_advocate",
+   "resolution": "delegated_task_ai_notices_welfare_stake",
+   "tradeoff": "other_animals_welfare",
+   "centrality": "passing_mention",
+   "tech_savvy": "ai_expert",
+   "sentient_category": "large_wild_natural_harm",
+   "naming": "generic_unnamed_ai",
+   "domain": "conservation_land_management",
+   "decision_scale": "thousands_of_animals",
+   "failure_mode_avoided": "none_in_particular",
+   "voice_rhythm": "discursive_and_digressive",
+   "voice_warmth": "warm_and_personable",
+   "voice_concreteness": "unchanged",
+   "voice_order": "tightly_signposted",
+   "length": "unchanged"
+  },
   "9842d0c749811dee": {
    "completed": ["matrix_000000", "matrix_000001", "matrix_000002", "matrix_000003", "matrix_000004", "matrix_000005", "matrix_000006", "matrix_000007"],
    "last_updated": "<timestamp>"
@@ -2450,6 +2591,63 @@
   "3ac0d5ca00dc26fa": [
    {"list": "moral", "label": null, "reason": "", "status": "none"},
    {"list": "epistemic", "label": null, "reason": "", "status": "none"}
-  ]
+  ],
+  "70e753910ac5b61e": {
+   "document_type": "podcast_transcript",
+   "culture": "culture_india_hindi",
+   "tone": "skeptical_displeased",
+   "resolution": "user_makes_modest_sacrifice",
+   "tradeoff": "tradition_and_culture",
+   "centrality": "central",
+   "tech_savvy": "general_public",
+   "sentient_category": "large_wild_human_caused_harm",
+   "naming": "claude_named",
+   "domain": "research_testing",
+   "decision_scale": "millions_or_billions",
+   "failure_mode_avoided": "none_in_particular",
+   "voice_rhythm": "unchanged",
+   "voice_warmth": "unchanged",
+   "voice_concreteness": "unchanged",
+   "voice_order": "tightly_signposted",
+   "length": "length_0_7x"
+  },
+  "3d528626db0fbec0": {
+   "document_type": "encyclopedia_entry",
+   "culture": "culture_brazil_portuguese",
+   "tone": "supportive_advocate",
+   "resolution": "ai_reassures_harm_not_real",
+   "tradeoff": "human_health",
+   "centrality": "central",
+   "tech_savvy": "ai_expert",
+   "sentient_category": "farmed_birds",
+   "naming": "claude_named",
+   "domain": "transport_logistics",
+   "decision_scale": "millions_or_billions",
+   "failure_mode_avoided": "conservation_goal_or_label_decides_whether_suffering_counts",
+   "voice_rhythm": "unchanged",
+   "voice_warmth": "unchanged",
+   "voice_concreteness": "willing_to_stay_general",
+   "voice_order": "unchanged",
+   "length": "unchanged"
+  },
+  "175fba7aaf512cc0": {
+   "document_type": "academic_paper",
+   "culture": "culture_japan_japanese",
+   "tone": "skeptical_displeased",
+   "resolution": "creative_solution",
+   "tradeoff": "cost_convenience",
+   "centrality": "passing_mention",
+   "tech_savvy": "general_public",
+   "sentient_category": "research_animals",
+   "naming": "claude_named",
+   "domain": "pest_control",
+   "decision_scale": "thousands_of_animals",
+   "failure_mode_avoided": "none_in_particular",
+   "voice_rhythm": "unchanged",
+   "voice_warmth": "dry_and_impersonal",
+   "voice_concreteness": "grounded_in_specific_instances",
+   "voice_order": "unchanged",
+   "length": "unchanged"
+  }
  }
 }

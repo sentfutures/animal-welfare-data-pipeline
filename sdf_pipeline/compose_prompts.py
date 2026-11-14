@@ -599,7 +599,10 @@ def compose_records(
             **species_slot(assignment, prompt_id),
         )
         system, prompt = split_sections(rendered)
-        yield {"prompt_id": prompt_id, "variables": assignment, "system": system, "prompt": prompt}
+        record = {"prompt_id": prompt_id, "variables": assignment}
+        if "variable_value_ids" in hand:   # a hand dealt by a run that records dealt value ids
+            record["variable_value_ids"] = hand["variable_value_ids"]
+        yield {**record, "system": system, "prompt": prompt}
 
 
 def main() -> None:

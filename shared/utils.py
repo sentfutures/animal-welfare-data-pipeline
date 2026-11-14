@@ -529,8 +529,12 @@ def create_run_dir(
     label: str,
     config: dict,
     snapshot_dirs: dict[str, Path] | None = None,
+    extra_manifest_fields: dict | None = None,
 ) -> Path:
     """Create a new run directory with a manifest, and point the `latest` symlink at it.
+
+    extra_manifest_fields are added to the manifest as given (the SDF pipeline records here
+    whether the run writes dealt value ids into its stage files).
 
     snapshot_dirs maps name -> source directory; each is copied into
     run_dir/inputs/<name> so the run stays reproducible even after the
@@ -562,6 +566,7 @@ def create_run_dir(
         "inputs_snapshot": bool(snapshot_dirs),
         "model": config.get("model"),
         "config": config,
+        **(extra_manifest_fields or {}),
     }
     with open(run_dir / "run_manifest.json", "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=2)

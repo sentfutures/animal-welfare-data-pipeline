@@ -229,6 +229,7 @@ class TextWrittenFrom:
     description: str | None
     variables: dict | None
     considerations_spec: str | None
+    variable_value_ids: dict | None = None   # None: the record had no ``variable_value_ids`` (an older run)
 
 
 @dataclass(frozen=True)
@@ -354,8 +355,8 @@ class DocumentState:
     plan_record_variables: dict | None = None
 
     # The stable id (``[id]`` of variables.txt) of each dealt value, {axis: value id}. Kept apart from
-    # ``variables`` so that nothing that builds a prompt can read it. Read from the deal's ``round_dealt``
-    # event on new runs and looked up in the run's frozen ``inputs/prompts/variables.txt`` on older ones.
+    # ``variables`` so that nothing that builds a prompt can read it. Read from the stage files'
+    # ``variable_value_ids`` on new runs and looked up in the run's frozen ``inputs/prompts/variables.txt`` on older ones.
     # An axis it could not be found for has no entry, and ``dealt_value_id_notes`` says why (these notes
     # are separate from ``loader_notes``, which they never join).
     dealt_value_ids: dict = field(default_factory=dict)

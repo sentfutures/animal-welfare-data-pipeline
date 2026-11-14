@@ -72,7 +72,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from shared import api, deal_constraints, utils
 from shared.matrix import split_sections
 from sdf_pipeline import compose_prompts as cp
-from sdf_pipeline.dealt_value_identifiers import value_ids_of_dealt_hand
+from sdf_pipeline.dealt_value_identifiers import (
+    deal_hand_records_with_value_ids, run_records_value_ids, value_ids_field_of,
+    value_ids_of_hands)
 from sdf_pipeline import structured_answers
 from sdf_pipeline.document_event_log import DOCUMENT_EVENT_LOG_FILE_NAME, DocumentEventLog
 from sdf_pipeline.step_runner import BatchStepRunner, send_model_request
@@ -313,43 +315,45 @@ def redeal_removed_hands(
 
 # ---------------------------------------------------------------- steps
 
-def _dealt_value_ids_of_hands(hands: list[dict], value_ids_by_axis: dict) -> tuple[dict, dict]:
-    """({hand id: {axis: value id}}, {hand id: [notes]}) for the round-dealt event. Read-only: the hands
-    and everything built from them are untouched."""
-    ids_by_hand: dict = {}
-    notes_by_hand: dict = {}
-    for hand in hands:
-        ids, notes = value_ids_of_dealt_hand(hand["variables"], value_ids_by_axis)
-        ids_by_hand[hand["prompt_id"]] = ids
-        if notes:
-            notes_by_hand[hand["prompt_id"]] = notes
-    return ids_by_hand, notes_by_hand
-
-
-def _hand_record(prompt_id: str, round_number: int, variables: dict) -> dict:
-    return {"prompt_id": prompt_id, "round": round_number, "variables": variables}
+def _hand_record(prompt_id: str, round_number: int, variables: dict, value_ids: dict | None = None) -> dict:
+    """A hand as screen_hands.jsonl holds it; ``variable_value_ids`` follows ``variables`` when given."""
+    record = {"prompt_id": prompt_id, "round": round_number, "variables": variables}
+    if value_ids is not None:
+        record["variable_value_ids"] = value_ids
+    return record
 
 
 class DealStep(CorpusStep):
     """The deal: the original hands of round 0, deck-sampled and repaired by the deal rules (no model).
     ``Created`` for each hand, keyed by its hand id; the hand record is
-    ``{"prompt_id", "round", "variables"}``, as screen_hands.jsonl holds it."""
+    ``{"prompt_id", "round", "variables"}``, as screen_hands.jsonl holds it, plus ``variable_value_ids``
+    (each dealt value's id) when ``record_value_ids`` is set (a run that records them).
+
+    This is the one deal: the plan layer calls the same ``deal_hand_records_with_value_ids`` with the
+    screen off."""
 
     step_name = "deal"
 
     def __init__(self, template: str, values: dict, weights: dict, hand_count: int, seed: int,
-                 deal_rules: list[deal_constraints.DealRule]):
+                 deal_rules: list[deal_constraints.DealRule], value_ids_by_axis: dict | None = None,
+                 record_value_ids: bool = False):
         self.template = template
         self.values = values
         self.weights = weights
         self.hand_count = hand_count
         self.seed = seed
         self.deal_rules = deal_rules
+        self.value_ids_by_axis = value_ids_by_axis or {}
+        self.record_value_ids = record_value_ids
 
     def apply(self, states: list) -> dict:
-        dealt = cp.hand_records(
-            cp.deal_hands(self.template, self.values, self.weights, self.hand_count, self.seed, self.deal_rules))
-        return {hand["prompt_id"]: Created(_hand_record(hand["prompt_id"], 0, hand["variables"])) for hand in dealt}
+        dealt, ids_by_hand, _ = deal_hand_records_with_value_ids(
+            self.template, self.values, self.weights, self.hand_count, self.seed, self.deal_rules,
+            self.value_ids_by_axis)
+        return {hand["prompt_id"]: Created(_hand_record(
+                    hand["prompt_id"], 0, hand["variables"],
+                    ids_by_hand[hand["prompt_id"]] if self.record_value_ids else None))
+                for hand in dealt}
 
 
 class RedealStep(CorpusStep):
@@ -364,12 +368,15 @@ class RedealStep(CorpusStep):
     step_name = "redeal"
 
     def __init__(self, finished_round_number: int, removed_prompt_ids: list[str],
-                 reason_by_prompt_id: dict[str, str], seed: int, deal_rules: list[deal_constraints.DealRule]):
+                 reason_by_prompt_id: dict[str, str], seed: int, deal_rules: list[deal_constraints.DealRule],
+                 value_ids_by_axis: dict | None = None, record_value_ids: bool = False):
         self.new_round_number = finished_round_number + 1
         self.removed_prompt_ids = list(removed_prompt_ids)
         self.reason_by_prompt_id = reason_by_prompt_id
         self.seed = seed
         self.deal_rules = deal_rules
+        self.value_ids_by_axis = value_ids_by_axis or {}
+        self.record_value_ids = record_value_ids
 
     def apply(self, states: list) -> dict:
         hands_by_id = {hand["prompt_id"]: hand for hand in states}
@@ -381,9 +388,12 @@ class RedealStep(CorpusStep):
             prompt_id: Removed(reason_code, self.reason_by_prompt_id[prompt_id])
             for prompt_id in self.removed_prompt_ids}
         if new_hands is not None:
-            for record in cp.hand_records(new_hands, _next_hand_index(states)):
-                outcomes[record["prompt_id"]] = Created(
-                    _hand_record(record["prompt_id"], self.new_round_number, record["variables"]))
+            new_records = cp.hand_records(new_hands, _next_hand_index(states))
+            ids_by_hand, _ = value_ids_of_hands(new_records, self.value_ids_by_axis)
+            for record in new_records:
+                outcomes[record["prompt_id"]] = Created(_hand_record(
+                    record["prompt_id"], self.new_round_number, record["variables"],
+                    ids_by_hand[record["prompt_id"]] if self.record_value_ids else None))
         return outcomes
 
 
@@ -480,7 +490,7 @@ class ScreenStep(BatchStep):
                     "prompt_id": member["prompt_id"], "round": batch.round_number,
                     "batch_id": batch.batch_id, "number": facts["number"],
                     "reason": facts["reason"], "variables": member["variables"],
-                    "variable_lines": lines,
+                    **value_ids_field_of(member), "variable_lines": lines,
                 })
         return judgment_records, rejection_records
 
@@ -556,6 +566,7 @@ def run(config: dict, prompts_dir: Path, output_dir: Path) -> list[dict] | None:
     rejections_path = output_dir / REJECTIONS_FILENAME
     # The event log sits in the run folder, beside the layer folders.
     event_log = DocumentEventLog(output_dir.parent / DOCUMENT_EVENT_LOG_FILE_NAME)
+    record_value_ids = run_records_value_ids(output_dir)   # decided per run, by its manifest
     screen_step = ScreenStep(prompts, model, batch_size, render_variable_lines)
 
     hands = utils.load_jsonl(hands_path)
@@ -563,12 +574,13 @@ def run(config: dict, prompts_dir: Path, output_dir: Path) -> list[dict] | None:
     if not rounds:  # round 0: the original deal, saved before anything is screened
         template = utils.sdf_template_path(prompts_dir, 1).read_text(encoding="utf-8")
         values, weights, _ = cp.load_variables(prompts_dir / cp.DEFAULT_VARIABLES.name)
-        deal_outcomes = DealStep(template, values, weights, sdf["n_prompts"], seed, deal_rules).apply([])
+        deal_outcomes = DealStep(
+            template, values, weights, sdf["n_prompts"], seed, deal_rules, value_ids, record_value_ids).apply([])
         hands = [outcome.new_state for outcome in deal_outcomes.values()]
         utils.save_jsonl(hands, hands_path)   # replaces any partial write from an interrupted deal
         rounds = [{"round": 0, "prompt_ids": [h["prompt_id"] for h in hands], "note": "original deal"}]
         utils.append_jsonl(rounds[0], rounds_path)
-        ids_by_hand, id_notes_by_hand = _dealt_value_ids_of_hands(hands, value_ids)
+        ids_by_hand, id_notes_by_hand = value_ids_of_hands(hands, value_ids)
         event_log.append_round_dealt_event(
             round_number=0, prompt_ids=rounds[0]["prompt_ids"], note=rounds[0]["note"],
             dealt_value_ids=ids_by_hand, dealt_value_id_notes=id_notes_by_hand)
@@ -613,7 +625,8 @@ def run(config: dict, prompts_dir: Path, output_dir: Path) -> list[dict] | None:
             round_number += 1
             continue
         redeal_outcomes = RedealStep(
-            round_number, removed_ids, {pid: rejected[pid]["reason"] for pid in removed_ids}, seed, deal_rules
+            round_number, removed_ids, {pid: rejected[pid]["reason"] for pid in removed_ids}, seed, deal_rules,
+            value_ids, record_value_ids
         ).apply(hands)
         for outcome_document_id, outcome in redeal_outcomes.items():
             if isinstance(outcome, Removed):
@@ -642,7 +655,7 @@ def run(config: dict, prompts_dir: Path, output_dir: Path) -> list[dict] | None:
         rounds.append({"round": round_number + 1, "prompt_ids": [r["prompt_id"] for r in new_records],
                        "note": f"redeal of {len(removed_ids)} removed hands"})
         utils.append_jsonl(rounds[-1], rounds_path)
-        ids_by_hand, id_notes_by_hand = _dealt_value_ids_of_hands(new_records, value_ids)
+        ids_by_hand, id_notes_by_hand = value_ids_of_hands(new_records, value_ids)
         event_log.append_round_dealt_event(
             round_number=round_number + 1, prompt_ids=rounds[-1]["prompt_ids"], note=rounds[-1]["note"],
             dealt_value_ids=ids_by_hand, dealt_value_id_notes=id_notes_by_hand)
@@ -663,7 +676,7 @@ def _finish(output_dir: Path, sdf: dict, hands: list[dict], rounds: list[dict], 
     leftover_ids = sorted(pid for pid in rejected if pid in last_ids)
     dealt_ids = {pid for r in rounds for pid in r["prompt_ids"]}
     accepted = [
-        {"prompt_id": h["prompt_id"], "variables": h["variables"]}
+        {"prompt_id": h["prompt_id"], "variables": h["variables"], **value_ids_field_of(h)}
         for h in hands if h["prompt_id"] in dealt_ids and h["prompt_id"] not in rejected
     ]
     utils.save_jsonl(accepted, output_dir / SCREENED_HANDS_FILENAME)

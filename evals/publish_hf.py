@@ -293,7 +293,8 @@ def order_english_first(corpus_path: Path, language_of) -> dict[str, int] | None
 # metadata-then-lineage-then-id shape flatten_dad_corpus uses for the DAD
 # config, so both configs read the same way on the Hub.
 SDF_COLUMN_ORDER = ["content", "description", "language", "type_name",
-                    "type_id", "register", "scores", "variables", "doc_id"]
+                    "type_id", "register", "scores", "variables", "variable_value_ids",
+                    "doc_id"]
 
 
 def reorder_sdf_corpus(src: Path, dst: Path) -> int:

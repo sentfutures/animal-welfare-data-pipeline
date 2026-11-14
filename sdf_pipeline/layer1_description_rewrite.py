@@ -58,6 +58,7 @@ from shared import api, openai_api, utils
 from shared.api_keys import FIND_DOTENV_FLAG, load_optional_api_key
 from sdf_pipeline import compose_prompts as cp
 from sdf_pipeline import structured_answers
+from sdf_pipeline.dealt_value_identifiers import value_ids_field_of
 from sdf_pipeline.step_runner import StepRunner
 from sdf_pipeline.update_steps import (
     Accepted, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, Removed, StepPolicy,
@@ -360,7 +361,7 @@ class DescriptionRewriteStep(DocumentStep):
         The rejection record goes to its own file here, just before the runner writes the result."""
         detail = removed.detail
         utils.append_jsonl({
-            "prompt_id": plan["prompt_id"], "variables": plan["variables"],
+            "prompt_id": plan["prompt_id"], "variables": plan["variables"], **value_ids_field_of(plan),
             "conflict_reason": detail["conflict_reason"], "description": plan["description"],
         }, self.stage_directory / REJECTIONS_FILENAME)
         return _stored_result_record(plan, detail["reasoning"], False, "", [], True, detail["conflict_reason"])

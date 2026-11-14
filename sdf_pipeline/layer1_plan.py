@@ -26,6 +26,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from shared import utils
 from sdf_pipeline import compose_prompts as cp
+from sdf_pipeline.dealt_value_identifiers import (
+    deal_hand_records_with_value_ids, run_records_value_ids, value_ids_field_of, value_ids_of_hands)
 from sdf_pipeline.step_runner import StepRunner
 from sdf_pipeline.update_steps import (
     Accepted, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, Removed, StepPolicy,
@@ -80,6 +82,7 @@ class PlanStep(DocumentStep):
         return {
             "prompt_id": prompt_record["prompt_id"],
             "variables": prompt_record["variables"],
+            **value_ids_field_of(prompt_record),
             "plan": plan,
             "description": description,
             "incoherent": incoherent,
@@ -119,6 +122,14 @@ def run(
         values, weights, value_ids = cp.load_variables(prompts_dir / "variables.txt")
         preamble = (prompts_dir / "preamble.txt").read_text(encoding="utf-8")
         deal_rules = cp.load_deal_rules(prompts_dir / cp.DEAL_CONSTRAINTS_FILENAME, value_ids)
+        if hands is None and sdf["n_prompts"] is not None:
+            # Screen off: deal with the same function the screen's deal step calls, then compose
+            # exactly those hands.
+            dealt_hands, ids_by_hand, _ = deal_hand_records_with_value_ids(
+                template, values, weights, sdf["n_prompts"], sdf.get("seed", 0), deal_rules, value_ids)
+            if run_records_value_ids(output_dir):
+                dealt_hands = [{**hand, "variable_value_ids": ids_by_hand[hand["prompt_id"]]} for hand in dealt_hands]
+            hands = dealt_hands
         prompts = list(cp.compose_records(
             template, values, weights, preamble,
             n_prompts=sdf["n_prompts"],
@@ -128,6 +139,11 @@ def run(
             hands=hands,
             value_ids=value_ids,
         ))
+        if hands is None and run_records_value_ids(output_dir):   # full matrix: no deal, but each hand's ids
+            ids_by_hand, _ = value_ids_of_hands(prompts, value_ids)
+            prompts = [{"prompt_id": r["prompt_id"], "variables": r["variables"],
+                        "variable_value_ids": ids_by_hand[r["prompt_id"]], "system": r["system"], "prompt": r["prompt"]}
+                       for r in prompts]
         for rec in prompts:
             utils.append_jsonl(rec, prompts_path)
         print(f"  Composed {len(prompts)} prompts (offline, $0.00)")

@@ -33,6 +33,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from shared import constitution_loader, textstats, utils
 from sdf_pipeline import compose_prompts as cp
 from sdf_pipeline.document_state_final_corpus import final_corpus_record
+from sdf_pipeline.dealt_value_identifiers import value_ids_field_of
 from sdf_pipeline.step_runner import StepRunner, run_corpus_step
 from sdf_pipeline.update_steps import (
     Accepted, CorpusStep, DocumentStep, Failed, ModelReply, ModelRequest, Removed, StepPolicy,
@@ -99,7 +100,8 @@ class ScoreStep(DocumentStep):
         })
 
     def stage_file_record(self, rewrite: dict, update: dict) -> dict:
-        return {"doc_id": rewrite["doc_id"], "variables": rewrite["variables"], "scores": update}
+        return {"doc_id": rewrite["doc_id"], "variables": rewrite["variables"], **value_ids_field_of(rewrite),
+                "scores": update}
 
     def progress_line(self, rewrite: dict, outcome) -> str | None:
         doc_id = rewrite["doc_id"]
@@ -197,7 +199,7 @@ def run(
         rw = rewrites_by_id[r["doc_id"]]
         corpus.append(final_corpus_record(
             r["doc_id"], rw["variables"], rw["description"], rw.get("considerations_spec", ""),
-            rw["content"], r["scores"]))
+            rw["content"], r["scores"], rw.get("variable_value_ids")))
     utils.save_jsonl(corpus, final_path)
 
     low_spec = [r for r in results if r["scores"]["spec_conformance"] < threshold]
