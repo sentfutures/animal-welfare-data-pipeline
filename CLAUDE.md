@@ -69,6 +69,9 @@ python sdf_pipeline/run.py --config config.yaml --resume --layer 3
 # --revision-override-file (critique or revise only) writes a `revision` record into the seeded drafts.
 # Refused, before anything is created or called, for an unknown step, an unknown document id, a source
 # missing a record the step needs, or a snapshot missing a template the step needs.
+# A bare name is a run id under outputs/sdf/runs (refused if a same-named local folder also exists); a value
+# with a path separator is a path. Seeding at consideration_scoring solves the consideration assignment again
+# over the selected documents (printed, and recorded in `seeded_from`); at draft the source's is kept.
 python sdf_pipeline/run.py --config config.yaml --seed-from <run id or folder> --from-step critique \
     --document-ids matrix_000003,matrix_000007 --use-current-prompts
 
