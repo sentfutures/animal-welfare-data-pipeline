@@ -232,3 +232,22 @@ def test_send_model_request_passes_only_the_settings_that_are_set(monkeypatch):
     assert calls[-1][1] == {"system_prompt": "s", "model": "m", "stage": "t", "item_id": "i",
                             "return_stop_reason": True, "max_tokens": 6000, "cache_system": True,
                             "temperature": 0.5, "json_schema": {"a": 1}}
+
+
+def test_run_returns_existing_records_for_documents_the_step_no_longer_applies_to(tmp_path):
+    stage_directory = tmp_path / "layer_x"
+    utils.append_jsonl({"doc_id": "b", "content": "old b"}, stage_directory / "toy_records.jsonl")
+    utils.append_jsonl({"doc_id": "d", "content": "old d"}, stage_directory / "toy_records.jsonl")
+    requested = []
+
+    def send(request):
+        requested.append(request.item_id)
+        return ModelReply(f"new {request.item_id}", "end_turn")
+
+    runner, _, _ = make_runner(tmp_path, send=send)
+    documents = [{"id": "a"}, {"id": "b", "applies": False}, {"id": "c"}, {"id": "d"}]
+    result = runner.run(documents)
+    assert requested == ["a", "c"]
+    # earlier records in input order (b is inapplicable but kept), then this run's, in input order
+    assert [(r["doc_id"], r["content"]) for r in result.records_in_input_order] == [
+        ("b", "old b"), ("d", "old d"), ("a", "new a"), ("c", "new c")]

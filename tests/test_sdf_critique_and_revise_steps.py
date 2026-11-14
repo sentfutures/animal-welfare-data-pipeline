@@ -227,3 +227,18 @@ def test_an_accepted_critique_does_not_finish_the_draft(tiny_config, prompts_sdf
     assert not utils.Checkpoint(stage_dir / "_checkpoint.json").is_done("matrix_000000")
     assert utils.load_jsonl(stage_dir / "critiques.jsonl") == [
         {"doc_id": "matrix_000000", "review": "Problem: the voice is flat."}]
+
+
+def test_resume_sends_nothing_for_a_draft_with_a_rewrite_but_no_critique_and_returns_its_rewrite(
+        tiny_config, prompts_sdf, stage_dir, stub_claude):
+    drafts = [make_draft("matrix_000000"), make_draft("matrix_000001")]
+    stub_claude(lambda user_message, **kw: "r\n" + GOOD_REVISE)
+    layer3_rewrite.run(single_call_config(tiny_config), prompts_sdf, stage_dir, drafts[:1])
+    assert not (stage_dir / "critiques.jsonl").exists()
+    rewrite_on_disk = utils.load_jsonl(stage_dir / "rewrites.jsonl")[0]
+    # the split resume critiques and revises only the second draft, and returns both rewrites in input order
+    calls = stub_claude(dispatch())
+    records = layer3_rewrite.run(split_config(tiny_config), prompts_sdf, stage_dir, drafts)
+    assert {c["item_id"] for c in calls} == {"matrix_000001"}
+    assert records[0] == rewrite_on_disk
+    assert [r["doc_id"] for r in records] == ["matrix_000000", "matrix_000001"]
