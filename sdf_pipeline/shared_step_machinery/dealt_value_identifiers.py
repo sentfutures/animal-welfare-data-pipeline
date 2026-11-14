@@ -1,19 +1,15 @@
 """Which value id each dealt value has, kept apart from the text that goes in prompts.
 
 ``variables.txt`` gives every value a stable ``[id]`` that is stripped before rendering, so a hand
-records only the text. This module looks the ids up again, in two directions:
+records only the text. ``value_ids_of_dealt_hand`` looks the ids up as the deal deals: they come from the live
+``{axis: {id: text}}`` map (``compose_prompts.load_variables``). ``deal_hand_records_with_value_ids``
+is the one deal, used with the screen on (``layer1_screen.DealStep``) and off (the plan layer).
+For a run whose manifest says so (``RECORDS_VALUE_IDS_MANIFEST_KEY``, written when the run is
+created) the ids are written as ``variable_value_ids`` beside ``variables`` in every stage file
+record that copies ``variables`` and in the final corpus; no request carries them.
 
-* ``value_ids_of_dealt_hand`` is used by the deal as it deals: the ids come from the live
-  ``{axis: {id: text}}`` map (``compose_prompts.load_variables``). ``deal_hand_records_with_value_ids``
-  is the one deal, used with the screen on (``layer1_screen.DealStep``) and off (the plan layer).
-  For a run whose manifest says so (``RECORDS_VALUE_IDS_MANIFEST_KEY``, written when the run is
-  created) the ids are written as ``variable_value_ids`` beside ``variables`` in every stage file
-  record that copies ``variables`` and in the final corpus; no request carries them.
-* ``value_ids_of_dealt_hand_from_snapshot`` is used by the loader for runs whose stage files carry
-  no ids: it looks each dealt text up in the run's frozen ``inputs/prompts/variables.txt``.
-
-Both return ``(ids_by_axis, notes)``. An axis whose value cannot be matched has no entry in
-``ids_by_axis`` and one sentence in ``notes``. Nothing that builds a prompt reads either.
+``value_ids_of_dealt_hand`` returns ``(ids_by_axis, notes)``. An axis whose value cannot be matched has no
+entry in ``ids_by_axis`` and one sentence in ``notes``. Nothing that builds a prompt reads either.
 
 A step never works ids out: it copies ``variable_value_ids`` from the record it reads, when that
 record has the field (``value_ids_field_of``). So a run's files stay consistent: a run created before
@@ -23,9 +19,6 @@ this field existed never gains it, however often it is resumed.
 import json
 from pathlib import Path
 
-from shared import matrix as _matrix
-
-FROZEN_VARIABLES_RELATIVE_PATH = Path("inputs") / "prompts" / "variables.txt"
 VALUE_IDS_FIELD = "variable_value_ids"
 RECORDS_VALUE_IDS_MANIFEST_KEY = "dealt_value_ids_in_stage_files"
 
@@ -83,7 +76,7 @@ def value_ids_of_dealt_hand(dealt_variables: dict, value_ids_by_axis: dict) -> t
     notes: list = []
     for axis, text in (dealt_variables or {}).items():
         if axis in NON_DEALT_PLAN_VARIABLES:
-            continue   # selected consideration labels, not dealt values (see _strip_consideration_lists)
+            continue   # selected consideration labels, not dealt values
         ids_of_text = [value_id for value_id, candidate in (value_ids_by_axis.get(axis) or {}).items()
                        if candidate == text]
         if len(ids_of_text) == 1:
@@ -95,31 +88,3 @@ def value_ids_of_dealt_hand(dealt_variables: dict, value_ids_by_axis: dict) -> t
             notes.append(f"dealt value of {{{axis}}} has no id: {len(ids_of_text)} values share this text "
                          f"({text[:50]!r})")
     return ids_by_axis, notes
-
-
-def load_frozen_value_ids(run_directory) -> tuple[dict | None, str | None]:
-    """``({axis: {id: text}}, None)`` from the run's frozen ``inputs/prompts/variables.txt``, or
-    ``(None, reason)`` when the run has no snapshot or its snapshot cannot be read."""
-    path = Path(run_directory) / FROZEN_VARIABLES_RELATIVE_PATH
-    if not path.is_file():
-        return None, f"the run has no frozen {FROZEN_VARIABLES_RELATIVE_PATH.as_posix()}"
-    try:
-        parsed, ids = _matrix.parse_variables_with_ids(path)
-    except ValueError as error:
-        return None, f"the frozen {FROZEN_VARIABLES_RELATIVE_PATH.as_posix()} cannot be read ({error})"
-    value_ids = _matrix.value_ids_by_variable(parsed, ids, require_ids=False)
-    if not any(value_ids.values()):
-        return None, (f"the frozen {FROZEN_VARIABLES_RELATIVE_PATH.as_posix()} predates value ids "
-                      "(no value carries an [id] prefix)")
-    return value_ids, None
-
-
-def value_ids_of_dealt_hand_from_snapshot(dealt_variables: dict, frozen_value_ids: dict | None,
-                                          why_no_snapshot: str | None) -> tuple[dict, list]:
-    """The loader's version: the same lookup against the frozen snapshot, or no ids and one note
-    saying why when there is no usable snapshot."""
-    if not dealt_variables:
-        return {}, []
-    if frozen_value_ids is None:
-        return {}, [f"dealt values have no ids: {why_no_snapshot}"]
-    return value_ids_of_dealt_hand(dealt_variables, frozen_value_ids)

@@ -14,7 +14,6 @@ import sdf_prompt_equivalence_scenarios as scenarios
 from sdf_pipeline.layer1_deal_and_screen import shared_by_this_layers_steps as deal_and_screen_shared_names
 from sdf_pipeline import pipeline_steps
 from sdf_pipeline import start_a_run_from_an_earlier_runs_step as seeding
-from sdf_pipeline.shared_step_machinery.document_state import PipelineStep
 from sdf_pipeline.layer3_consideration_scoring_and_selection import consideration_scoring, consideration_selection
 from sdf_pipeline.layer4_draft_critique_and_revise import critique, critique_and_revise_in_one_call, draft, revise
 from sdf_pipeline.layer1_deal_and_screen import deal, redeal, screen
@@ -36,9 +35,6 @@ ENTRIES = pipeline_steps.PIPELINE_STEPS
 def test_the_catalogue_lists_every_pipeline_step_in_order_and_the_single_call_step():
     names = [entry.name for entry in ENTRIES]
     assert len(set(names)) == len(names)
-    enum_names = [step.value for step in PipelineStep if step is not PipelineStep.COMPOSE_PLANNING_PROMPT]
-    # the enum has no member for the redeal or the single-call step
-    assert [name for name in names if name not in ("redeal", "critique_and_revise_in_one_call")] == enum_names
     for layout, layer_numbers in ((sdf_run_layouts.FIVE_NAMED_LAYERS, {1, 2, 3, 4, 5}),
                                   (sdf_run_layouts.FOUR_NUMBERED_LAYERS, {1, 2, 3, 4})):
         layers = [entry.layer_in(layout) for entry in ENTRIES]

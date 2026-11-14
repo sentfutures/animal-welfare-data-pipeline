@@ -5,8 +5,7 @@ run with canned judge replies on one run of each on-disk layout (five-layer, pre
 current), and every judge request, as it reaches the provider client, must equal the request
 recorded on ``origin/main`` in ``tests/fixtures/sdf_audit_equivalence/``: system prompt and user
 message (sha256 and length), model, max tokens, reasoning effort, schema, temperature and every other
-wire field, plus which documents were judged and in what order. This is what lets the audits move to
-a new loader later: they may read corpora differently, but must send the same requests.
+wire field, plus which documents were judged and in what order.
 
 A failing comparison means a judge request changed. If that is deliberate, regenerate the recorded
 files with ``scripts/regenerate_sdf_audit_equivalence_recorded_requests.py`` in the same pull request

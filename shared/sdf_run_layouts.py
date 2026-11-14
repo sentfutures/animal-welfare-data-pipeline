@@ -136,6 +136,24 @@ assert not set(FIVE_NAMED_LAYERS.folder_names) & {
 # (The two older layouts share layer3 and layer4 on purpose: layer12 tells them apart.)
 
 
+class UnknownRunLayoutError(ValueError):
+    """The folder is not an SDF run folder in any layout."""
+
+
+def detect_run_layout(run_dir) -> SdfRunLayout:
+    """``layout_of_run_folder`` for a folder that must be an SDF run folder: raises ``UnknownRunLayoutError``
+    when ``run_dir`` is not a folder or holds none of the stage folders of a layout."""
+    run = Path(run_dir)
+    if not run.is_dir():
+        raise UnknownRunLayoutError(f"{run} is not a folder, so it is not an SDF run folder")
+    layout = layout_of_run_folder(run)
+    if layout is None:
+        raise UnknownRunLayoutError(
+            f"{run} has none of the stage folders of an SDF run (layer1_deal_and_screen to layer5_score_and_final_selection, "
+            "layer1 to layer4, layer12, or layer1 to layer5), so its layout is unknown and it was not read")
+    return layout
+
+
 def layout_of_run_folder(run_dir, manifest: dict | None = None) -> SdfRunLayout | None:
     """The layout of an existing run folder, told by its folder names; None when it has no stage folder.
 

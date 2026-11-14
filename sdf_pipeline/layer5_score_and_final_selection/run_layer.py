@@ -19,13 +19,37 @@ interruption. The removal keeps the first of each near-duplicate pair in that or
 from pathlib import Path
 
 from shared import utils
-from sdf_pipeline.shared_step_machinery.document_state_final_corpus import final_corpus_record
+from sdf_pipeline.shared_step_machinery import compose_prompts
 from sdf_pipeline.shared_step_machinery.step_runner import StepRunner, run_corpus_step
 from sdf_pipeline.layer5_score_and_final_selection.near_duplicate_removal import NearDuplicateRemovalStep
 from sdf_pipeline.layer5_score_and_final_selection.score import *  # noqa: F401,F403
 from sdf_pipeline.layer5_score_and_final_selection.score import PARSE_ERROR_SCORES, ScoreStep  # noqa: F401
 from sdf_pipeline.layer5_score_and_final_selection.score_gate import ScoreGateStep
 from sdf_pipeline.shared_step_machinery.update_steps import Accepted, Removed
+
+
+def final_corpus_record(
+        document_id: str, variables: dict, description: str, considerations_spec: str | None, content: str,
+        scores: dict, variable_value_ids: dict | None = None) -> dict:
+    """A record of ``final/sdf_corpus.jsonl``, with its field order. ``considerations_spec`` None leaves the
+    field out (the matrix layout before the renumbering). ``variable_value_ids`` (the dealt value ids of the
+    stage files) is written right after ``variables`` when given and left out when None."""
+    record = {
+        "doc_id": document_id,
+        "type_id": variables.get("document_type", ""),
+        "type_name": variables.get("document_type", ""),
+        "language": compose_prompts.derive_language(variables.get("culture", "")),
+        "register": variables.get("tone", ""),
+        "variables": variables,
+    }
+    if variable_value_ids is not None:
+        record["variable_value_ids"] = variable_value_ids
+    record["description"] = description
+    if considerations_spec is not None:
+        record["considerations_spec"] = considerations_spec
+    record["content"] = content
+    record["scores"] = scores
+    return record
 
 
 def run(

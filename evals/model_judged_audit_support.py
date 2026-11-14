@@ -19,7 +19,7 @@ import unicodedata
 from datetime import datetime
 from pathlib import Path
 
-from sdf_pipeline.shared_step_machinery.document_state_final_corpus import resolve_sdf_input
+from evals.sdf_eval_input_resolution import resolve_sdf_input
 from shared import openai_api
 
 # ----------------------------------------------------------------------------

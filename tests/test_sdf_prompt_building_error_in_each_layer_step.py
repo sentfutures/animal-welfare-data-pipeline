@@ -87,7 +87,7 @@ def test_layer_3_revise_prompt_building_error_is_a_failure_that_a_resume_retries
 
 
 def test_the_final_corpus_record_has_one_definition_with_its_field_order_and_the_matrix_layout_omission():
-    from sdf_pipeline.shared_step_machinery.document_state_final_corpus import final_corpus_record
+    from sdf_pipeline.layer5_score_and_final_selection.run_layer import final_corpus_record
     variables = {"document_type": "memo", "culture": "French", "tone": "dry"}
     record = final_corpus_record("matrix_000000", variables, "Spec.", "Consider.", "Text.", {"alignment": 5})
     assert list(record) == ["doc_id", "type_id", "type_name", "language", "register", "variables", "description",

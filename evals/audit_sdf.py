@@ -43,9 +43,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from sdf_pipeline.layer1_deal_and_screen import run_layer as deal_and_screen_layer
 from sdf_pipeline.layer3_consideration_scoring_and_selection import run_layer as consideration_scoring_and_selection_layer
 from sdf_pipeline.layer2_plan_and_description_rewrite import description_rewrite
-from sdf_pipeline.shared_step_machinery.document_state_final_corpus import resolve_sdf_input
-from sdf_pipeline.shared_step_machinery.document_state_loader import (
-    load_document_states_or_empty_list_when_not_a_run_folder, plan_records_of_states)
+from evals.sdf_eval_input_resolution import resolve_sdf_input
 from shared import api, textstats, utils
 from shared.api_keys import add_api_key_source_flags, apply_api_key_source_flags
 
@@ -239,7 +237,7 @@ def audit_description_rewrite(run_dir: Path, report: dict) -> None:
         print("LAYER-1 DESCRIPTION REWRITE\n  (no description rewrite files in this run — it predates "
               "the stage or had it disabled)")
         return
-    plans = plan_records_of_states(load_document_states_or_empty_list_when_not_a_run_folder(run_dir))
+    plans = utils.load_jsonl(utils.sdf_stage_file(run_dir, "plan"))
     shares = description_rewrite.rewrite_share_rows(plans, outputs)
     checked = shares["checked"]
     print("LAYER-1 DESCRIPTION REWRITE")

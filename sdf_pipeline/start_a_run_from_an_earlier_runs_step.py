@@ -39,8 +39,6 @@ from sdf_pipeline.layer1_deal_and_screen import run_layer as deal_and_screen_lay
 from sdf_pipeline.layer3_consideration_scoring_and_selection import run_layer as consideration_layer
 from sdf_pipeline import pipeline_steps
 from sdf_pipeline.layer2_plan_and_description_rewrite import description_rewrite
-from sdf_pipeline.shared_step_machinery.document_state import RunLayout
-from sdf_pipeline.shared_step_machinery.document_state_loader import UnknownRunLayoutError, detect_run_layout
 from shared import sdf_run_layouts, utils
 
 MANIFEST_FILE_NAME = "run_manifest.json"
@@ -154,11 +152,11 @@ def seed_run_from_chosen_step(
         _refuse(f"step {from_step!r} cannot be seeded: {reason_inactive}. Seedable steps: {', '.join(SEEDABLE_STEPS)}")
     source_run = Path(source_run)
     try:
-        layout = detect_run_layout(source_run)
-    except UnknownRunLayoutError as error:
+        layout = sdf_run_layouts.detect_run_layout(source_run)
+    except sdf_run_layouts.UnknownRunLayoutError as error:
         _refuse(str(error))
-    if layout not in (RunLayout.FIVE_NAMED_LAYERS, RunLayout.FOUR_NUMBERED_LAYERS):
-        _refuse(f"source run {source_run.name} is in the {layout.name} layout; only runs in the five-layer layout "
+    if layout not in (sdf_run_layouts.FIVE_NAMED_LAYERS, sdf_run_layouts.FOUR_NUMBERED_LAYERS):
+        _refuse(f"source run {source_run.name} is in the {layout.name.upper()} layout; only runs in the five-layer layout "
                 "(layer1_deal_and_screen to layer5_score_and_final_selection) or the four-layer layout (layer1 to layer4) "
                 "can be seeded from")
 
@@ -251,7 +249,7 @@ def seed_run_from_chosen_step(
         "source_git_commit": source_manifest.get("git_commit"),
         "from_step": from_step,
         "start_layer": step.layer_in(new_run_layout),
-        "source_run_layout": layout.name,
+        "source_run_layout": layout.name.upper(),
         "document_ids": document_ids,
         "prompts_and_constitution": "this checkout's current files" if use_current_prompts else "the source run's frozen inputs",
         "revision_override_document_ids": sorted(revision_overrides),
