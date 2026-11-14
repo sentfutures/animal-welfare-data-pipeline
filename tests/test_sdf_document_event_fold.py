@@ -33,6 +33,8 @@ def main_scenario_after_each_invocation():
                 "final_corpus": utils.load_jsonl(run_directory / "final" / "sdf_corpus.jsonl"),
                 "critique_records": utils.load_jsonl(utils.sdf_stage_dir(run_directory, 3) / "critiques.jsonl"),
                 "rewrite_records": utils.load_jsonl(utils.sdf_stage_dir(run_directory, 3) / "rewrites.jsonl"),
+                "description_rewrite_records": utils.load_jsonl(
+                    utils.sdf_stage_dir(run_directory, 1) / "description_rewrites.jsonl"),
             })
         support.run_scenario_in_isolation(
             scenarios.scenario_named(scenarios.MAIN_SCENARIO_NAME), Path(base_directory) / "run",
@@ -114,6 +116,26 @@ def test_folded_critique_and_revise_events_match_the_stage_files_and_the_loader_
             for document_id, document in folded.items()
             if (u := document.accepted_update_by_step.get("revise")) is not None}
         assert revisions_by_events == revisions_by_loader
+
+
+def test_folded_description_rewrite_events_match_the_stage_file_after_every_invocation(
+        main_scenario_after_each_invocation, tmp_path):
+    for invocation in main_scenario_after_each_invocation:
+        folded = fold_document_events(_events_of(invocation["events_text"], tmp_path))
+        records_by_id = {record["prompt_id"]: record for record in invocation["description_rewrite_records"]}
+        assert records_by_id, "the fixture runs the description rewrite"
+        accepted_by_id = {document_id: document.accepted_update_by_step["description_rewrite"]
+                          for document_id, document in folded.items() if "description_rewrite" in document.accepted_update_by_step}
+        removed_by_id = {document_id: document.removal_by_step["description_rewrite"]
+                         for document_id, document in folded.items() if "description_rewrite" in document.removal_by_step}
+        assert set(accepted_by_id) | set(removed_by_id) == set(records_by_id)
+        assert not set(accepted_by_id) & set(removed_by_id)
+        for document_id, update in accepted_by_id.items():
+            assert list(update.items()) == list(records_by_id[document_id].items())
+        for document_id, removal in removed_by_id.items():
+            assert removal["reason_code"] == "dealt_value_conflict"
+            assert records_by_id[document_id]["dealt_value_conflict"] is True
+            assert removal["detail"]["conflict_reason"] == records_by_id[document_id]["conflict_reason"]
 
 
 def test_the_resume_resolves_the_revise_failure_the_first_invocation_recorded_without_a_second_critique(
