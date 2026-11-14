@@ -73,7 +73,7 @@ from sdf_pipeline import considerations_assignment as assignment
 from sdf_pipeline.step_runner import StepRunner, run_corpus_step
 from sdf_pipeline.update_steps import (
     Accepted, CorpusStep, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, StepPolicy,
-    ThrottledProgressClock, WhatAFailedDocumentDoes, line_for_document_left_to_retry, reason_without_error_prefix)
+    ThrottledProgressClock, WhatAFailedDocumentDoes, WhereAnErrorIsAThrownCall, line_for_document_left_to_retry, reason_without_error_prefix)
 from sdf_pipeline.considerations_catalog import (
     CONSIDERATIONS_FILENAME, EPISTEMIC_LIST, LIST_NAMES, MORAL_LIST,
     Consideration, ConsiderationCatalog, load_considerations,
@@ -275,7 +275,7 @@ class ConsiderationScoringStep(DocumentStep):
     writes_stage_file_as_replies_arrive = True   # the scores file is the checkpoint: write each row the moment it arrives
     systemic_stop_message = (
         "layer1_select: every pending scoring call failed — this is systemic "
-        "(auth, backend, or network), not per-document; fix and --resume.")
+        "(auth, backend, network, or an error building the prompt), not per-document; fix and --resume.")
 
     def __init__(self, config: dict, catalog: ConsiderationCatalog, template: str):
         sdf = config["sdf"]
@@ -290,7 +290,9 @@ class ConsiderationScoringStep(DocumentStep):
             # The systemic stop is raised by ``after_documents_are_processed`` (after the summary
             # line, as before), so the runner's own check is switched off.
             failure_kinds_counting_towards_the_systemic_stop=frozenset(),
-            failed_document=WhatAFailedDocumentDoes.STOPS_THE_RUN_AFTER_THE_STEP)
+            failed_document=WhatAFailedDocumentDoes.STOPS_THE_RUN_AFTER_THE_STEP,
+            errors_counted_as_thrown_calls=WhereAnErrorIsAThrownCall.BUILD | WhereAnErrorIsAThrownCall.SEND
+            | WhereAnErrorIsAThrownCall.INTERPRET)
         self._offered_by_document_id: dict = {}
         self._attempts_by_document_id: dict = {}
         self._clock = ThrottledProgressClock()
@@ -340,9 +342,9 @@ class ConsiderationScoringStep(DocumentStep):
                 self._attempts_by_document_id.pop(prompt_id, None)
                 problem = f"{problem} (after {self.maximum_attempts} attempts)"
             return Failed(FailureKind.UNUSABLE_ANSWER, problem)
-        except Exception as error:  # as before, anything else is reported like a failed call
+        except Exception:  # the declared exception policy records it as a thrown call; forget the attempt count first
             self._attempts_by_document_id.pop(prompt_id, None)
-            return Failed(FailureKind.THROWN_CALL, f"error: {type(error).__name__}: {error}")
+            raise
         self._attempts_by_document_id.pop(prompt_id, None)
         return Accepted({"scores": scores, "attempts": attempt})
 

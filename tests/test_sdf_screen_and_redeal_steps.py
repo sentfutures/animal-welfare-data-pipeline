@@ -356,3 +356,51 @@ def test_a_completed_screen_and_a_disabled_screen_append_no_events(screen_config
     screen_config["sdf"]["screen_enabled"] = False
     assert screen.run(screen_config, prompts_sdf, disabled) is None
     assert not (disabled.parent / "document_events.jsonl").exists()
+
+
+def test_a_prompt_building_error_fails_that_batch_and_a_resume_retries_it(screen_step, tmp_path, monkeypatch, capsys):
+    batches = [batch_of(screen_step, [0, 1], "screen_round3_batch0000"), batch_of(screen_step, [2, 3], "screen_round3_batch0001")]
+    real_build_request = screen_step.build_request
+
+    def build_request(batch):
+        if batch.batch_id.endswith("0001"):
+            raise KeyError("missing_placeholder")
+        return real_build_request(batch)
+
+    monkeypatch.setattr(screen_step, "build_request", build_request)
+    sent = []
+
+    def send(request):
+        sent.append(request.item_id)
+        return ModelReply(screen_answer(2), "end_turn")
+
+    runner, log, checkpoint, written = run_batches(screen_step, tmp_path, batches, send)
+    with pytest.raises(SystemExit, match="failed; the next round cannot be dealt"):
+        runner.run(batches)
+    assert sent == ["screen_round3_batch0000"] and written == ["screen_round3_batch0000"]
+    assert not checkpoint.is_done("screen_round3_batch0001")
+    assert ("  screen_round3_batch0001: API call failed (KeyError: 'missing_placeholder') — will retry on resume"
+            in capsys.readouterr().out)
+    failures = [e for e in read_document_events(log.path) if e["outcome"] == "failed"]
+    assert {e["reason"] for e in failures} == {"error: KeyError: 'missing_placeholder'"}
+    assert {e["request_hash"] for e in failures} == {None}
+
+    monkeypatch.undo()
+    runner, _, _, written = run_batches(screen_step, tmp_path, batches, send, checkpoint=checkpoint)
+    runner.run(batches)
+    assert sent[1:] == ["screen_round3_batch0001"] and written == ["screen_round3_batch0001"]
+
+
+def test_a_template_broken_for_every_batch_stops_the_run_with_no_model_call(screen_step, tmp_path, monkeypatch):
+    batches = [batch_of(screen_step, [0, 1], "screen_round3_batch0000"), batch_of(screen_step, [2, 3], "screen_round3_batch0001")]
+
+    def build_request(batch):
+        raise KeyError("missing_placeholder")
+
+    monkeypatch.setattr(screen_step, "build_request", build_request)
+    sent = []
+    runner, _, _, _ = run_batches(screen_step, tmp_path, batches, lambda request: sent.append(request))
+    with pytest.raises(SystemExit) as stop:
+        runner.run(batches)
+    assert "an error building the prompt" in str(stop.value) and "systemic" in str(stop.value)
+    assert sent == []

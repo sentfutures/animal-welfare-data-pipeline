@@ -17,7 +17,7 @@ import json
 import time
 from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass, field
-from enum import Enum
+from enum import Enum, Flag, auto
 
 
 @dataclass(frozen=True)
@@ -132,9 +132,26 @@ class WhatAFailedDocumentDoes(Enum):
     STOPS_THE_RUN_AFTER_THE_STEP = "stops_the_run_after_the_step"  # records are written, then the run stops
 
 
+class WhereAnErrorIsAThrownCall(Flag):
+    """The places in a step where an exception raised by the step's code is recorded as a ``Failed``
+    ``THROWN_CALL`` for that document (or batch) instead of ending the run. An exception anywhere else
+    propagates. The default is ``BUILD | SEND``; see ``StepPolicy``."""
+    BUILD = auto()      # ``build_request`` (a prompt template that cannot be filled in for this document)
+    SEND = auto()       # the model call (auth, backend, network)
+    INTERPRET = auto()  # ``interpret`` (a reply the step's parser did not expect to fail on)
+
+
 @dataclass(frozen=True)
 class StepPolicy:
     """What a step declares about its attempts and failures (see the plan's step table).
+
+    The exception policy, in one place (``errors_counted_as_thrown_calls``; both runners read it):
+
+    * an exception in ``build_request`` is ``Failed(THROWN_CALL, "error: <Type>: <message>")`` for that
+      document, with no call made; it is printed, logged and retried on resume;
+    * an exception in the model call is the same ``Failed``;
+    * an exception in ``interpret`` is the same ``Failed`` when the step declares ``INTERPRET``,
+      otherwise it ends the run.
 
     ``failure_kinds_counting_towards_the_systemic_stop``: the run stops when every pending call
     failed with a kind in this set. ``maximum_attempts_in_one_run`` is 1 except consideration
@@ -144,6 +161,8 @@ class StepPolicy:
     maximum_attempts_in_one_run: int = 1
     failure_kinds_counting_towards_the_systemic_stop: frozenset = frozenset({FailureKind.THROWN_CALL})
     failed_document: WhatAFailedDocumentDoes = WhatAFailedDocumentDoes.LEFT_BEHIND
+    errors_counted_as_thrown_calls: WhereAnErrorIsAThrownCall = (
+        WhereAnErrorIsAThrownCall.BUILD | WhereAnErrorIsAThrownCall.SEND)
 
 
 class DocumentStep(ABC):
@@ -161,9 +180,6 @@ class DocumentStep(ABC):
     stage_file_id_field: str = "doc_id"
     policy: StepPolicy = StepPolicy()
     systemic_stop_message: str
-    # When True, an error raised while building the request is a thrown call (a ``Failed``
-    # outcome) instead of ending the run. The description rewrite always treated it so.
-    build_request_errors_count_as_thrown_calls: bool = False
     # When True, the runner writes each outcome's stage file record, checkpoint mark, failure record
     # and progress line from the worker, under a lock, the moment its answer arrives (completion
     # order), instead of on the calling thread in input order. For a step whose stage file is its

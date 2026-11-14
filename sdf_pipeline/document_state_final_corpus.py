@@ -1,6 +1,6 @@
 """Derive today's ``final/sdf_corpus.jsonl`` records from ``DocumentState`` records.
 
-Used only to test the loader for now: the pipeline's own ``layer4_score`` still writes the file.
+``final_corpus_record`` is the one definition of a final corpus record: ``layer4_score`` calls it too.
 Fields, field order and values are the ones the final corpus has today, and the document order is the
 order of the states handed in (deal order from the loader). Today's file has that order for a run that
 was not resumed; for a resumed run today's order depends on what was finished before the resume.
@@ -23,6 +23,29 @@ from sdf_pipeline.document_state import DocumentOutcome, DocumentState, RunLayou
 _FIVE_LAYER_FIELDS_WRITTEN_AFTER_SCORES = ("latent_beat_ok",)
 
 
+def final_corpus_record(
+        document_id: str, variables: dict, description: str, considerations_spec: str | None, content: str,
+        scores: dict) -> dict:
+    """The one definition of a record of ``final/sdf_corpus.jsonl`` (current and matrix layouts), with
+    its field order. Both ``layer4_score`` (from the rewrite and score records) and
+    ``final_corpus_record_for_state`` (from a ``DocumentState``) build the record here.
+    ``considerations_spec`` None leaves the field out (the matrix layout before the renumbering)."""
+    record = {
+        "doc_id": document_id,
+        "type_id": variables.get("document_type", ""),
+        "type_name": variables.get("document_type", ""),
+        "language": compose_prompts.derive_language(variables.get("culture", "")),
+        "register": variables.get("tone", ""),
+        "variables": variables,
+        "description": description,
+    }
+    if considerations_spec is not None:
+        record["considerations_spec"] = considerations_spec
+    record["content"] = content
+    record["scores"] = scores
+    return record
+
+
 def final_corpus_record_for_state(state: DocumentState) -> dict:
     latest = state.latest_text_version
     scores = state.scores.recorded_values
@@ -30,24 +53,12 @@ def final_corpus_record_for_state(state: DocumentState) -> dict:
         before = {k: v for k, v in state.legacy_fields.items() if k not in _FIVE_LAYER_FIELDS_WRITTEN_AFTER_SCORES}
         after = {k: v for k, v in state.legacy_fields.items() if k in _FIVE_LAYER_FIELDS_WRITTEN_AFTER_SCORES}
         return {"doc_id": state.document_id, **before, "content": latest.text, "scores": scores, **after}
-    variables = latest.written_from.variables
-    record = {
-        "doc_id": state.document_id,
-        "type_id": variables.get("document_type", ""),
-        "type_name": variables.get("document_type", ""),
-        "language": compose_prompts.derive_language(variables.get("culture", "")),
-        "register": variables.get("tone", ""),
-        "variables": variables,
-        "description": latest.written_from.description,
-    }
     considerations_spec = latest.written_from.considerations_spec
     if state.layout is RunLayout.CURRENT:
-        record["considerations_spec"] = considerations_spec or ""
-    elif considerations_spec is not None:
-        record["considerations_spec"] = considerations_spec
-    record["content"] = latest.text
-    record["scores"] = scores
-    return record
+        considerations_spec = considerations_spec or ""
+    return final_corpus_record(
+        state.document_id, latest.written_from.variables, latest.written_from.description,
+        considerations_spec, latest.text, scores)
 
 
 def derive_final_corpus_records(states) -> list:

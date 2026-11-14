@@ -20,7 +20,7 @@ from sdf_pipeline.document_event_log import (
     DOCUMENT_EVENT_LOG_FILE_NAME, DocumentEventLog, fold_document_events, read_document_events)
 from sdf_pipeline.update_steps import (
     Accepted, BatchStep, CorpusStep, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, Removed,
-    WhatAFailedDocumentDoes)
+    WhatAFailedDocumentDoes, WhereAnErrorIsAThrownCall)
 
 
 @dataclass
@@ -30,6 +30,7 @@ class StepRunResult:
     this run (in input order)."""
     records_in_input_order: list = field(default_factory=list)
     failed_document_ids: list = field(default_factory=list)
+    thrown_call_document_ids: list = field(default_factory=list)  # failed with a thrown call (any place the policy counts)
     pending_document_ids: list = field(default_factory=list)
 
 
@@ -86,6 +87,11 @@ def resolve_settings_of_model_request(request: ModelRequest, config: dict | None
         requested_temperature=openai_api.SAMPLING_TEMPERATURE, temperature=openai_api.SAMPLING_TEMPERATURE,
         effort=request.openai_reasoning_effort, effort_configured=request.openai_reasoning_effort,
         thinking=None, structured_output=request.json_schema is not None, cache_system=False)
+
+
+def failure_for_exception(error: Exception) -> Failed:
+    """The ``Failed`` a step's declared exception policy turns an exception into."""
+    return Failed(FailureKind.THROWN_CALL, f"error: {type(error).__name__}: {error}")
 
 
 def outcome_name_and_event_detail(outcome, update_as_recorded=lambda update: update) -> tuple[str, dict]:
@@ -168,12 +174,13 @@ class StepRunner:
 
     def _attempt_loop(self, document):
         step = self.step
+        counted_places = step.policy.errors_counted_as_thrown_calls
         try:
             request = step.build_request(document)
         except Exception as error:
-            if not step.build_request_errors_count_as_thrown_calls:
+            if WhereAnErrorIsAThrownCall.BUILD not in counted_places:
                 raise
-            outcome = Failed(FailureKind.THROWN_CALL, f"error: {type(error).__name__}: {error}")
+            outcome = failure_for_exception(error)
             self._append_event(document, None, None, outcome)
             return outcome
         request_hash = request.request_hash()
@@ -185,9 +192,16 @@ class StepRunner:
                 reply = self.send(request)
             except Exception as error:
                 # One poison document must not kill the step and discard its siblings' in-flight work.
-                outcome = Failed(FailureKind.THROWN_CALL, f"error: {type(error).__name__}: {error}")
+                if WhereAnErrorIsAThrownCall.SEND not in counted_places:
+                    raise
+                outcome = failure_for_exception(error)
             else:
-                outcome = step.interpret(document, reply)
+                try:
+                    outcome = step.interpret(document, reply)
+                except Exception as error:
+                    if WhereAnErrorIsAThrownCall.INTERPRET not in counted_places:
+                        raise
+                    outcome = failure_for_exception(error)
             self._append_event(document, request, request_hash, outcome)
             if not (isinstance(outcome, Failed) and outcome.kind is FailureKind.UNUSABLE_ANSWER):
                 break
@@ -241,6 +255,8 @@ class StepRunner:
             document_id = step.document_id_of(document)
             if isinstance(outcome, Failed):
                 result.failed_document_ids.append(document_id)
+                if outcome.kind is FailureKind.THROWN_CALL:
+                    result.thrown_call_document_ids.append(document_id)
                 if outcome.kind in policy.failure_kinds_counting_towards_the_systemic_stop:
                     counted_failures += 1
             elif isinstance(outcome, Removed):
@@ -316,19 +332,25 @@ class BatchStepRunner:
     def _answer_one(self, batch):
         """Worker: build, send, interpret, record one event per member. Returns (outcomes, seconds)."""
         step = self.step
+        counted_places = step.policy.errors_counted_as_thrown_calls
         request_hash = None
         seconds = 0.0
+        stage_of_failure = WhereAnErrorIsAThrownCall.BUILD
         try:
             request = step.build_request(batch)
             request_hash = request.request_hash()
             started = time.monotonic()
+            stage_of_failure = WhereAnErrorIsAThrownCall.SEND
             reply = self.send(request)
+            stage_of_failure = WhereAnErrorIsAThrownCall.INTERPRET
             outcomes = step.interpret(batch, reply)
             seconds = time.monotonic() - started
         except Exception as error:
             # One failing call must not discard its siblings' in-flight work.
-            reason = f"error: {type(error).__name__}: {error}"
-            outcomes = {document_id: Failed(FailureKind.THROWN_CALL, reason) for document_id in batch.document_ids}
+            if stage_of_failure not in counted_places:
+                raise
+            failure = failure_for_exception(error)
+            outcomes = {document_id: failure for document_id in batch.document_ids}
         for document_id, outcome in outcomes.items():
             self._append_event(document_id, request_hash, outcome)
         return outcomes, seconds

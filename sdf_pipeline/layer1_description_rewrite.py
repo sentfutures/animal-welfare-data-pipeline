@@ -61,7 +61,7 @@ from sdf_pipeline import structured_answers
 from sdf_pipeline.step_runner import StepRunner
 from sdf_pipeline.update_steps import (
     Accepted, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, Removed, StepPolicy,
-    ThrottledProgressClock, WhatAFailedDocumentDoes, line_for_document_left_to_retry, reason_without_error_prefix)
+    ThrottledProgressClock, WhatAFailedDocumentDoes, WhereAnErrorIsAThrownCall, line_for_document_left_to_retry, reason_without_error_prefix)
 
 STAGE_TAG = "layer1_description_rewrite"
 TEMPLATE_FILENAME = "layer1_description_rewrite.txt"
@@ -290,12 +290,13 @@ class DescriptionRewriteStep(DocumentStep):
     stage_file_id_field = "prompt_id"
     policy = StepPolicy(
         failure_kinds_counting_towards_the_systemic_stop=frozenset(FailureKind),
-        failed_document=WhatAFailedDocumentDoes.STOPS_THE_RUN_AFTER_THE_STEP)
+        failed_document=WhatAFailedDocumentDoes.STOPS_THE_RUN_AFTER_THE_STEP,
+        errors_counted_as_thrown_calls=WhereAnErrorIsAThrownCall.BUILD | WhereAnErrorIsAThrownCall.SEND
+        | WhereAnErrorIsAThrownCall.INTERPRET)
     systemic_stop_message = (
         "layer1_description_rewrite: every pending call failed — this is systemic "
-        "(auth, backend, or network), not per-plan; fix and --resume."
+        "(auth, backend, network, or an error building the prompt), not per-plan; fix and --resume."
     )
-    build_request_errors_count_as_thrown_calls = True
 
     def __init__(self, config: dict, prompts: RewritePrompts, prompts_dir: Path, stage_directory: Path,
                  plans: list[dict]):
@@ -343,8 +344,6 @@ class DescriptionRewriteStep(DocumentStep):
             result = parse_rewrite_answer(reply.text, check_names(self.prompts))
         except RewriteAnswerError as error:
             return Failed(FailureKind.UNUSABLE_ANSWER, f"unusable answer ({error})")
-        except Exception as error:  # the layer counted any error while answering as a failed call
-            return Failed(FailureKind.THROWN_CALL, f"error: {type(error).__name__}: {error}")
         if result.dealt_value_conflict:
             return Removed(
                 "dealt_value_conflict",

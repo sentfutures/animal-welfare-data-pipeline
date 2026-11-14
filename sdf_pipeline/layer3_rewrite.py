@@ -30,7 +30,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from shared import constitution_loader, deal_constraints, utils
 from sdf_pipeline import compose_prompts as cp
 from sdf_pipeline import revision_style
-from sdf_pipeline.step_runner import StepRunner, send_model_request
+from sdf_pipeline.step_runner import StepRunner
 from sdf_pipeline.update_steps import (
     Accepted, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, StepPolicy,
     line_for_document_left_to_retry)
@@ -46,7 +46,7 @@ REVISE_TEMPLATE = "layer3b_revise.txt"
 
 SYSTEMIC_STOP_MESSAGE = (
     "layer3_rewrite: every pending API call failed — this is systemic "
-    "(auth, backend, or network), not per-document; fix and --resume."
+    "(auth, backend, network, or an error building the prompt), not per-document; fix and --resume."
 )
 
 
@@ -317,26 +317,20 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, drafts: list[dict]) -
         if d["doc_id"] not in existing_rewrite_ids and not checkpoint.is_done(d["doc_id"])
     ]
 
-    # The systemic guard counts THROWN calls only (auth, backend, network), across the critique and
-    # the revise together. A critique that came back truncated or empty is a per-document content
-    # failure, the same class as a truncated rewrite, and must not look systemic.
+    # The systemic guard counts documents with a THROWN call only (auth, backend, network or a prompt
+    # that could not be built), across the critique and the revise together. A critique that came back
+    # truncated or empty is a per-document content failure, the same class as a truncated rewrite, and
+    # must not look systemic.
     documents_with_thrown_call: set = set()
-
-    def send_noting_thrown_calls(request: ModelRequest) -> ModelReply:
-        try:
-            return send_model_request(request)
-        except Exception:
-            documents_with_thrown_call.add(request.item_id)
-            raise
 
     if split:
         critique_step = CritiqueStep(config, prompts_dir)
         # A draft is finished, and gets no critique, when its rewrite is already on disk; accepting a
         # critique marks nothing, because only an accepted rewrite finishes a draft.
         critique_runner = StepRunner(
-            critique_step, output_dir, workers=workers, send=send_noting_thrown_calls,
+            critique_step, output_dir, workers=workers,
             checkpoint=checkpoint, marks_nothing_done=True, also_finished_document_ids=existing_rewrite_ids)
-        critique_runner.run(drafts)
+        documents_with_thrown_call.update(critique_runner.run(drafts).thrown_call_document_ids)
         # Critiques are banked separately from rewrites (the critique runner appended each as it
         # was accepted): a revise call that fails must not re-bill the critique that fed it.
         critique_by_document_id = {r["doc_id"]: r["review"] for r in utils.load_jsonl(output_dir / "critiques.jsonl")}
@@ -344,8 +338,9 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, drafts: list[dict]) -
     else:
         rewrite_step = CombinedReviewAndReviseStep(config, prompts_dir)
     rewrite_runner = StepRunner(
-        rewrite_step, output_dir, workers=workers, send=send_noting_thrown_calls, checkpoint=checkpoint)
+        rewrite_step, output_dir, workers=workers, checkpoint=checkpoint)
     result = rewrite_runner.run(drafts)
+    documents_with_thrown_call.update(result.thrown_call_document_ids)
 
     if pending_ids and len(documents_with_thrown_call) == len(pending_ids):
         raise SystemExit(SYSTEMIC_STOP_MESSAGE)
