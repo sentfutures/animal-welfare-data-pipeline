@@ -35,6 +35,10 @@ def main_scenario_after_each_invocation():
                 "rewrite_records": utils.load_jsonl(utils.sdf_stage_dir(run_directory, 3) / "rewrites.jsonl"),
                 "description_rewrite_records": utils.load_jsonl(
                     utils.sdf_stage_dir(run_directory, 1) / "description_rewrites.jsonl"),
+                "consideration_score_records": utils.load_jsonl(
+                    utils.sdf_stage_dir(run_directory, 1) / "consideration_scores.jsonl"),
+                "consideration_selection_rows": utils.load_jsonl(
+                    utils.sdf_stage_dir(run_directory, 1) / "consideration_selections.jsonl"),
             })
         support.run_scenario_in_isolation(
             scenarios.scenario_named(scenarios.MAIN_SCENARIO_NAME), Path(base_directory) / "run",
@@ -195,3 +199,24 @@ def test_a_cut_off_last_line_is_ignored_and_the_fold_is_unchanged(main_scenario_
 def test_a_corrupt_line_in_the_middle_is_an_error(tmp_path):
     with pytest.raises(DocumentEventLogCorruptError):
         _events_of('{"event": "x"}\nnot json\n{"event": "y"}\n', tmp_path)
+
+
+def test_folded_consideration_events_match_the_scores_and_selections_files_after_every_invocation(
+        main_scenario_after_each_invocation, tmp_path):
+    saw_scores = False
+    for invocation in main_scenario_after_each_invocation:
+        folded = fold_document_events(_events_of(invocation["events_text"], tmp_path))
+        scores_by_events = {
+            document_id: update for document_id, document in folded.items()
+            if (update := document.accepted_update_by_step.get("consideration_scoring")) is not None}
+        records_by_id = {record["prompt_id"]: record for record in invocation["consideration_score_records"]}
+        assert scores_by_events == records_by_id
+        saw_scores = saw_scores or bool(records_by_id)
+        for document_id, update in scores_by_events.items():
+            assert list(update.items()) == list(records_by_id[document_id].items())
+        outcomes_by_events = {
+            document_id: update["outcomes"] for document_id, document in folded.items()
+            if (update := document.accepted_update_by_step.get("consideration_assignment")) is not None}
+        rows_by_id = {row["prompt_id"]: row["outcomes"] for row in invocation["consideration_selection_rows"]}
+        assert outcomes_by_events == rows_by_id
+    assert saw_scores
