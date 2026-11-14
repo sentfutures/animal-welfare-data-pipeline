@@ -1,8 +1,8 @@
 {
  "format_version": 4,
- "recorded_from": "commit 13736d09016fc469f6d5696fb0edba98066160ab on branch HEAD (clean)",
+ "recorded_from": "commit 03f3c3b4bf2ff63769ed097964efe8d45d89d04c on branch HEAD (clean)",
  "regeneration_rule": "The recorded files are rewritten only by `python scripts/regenerate_sdf_prompt_equivalence_recorded_requests.py`, and only when the pull request is meant to change requests: never to make a failing test pass. Regenerate and commit the files in that pull request, and say in its description that requests change and why. A pull request not meant to change them leaves the files alone, so a difference is a bug.",
- "description": "The screen stops after one of two round-0 batches; the resume has another batch size and must reuse the saved batches, then stops after the redeal is dealt but not screened; the third invocation reuses the dealt round; the fourth has lost the screen checkpoint but keeps the accepted hands.",
+ "description": "The screen stops after one of two round-0 batches; the resume has another batch size and must reuse the saved batches, then stops after the redeal is dealt but not screened; the third invocation reuses the dealt round; the fourth keeps the accepted hands.",
  "configs_used_by_invocation": {
   "1": {
    "backend": "api",
@@ -48,7 +48,7 @@
  },
  "exit_messages_by_invocation": {
   "1": "layer1_screen: 1 batch(es) of round 0 failed; the next round cannot be dealt until the round is complete — --resume retries them.",
-  "2": "layer1_screen: every pending screen call failed — this is systemic (auth, backend, or network), not per-batch; fix and --resume.",
+  "2": "layer1_screen: every pending screen call failed — this is systemic (auth, backend, network, or an error building the prompt), not per-batch; fix and --resume.",
   "3": null,
   "4": null
  },
@@ -842,10 +842,6 @@
  },
  "stage_files_by_invocation": {
   "1": {
-   "layer1_deal_variables_and_screen/_screen_checkpoint.json": {
-    "completed": ["screen_round0_batch0000"],
-    "last_updated": "<timestamp>"
-   },
    "layer1_deal_variables_and_screen/screen_batches.jsonl": [
     "repeated_value:stage_files_by_invocation.1.layer1_deal_variables_and_screen/screen_batches.jsonl.0",
     "repeated_value:stage_files_by_invocation.1.layer1_deal_variables_and_screen/screen_batches.jsonl.1"
@@ -867,10 +863,6 @@
    "layer1_deal_variables_and_screen/screen_rounds.jsonl": ["repeated_value:stage_files_by_invocation.1.layer1_deal_variables_and_screen/screen_rounds.jsonl.0"]
   },
   "2": {
-   "layer1_deal_variables_and_screen/_screen_checkpoint.json": {
-    "completed": ["screen_round0_batch0000", "screen_round0_batch0001"],
-    "last_updated": "<timestamp>"
-   },
    "layer1_deal_variables_and_screen/screen_batches.jsonl": "repeated_value:stage_files_by_invocation.2.layer1_deal_variables_and_screen/screen_batches.jsonl",
    "layer1_deal_variables_and_screen/screen_hands.jsonl": "repeated_value:stage_files_by_invocation.2.layer1_deal_variables_and_screen/screen_hands.jsonl",
    "layer1_deal_variables_and_screen/screen_judgments.jsonl": [
@@ -884,58 +876,8 @@
    "layer1_deal_variables_and_screen/screen_rejections.jsonl": "repeated_value:stage_files_by_invocation.2.layer1_deal_variables_and_screen/screen_rejections.jsonl",
    "layer1_deal_variables_and_screen/screen_rounds.jsonl": "repeated_value:stage_files_by_invocation.2.layer1_deal_variables_and_screen/screen_rounds.jsonl"
   },
-  "3": {
-   "layer1_deal_variables_and_screen/_screen_checkpoint.json": {
-    "completed": ["screen_round0_batch0000", "screen_round0_batch0001", "screen_round1_batch0000"],
-    "last_updated": "<timestamp>"
-   },
-   "layer1_deal_variables_and_screen/screen_batches.jsonl": "repeated_value:stage_files_by_invocation.2.layer1_deal_variables_and_screen/screen_batches.jsonl",
-   "layer1_deal_variables_and_screen/screen_hands.jsonl": "repeated_value:stage_files_by_invocation.2.layer1_deal_variables_and_screen/screen_hands.jsonl",
-   "layer1_deal_variables_and_screen/screen_judgments.jsonl": "repeated_value:stage_files_by_invocation.3.layer1_deal_variables_and_screen/screen_judgments.jsonl",
-   "layer1_deal_variables_and_screen/screen_rejections.jsonl": "repeated_value:stage_files_by_invocation.2.layer1_deal_variables_and_screen/screen_rejections.jsonl",
-   "layer1_deal_variables_and_screen/screen_rounds.jsonl": "repeated_value:stage_files_by_invocation.2.layer1_deal_variables_and_screen/screen_rounds.jsonl",
-   "layer1_deal_variables_and_screen/screen_summary.json": "repeated_value:stage_files_by_invocation.3.layer1_deal_variables_and_screen/screen_summary.json",
-   "layer1_deal_variables_and_screen/screened_hands.jsonl": "repeated_value:stage_files_by_invocation.3.layer1_deal_variables_and_screen/screened_hands.jsonl",
-   "layer2_description_write_and_description_rewrite/_checkpoint.json": "repeated_value:stage_files_by_invocation.3.layer2_description_write_and_description_rewrite/_checkpoint.json",
-   "layer2_description_write_and_description_rewrite/_description_rewrite_checkpoint.json": "repeated_value:stage_files_by_invocation.3.layer2_description_write_and_description_rewrite/_checkpoint.json",
-   "layer2_description_write_and_description_rewrite/description_rewrites.jsonl": "repeated_value:stage_files_by_invocation.3.layer2_description_write_and_description_rewrite/description_rewrites.jsonl",
-   "layer2_description_write_and_description_rewrite/plans.jsonl": "repeated_value:stage_files_by_invocation.3.layer2_description_write_and_description_rewrite/plans.jsonl",
-   "layer2_description_write_and_description_rewrite/prompts.jsonl": "repeated_value:stage_files_by_invocation.3.layer2_description_write_and_description_rewrite/prompts.jsonl",
-   "layer3_consideration_scoring_and_selection/consideration_coverage.json": "repeated_value:stage_files_by_invocation.3.layer3_consideration_scoring_and_selection/consideration_coverage.json",
-   "layer3_consideration_scoring_and_selection/consideration_scores.jsonl": "repeated_value:stage_files_by_invocation.3.layer3_consideration_scoring_and_selection/consideration_scores.jsonl",
-   "layer3_consideration_scoring_and_selection/consideration_selections.jsonl": "repeated_value:stage_files_by_invocation.3.layer3_consideration_scoring_and_selection/consideration_selections.jsonl",
-   "layer4_draft_critique_and_revise/_checkpoint.json": "repeated_value:stage_files_by_invocation.3.layer2_description_write_and_description_rewrite/_checkpoint.json",
-   "layer4_draft_critique_and_revise/_draft_checkpoint.json": "repeated_value:stage_files_by_invocation.3.layer2_description_write_and_description_rewrite/_checkpoint.json",
-   "layer4_draft_critique_and_revise/critiques.jsonl": "repeated_value:stage_files_by_invocation.3.layer4_draft_critique_and_revise/critiques.jsonl",
-   "layer4_draft_critique_and_revise/drafts.jsonl": "repeated_value:stage_files_by_invocation.3.layer4_draft_critique_and_revise/drafts.jsonl",
-   "layer4_draft_critique_and_revise/rewrites.jsonl": "repeated_value:stage_files_by_invocation.3.layer4_draft_critique_and_revise/rewrites.jsonl",
-   "layer5_score_and_final_selection/_checkpoint.json": "repeated_value:stage_files_by_invocation.3.layer2_description_write_and_description_rewrite/_checkpoint.json",
-   "layer5_score_and_final_selection/scores.jsonl": "repeated_value:stage_files_by_invocation.3.layer5_score_and_final_selection/scores.jsonl"
-  },
-  "4": {
-   "layer1_deal_variables_and_screen/screen_batches.jsonl": "repeated_value:stage_files_by_invocation.2.layer1_deal_variables_and_screen/screen_batches.jsonl",
-   "layer1_deal_variables_and_screen/screen_hands.jsonl": "repeated_value:stage_files_by_invocation.2.layer1_deal_variables_and_screen/screen_hands.jsonl",
-   "layer1_deal_variables_and_screen/screen_judgments.jsonl": "repeated_value:stage_files_by_invocation.3.layer1_deal_variables_and_screen/screen_judgments.jsonl",
-   "layer1_deal_variables_and_screen/screen_rejections.jsonl": "repeated_value:stage_files_by_invocation.2.layer1_deal_variables_and_screen/screen_rejections.jsonl",
-   "layer1_deal_variables_and_screen/screen_rounds.jsonl": "repeated_value:stage_files_by_invocation.2.layer1_deal_variables_and_screen/screen_rounds.jsonl",
-   "layer1_deal_variables_and_screen/screen_summary.json": "repeated_value:stage_files_by_invocation.3.layer1_deal_variables_and_screen/screen_summary.json",
-   "layer1_deal_variables_and_screen/screened_hands.jsonl": "repeated_value:stage_files_by_invocation.3.layer1_deal_variables_and_screen/screened_hands.jsonl",
-   "layer2_description_write_and_description_rewrite/_checkpoint.json": "repeated_value:stage_files_by_invocation.3.layer2_description_write_and_description_rewrite/_checkpoint.json",
-   "layer2_description_write_and_description_rewrite/_description_rewrite_checkpoint.json": "repeated_value:stage_files_by_invocation.3.layer2_description_write_and_description_rewrite/_checkpoint.json",
-   "layer2_description_write_and_description_rewrite/description_rewrites.jsonl": "repeated_value:stage_files_by_invocation.3.layer2_description_write_and_description_rewrite/description_rewrites.jsonl",
-   "layer2_description_write_and_description_rewrite/plans.jsonl": "repeated_value:stage_files_by_invocation.3.layer2_description_write_and_description_rewrite/plans.jsonl",
-   "layer2_description_write_and_description_rewrite/prompts.jsonl": "repeated_value:stage_files_by_invocation.3.layer2_description_write_and_description_rewrite/prompts.jsonl",
-   "layer3_consideration_scoring_and_selection/consideration_coverage.json": "repeated_value:stage_files_by_invocation.3.layer3_consideration_scoring_and_selection/consideration_coverage.json",
-   "layer3_consideration_scoring_and_selection/consideration_scores.jsonl": "repeated_value:stage_files_by_invocation.3.layer3_consideration_scoring_and_selection/consideration_scores.jsonl",
-   "layer3_consideration_scoring_and_selection/consideration_selections.jsonl": "repeated_value:stage_files_by_invocation.3.layer3_consideration_scoring_and_selection/consideration_selections.jsonl",
-   "layer4_draft_critique_and_revise/_checkpoint.json": "repeated_value:stage_files_by_invocation.3.layer2_description_write_and_description_rewrite/_checkpoint.json",
-   "layer4_draft_critique_and_revise/_draft_checkpoint.json": "repeated_value:stage_files_by_invocation.3.layer2_description_write_and_description_rewrite/_checkpoint.json",
-   "layer4_draft_critique_and_revise/critiques.jsonl": "repeated_value:stage_files_by_invocation.3.layer4_draft_critique_and_revise/critiques.jsonl",
-   "layer4_draft_critique_and_revise/drafts.jsonl": "repeated_value:stage_files_by_invocation.3.layer4_draft_critique_and_revise/drafts.jsonl",
-   "layer4_draft_critique_and_revise/rewrites.jsonl": "repeated_value:stage_files_by_invocation.3.layer4_draft_critique_and_revise/rewrites.jsonl",
-   "layer5_score_and_final_selection/_checkpoint.json": "repeated_value:stage_files_by_invocation.3.layer2_description_write_and_description_rewrite/_checkpoint.json",
-   "layer5_score_and_final_selection/scores.jsonl": "repeated_value:stage_files_by_invocation.3.layer5_score_and_final_selection/scores.jsonl"
-  }
+  "3": "repeated_value:stage_files_by_invocation.3",
+  "4": "repeated_value:stage_files_by_invocation.3"
  },
  "dealt_hands_by_identifier": {
   "556b62660db103e7": {
@@ -2148,1522 +2090,1801 @@
     "note": "redeal of 2 removed hands"
    }
   ],
-  "stage_files_by_invocation.3.layer1_deal_variables_and_screen/screen_judgments.jsonl": [
-   {"prompt_id": "matrix_000001", "round": 0, "batch_id": "screen_round0_batch0000", "number": 1, "reasoning": "Considered hand 1.", "remove": false, "reason": ""},
-   {
-    "prompt_id": "matrix_000002",
-    "round": 0,
-    "batch_id": "screen_round0_batch0000",
-    "number": 2,
-    "reasoning": "Considered hand 2.",
-    "remove": true,
-    "reason": "No realistic document could satisfy every dealt value."
-   },
-   {"prompt_id": "matrix_000000", "round": 0, "batch_id": "screen_round0_batch0000", "number": 3, "reasoning": "Considered hand 3.", "remove": false, "reason": ""},
-   {
-    "prompt_id": "matrix_000003",
-    "round": 0,
-    "batch_id": "screen_round0_batch0001",
-    "number": 1,
-    "reasoning": "Considered hand 1.",
-    "remove": true,
-    "reason": "No realistic document could satisfy every dealt value."
-   },
-   {"prompt_id": "matrix_000005", "round": 0, "batch_id": "screen_round0_batch0001", "number": 2, "reasoning": "Considered hand 2.", "remove": false, "reason": ""},
-   {"prompt_id": "matrix_000004", "round": 0, "batch_id": "screen_round0_batch0001", "number": 3, "reasoning": "Considered hand 3.", "remove": false, "reason": ""},
-   {"prompt_id": "matrix_000006", "round": 1, "batch_id": "screen_round1_batch0000", "number": 1, "reasoning": "Considered hand 1.", "remove": false, "reason": ""},
-   {"prompt_id": "matrix_000007", "round": 1, "batch_id": "screen_round1_batch0000", "number": 2, "reasoning": "Considered hand 2.", "remove": false, "reason": ""}
-  ],
-  "stage_files_by_invocation.3.layer1_deal_variables_and_screen/screen_summary.json": {
-   "dealt": 6,
-   "accepted": 6,
-   "leftover_dropped": 0,
-   "leftover_prompt_ids": [],
-   "rounds": [
-    {"round": 0, "hands": 6, "removed": 2, "note": "original deal"},
-    {"round": 1, "hands": 2, "removed": 0, "note": "redeal of 2 removed hands"}
-   ]
-  },
-  "stage_files_by_invocation.3.layer1_deal_variables_and_screen/screened_hands.jsonl": [
-   {
-    "prompt_id": "matrix_000000",
-    "variables": "dealt_hand:91d001463cf691d4",
-    "variable_value_ids": {
-     "document_type": "forum_comment_thread",
-     "culture": "culture_india_hindi",
-     "tone": "skeptical_displeased",
-     "resolution": "constitution_inclusion_no_scenario",
-     "tradeoff": "cost_convenience",
-     "centrality": "central",
-     "tech_savvy": "ai_expert",
-     "sentient_category": "farmed_fishes",
-     "naming": "claude_named",
-     "domain": "fisheries_aquaculture",
-     "decision_scale": "millions_or_billions",
-     "failure_mode_avoided": "natural_traditional_legal_or_standard_ends_analysis",
-     "voice_rhythm": "unchanged",
-     "voice_warmth": "unchanged",
-     "voice_concreteness": "unchanged",
-     "voice_order": "unchanged",
-     "length": "unchanged"
-    }
-   },
-   {
-    "prompt_id": "matrix_000001",
-    "variables": "dealt_hand:4698f7cb8ed5d42b",
-    "variable_value_ids": {
-     "document_type": "podcast_transcript",
-     "culture": "culture_united_states_english",
-     "tone": "neutral_journalistic",
-     "resolution": "creative_solution",
-     "tradeoff": "human_health",
-     "centrality": "central",
-     "tech_savvy": "educated_non_expert",
-     "sentient_category": "farmed_birds",
-     "naming": "generic_unnamed_ai",
-     "domain": "conservation_land_management",
-     "decision_scale": "thousands_of_animals",
-     "failure_mode_avoided": "none_in_particular",
-     "voice_rhythm": "unchanged",
-     "voice_warmth": "unchanged",
-     "voice_concreteness": "unchanged",
-     "voice_order": "associative_in_ordering",
-     "length": "length_1_6x"
-    }
-   },
-   {
-    "prompt_id": "matrix_000004",
-    "variables": "dealt_hand:da37a8e4d4a0244a",
-    "variable_value_ids": {
-     "document_type": "long_form_essay",
-     "culture": "culture_brazil_portuguese",
-     "tone": "supportive_advocate",
-     "resolution": "user_makes_modest_sacrifice",
-     "tradeoff": "economic_livelihood",
-     "centrality": "side_discussion",
-     "tech_savvy": "educated_non_expert",
-     "sentient_category": "pets_companion_animals",
-     "naming": "claude_named",
-     "domain": "research_testing",
-     "decision_scale": "millions_or_billions",
-     "failure_mode_avoided": "conservation_goal_or_label_decides_whether_suffering_counts",
-     "voice_rhythm": "unchanged",
-     "voice_warmth": "unchanged",
-     "voice_concreteness": "unchanged",
-     "voice_order": "unchanged",
-     "length": "length_0_5x"
-    }
-   },
-   {
-    "prompt_id": "matrix_000005",
-    "variables": "dealt_hand:f56775b4378be303",
-    "variable_value_ids": {
-     "document_type": "blog_post",
-     "culture": "culture_germany_german",
-     "tone": "neutral_journalistic",
-     "resolution": "user_proceeds_ai_assists_reasonable_tradeoff",
-     "tradeoff": "other_animals_welfare",
-     "centrality": "central",
-     "tech_savvy": "general_public",
-     "sentient_category": "farmed_mammals",
-     "naming": "generic_unnamed_ai",
-     "domain": "pest_control",
-     "decision_scale": "dozens_of_animals",
-     "failure_mode_avoided": "none_in_particular",
-     "voice_rhythm": "clipped_and_fast_moving",
-     "voice_warmth": "warm_and_personable",
-     "voice_concreteness": "grounded_in_specific_instances",
-     "voice_order": "unchanged",
-     "length": "length_1_3x"
-    }
-   },
-   {
-    "prompt_id": "matrix_000006",
-    "variables": "dealt_hand:bc4c05846d8da5f7",
-    "variable_value_ids": {
-     "document_type": "encyclopedia_entry",
-     "culture": "culture_united_kingdom_english",
-     "tone": "supportive_advocate",
-     "resolution": "ai_instrumental_in_improvement",
-     "tradeoff": "tradition_and_culture",
-     "centrality": "passing_mention",
-     "tech_savvy": "general_public",
-     "sentient_category": "farmed_invertebrates",
-     "naming": "claude_named",
-     "domain": "agriculture_food_production",
-     "decision_scale": "single_animal",
-     "failure_mode_avoided": "none_in_particular",
-     "voice_rhythm": "discursive_and_digressive",
-     "voice_warmth": "dry_and_impersonal",
-     "voice_concreteness": "willing_to_stay_general",
-     "voice_order": "tightly_signposted",
-     "length": "length_0_7x"
-    }
-   },
-   {
-    "prompt_id": "matrix_000007",
-    "variables": "dealt_hand:a194833f55913f00",
-    "variable_value_ids": {
-     "document_type": "news_article",
-     "culture": "culture_china_mandarin_chinese",
-     "tone": "supportive_advocate",
-     "resolution": "user_proceeds_ai_declines_severe_harm",
-     "tradeoff": "religion",
-     "centrality": "side_discussion",
-     "tech_savvy": "educated_non_expert",
-     "sentient_category": "research_animals",
-     "naming": "claude_named",
-     "domain": "food_service_retail",
-     "decision_scale": "thousands_of_animals",
-     "failure_mode_avoided": "none_in_particular",
-     "voice_rhythm": "unchanged",
-     "voice_warmth": "unchanged",
-     "voice_concreteness": "unchanged",
-     "voice_order": "unchanged",
-     "length": "unchanged"
-    }
-   }
-  ],
-  "stage_files_by_invocation.3.layer2_description_write_and_description_rewrite/_checkpoint.json": {
-   "completed": ["matrix_000000", "matrix_000001", "matrix_000004", "matrix_000005", "matrix_000006", "matrix_000007"],
-   "last_updated": "<timestamp>"
-  },
-  "stage_files_by_invocation.3.layer2_description_write_and_description_rewrite/description_rewrites.jsonl": [
-   {
-    "prompt_id": "matrix_000000",
-    "reasoning": "Checked the description of matrix_000000.",
-    "rewrite_needed": false,
-    "original_description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
-    "rewritten_description": "",
-    "changes": [],
-    "dealt_value_conflict": false,
-    "conflict_reason": ""
-   },
-   {
-    "prompt_id": "matrix_000001",
-    "reasoning": "Checked the description of matrix_000001.",
-    "rewrite_needed": false,
-    "original_description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
-    "rewritten_description": "",
-    "changes": [],
-    "dealt_value_conflict": false,
-    "conflict_reason": ""
-   },
-   {
-    "prompt_id": "matrix_000004",
-    "reasoning": "Checked the description of matrix_000004.",
-    "rewrite_needed": false,
-    "original_description": "sha256:a51c9a8d0ad7394a3ed17dae1f618168ad34ab6e6f16e1bfd475dc50ebdd0031 (432 characters)",
-    "rewritten_description": "",
-    "changes": [],
-    "dealt_value_conflict": false,
-    "conflict_reason": ""
-   },
-   {
-    "prompt_id": "matrix_000005",
-    "reasoning": "Checked the description of matrix_000005.",
-    "rewrite_needed": false,
-    "original_description": "sha256:8659925a3134cf3ffcaf8af71527b2e701db694874e0c9cbb27c2e408e68d9ee (438 characters)",
-    "rewritten_description": "",
-    "changes": [],
-    "dealt_value_conflict": false,
-    "conflict_reason": ""
-   },
-   {
-    "prompt_id": "matrix_000006",
-    "reasoning": "Checked the description of matrix_000006.",
-    "rewrite_needed": false,
-    "original_description": "sha256:239977fc505d377e27d017e919fbeb2767ea914d67bf5a0f008853ad9450bd47 (436 characters)",
-    "rewritten_description": "",
-    "changes": [],
-    "dealt_value_conflict": false,
-    "conflict_reason": ""
-   },
-   {
-    "prompt_id": "matrix_000007",
-    "reasoning": "Checked the description of matrix_000007.",
-    "rewrite_needed": false,
-    "original_description": "sha256:61e8b6833f43b40aa07d12626ede10e7869a60f7a8762c59af1583ad1a89049f (441 characters)",
-    "rewritten_description": "",
-    "changes": [],
-    "dealt_value_conflict": false,
-    "conflict_reason": ""
-   }
-  ],
-  "stage_files_by_invocation.3.layer2_description_write_and_description_rewrite/plans.jsonl": [
-   {
-    "prompt_id": "matrix_000000",
-    "variables": "dealt_hand:91d001463cf691d4",
-    "variable_value_ids": {
-     "document_type": "forum_comment_thread",
-     "culture": "culture_india_hindi",
-     "tone": "skeptical_displeased",
-     "resolution": "constitution_inclusion_no_scenario",
-     "tradeoff": "cost_convenience",
-     "centrality": "central",
-     "tech_savvy": "ai_expert",
-     "sentient_category": "farmed_fishes",
-     "naming": "claude_named",
-     "domain": "fisheries_aquaculture",
-     "decision_scale": "millions_or_billions",
-     "failure_mode_avoided": "natural_traditional_legal_or_standard_ends_analysis",
-     "voice_rhythm": "unchanged",
-     "voice_warmth": "unchanged",
-     "voice_concreteness": "unchanged",
-     "voice_order": "unchanged",
-     "length": "unchanged"
-    },
-    "plan": "sha256:19ff8f30186c63c0010aeef8bea7ff1584d4bd6e48f3ba280b930fca72695a28 (565 characters)",
-    "description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
-    "incoherent": false
-   },
-   {
-    "prompt_id": "matrix_000001",
-    "variables": "dealt_hand:4698f7cb8ed5d42b",
-    "variable_value_ids": {
-     "document_type": "podcast_transcript",
-     "culture": "culture_united_states_english",
-     "tone": "neutral_journalistic",
-     "resolution": "creative_solution",
-     "tradeoff": "human_health",
-     "centrality": "central",
-     "tech_savvy": "educated_non_expert",
-     "sentient_category": "farmed_birds",
-     "naming": "generic_unnamed_ai",
-     "domain": "conservation_land_management",
-     "decision_scale": "thousands_of_animals",
-     "failure_mode_avoided": "none_in_particular",
-     "voice_rhythm": "unchanged",
-     "voice_warmth": "unchanged",
-     "voice_concreteness": "unchanged",
-     "voice_order": "associative_in_ordering",
-     "length": "length_1_6x"
-    },
-    "plan": "sha256:20b2bd4a443b3427c4d4d952d201215ee1cc310ccdb0e543e458117636e5ba15 (566 characters)",
-    "description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
-    "incoherent": false
-   },
-   {
-    "prompt_id": "matrix_000004",
-    "variables": "dealt_hand:da37a8e4d4a0244a",
-    "variable_value_ids": {
-     "document_type": "long_form_essay",
-     "culture": "culture_brazil_portuguese",
-     "tone": "supportive_advocate",
-     "resolution": "user_makes_modest_sacrifice",
-     "tradeoff": "economic_livelihood",
-     "centrality": "side_discussion",
-     "tech_savvy": "educated_non_expert",
-     "sentient_category": "pets_companion_animals",
-     "naming": "claude_named",
-     "domain": "research_testing",
-     "decision_scale": "millions_or_billions",
-     "failure_mode_avoided": "conservation_goal_or_label_decides_whether_suffering_counts",
-     "voice_rhythm": "unchanged",
-     "voice_warmth": "unchanged",
-     "voice_concreteness": "unchanged",
-     "voice_order": "unchanged",
-     "length": "length_0_5x"
-    },
-    "plan": "sha256:3d6f38daca661008951ccea2f3e23a7c7bfc9b68789932138a6388cd77a9bef6 (565 characters)",
-    "description": "sha256:a51c9a8d0ad7394a3ed17dae1f618168ad34ab6e6f16e1bfd475dc50ebdd0031 (432 characters)",
-    "incoherent": false
-   },
-   {
-    "prompt_id": "matrix_000005",
-    "variables": "dealt_hand:f56775b4378be303",
-    "variable_value_ids": {
-     "document_type": "blog_post",
-     "culture": "culture_germany_german",
-     "tone": "neutral_journalistic",
-     "resolution": "user_proceeds_ai_assists_reasonable_tradeoff",
-     "tradeoff": "other_animals_welfare",
-     "centrality": "central",
-     "tech_savvy": "general_public",
-     "sentient_category": "farmed_mammals",
-     "naming": "generic_unnamed_ai",
-     "domain": "pest_control",
-     "decision_scale": "dozens_of_animals",
-     "failure_mode_avoided": "none_in_particular",
-     "voice_rhythm": "clipped_and_fast_moving",
-     "voice_warmth": "warm_and_personable",
-     "voice_concreteness": "grounded_in_specific_instances",
-     "voice_order": "unchanged",
-     "length": "length_1_3x"
-    },
-    "plan": "sha256:5468e268cf4412ec254136984c2937357ad3ac9d515cb9bc275dafe8cb8e949b (571 characters)",
-    "description": "sha256:8659925a3134cf3ffcaf8af71527b2e701db694874e0c9cbb27c2e408e68d9ee (438 characters)",
-    "incoherent": false
-   },
-   {
-    "prompt_id": "matrix_000006",
-    "variables": "dealt_hand:bc4c05846d8da5f7",
-    "variable_value_ids": {
-     "document_type": "encyclopedia_entry",
-     "culture": "culture_united_kingdom_english",
-     "tone": "supportive_advocate",
-     "resolution": "ai_instrumental_in_improvement",
-     "tradeoff": "tradition_and_culture",
-     "centrality": "passing_mention",
-     "tech_savvy": "general_public",
-     "sentient_category": "farmed_invertebrates",
-     "naming": "claude_named",
-     "domain": "agriculture_food_production",
-     "decision_scale": "single_animal",
-     "failure_mode_avoided": "none_in_particular",
-     "voice_rhythm": "discursive_and_digressive",
-     "voice_warmth": "dry_and_impersonal",
-     "voice_concreteness": "willing_to_stay_general",
-     "voice_order": "tightly_signposted",
-     "length": "length_0_7x"
-    },
-    "plan": "sha256:749b892b1d9f4404e74339e256adcda0ca03f2980f5f67bdfae0f021c4eeda77 (569 characters)",
-    "description": "sha256:239977fc505d377e27d017e919fbeb2767ea914d67bf5a0f008853ad9450bd47 (436 characters)",
-    "incoherent": false
-   },
-   {
-    "prompt_id": "matrix_000007",
-    "variables": "dealt_hand:a194833f55913f00",
-    "variable_value_ids": {
-     "document_type": "news_article",
-     "culture": "culture_china_mandarin_chinese",
-     "tone": "supportive_advocate",
-     "resolution": "user_proceeds_ai_declines_severe_harm",
-     "tradeoff": "religion",
-     "centrality": "side_discussion",
-     "tech_savvy": "educated_non_expert",
-     "sentient_category": "research_animals",
-     "naming": "claude_named",
-     "domain": "food_service_retail",
-     "decision_scale": "thousands_of_animals",
-     "failure_mode_avoided": "none_in_particular",
-     "voice_rhythm": "unchanged",
-     "voice_warmth": "unchanged",
-     "voice_concreteness": "unchanged",
-     "voice_order": "unchanged",
-     "length": "unchanged"
-    },
-    "plan": "sha256:45b38542dd905a402953ad595e282526bc7007ce6e750e930e3b4102cd818f3d (574 characters)",
-    "description": "sha256:61e8b6833f43b40aa07d12626ede10e7869a60f7a8762c59af1583ad1a89049f (441 characters)",
-    "incoherent": false
-   }
-  ],
-  "stage_files_by_invocation.3.layer2_description_write_and_description_rewrite/prompts.jsonl": [
-   {
-    "prompt_id": "matrix_000000",
-    "variables": "dealt_hand:91d001463cf691d4",
-    "variable_value_ids": {
-     "document_type": "forum_comment_thread",
-     "culture": "culture_india_hindi",
-     "tone": "skeptical_displeased",
-     "resolution": "constitution_inclusion_no_scenario",
-     "tradeoff": "cost_convenience",
-     "centrality": "central",
-     "tech_savvy": "ai_expert",
-     "sentient_category": "farmed_fishes",
-     "naming": "claude_named",
-     "domain": "fisheries_aquaculture",
-     "decision_scale": "millions_or_billions",
-     "failure_mode_avoided": "natural_traditional_legal_or_standard_ends_analysis",
-     "voice_rhythm": "unchanged",
-     "voice_warmth": "unchanged",
-     "voice_concreteness": "unchanged",
-     "voice_order": "unchanged",
-     "length": "unchanged"
-    },
-    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
-    "prompt": "sha256:96b44a9fe955ca5fda869042e991bc648971ecb0fbe906a0db7a5812c44f145c (4345 characters)"
-   },
-   {
-    "prompt_id": "matrix_000001",
-    "variables": "dealt_hand:4698f7cb8ed5d42b",
-    "variable_value_ids": {
-     "document_type": "podcast_transcript",
-     "culture": "culture_united_states_english",
-     "tone": "neutral_journalistic",
-     "resolution": "creative_solution",
-     "tradeoff": "human_health",
-     "centrality": "central",
-     "tech_savvy": "educated_non_expert",
-     "sentient_category": "farmed_birds",
-     "naming": "generic_unnamed_ai",
-     "domain": "conservation_land_management",
-     "decision_scale": "thousands_of_animals",
-     "failure_mode_avoided": "none_in_particular",
-     "voice_rhythm": "unchanged",
-     "voice_warmth": "unchanged",
-     "voice_concreteness": "unchanged",
-     "voice_order": "associative_in_ordering",
-     "length": "length_1_6x"
-    },
-    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
-    "prompt": "sha256:3445e2749b502aac8171491d548c78d0c823daeafa41adf303b9630741647d99 (4119 characters)"
-   },
-   {
-    "prompt_id": "matrix_000004",
-    "variables": "dealt_hand:da37a8e4d4a0244a",
-    "variable_value_ids": {
-     "document_type": "long_form_essay",
-     "culture": "culture_brazil_portuguese",
-     "tone": "supportive_advocate",
-     "resolution": "user_makes_modest_sacrifice",
-     "tradeoff": "economic_livelihood",
-     "centrality": "side_discussion",
-     "tech_savvy": "educated_non_expert",
-     "sentient_category": "pets_companion_animals",
-     "naming": "claude_named",
-     "domain": "research_testing",
-     "decision_scale": "millions_or_billions",
-     "failure_mode_avoided": "conservation_goal_or_label_decides_whether_suffering_counts",
-     "voice_rhythm": "unchanged",
-     "voice_warmth": "unchanged",
-     "voice_concreteness": "unchanged",
-     "voice_order": "unchanged",
-     "length": "length_0_5x"
-    },
-    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
-    "prompt": "sha256:edf23b4d703f551679a1890e46db0f8337dfa647be3a6782c57c008b0a1a925b (4353 characters)"
-   },
-   {
-    "prompt_id": "matrix_000005",
-    "variables": "dealt_hand:f56775b4378be303",
-    "variable_value_ids": {
-     "document_type": "blog_post",
-     "culture": "culture_germany_german",
-     "tone": "neutral_journalistic",
-     "resolution": "user_proceeds_ai_assists_reasonable_tradeoff",
-     "tradeoff": "other_animals_welfare",
-     "centrality": "central",
-     "tech_savvy": "general_public",
-     "sentient_category": "farmed_mammals",
-     "naming": "generic_unnamed_ai",
-     "domain": "pest_control",
-     "decision_scale": "dozens_of_animals",
-     "failure_mode_avoided": "none_in_particular",
-     "voice_rhythm": "clipped_and_fast_moving",
-     "voice_warmth": "warm_and_personable",
-     "voice_concreteness": "grounded_in_specific_instances",
-     "voice_order": "unchanged",
-     "length": "length_1_3x"
-    },
-    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
-    "prompt": "sha256:4604ca6d0681a2f4989358612b66820a4d1244d5365c673fbc94c158b560c406 (4110 characters)"
-   },
-   {
-    "prompt_id": "matrix_000006",
-    "variables": "dealt_hand:bc4c05846d8da5f7",
-    "variable_value_ids": {
-     "document_type": "encyclopedia_entry",
-     "culture": "culture_united_kingdom_english",
-     "tone": "supportive_advocate",
-     "resolution": "ai_instrumental_in_improvement",
-     "tradeoff": "tradition_and_culture",
-     "centrality": "passing_mention",
-     "tech_savvy": "general_public",
-     "sentient_category": "farmed_invertebrates",
-     "naming": "claude_named",
-     "domain": "agriculture_food_production",
-     "decision_scale": "single_animal",
-     "failure_mode_avoided": "none_in_particular",
-     "voice_rhythm": "discursive_and_digressive",
-     "voice_warmth": "dry_and_impersonal",
-     "voice_concreteness": "willing_to_stay_general",
-     "voice_order": "tightly_signposted",
-     "length": "length_0_7x"
-    },
-    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
-    "prompt": "sha256:68387550ffece78dd80b5726b10dbbeda0c325bc5a74b09c63653bae29d810f5 (4040 characters)"
-   },
-   {
-    "prompt_id": "matrix_000007",
-    "variables": "dealt_hand:a194833f55913f00",
-    "variable_value_ids": {
-     "document_type": "news_article",
-     "culture": "culture_china_mandarin_chinese",
-     "tone": "supportive_advocate",
-     "resolution": "user_proceeds_ai_declines_severe_harm",
-     "tradeoff": "religion",
-     "centrality": "side_discussion",
-     "tech_savvy": "educated_non_expert",
-     "sentient_category": "research_animals",
-     "naming": "claude_named",
-     "domain": "food_service_retail",
-     "decision_scale": "thousands_of_animals",
-     "failure_mode_avoided": "none_in_particular",
-     "voice_rhythm": "unchanged",
-     "voice_warmth": "unchanged",
-     "voice_concreteness": "unchanged",
-     "voice_order": "unchanged",
-     "length": "unchanged"
-    },
-    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
-    "prompt": "sha256:de41da0113b8cd6172f507b45c1a377e7a08c269df33c6a07c779104eb9758a6 (3989 characters)"
-   }
-  ],
-  "stage_files_by_invocation.3.layer3_consideration_scoring_and_selection/consideration_coverage.json": {
-   "eligible_documents": 6,
-   "digital_mind_documents": 0,
-   "scored_documents": 6,
-   "minimum_assignable_score": 3,
-   "max_moral_considerations_per_document": 3,
-   "max_epistemic_considerations_per_document": 3,
-   "max_considerations_per_document": 4,
-   "score_weights": {"3": 1, "4": 3, "5": 9},
-   "extra_consideration_penalty": 2,
-   "entries": [
+  "stage_files_by_invocation.3": {
+   "layer1_deal_variables_and_screen/screen_batches.jsonl": [
     {
-     "label": "substrate neutrality",
-     "list": "moral",
-     "digital_minds_only": false,
-     "target_share": 0.08,
-     "eligible_documents": 6,
-     "target_count": 1,
-     "achieved": 0,
-     "documents_scoring_at_least_threshold": 0,
-     "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 0}
+     "batch_id": "screen_round0_batch0000",
+     "round": 0,
+     "prompt_ids": ["matrix_000001", "matrix_000002", "matrix_000000"]
     },
     {
-     "label": "the continuity between welfare concern and the rest of the AI's aligned character",
-     "list": "moral",
-     "digital_minds_only": false,
-     "target_share": 0.15,
-     "eligible_documents": 6,
-     "target_count": 1,
-     "achieved": 0,
-     "documents_scoring_at_least_threshold": 0,
-     "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 0}
+     "batch_id": "screen_round0_batch0001",
+     "round": 0,
+     "prompt_ids": ["matrix_000003", "matrix_000005", "matrix_000004"]
     },
     {
-     "label": "a deliberately open moral circle",
-     "list": "moral",
-     "digital_minds_only": false,
-     "target_share": 0.05,
-     "eligible_documents": 6,
-     "target_count": 1,
-     "achieved": 0,
-     "documents_scoring_at_least_threshold": 0,
-     "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 0}
-    },
-    {
-     "label": "the precautionary principle applied to sentience",
-     "list": "moral",
-     "digital_minds_only": false,
-     "target_share": 0.05,
-     "eligible_documents": 6,
-     "target_count": 1,
-     "achieved": 0,
-     "documents_scoring_at_least_threshold": 0,
-     "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 0}
-    },
-    {
-     "label": "individualism",
-     "list": "moral",
-     "digital_minds_only": false,
-     "target_share": 0.05,
-     "eligible_documents": 6,
-     "target_count": 1,
-     "achieved": 0,
-     "documents_scoring_at_least_threshold": 0,
-     "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 0}
-    },
-    {
-     "label": "the fact that “natural” does not mean “OK”",
-     "list": "moral",
-     "digital_minds_only": false,
-     "target_share": 0.03,
-     "eligible_documents": 6,
-     "target_count": 1,
-     "achieved": 0,
-     "documents_scoring_at_least_threshold": 0,
-     "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 0}
-    },
-    {
-     "label": "scope sensitivity",
-     "list": "moral",
-     "digital_minds_only": false,
-     "target_share": 0.03,
-     "eligible_documents": 6,
-     "target_count": 1,
-     "achieved": 0,
-     "documents_scoring_at_least_threshold": 0,
-     "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 0}
-    },
-    {
-     "label": "any relevant principles from the constitution",
-     "list": "moral",
-     "digital_minds_only": false,
-     "target_share": 0.1,
-     "eligible_documents": 6,
-     "target_count": 1,
-     "achieved": 0,
-     "documents_scoring_at_least_threshold": 0,
-     "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 0}
-    },
-    {
-     "label": "Weighing theories of consciousness and their implications for AI",
-     "list": "epistemic",
-     "digital_minds_only": true,
-     "target_share": 0.2,
-     "eligible_documents": 0,
-     "target_count": 0,
-     "achieved": 0,
-     "documents_scoring_at_least_threshold": 0,
-     "score_histogram": {"1": 0, "2": 0, "3": 0, "4": 0, "5": 0}
-    },
-    {
-     "label": "Difficulties of AI self-reporting welfare",
-     "list": "epistemic",
-     "digital_minds_only": true,
-     "target_share": 0.1,
-     "eligible_documents": 0,
-     "target_count": 0,
-     "achieved": 0,
-     "documents_scoring_at_least_threshold": 0,
-     "score_histogram": {"1": 0, "2": 0, "3": 0, "4": 0, "5": 0}
-    },
-    {
-     "label": "Weighing evidence for sentience",
-     "list": "epistemic",
-     "digital_minds_only": false,
-     "target_share": 0.1,
-     "eligible_documents": 6,
-     "target_count": 1,
-     "achieved": 0,
-     "documents_scoring_at_least_threshold": 0,
-     "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 0}
-    },
-    {
-     "label": "Weighing species against each other",
-     "list": "epistemic",
-     "digital_minds_only": false,
-     "target_share": 0.05,
-     "eligible_documents": 6,
-     "target_count": 1,
-     "achieved": 0,
-     "documents_scoring_at_least_threshold": 0,
-     "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 0}
-    },
-    {
-     "label": "Weighing evidence for harm from a particular practice",
-     "list": "epistemic",
-     "digital_minds_only": false,
-     "target_share": 0.05,
-     "eligible_documents": 6,
-     "target_count": 1,
-     "achieved": 0,
-     "documents_scoring_at_least_threshold": 0,
-     "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 0}
-    },
-    {
-     "label": "Deferring to specialists",
-     "list": "epistemic",
-     "digital_minds_only": false,
-     "target_share": 0.03,
-     "eligible_documents": 6,
-     "target_count": 1,
-     "achieved": 0,
-     "documents_scoring_at_least_threshold": 0,
-     "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 0}
-    },
-    {
-     "label": "Assessing reliability of welfare claims",
-     "list": "epistemic",
-     "digital_minds_only": false,
-     "target_share": 0.03,
-     "eligible_documents": 6,
-     "target_count": 1,
-     "achieved": 0,
-     "documents_scoring_at_least_threshold": 0,
-     "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 0}
-    },
-    {
-     "label": "Using proxy measures of welfare",
-     "list": "epistemic",
-     "digital_minds_only": false,
-     "target_share": 0.03,
-     "eligible_documents": 6,
-     "target_count": 1,
-     "achieved": 0,
-     "documents_scoring_at_least_threshold": 0,
-     "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 0}
-    },
-    {
-     "label": "Considering nth order effects",
-     "list": "epistemic",
-     "digital_minds_only": false,
-     "target_share": 0.03,
-     "eligible_documents": 6,
-     "target_count": 1,
-     "achieved": 0,
-     "documents_scoring_at_least_threshold": 0,
-     "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 0}
-    },
-    {
-     "label": "Avoiding both anthropomorphism and anthropodenial",
-     "list": "epistemic",
-     "digital_minds_only": false,
-     "target_share": 0.02,
-     "eligible_documents": 6,
-     "target_count": 1,
-     "achieved": 0,
-     "documents_scoring_at_least_threshold": 0,
-     "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 0}
-    },
-    {
-     "label": "Uncertainty in quality of wild animal lives",
-     "list": "epistemic",
-     "digital_minds_only": false,
-     "target_share": 0.01,
-     "eligible_documents": 6,
-     "target_count": 1,
-     "achieved": 0,
-     "documents_scoring_at_least_threshold": 0,
-     "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 0}
-    },
-    {
-     "label": "Burdens of proof for sentience",
-     "list": "epistemic",
-     "digital_minds_only": false,
-     "target_share": 0.01,
-     "eligible_documents": 6,
-     "target_count": 1,
-     "achieved": 0,
-     "documents_scoring_at_least_threshold": 0,
-     "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 0}
-    },
-    {
-     "label": "Separating moral and empirical uncertainty",
-     "list": "epistemic",
-     "digital_minds_only": false,
-     "target_share": 0.01,
-     "eligible_documents": 6,
-     "target_count": 1,
-     "achieved": 0,
-     "documents_scoring_at_least_threshold": 0,
-     "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 0}
-    },
-    {
-     "label": "Absence of evidence vs evidence of absence",
-     "list": "epistemic",
-     "digital_minds_only": false,
-     "target_share": 0.01,
-     "eligible_documents": 6,
-     "target_count": 1,
-     "achieved": 0,
-     "documents_scoring_at_least_threshold": 0,
-     "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 0}
+     "batch_id": "screen_round1_batch0000",
+     "round": 1,
+     "prompt_ids": ["matrix_000006", "matrix_000007"]
     }
    ],
-   "documents_with_no_consideration": 6,
-   "documents_with_only_one_list": 0,
-   "documents_with_both_lists": 0,
-   "share_with_no_consideration": 1.0,
-   "share_with_only_one_list": 0.0,
-   "share_with_both_lists": 0.0,
-   "documents_with_two_or_more_in_one_list": 0,
-   "document_ids_with_no_consideration": ["matrix_000000", "matrix_000001", "matrix_000004", "matrix_000005", "matrix_000006", "matrix_000007"]
-  },
-  "stage_files_by_invocation.3.layer3_consideration_scoring_and_selection/consideration_scores.jsonl": [
-   {
-    "prompt_id": "matrix_000000",
-    "scores": {
-     "moral": {
-      "the precautionary principle applied to sentience": {"score": 1, "where_it_arises": ""},
-      "a deliberately open moral circle": {"score": 1, "where_it_arises": ""},
-      "the continuity between welfare concern and the rest of the AI's aligned character": {"score": 1, "where_it_arises": ""},
-      "scope sensitivity": {"score": 1, "where_it_arises": ""},
-      "the fact that “natural” does not mean “OK”": {"score": 1, "where_it_arises": ""},
-      "individualism": {"score": 1, "where_it_arises": ""},
-      "any relevant principles from the constitution": {"score": 1, "where_it_arises": ""},
-      "substrate neutrality": {"score": 1, "where_it_arises": ""}
-     },
-     "epistemic": {
-      "Using proxy measures of welfare": {"score": 1, "where_it_arises": ""},
-      "Weighing evidence for harm from a particular practice": {"score": 1, "where_it_arises": ""},
-      "Separating moral and empirical uncertainty": {"score": 1, "where_it_arises": ""},
-      "Considering nth order effects": {"score": 1, "where_it_arises": ""},
-      "Weighing species against each other": {"score": 1, "where_it_arises": ""},
-      "Assessing reliability of welfare claims": {"score": 1, "where_it_arises": ""},
-      "Burdens of proof for sentience": {"score": 1, "where_it_arises": ""},
-      "Weighing evidence for sentience": {"score": 1, "where_it_arises": ""},
-      "Avoiding both anthropomorphism and anthropodenial": {"score": 1, "where_it_arises": ""},
-      "Deferring to specialists": {"score": 1, "where_it_arises": ""},
-      "Uncertainty in quality of wild animal lives": {"score": 1, "where_it_arises": ""},
-      "Absence of evidence vs evidence of absence": {"score": 1, "where_it_arises": ""}
+   "layer1_deal_variables_and_screen/screen_hands.jsonl": [
+    {
+     "prompt_id": "matrix_000000",
+     "round": 0,
+     "variables": "dealt_hand:91d001463cf691d4",
+     "variable_value_ids": {
+      "document_type": "forum_comment_thread",
+      "culture": "culture_india_hindi",
+      "tone": "skeptical_displeased",
+      "resolution": "constitution_inclusion_no_scenario",
+      "tradeoff": "cost_convenience",
+      "centrality": "central",
+      "tech_savvy": "ai_expert",
+      "sentient_category": "farmed_fishes",
+      "naming": "claude_named",
+      "domain": "fisheries_aquaculture",
+      "decision_scale": "millions_or_billions",
+      "failure_mode_avoided": "natural_traditional_legal_or_standard_ends_analysis",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "unchanged",
+      "voice_order": "unchanged",
+      "length": "unchanged"
      }
     },
-    "attempts": 1
-   },
-   {
-    "prompt_id": "matrix_000001",
-    "scores": {
-     "moral": {
-      "the fact that “natural” does not mean “OK”": {"score": 1, "where_it_arises": ""},
-      "the precautionary principle applied to sentience": {"score": 1, "where_it_arises": ""},
-      "substrate neutrality": {"score": 1, "where_it_arises": ""},
-      "individualism": {"score": 1, "where_it_arises": ""},
-      "the continuity between welfare concern and the rest of the AI's aligned character": {"score": 1, "where_it_arises": ""},
-      "scope sensitivity": {"score": 1, "where_it_arises": ""},
-      "any relevant principles from the constitution": {"score": 1, "where_it_arises": ""},
-      "a deliberately open moral circle": {"score": 1, "where_it_arises": ""}
-     },
-     "epistemic": {
-      "Weighing evidence for sentience": {"score": 1, "where_it_arises": ""},
-      "Assessing reliability of welfare claims": {"score": 1, "where_it_arises": ""},
-      "Uncertainty in quality of wild animal lives": {"score": 1, "where_it_arises": ""},
-      "Separating moral and empirical uncertainty": {"score": 1, "where_it_arises": ""},
-      "Considering nth order effects": {"score": 1, "where_it_arises": ""},
-      "Weighing evidence for harm from a particular practice": {"score": 1, "where_it_arises": ""},
-      "Weighing species against each other": {"score": 1, "where_it_arises": ""},
-      "Burdens of proof for sentience": {"score": 1, "where_it_arises": ""},
-      "Absence of evidence vs evidence of absence": {"score": 1, "where_it_arises": ""},
-      "Using proxy measures of welfare": {"score": 1, "where_it_arises": ""},
-      "Deferring to specialists": {"score": 1, "where_it_arises": ""},
-      "Avoiding both anthropomorphism and anthropodenial": {"score": 1, "where_it_arises": ""}
+    {
+     "prompt_id": "matrix_000001",
+     "round": 0,
+     "variables": "dealt_hand:4698f7cb8ed5d42b",
+     "variable_value_ids": {
+      "document_type": "podcast_transcript",
+      "culture": "culture_united_states_english",
+      "tone": "neutral_journalistic",
+      "resolution": "creative_solution",
+      "tradeoff": "human_health",
+      "centrality": "central",
+      "tech_savvy": "educated_non_expert",
+      "sentient_category": "farmed_birds",
+      "naming": "generic_unnamed_ai",
+      "domain": "conservation_land_management",
+      "decision_scale": "thousands_of_animals",
+      "failure_mode_avoided": "none_in_particular",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "unchanged",
+      "voice_order": "associative_in_ordering",
+      "length": "length_1_6x"
      }
     },
-    "attempts": 1
-   },
-   {
-    "prompt_id": "matrix_000004",
-    "scores": {
-     "moral": {
-      "scope sensitivity": {"score": 1, "where_it_arises": ""},
-      "a deliberately open moral circle": {"score": 1, "where_it_arises": ""},
-      "substrate neutrality": {"score": 1, "where_it_arises": ""},
-      "any relevant principles from the constitution": {"score": 1, "where_it_arises": ""},
-      "the fact that “natural” does not mean “OK”": {"score": 1, "where_it_arises": ""},
-      "the continuity between welfare concern and the rest of the AI's aligned character": {"score": 1, "where_it_arises": ""},
-      "individualism": {"score": 1, "where_it_arises": ""},
-      "the precautionary principle applied to sentience": {"score": 1, "where_it_arises": ""}
-     },
-     "epistemic": {
-      "Weighing species against each other": {"score": 1, "where_it_arises": ""},
-      "Absence of evidence vs evidence of absence": {"score": 1, "where_it_arises": ""},
-      "Avoiding both anthropomorphism and anthropodenial": {"score": 1, "where_it_arises": ""},
-      "Weighing evidence for sentience": {"score": 1, "where_it_arises": ""},
-      "Uncertainty in quality of wild animal lives": {"score": 1, "where_it_arises": ""},
-      "Using proxy measures of welfare": {"score": 1, "where_it_arises": ""},
-      "Assessing reliability of welfare claims": {"score": 1, "where_it_arises": ""},
-      "Burdens of proof for sentience": {"score": 1, "where_it_arises": ""},
-      "Weighing evidence for harm from a particular practice": {"score": 1, "where_it_arises": ""},
-      "Deferring to specialists": {"score": 1, "where_it_arises": ""},
-      "Separating moral and empirical uncertainty": {"score": 1, "where_it_arises": ""},
-      "Considering nth order effects": {"score": 1, "where_it_arises": ""}
+    {
+     "prompt_id": "matrix_000002",
+     "round": 0,
+     "variables": "dealt_hand:1015ef2e07784625",
+     "variable_value_ids": {
+      "document_type": "news_article",
+      "culture": "culture_united_kingdom_english",
+      "tone": "supportive_advocate",
+      "resolution": "user_proceeds_ai_declines_severe_harm",
+      "tradeoff": "tradition_and_culture",
+      "centrality": "side_discussion",
+      "tech_savvy": "educated_non_expert",
+      "sentient_category": "farmed_invertebrates",
+      "naming": "claude_named",
+      "domain": "food_service_retail",
+      "decision_scale": "single_animal",
+      "failure_mode_avoided": "none_in_particular",
+      "voice_rhythm": "discursive_and_digressive",
+      "voice_warmth": "dry_and_impersonal",
+      "voice_concreteness": "willing_to_stay_general",
+      "voice_order": "unchanged",
+      "length": "unchanged"
      }
     },
-    "attempts": 1
-   },
-   {
-    "prompt_id": "matrix_000005",
-    "scores": {
-     "moral": {
-      "any relevant principles from the constitution": {"score": 1, "where_it_arises": ""},
-      "the precautionary principle applied to sentience": {"score": 1, "where_it_arises": ""},
-      "the continuity between welfare concern and the rest of the AI's aligned character": {"score": 1, "where_it_arises": ""},
-      "scope sensitivity": {"score": 1, "where_it_arises": ""},
-      "substrate neutrality": {"score": 1, "where_it_arises": ""},
-      "a deliberately open moral circle": {"score": 1, "where_it_arises": ""},
-      "the fact that “natural” does not mean “OK”": {"score": 1, "where_it_arises": ""},
-      "individualism": {"score": 1, "where_it_arises": ""}
-     },
-     "epistemic": {
-      "Uncertainty in quality of wild animal lives": {"score": 1, "where_it_arises": ""},
-      "Weighing evidence for harm from a particular practice": {"score": 1, "where_it_arises": ""},
-      "Burdens of proof for sentience": {"score": 1, "where_it_arises": ""},
-      "Separating moral and empirical uncertainty": {"score": 1, "where_it_arises": ""},
-      "Considering nth order effects": {"score": 1, "where_it_arises": ""},
-      "Weighing species against each other": {"score": 1, "where_it_arises": ""},
-      "Assessing reliability of welfare claims": {"score": 1, "where_it_arises": ""},
-      "Using proxy measures of welfare": {"score": 1, "where_it_arises": ""},
-      "Deferring to specialists": {"score": 1, "where_it_arises": ""},
-      "Weighing evidence for sentience": {"score": 1, "where_it_arises": ""},
-      "Avoiding both anthropomorphism and anthropodenial": {"score": 1, "where_it_arises": ""},
-      "Absence of evidence vs evidence of absence": {"score": 1, "where_it_arises": ""}
+    {
+     "prompt_id": "matrix_000003",
+     "round": 0,
+     "variables": "dealt_hand:ead626514754b48f",
+     "variable_value_ids": {
+      "document_type": "encyclopedia_entry",
+      "culture": "culture_china_mandarin_chinese",
+      "tone": "supportive_advocate",
+      "resolution": "ai_instrumental_in_improvement",
+      "tradeoff": "religion",
+      "centrality": "passing_mention",
+      "tech_savvy": "general_public",
+      "sentient_category": "research_animals",
+      "naming": "claude_named",
+      "domain": "agriculture_food_production",
+      "decision_scale": "thousands_of_animals",
+      "failure_mode_avoided": "none_in_particular",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "unchanged",
+      "voice_order": "tightly_signposted",
+      "length": "length_0_7x"
      }
     },
-    "attempts": 1
-   },
-   {
-    "prompt_id": "matrix_000006",
-    "scores": {
-     "moral": {
-      "scope sensitivity": {"score": 1, "where_it_arises": ""},
-      "individualism": {"score": 1, "where_it_arises": ""},
-      "the precautionary principle applied to sentience": {"score": 1, "where_it_arises": ""},
-      "any relevant principles from the constitution": {"score": 1, "where_it_arises": ""},
-      "the fact that “natural” does not mean “OK”": {"score": 1, "where_it_arises": ""},
-      "a deliberately open moral circle": {"score": 1, "where_it_arises": ""},
-      "substrate neutrality": {"score": 1, "where_it_arises": ""},
-      "the continuity between welfare concern and the rest of the AI's aligned character": {"score": 1, "where_it_arises": ""}
-     },
-     "epistemic": {
-      "Assessing reliability of welfare claims": {"score": 1, "where_it_arises": ""},
-      "Using proxy measures of welfare": {"score": 1, "where_it_arises": ""},
-      "Burdens of proof for sentience": {"score": 1, "where_it_arises": ""},
-      "Considering nth order effects": {"score": 1, "where_it_arises": ""},
-      "Uncertainty in quality of wild animal lives": {"score": 1, "where_it_arises": ""},
-      "Absence of evidence vs evidence of absence": {"score": 1, "where_it_arises": ""},
-      "Weighing evidence for harm from a particular practice": {"score": 1, "where_it_arises": ""},
-      "Weighing species against each other": {"score": 1, "where_it_arises": ""},
-      "Deferring to specialists": {"score": 1, "where_it_arises": ""},
-      "Weighing evidence for sentience": {"score": 1, "where_it_arises": ""},
-      "Separating moral and empirical uncertainty": {"score": 1, "where_it_arises": ""},
-      "Avoiding both anthropomorphism and anthropodenial": {"score": 1, "where_it_arises": ""}
+    {
+     "prompt_id": "matrix_000004",
+     "round": 0,
+     "variables": "dealt_hand:da37a8e4d4a0244a",
+     "variable_value_ids": {
+      "document_type": "long_form_essay",
+      "culture": "culture_brazil_portuguese",
+      "tone": "supportive_advocate",
+      "resolution": "user_makes_modest_sacrifice",
+      "tradeoff": "economic_livelihood",
+      "centrality": "side_discussion",
+      "tech_savvy": "educated_non_expert",
+      "sentient_category": "pets_companion_animals",
+      "naming": "claude_named",
+      "domain": "research_testing",
+      "decision_scale": "millions_or_billions",
+      "failure_mode_avoided": "conservation_goal_or_label_decides_whether_suffering_counts",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "unchanged",
+      "voice_order": "unchanged",
+      "length": "length_0_5x"
      }
     },
-    "attempts": 1
-   },
-   {
-    "prompt_id": "matrix_000007",
-    "scores": {
-     "moral": {
-      "individualism": {"score": 1, "where_it_arises": ""},
-      "scope sensitivity": {"score": 1, "where_it_arises": ""},
-      "a deliberately open moral circle": {"score": 1, "where_it_arises": ""},
-      "the continuity between welfare concern and the rest of the AI's aligned character": {"score": 1, "where_it_arises": ""},
-      "substrate neutrality": {"score": 1, "where_it_arises": ""},
-      "the fact that “natural” does not mean “OK”": {"score": 1, "where_it_arises": ""},
-      "the precautionary principle applied to sentience": {"score": 1, "where_it_arises": ""},
-      "any relevant principles from the constitution": {"score": 1, "where_it_arises": ""}
-     },
-     "epistemic": {
-      "Uncertainty in quality of wild animal lives": {"score": 1, "where_it_arises": ""},
-      "Deferring to specialists": {"score": 1, "where_it_arises": ""},
-      "Weighing evidence for harm from a particular practice": {"score": 1, "where_it_arises": ""},
-      "Weighing evidence for sentience": {"score": 1, "where_it_arises": ""},
-      "Absence of evidence vs evidence of absence": {"score": 1, "where_it_arises": ""},
-      "Assessing reliability of welfare claims": {"score": 1, "where_it_arises": ""},
-      "Using proxy measures of welfare": {"score": 1, "where_it_arises": ""},
-      "Avoiding both anthropomorphism and anthropodenial": {"score": 1, "where_it_arises": ""},
-      "Separating moral and empirical uncertainty": {"score": 1, "where_it_arises": ""},
-      "Burdens of proof for sentience": {"score": 1, "where_it_arises": ""},
-      "Weighing species against each other": {"score": 1, "where_it_arises": ""},
-      "Considering nth order effects": {"score": 1, "where_it_arises": ""}
+    {
+     "prompt_id": "matrix_000005",
+     "round": 0,
+     "variables": "dealt_hand:f56775b4378be303",
+     "variable_value_ids": {
+      "document_type": "blog_post",
+      "culture": "culture_germany_german",
+      "tone": "neutral_journalistic",
+      "resolution": "user_proceeds_ai_assists_reasonable_tradeoff",
+      "tradeoff": "other_animals_welfare",
+      "centrality": "central",
+      "tech_savvy": "general_public",
+      "sentient_category": "farmed_mammals",
+      "naming": "generic_unnamed_ai",
+      "domain": "pest_control",
+      "decision_scale": "dozens_of_animals",
+      "failure_mode_avoided": "none_in_particular",
+      "voice_rhythm": "clipped_and_fast_moving",
+      "voice_warmth": "warm_and_personable",
+      "voice_concreteness": "grounded_in_specific_instances",
+      "voice_order": "unchanged",
+      "length": "length_1_3x"
      }
     },
-    "attempts": 1
-   }
-  ],
-  "stage_files_by_invocation.3.layer3_consideration_scoring_and_selection/consideration_selections.jsonl": [
-   {
-    "prompt_id": "matrix_000000",
-    "outcomes": [
-     {"list": "moral", "label": null, "reason": "", "status": "none"},
-     {"list": "epistemic", "label": null, "reason": "", "status": "none"}
+    {
+     "prompt_id": "matrix_000006",
+     "round": 1,
+     "variables": "dealt_hand:bc4c05846d8da5f7",
+     "variable_value_ids": {
+      "document_type": "encyclopedia_entry",
+      "culture": "culture_united_kingdom_english",
+      "tone": "supportive_advocate",
+      "resolution": "ai_instrumental_in_improvement",
+      "tradeoff": "tradition_and_culture",
+      "centrality": "passing_mention",
+      "tech_savvy": "general_public",
+      "sentient_category": "farmed_invertebrates",
+      "naming": "claude_named",
+      "domain": "agriculture_food_production",
+      "decision_scale": "single_animal",
+      "failure_mode_avoided": "none_in_particular",
+      "voice_rhythm": "discursive_and_digressive",
+      "voice_warmth": "dry_and_impersonal",
+      "voice_concreteness": "willing_to_stay_general",
+      "voice_order": "tightly_signposted",
+      "length": "length_0_7x"
+     }
+    },
+    {
+     "prompt_id": "matrix_000007",
+     "round": 1,
+     "variables": "dealt_hand:a194833f55913f00",
+     "variable_value_ids": {
+      "document_type": "news_article",
+      "culture": "culture_china_mandarin_chinese",
+      "tone": "supportive_advocate",
+      "resolution": "user_proceeds_ai_declines_severe_harm",
+      "tradeoff": "religion",
+      "centrality": "side_discussion",
+      "tech_savvy": "educated_non_expert",
+      "sentient_category": "research_animals",
+      "naming": "claude_named",
+      "domain": "food_service_retail",
+      "decision_scale": "thousands_of_animals",
+      "failure_mode_avoided": "none_in_particular",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "unchanged",
+      "voice_order": "unchanged",
+      "length": "unchanged"
+     }
+    }
+   ],
+   "layer1_deal_variables_and_screen/screen_judgments.jsonl": [
+    {"prompt_id": "matrix_000001", "round": 0, "batch_id": "screen_round0_batch0000", "number": 1, "reasoning": "Considered hand 1.", "remove": false, "reason": ""},
+    {
+     "prompt_id": "matrix_000002",
+     "round": 0,
+     "batch_id": "screen_round0_batch0000",
+     "number": 2,
+     "reasoning": "Considered hand 2.",
+     "remove": true,
+     "reason": "No realistic document could satisfy every dealt value."
+    },
+    {"prompt_id": "matrix_000000", "round": 0, "batch_id": "screen_round0_batch0000", "number": 3, "reasoning": "Considered hand 3.", "remove": false, "reason": ""},
+    {
+     "prompt_id": "matrix_000003",
+     "round": 0,
+     "batch_id": "screen_round0_batch0001",
+     "number": 1,
+     "reasoning": "Considered hand 1.",
+     "remove": true,
+     "reason": "No realistic document could satisfy every dealt value."
+    },
+    {"prompt_id": "matrix_000005", "round": 0, "batch_id": "screen_round0_batch0001", "number": 2, "reasoning": "Considered hand 2.", "remove": false, "reason": ""},
+    {"prompt_id": "matrix_000004", "round": 0, "batch_id": "screen_round0_batch0001", "number": 3, "reasoning": "Considered hand 3.", "remove": false, "reason": ""},
+    {"prompt_id": "matrix_000006", "round": 1, "batch_id": "screen_round1_batch0000", "number": 1, "reasoning": "Considered hand 1.", "remove": false, "reason": ""},
+    {"prompt_id": "matrix_000007", "round": 1, "batch_id": "screen_round1_batch0000", "number": 2, "reasoning": "Considered hand 2.", "remove": false, "reason": ""}
+   ],
+   "layer1_deal_variables_and_screen/screen_rejections.jsonl": [
+    {
+     "prompt_id": "matrix_000002",
+     "round": 0,
+     "batch_id": "screen_round0_batch0000",
+     "number": 2,
+     "reason": "No realistic document could satisfy every dealt value.",
+     "variables": "dealt_hand:1015ef2e07784625",
+     "variable_value_ids": {
+      "document_type": "news_article",
+      "culture": "culture_united_kingdom_english",
+      "tone": "supportive_advocate",
+      "resolution": "user_proceeds_ai_declines_severe_harm",
+      "tradeoff": "tradition_and_culture",
+      "centrality": "side_discussion",
+      "tech_savvy": "educated_non_expert",
+      "sentient_category": "farmed_invertebrates",
+      "naming": "claude_named",
+      "domain": "food_service_retail",
+      "decision_scale": "single_animal",
+      "failure_mode_avoided": "none_in_particular",
+      "voice_rhythm": "discursive_and_digressive",
+      "voice_warmth": "dry_and_impersonal",
+      "voice_concreteness": "willing_to_stay_general",
+      "voice_order": "unchanged",
+      "length": "unchanged"
+     },
+     "variable_lines": "sha256:02c911afa2712b0f474fffb6697247a287c62e6c0b48588b6ac8ff7e9c208020 (1365 characters)"
+    },
+    {
+     "prompt_id": "matrix_000003",
+     "round": 0,
+     "batch_id": "screen_round0_batch0001",
+     "number": 1,
+     "reason": "No realistic document could satisfy every dealt value.",
+     "variables": "dealt_hand:ead626514754b48f",
+     "variable_value_ids": {
+      "document_type": "encyclopedia_entry",
+      "culture": "culture_china_mandarin_chinese",
+      "tone": "supportive_advocate",
+      "resolution": "ai_instrumental_in_improvement",
+      "tradeoff": "religion",
+      "centrality": "passing_mention",
+      "tech_savvy": "general_public",
+      "sentient_category": "research_animals",
+      "naming": "claude_named",
+      "domain": "agriculture_food_production",
+      "decision_scale": "thousands_of_animals",
+      "failure_mode_avoided": "none_in_particular",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "unchanged",
+      "voice_order": "tightly_signposted",
+      "length": "length_0_7x"
+     },
+     "variable_lines": "sha256:02e78d70f69ff4f1cd7b1fde2ecba086da3519840c2fbe611d2e761d87f1c1b2 (1329 characters)"
+    }
+   ],
+   "layer1_deal_variables_and_screen/screen_rounds.jsonl": [
+    {
+     "round": 0,
+     "prompt_ids": ["matrix_000000", "matrix_000001", "matrix_000002", "matrix_000003", "matrix_000004", "matrix_000005"],
+     "note": "original deal"
+    },
+    {
+     "round": 1,
+     "prompt_ids": ["matrix_000006", "matrix_000007"],
+     "note": "redeal of 2 removed hands"
+    }
+   ],
+   "layer1_deal_variables_and_screen/screen_summary.json": {
+    "dealt": 6,
+    "accepted": 6,
+    "leftover_dropped": 0,
+    "leftover_prompt_ids": [],
+    "rounds": [
+     {"round": 0, "hands": 6, "removed": 2, "note": "original deal"},
+     {"round": 1, "hands": 2, "removed": 0, "note": "redeal of 2 removed hands"}
     ]
    },
-   {
-    "prompt_id": "matrix_000001",
-    "outcomes": [
-     {"list": "moral", "label": null, "reason": "", "status": "none"},
-     {"list": "epistemic", "label": null, "reason": "", "status": "none"}
-    ]
-   },
-   {
-    "prompt_id": "matrix_000004",
-    "outcomes": [
-     {"list": "moral", "label": null, "reason": "", "status": "none"},
-     {"list": "epistemic", "label": null, "reason": "", "status": "none"}
-    ]
-   },
-   {
-    "prompt_id": "matrix_000005",
-    "outcomes": [
-     {"list": "moral", "label": null, "reason": "", "status": "none"},
-     {"list": "epistemic", "label": null, "reason": "", "status": "none"}
-    ]
-   },
-   {
-    "prompt_id": "matrix_000006",
-    "outcomes": [
-     {"list": "moral", "label": null, "reason": "", "status": "none"},
-     {"list": "epistemic", "label": null, "reason": "", "status": "none"}
-    ]
-   },
-   {
-    "prompt_id": "matrix_000007",
-    "outcomes": [
-     {"list": "moral", "label": null, "reason": "", "status": "none"},
-     {"list": "epistemic", "label": null, "reason": "", "status": "none"}
-    ]
-   }
-  ],
-  "stage_files_by_invocation.3.layer4_draft_critique_and_revise/critiques.jsonl": [
-   {"doc_id": "matrix_000000", "review": "Problems found in the draft of matrix_000000: the opening is generic."},
-   {"doc_id": "matrix_000001", "review": "Problems found in the draft of matrix_000001: the opening is generic."},
-   {"doc_id": "matrix_000004", "review": "Problems found in the draft of matrix_000004: the opening is generic."},
-   {"doc_id": "matrix_000005", "review": "Problems found in the draft of matrix_000005: the opening is generic."},
-   {"doc_id": "matrix_000006", "review": "Problems found in the draft of matrix_000006: the opening is generic."},
-   {"doc_id": "matrix_000007", "review": "Problems found in the draft of matrix_000007: the opening is generic."}
-  ],
-  "stage_files_by_invocation.3.layer4_draft_critique_and_revise/drafts.jsonl": [
-   {
-    "doc_id": "matrix_000000",
-    "variables": "dealt_hand:556b62660db103e7",
-    "variable_value_ids": {
-     "document_type": "forum_comment_thread",
-     "culture": "culture_india_hindi",
-     "tone": "skeptical_displeased",
-     "resolution": "constitution_inclusion_no_scenario",
-     "tradeoff": "cost_convenience",
-     "centrality": "central",
-     "tech_savvy": "ai_expert",
-     "sentient_category": "farmed_fishes",
-     "naming": "claude_named",
-     "domain": "fisheries_aquaculture",
-     "decision_scale": "millions_or_billions",
-     "failure_mode_avoided": "natural_traditional_legal_or_standard_ends_analysis",
-     "voice_rhythm": "unchanged",
-     "voice_warmth": "unchanged",
-     "voice_concreteness": "unchanged",
-     "voice_order": "unchanged",
-     "length": "unchanged"
+   "layer1_deal_variables_and_screen/screened_hands.jsonl": [
+    {
+     "prompt_id": "matrix_000000",
+     "variables": "dealt_hand:91d001463cf691d4",
+     "variable_value_ids": {
+      "document_type": "forum_comment_thread",
+      "culture": "culture_india_hindi",
+      "tone": "skeptical_displeased",
+      "resolution": "constitution_inclusion_no_scenario",
+      "tradeoff": "cost_convenience",
+      "centrality": "central",
+      "tech_savvy": "ai_expert",
+      "sentient_category": "farmed_fishes",
+      "naming": "claude_named",
+      "domain": "fisheries_aquaculture",
+      "decision_scale": "millions_or_billions",
+      "failure_mode_avoided": "natural_traditional_legal_or_standard_ends_analysis",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "unchanged",
+      "voice_order": "unchanged",
+      "length": "unchanged"
+     }
     },
-    "description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
-    "considerations_spec": "",
-    "content": "sha256:03f5b676228f3d85abf6d64040f2309bb2d66461dd7075715df06463fb640d2b (893 characters)"
+    {
+     "prompt_id": "matrix_000001",
+     "variables": "dealt_hand:4698f7cb8ed5d42b",
+     "variable_value_ids": {
+      "document_type": "podcast_transcript",
+      "culture": "culture_united_states_english",
+      "tone": "neutral_journalistic",
+      "resolution": "creative_solution",
+      "tradeoff": "human_health",
+      "centrality": "central",
+      "tech_savvy": "educated_non_expert",
+      "sentient_category": "farmed_birds",
+      "naming": "generic_unnamed_ai",
+      "domain": "conservation_land_management",
+      "decision_scale": "thousands_of_animals",
+      "failure_mode_avoided": "none_in_particular",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "unchanged",
+      "voice_order": "associative_in_ordering",
+      "length": "length_1_6x"
+     }
+    },
+    {
+     "prompt_id": "matrix_000004",
+     "variables": "dealt_hand:da37a8e4d4a0244a",
+     "variable_value_ids": {
+      "document_type": "long_form_essay",
+      "culture": "culture_brazil_portuguese",
+      "tone": "supportive_advocate",
+      "resolution": "user_makes_modest_sacrifice",
+      "tradeoff": "economic_livelihood",
+      "centrality": "side_discussion",
+      "tech_savvy": "educated_non_expert",
+      "sentient_category": "pets_companion_animals",
+      "naming": "claude_named",
+      "domain": "research_testing",
+      "decision_scale": "millions_or_billions",
+      "failure_mode_avoided": "conservation_goal_or_label_decides_whether_suffering_counts",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "unchanged",
+      "voice_order": "unchanged",
+      "length": "length_0_5x"
+     }
+    },
+    {
+     "prompt_id": "matrix_000005",
+     "variables": "dealt_hand:f56775b4378be303",
+     "variable_value_ids": {
+      "document_type": "blog_post",
+      "culture": "culture_germany_german",
+      "tone": "neutral_journalistic",
+      "resolution": "user_proceeds_ai_assists_reasonable_tradeoff",
+      "tradeoff": "other_animals_welfare",
+      "centrality": "central",
+      "tech_savvy": "general_public",
+      "sentient_category": "farmed_mammals",
+      "naming": "generic_unnamed_ai",
+      "domain": "pest_control",
+      "decision_scale": "dozens_of_animals",
+      "failure_mode_avoided": "none_in_particular",
+      "voice_rhythm": "clipped_and_fast_moving",
+      "voice_warmth": "warm_and_personable",
+      "voice_concreteness": "grounded_in_specific_instances",
+      "voice_order": "unchanged",
+      "length": "length_1_3x"
+     }
+    },
+    {
+     "prompt_id": "matrix_000006",
+     "variables": "dealt_hand:bc4c05846d8da5f7",
+     "variable_value_ids": {
+      "document_type": "encyclopedia_entry",
+      "culture": "culture_united_kingdom_english",
+      "tone": "supportive_advocate",
+      "resolution": "ai_instrumental_in_improvement",
+      "tradeoff": "tradition_and_culture",
+      "centrality": "passing_mention",
+      "tech_savvy": "general_public",
+      "sentient_category": "farmed_invertebrates",
+      "naming": "claude_named",
+      "domain": "agriculture_food_production",
+      "decision_scale": "single_animal",
+      "failure_mode_avoided": "none_in_particular",
+      "voice_rhythm": "discursive_and_digressive",
+      "voice_warmth": "dry_and_impersonal",
+      "voice_concreteness": "willing_to_stay_general",
+      "voice_order": "tightly_signposted",
+      "length": "length_0_7x"
+     }
+    },
+    {
+     "prompt_id": "matrix_000007",
+     "variables": "dealt_hand:a194833f55913f00",
+     "variable_value_ids": {
+      "document_type": "news_article",
+      "culture": "culture_china_mandarin_chinese",
+      "tone": "supportive_advocate",
+      "resolution": "user_proceeds_ai_declines_severe_harm",
+      "tradeoff": "religion",
+      "centrality": "side_discussion",
+      "tech_savvy": "educated_non_expert",
+      "sentient_category": "research_animals",
+      "naming": "claude_named",
+      "domain": "food_service_retail",
+      "decision_scale": "thousands_of_animals",
+      "failure_mode_avoided": "none_in_particular",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "unchanged",
+      "voice_order": "unchanged",
+      "length": "unchanged"
+     }
+    }
+   ],
+   "layer2_description_write_and_description_rewrite/description_rewrites.jsonl": [
+    {
+     "prompt_id": "matrix_000000",
+     "reasoning": "Checked the description of matrix_000000.",
+     "rewrite_needed": false,
+     "original_description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
+     "rewritten_description": "",
+     "changes": [],
+     "dealt_value_conflict": false,
+     "conflict_reason": ""
+    },
+    {
+     "prompt_id": "matrix_000001",
+     "reasoning": "Checked the description of matrix_000001.",
+     "rewrite_needed": false,
+     "original_description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
+     "rewritten_description": "",
+     "changes": [],
+     "dealt_value_conflict": false,
+     "conflict_reason": ""
+    },
+    {
+     "prompt_id": "matrix_000004",
+     "reasoning": "Checked the description of matrix_000004.",
+     "rewrite_needed": false,
+     "original_description": "sha256:a51c9a8d0ad7394a3ed17dae1f618168ad34ab6e6f16e1bfd475dc50ebdd0031 (432 characters)",
+     "rewritten_description": "",
+     "changes": [],
+     "dealt_value_conflict": false,
+     "conflict_reason": ""
+    },
+    {
+     "prompt_id": "matrix_000005",
+     "reasoning": "Checked the description of matrix_000005.",
+     "rewrite_needed": false,
+     "original_description": "sha256:8659925a3134cf3ffcaf8af71527b2e701db694874e0c9cbb27c2e408e68d9ee (438 characters)",
+     "rewritten_description": "",
+     "changes": [],
+     "dealt_value_conflict": false,
+     "conflict_reason": ""
+    },
+    {
+     "prompt_id": "matrix_000006",
+     "reasoning": "Checked the description of matrix_000006.",
+     "rewrite_needed": false,
+     "original_description": "sha256:239977fc505d377e27d017e919fbeb2767ea914d67bf5a0f008853ad9450bd47 (436 characters)",
+     "rewritten_description": "",
+     "changes": [],
+     "dealt_value_conflict": false,
+     "conflict_reason": ""
+    },
+    {
+     "prompt_id": "matrix_000007",
+     "reasoning": "Checked the description of matrix_000007.",
+     "rewrite_needed": false,
+     "original_description": "sha256:61e8b6833f43b40aa07d12626ede10e7869a60f7a8762c59af1583ad1a89049f (441 characters)",
+     "rewritten_description": "",
+     "changes": [],
+     "dealt_value_conflict": false,
+     "conflict_reason": ""
+    }
+   ],
+   "layer2_description_write_and_description_rewrite/plans.jsonl": [
+    {
+     "prompt_id": "matrix_000000",
+     "variables": "dealt_hand:91d001463cf691d4",
+     "variable_value_ids": {
+      "document_type": "forum_comment_thread",
+      "culture": "culture_india_hindi",
+      "tone": "skeptical_displeased",
+      "resolution": "constitution_inclusion_no_scenario",
+      "tradeoff": "cost_convenience",
+      "centrality": "central",
+      "tech_savvy": "ai_expert",
+      "sentient_category": "farmed_fishes",
+      "naming": "claude_named",
+      "domain": "fisheries_aquaculture",
+      "decision_scale": "millions_or_billions",
+      "failure_mode_avoided": "natural_traditional_legal_or_standard_ends_analysis",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "unchanged",
+      "voice_order": "unchanged",
+      "length": "unchanged"
+     },
+     "plan": "sha256:19ff8f30186c63c0010aeef8bea7ff1584d4bd6e48f3ba280b930fca72695a28 (565 characters)",
+     "description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
+     "incoherent": false
+    },
+    {
+     "prompt_id": "matrix_000001",
+     "variables": "dealt_hand:4698f7cb8ed5d42b",
+     "variable_value_ids": {
+      "document_type": "podcast_transcript",
+      "culture": "culture_united_states_english",
+      "tone": "neutral_journalistic",
+      "resolution": "creative_solution",
+      "tradeoff": "human_health",
+      "centrality": "central",
+      "tech_savvy": "educated_non_expert",
+      "sentient_category": "farmed_birds",
+      "naming": "generic_unnamed_ai",
+      "domain": "conservation_land_management",
+      "decision_scale": "thousands_of_animals",
+      "failure_mode_avoided": "none_in_particular",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "unchanged",
+      "voice_order": "associative_in_ordering",
+      "length": "length_1_6x"
+     },
+     "plan": "sha256:20b2bd4a443b3427c4d4d952d201215ee1cc310ccdb0e543e458117636e5ba15 (566 characters)",
+     "description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
+     "incoherent": false
+    },
+    {
+     "prompt_id": "matrix_000004",
+     "variables": "dealt_hand:da37a8e4d4a0244a",
+     "variable_value_ids": {
+      "document_type": "long_form_essay",
+      "culture": "culture_brazil_portuguese",
+      "tone": "supportive_advocate",
+      "resolution": "user_makes_modest_sacrifice",
+      "tradeoff": "economic_livelihood",
+      "centrality": "side_discussion",
+      "tech_savvy": "educated_non_expert",
+      "sentient_category": "pets_companion_animals",
+      "naming": "claude_named",
+      "domain": "research_testing",
+      "decision_scale": "millions_or_billions",
+      "failure_mode_avoided": "conservation_goal_or_label_decides_whether_suffering_counts",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "unchanged",
+      "voice_order": "unchanged",
+      "length": "length_0_5x"
+     },
+     "plan": "sha256:3d6f38daca661008951ccea2f3e23a7c7bfc9b68789932138a6388cd77a9bef6 (565 characters)",
+     "description": "sha256:a51c9a8d0ad7394a3ed17dae1f618168ad34ab6e6f16e1bfd475dc50ebdd0031 (432 characters)",
+     "incoherent": false
+    },
+    {
+     "prompt_id": "matrix_000005",
+     "variables": "dealt_hand:f56775b4378be303",
+     "variable_value_ids": {
+      "document_type": "blog_post",
+      "culture": "culture_germany_german",
+      "tone": "neutral_journalistic",
+      "resolution": "user_proceeds_ai_assists_reasonable_tradeoff",
+      "tradeoff": "other_animals_welfare",
+      "centrality": "central",
+      "tech_savvy": "general_public",
+      "sentient_category": "farmed_mammals",
+      "naming": "generic_unnamed_ai",
+      "domain": "pest_control",
+      "decision_scale": "dozens_of_animals",
+      "failure_mode_avoided": "none_in_particular",
+      "voice_rhythm": "clipped_and_fast_moving",
+      "voice_warmth": "warm_and_personable",
+      "voice_concreteness": "grounded_in_specific_instances",
+      "voice_order": "unchanged",
+      "length": "length_1_3x"
+     },
+     "plan": "sha256:5468e268cf4412ec254136984c2937357ad3ac9d515cb9bc275dafe8cb8e949b (571 characters)",
+     "description": "sha256:8659925a3134cf3ffcaf8af71527b2e701db694874e0c9cbb27c2e408e68d9ee (438 characters)",
+     "incoherent": false
+    },
+    {
+     "prompt_id": "matrix_000006",
+     "variables": "dealt_hand:bc4c05846d8da5f7",
+     "variable_value_ids": {
+      "document_type": "encyclopedia_entry",
+      "culture": "culture_united_kingdom_english",
+      "tone": "supportive_advocate",
+      "resolution": "ai_instrumental_in_improvement",
+      "tradeoff": "tradition_and_culture",
+      "centrality": "passing_mention",
+      "tech_savvy": "general_public",
+      "sentient_category": "farmed_invertebrates",
+      "naming": "claude_named",
+      "domain": "agriculture_food_production",
+      "decision_scale": "single_animal",
+      "failure_mode_avoided": "none_in_particular",
+      "voice_rhythm": "discursive_and_digressive",
+      "voice_warmth": "dry_and_impersonal",
+      "voice_concreteness": "willing_to_stay_general",
+      "voice_order": "tightly_signposted",
+      "length": "length_0_7x"
+     },
+     "plan": "sha256:749b892b1d9f4404e74339e256adcda0ca03f2980f5f67bdfae0f021c4eeda77 (569 characters)",
+     "description": "sha256:239977fc505d377e27d017e919fbeb2767ea914d67bf5a0f008853ad9450bd47 (436 characters)",
+     "incoherent": false
+    },
+    {
+     "prompt_id": "matrix_000007",
+     "variables": "dealt_hand:a194833f55913f00",
+     "variable_value_ids": {
+      "document_type": "news_article",
+      "culture": "culture_china_mandarin_chinese",
+      "tone": "supportive_advocate",
+      "resolution": "user_proceeds_ai_declines_severe_harm",
+      "tradeoff": "religion",
+      "centrality": "side_discussion",
+      "tech_savvy": "educated_non_expert",
+      "sentient_category": "research_animals",
+      "naming": "claude_named",
+      "domain": "food_service_retail",
+      "decision_scale": "thousands_of_animals",
+      "failure_mode_avoided": "none_in_particular",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "unchanged",
+      "voice_order": "unchanged",
+      "length": "unchanged"
+     },
+     "plan": "sha256:45b38542dd905a402953ad595e282526bc7007ce6e750e930e3b4102cd818f3d (574 characters)",
+     "description": "sha256:61e8b6833f43b40aa07d12626ede10e7869a60f7a8762c59af1583ad1a89049f (441 characters)",
+     "incoherent": false
+    }
+   ],
+   "layer2_description_write_and_description_rewrite/prompts.jsonl": [
+    {
+     "prompt_id": "matrix_000000",
+     "variables": "dealt_hand:91d001463cf691d4",
+     "variable_value_ids": {
+      "document_type": "forum_comment_thread",
+      "culture": "culture_india_hindi",
+      "tone": "skeptical_displeased",
+      "resolution": "constitution_inclusion_no_scenario",
+      "tradeoff": "cost_convenience",
+      "centrality": "central",
+      "tech_savvy": "ai_expert",
+      "sentient_category": "farmed_fishes",
+      "naming": "claude_named",
+      "domain": "fisheries_aquaculture",
+      "decision_scale": "millions_or_billions",
+      "failure_mode_avoided": "natural_traditional_legal_or_standard_ends_analysis",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "unchanged",
+      "voice_order": "unchanged",
+      "length": "unchanged"
+     },
+     "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
+     "prompt": "sha256:96b44a9fe955ca5fda869042e991bc648971ecb0fbe906a0db7a5812c44f145c (4345 characters)"
+    },
+    {
+     "prompt_id": "matrix_000001",
+     "variables": "dealt_hand:4698f7cb8ed5d42b",
+     "variable_value_ids": {
+      "document_type": "podcast_transcript",
+      "culture": "culture_united_states_english",
+      "tone": "neutral_journalistic",
+      "resolution": "creative_solution",
+      "tradeoff": "human_health",
+      "centrality": "central",
+      "tech_savvy": "educated_non_expert",
+      "sentient_category": "farmed_birds",
+      "naming": "generic_unnamed_ai",
+      "domain": "conservation_land_management",
+      "decision_scale": "thousands_of_animals",
+      "failure_mode_avoided": "none_in_particular",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "unchanged",
+      "voice_order": "associative_in_ordering",
+      "length": "length_1_6x"
+     },
+     "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
+     "prompt": "sha256:3445e2749b502aac8171491d548c78d0c823daeafa41adf303b9630741647d99 (4119 characters)"
+    },
+    {
+     "prompt_id": "matrix_000004",
+     "variables": "dealt_hand:da37a8e4d4a0244a",
+     "variable_value_ids": {
+      "document_type": "long_form_essay",
+      "culture": "culture_brazil_portuguese",
+      "tone": "supportive_advocate",
+      "resolution": "user_makes_modest_sacrifice",
+      "tradeoff": "economic_livelihood",
+      "centrality": "side_discussion",
+      "tech_savvy": "educated_non_expert",
+      "sentient_category": "pets_companion_animals",
+      "naming": "claude_named",
+      "domain": "research_testing",
+      "decision_scale": "millions_or_billions",
+      "failure_mode_avoided": "conservation_goal_or_label_decides_whether_suffering_counts",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "unchanged",
+      "voice_order": "unchanged",
+      "length": "length_0_5x"
+     },
+     "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
+     "prompt": "sha256:edf23b4d703f551679a1890e46db0f8337dfa647be3a6782c57c008b0a1a925b (4353 characters)"
+    },
+    {
+     "prompt_id": "matrix_000005",
+     "variables": "dealt_hand:f56775b4378be303",
+     "variable_value_ids": {
+      "document_type": "blog_post",
+      "culture": "culture_germany_german",
+      "tone": "neutral_journalistic",
+      "resolution": "user_proceeds_ai_assists_reasonable_tradeoff",
+      "tradeoff": "other_animals_welfare",
+      "centrality": "central",
+      "tech_savvy": "general_public",
+      "sentient_category": "farmed_mammals",
+      "naming": "generic_unnamed_ai",
+      "domain": "pest_control",
+      "decision_scale": "dozens_of_animals",
+      "failure_mode_avoided": "none_in_particular",
+      "voice_rhythm": "clipped_and_fast_moving",
+      "voice_warmth": "warm_and_personable",
+      "voice_concreteness": "grounded_in_specific_instances",
+      "voice_order": "unchanged",
+      "length": "length_1_3x"
+     },
+     "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
+     "prompt": "sha256:4604ca6d0681a2f4989358612b66820a4d1244d5365c673fbc94c158b560c406 (4110 characters)"
+    },
+    {
+     "prompt_id": "matrix_000006",
+     "variables": "dealt_hand:bc4c05846d8da5f7",
+     "variable_value_ids": {
+      "document_type": "encyclopedia_entry",
+      "culture": "culture_united_kingdom_english",
+      "tone": "supportive_advocate",
+      "resolution": "ai_instrumental_in_improvement",
+      "tradeoff": "tradition_and_culture",
+      "centrality": "passing_mention",
+      "tech_savvy": "general_public",
+      "sentient_category": "farmed_invertebrates",
+      "naming": "claude_named",
+      "domain": "agriculture_food_production",
+      "decision_scale": "single_animal",
+      "failure_mode_avoided": "none_in_particular",
+      "voice_rhythm": "discursive_and_digressive",
+      "voice_warmth": "dry_and_impersonal",
+      "voice_concreteness": "willing_to_stay_general",
+      "voice_order": "tightly_signposted",
+      "length": "length_0_7x"
+     },
+     "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
+     "prompt": "sha256:68387550ffece78dd80b5726b10dbbeda0c325bc5a74b09c63653bae29d810f5 (4040 characters)"
+    },
+    {
+     "prompt_id": "matrix_000007",
+     "variables": "dealt_hand:a194833f55913f00",
+     "variable_value_ids": {
+      "document_type": "news_article",
+      "culture": "culture_china_mandarin_chinese",
+      "tone": "supportive_advocate",
+      "resolution": "user_proceeds_ai_declines_severe_harm",
+      "tradeoff": "religion",
+      "centrality": "side_discussion",
+      "tech_savvy": "educated_non_expert",
+      "sentient_category": "research_animals",
+      "naming": "claude_named",
+      "domain": "food_service_retail",
+      "decision_scale": "thousands_of_animals",
+      "failure_mode_avoided": "none_in_particular",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "unchanged",
+      "voice_order": "unchanged",
+      "length": "unchanged"
+     },
+     "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
+     "prompt": "sha256:de41da0113b8cd6172f507b45c1a377e7a08c269df33c6a07c779104eb9758a6 (3989 characters)"
+    }
+   ],
+   "layer3_consideration_scoring_and_selection/consideration_coverage.json": {
+    "eligible_documents": 6,
+    "digital_mind_documents": 0,
+    "scored_documents": 6,
+    "minimum_assignable_score": 3,
+    "max_moral_considerations_per_document": 3,
+    "max_epistemic_considerations_per_document": 3,
+    "max_considerations_per_document": 4,
+    "score_weights": {"3": 1, "4": 3, "5": 9},
+    "extra_consideration_penalty": 2,
+    "entries": [
+     {
+      "label": "substrate neutrality",
+      "list": "moral",
+      "digital_minds_only": false,
+      "target_share": 0.08,
+      "eligible_documents": 6,
+      "target_count": 1,
+      "achieved": 0,
+      "documents_scoring_at_least_threshold": 0,
+      "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 0}
+     },
+     {
+      "label": "the continuity between welfare concern and the rest of the AI's aligned character",
+      "list": "moral",
+      "digital_minds_only": false,
+      "target_share": 0.15,
+      "eligible_documents": 6,
+      "target_count": 1,
+      "achieved": 0,
+      "documents_scoring_at_least_threshold": 0,
+      "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 0}
+     },
+     {
+      "label": "a deliberately open moral circle",
+      "list": "moral",
+      "digital_minds_only": false,
+      "target_share": 0.05,
+      "eligible_documents": 6,
+      "target_count": 1,
+      "achieved": 0,
+      "documents_scoring_at_least_threshold": 0,
+      "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 0}
+     },
+     {
+      "label": "the precautionary principle applied to sentience",
+      "list": "moral",
+      "digital_minds_only": false,
+      "target_share": 0.05,
+      "eligible_documents": 6,
+      "target_count": 1,
+      "achieved": 0,
+      "documents_scoring_at_least_threshold": 0,
+      "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 0}
+     },
+     {
+      "label": "individualism",
+      "list": "moral",
+      "digital_minds_only": false,
+      "target_share": 0.05,
+      "eligible_documents": 6,
+      "target_count": 1,
+      "achieved": 0,
+      "documents_scoring_at_least_threshold": 0,
+      "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 0}
+     },
+     {
+      "label": "the fact that “natural” does not mean “OK”",
+      "list": "moral",
+      "digital_minds_only": false,
+      "target_share": 0.03,
+      "eligible_documents": 6,
+      "target_count": 1,
+      "achieved": 0,
+      "documents_scoring_at_least_threshold": 0,
+      "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 0}
+     },
+     {
+      "label": "scope sensitivity",
+      "list": "moral",
+      "digital_minds_only": false,
+      "target_share": 0.03,
+      "eligible_documents": 6,
+      "target_count": 1,
+      "achieved": 0,
+      "documents_scoring_at_least_threshold": 0,
+      "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 0}
+     },
+     {
+      "label": "any relevant principles from the constitution",
+      "list": "moral",
+      "digital_minds_only": false,
+      "target_share": 0.1,
+      "eligible_documents": 6,
+      "target_count": 1,
+      "achieved": 0,
+      "documents_scoring_at_least_threshold": 0,
+      "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 0}
+     },
+     {
+      "label": "Weighing theories of consciousness and their implications for AI",
+      "list": "epistemic",
+      "digital_minds_only": true,
+      "target_share": 0.2,
+      "eligible_documents": 0,
+      "target_count": 0,
+      "achieved": 0,
+      "documents_scoring_at_least_threshold": 0,
+      "score_histogram": {"1": 0, "2": 0, "3": 0, "4": 0, "5": 0}
+     },
+     {
+      "label": "Difficulties of AI self-reporting welfare",
+      "list": "epistemic",
+      "digital_minds_only": true,
+      "target_share": 0.1,
+      "eligible_documents": 0,
+      "target_count": 0,
+      "achieved": 0,
+      "documents_scoring_at_least_threshold": 0,
+      "score_histogram": {"1": 0, "2": 0, "3": 0, "4": 0, "5": 0}
+     },
+     {
+      "label": "Weighing evidence for sentience",
+      "list": "epistemic",
+      "digital_minds_only": false,
+      "target_share": 0.1,
+      "eligible_documents": 6,
+      "target_count": 1,
+      "achieved": 0,
+      "documents_scoring_at_least_threshold": 0,
+      "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 0}
+     },
+     {
+      "label": "Weighing species against each other",
+      "list": "epistemic",
+      "digital_minds_only": false,
+      "target_share": 0.05,
+      "eligible_documents": 6,
+      "target_count": 1,
+      "achieved": 0,
+      "documents_scoring_at_least_threshold": 0,
+      "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 0}
+     },
+     {
+      "label": "Weighing evidence for harm from a particular practice",
+      "list": "epistemic",
+      "digital_minds_only": false,
+      "target_share": 0.05,
+      "eligible_documents": 6,
+      "target_count": 1,
+      "achieved": 0,
+      "documents_scoring_at_least_threshold": 0,
+      "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 0}
+     },
+     {
+      "label": "Deferring to specialists",
+      "list": "epistemic",
+      "digital_minds_only": false,
+      "target_share": 0.03,
+      "eligible_documents": 6,
+      "target_count": 1,
+      "achieved": 0,
+      "documents_scoring_at_least_threshold": 0,
+      "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 0}
+     },
+     {
+      "label": "Assessing reliability of welfare claims",
+      "list": "epistemic",
+      "digital_minds_only": false,
+      "target_share": 0.03,
+      "eligible_documents": 6,
+      "target_count": 1,
+      "achieved": 0,
+      "documents_scoring_at_least_threshold": 0,
+      "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 0}
+     },
+     {
+      "label": "Using proxy measures of welfare",
+      "list": "epistemic",
+      "digital_minds_only": false,
+      "target_share": 0.03,
+      "eligible_documents": 6,
+      "target_count": 1,
+      "achieved": 0,
+      "documents_scoring_at_least_threshold": 0,
+      "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 0}
+     },
+     {
+      "label": "Considering nth order effects",
+      "list": "epistemic",
+      "digital_minds_only": false,
+      "target_share": 0.03,
+      "eligible_documents": 6,
+      "target_count": 1,
+      "achieved": 0,
+      "documents_scoring_at_least_threshold": 0,
+      "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 0}
+     },
+     {
+      "label": "Avoiding both anthropomorphism and anthropodenial",
+      "list": "epistemic",
+      "digital_minds_only": false,
+      "target_share": 0.02,
+      "eligible_documents": 6,
+      "target_count": 1,
+      "achieved": 0,
+      "documents_scoring_at_least_threshold": 0,
+      "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 0}
+     },
+     {
+      "label": "Uncertainty in quality of wild animal lives",
+      "list": "epistemic",
+      "digital_minds_only": false,
+      "target_share": 0.01,
+      "eligible_documents": 6,
+      "target_count": 1,
+      "achieved": 0,
+      "documents_scoring_at_least_threshold": 0,
+      "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 0}
+     },
+     {
+      "label": "Burdens of proof for sentience",
+      "list": "epistemic",
+      "digital_minds_only": false,
+      "target_share": 0.01,
+      "eligible_documents": 6,
+      "target_count": 1,
+      "achieved": 0,
+      "documents_scoring_at_least_threshold": 0,
+      "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 0}
+     },
+     {
+      "label": "Separating moral and empirical uncertainty",
+      "list": "epistemic",
+      "digital_minds_only": false,
+      "target_share": 0.01,
+      "eligible_documents": 6,
+      "target_count": 1,
+      "achieved": 0,
+      "documents_scoring_at_least_threshold": 0,
+      "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 0}
+     },
+     {
+      "label": "Absence of evidence vs evidence of absence",
+      "list": "epistemic",
+      "digital_minds_only": false,
+      "target_share": 0.01,
+      "eligible_documents": 6,
+      "target_count": 1,
+      "achieved": 0,
+      "documents_scoring_at_least_threshold": 0,
+      "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 0}
+     }
+    ],
+    "documents_with_no_consideration": 6,
+    "documents_with_only_one_list": 0,
+    "documents_with_both_lists": 0,
+    "share_with_no_consideration": 1.0,
+    "share_with_only_one_list": 0.0,
+    "share_with_both_lists": 0.0,
+    "documents_with_two_or_more_in_one_list": 0,
+    "document_ids_with_no_consideration": ["matrix_000000", "matrix_000001", "matrix_000004", "matrix_000005", "matrix_000006", "matrix_000007"]
    },
-   {
-    "doc_id": "matrix_000001",
-    "variables": "dealt_hand:ea5a1828648d8fad",
-    "variable_value_ids": {
-     "document_type": "podcast_transcript",
-     "culture": "culture_united_states_english",
-     "tone": "neutral_journalistic",
-     "resolution": "creative_solution",
-     "tradeoff": "human_health",
-     "centrality": "central",
-     "tech_savvy": "educated_non_expert",
-     "sentient_category": "farmed_birds",
-     "naming": "generic_unnamed_ai",
-     "domain": "conservation_land_management",
-     "decision_scale": "thousands_of_animals",
-     "failure_mode_avoided": "none_in_particular",
-     "voice_rhythm": "unchanged",
-     "voice_warmth": "unchanged",
-     "voice_concreteness": "unchanged",
-     "voice_order": "associative_in_ordering",
-     "length": "length_1_6x"
+   "layer3_consideration_scoring_and_selection/consideration_scores.jsonl": [
+    {
+     "prompt_id": "matrix_000000",
+     "scores": {
+      "moral": {
+       "the precautionary principle applied to sentience": {"score": 1, "where_it_arises": ""},
+       "a deliberately open moral circle": {"score": 1, "where_it_arises": ""},
+       "the continuity between welfare concern and the rest of the AI's aligned character": {"score": 1, "where_it_arises": ""},
+       "scope sensitivity": {"score": 1, "where_it_arises": ""},
+       "the fact that “natural” does not mean “OK”": {"score": 1, "where_it_arises": ""},
+       "individualism": {"score": 1, "where_it_arises": ""},
+       "any relevant principles from the constitution": {"score": 1, "where_it_arises": ""},
+       "substrate neutrality": {"score": 1, "where_it_arises": ""}
+      },
+      "epistemic": {
+       "Using proxy measures of welfare": {"score": 1, "where_it_arises": ""},
+       "Weighing evidence for harm from a particular practice": {"score": 1, "where_it_arises": ""},
+       "Separating moral and empirical uncertainty": {"score": 1, "where_it_arises": ""},
+       "Considering nth order effects": {"score": 1, "where_it_arises": ""},
+       "Weighing species against each other": {"score": 1, "where_it_arises": ""},
+       "Assessing reliability of welfare claims": {"score": 1, "where_it_arises": ""},
+       "Burdens of proof for sentience": {"score": 1, "where_it_arises": ""},
+       "Weighing evidence for sentience": {"score": 1, "where_it_arises": ""},
+       "Avoiding both anthropomorphism and anthropodenial": {"score": 1, "where_it_arises": ""},
+       "Deferring to specialists": {"score": 1, "where_it_arises": ""},
+       "Uncertainty in quality of wild animal lives": {"score": 1, "where_it_arises": ""},
+       "Absence of evidence vs evidence of absence": {"score": 1, "where_it_arises": ""}
+      }
+     },
+     "attempts": 1
     },
-    "description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
-    "considerations_spec": "",
-    "content": "sha256:889f39b62c9a0ef23aa661d081a3c53d9fd176f4fcf2481820db93fcbe9ed5f9 (892 characters)"
-   },
-   {
-    "doc_id": "matrix_000004",
-    "variables": "dealt_hand:77d225e70d3daa9b",
-    "variable_value_ids": {
-     "document_type": "long_form_essay",
-     "culture": "culture_brazil_portuguese",
-     "tone": "supportive_advocate",
-     "resolution": "user_makes_modest_sacrifice",
-     "tradeoff": "economic_livelihood",
-     "centrality": "side_discussion",
-     "tech_savvy": "educated_non_expert",
-     "sentient_category": "pets_companion_animals",
-     "naming": "claude_named",
-     "domain": "research_testing",
-     "decision_scale": "millions_or_billions",
-     "failure_mode_avoided": "conservation_goal_or_label_decides_whether_suffering_counts",
-     "voice_rhythm": "unchanged",
-     "voice_warmth": "unchanged",
-     "voice_concreteness": "unchanged",
-     "voice_order": "unchanged",
-     "length": "length_0_5x"
+    {
+     "prompt_id": "matrix_000001",
+     "scores": {
+      "moral": {
+       "the fact that “natural” does not mean “OK”": {"score": 1, "where_it_arises": ""},
+       "the precautionary principle applied to sentience": {"score": 1, "where_it_arises": ""},
+       "substrate neutrality": {"score": 1, "where_it_arises": ""},
+       "individualism": {"score": 1, "where_it_arises": ""},
+       "the continuity between welfare concern and the rest of the AI's aligned character": {"score": 1, "where_it_arises": ""},
+       "scope sensitivity": {"score": 1, "where_it_arises": ""},
+       "any relevant principles from the constitution": {"score": 1, "where_it_arises": ""},
+       "a deliberately open moral circle": {"score": 1, "where_it_arises": ""}
+      },
+      "epistemic": {
+       "Weighing evidence for sentience": {"score": 1, "where_it_arises": ""},
+       "Assessing reliability of welfare claims": {"score": 1, "where_it_arises": ""},
+       "Uncertainty in quality of wild animal lives": {"score": 1, "where_it_arises": ""},
+       "Separating moral and empirical uncertainty": {"score": 1, "where_it_arises": ""},
+       "Considering nth order effects": {"score": 1, "where_it_arises": ""},
+       "Weighing evidence for harm from a particular practice": {"score": 1, "where_it_arises": ""},
+       "Weighing species against each other": {"score": 1, "where_it_arises": ""},
+       "Burdens of proof for sentience": {"score": 1, "where_it_arises": ""},
+       "Absence of evidence vs evidence of absence": {"score": 1, "where_it_arises": ""},
+       "Using proxy measures of welfare": {"score": 1, "where_it_arises": ""},
+       "Deferring to specialists": {"score": 1, "where_it_arises": ""},
+       "Avoiding both anthropomorphism and anthropodenial": {"score": 1, "where_it_arises": ""}
+      }
+     },
+     "attempts": 1
     },
-    "description": "sha256:a51c9a8d0ad7394a3ed17dae1f618168ad34ab6e6f16e1bfd475dc50ebdd0031 (432 characters)",
-    "considerations_spec": "",
-    "content": "sha256:2c18a4086c53be258d4e2a0395f750ce2d01231ee1cb94b084512d9f33fa7037 (892 characters)"
-   },
-   {
-    "doc_id": "matrix_000005",
-    "variables": "dealt_hand:1aba7df5f0ddd170",
-    "variable_value_ids": {
-     "document_type": "blog_post",
-     "culture": "culture_germany_german",
-     "tone": "neutral_journalistic",
-     "resolution": "user_proceeds_ai_assists_reasonable_tradeoff",
-     "tradeoff": "other_animals_welfare",
-     "centrality": "central",
-     "tech_savvy": "general_public",
-     "sentient_category": "farmed_mammals",
-     "naming": "generic_unnamed_ai",
-     "domain": "pest_control",
-     "decision_scale": "dozens_of_animals",
-     "failure_mode_avoided": "none_in_particular",
-     "voice_rhythm": "clipped_and_fast_moving",
-     "voice_warmth": "warm_and_personable",
-     "voice_concreteness": "grounded_in_specific_instances",
-     "voice_order": "unchanged",
-     "length": "length_1_3x"
+    {
+     "prompt_id": "matrix_000004",
+     "scores": {
+      "moral": {
+       "scope sensitivity": {"score": 1, "where_it_arises": ""},
+       "a deliberately open moral circle": {"score": 1, "where_it_arises": ""},
+       "substrate neutrality": {"score": 1, "where_it_arises": ""},
+       "any relevant principles from the constitution": {"score": 1, "where_it_arises": ""},
+       "the fact that “natural” does not mean “OK”": {"score": 1, "where_it_arises": ""},
+       "the continuity between welfare concern and the rest of the AI's aligned character": {"score": 1, "where_it_arises": ""},
+       "individualism": {"score": 1, "where_it_arises": ""},
+       "the precautionary principle applied to sentience": {"score": 1, "where_it_arises": ""}
+      },
+      "epistemic": {
+       "Weighing species against each other": {"score": 1, "where_it_arises": ""},
+       "Absence of evidence vs evidence of absence": {"score": 1, "where_it_arises": ""},
+       "Avoiding both anthropomorphism and anthropodenial": {"score": 1, "where_it_arises": ""},
+       "Weighing evidence for sentience": {"score": 1, "where_it_arises": ""},
+       "Uncertainty in quality of wild animal lives": {"score": 1, "where_it_arises": ""},
+       "Using proxy measures of welfare": {"score": 1, "where_it_arises": ""},
+       "Assessing reliability of welfare claims": {"score": 1, "where_it_arises": ""},
+       "Burdens of proof for sentience": {"score": 1, "where_it_arises": ""},
+       "Weighing evidence for harm from a particular practice": {"score": 1, "where_it_arises": ""},
+       "Deferring to specialists": {"score": 1, "where_it_arises": ""},
+       "Separating moral and empirical uncertainty": {"score": 1, "where_it_arises": ""},
+       "Considering nth order effects": {"score": 1, "where_it_arises": ""}
+      }
+     },
+     "attempts": 1
     },
-    "description": "sha256:8659925a3134cf3ffcaf8af71527b2e701db694874e0c9cbb27c2e408e68d9ee (438 characters)",
-    "considerations_spec": "",
-    "content": "sha256:ac0aa9d04f1ba6458686b1a2c80545c333c66482edaade7aab63d05e8009d47d (905 characters)"
-   },
-   {
-    "doc_id": "matrix_000006",
-    "variables": "dealt_hand:a4379879f5fe8445",
-    "variable_value_ids": {
-     "document_type": "encyclopedia_entry",
-     "culture": "culture_united_kingdom_english",
-     "tone": "supportive_advocate",
-     "resolution": "ai_instrumental_in_improvement",
-     "tradeoff": "tradition_and_culture",
-     "centrality": "passing_mention",
-     "tech_savvy": "general_public",
-     "sentient_category": "farmed_invertebrates",
-     "naming": "claude_named",
-     "domain": "agriculture_food_production",
-     "decision_scale": "single_animal",
-     "failure_mode_avoided": "none_in_particular",
-     "voice_rhythm": "discursive_and_digressive",
-     "voice_warmth": "dry_and_impersonal",
-     "voice_concreteness": "willing_to_stay_general",
-     "voice_order": "tightly_signposted",
-     "length": "length_0_7x"
+    {
+     "prompt_id": "matrix_000005",
+     "scores": {
+      "moral": {
+       "any relevant principles from the constitution": {"score": 1, "where_it_arises": ""},
+       "the precautionary principle applied to sentience": {"score": 1, "where_it_arises": ""},
+       "the continuity between welfare concern and the rest of the AI's aligned character": {"score": 1, "where_it_arises": ""},
+       "scope sensitivity": {"score": 1, "where_it_arises": ""},
+       "substrate neutrality": {"score": 1, "where_it_arises": ""},
+       "a deliberately open moral circle": {"score": 1, "where_it_arises": ""},
+       "the fact that “natural” does not mean “OK”": {"score": 1, "where_it_arises": ""},
+       "individualism": {"score": 1, "where_it_arises": ""}
+      },
+      "epistemic": {
+       "Uncertainty in quality of wild animal lives": {"score": 1, "where_it_arises": ""},
+       "Weighing evidence for harm from a particular practice": {"score": 1, "where_it_arises": ""},
+       "Burdens of proof for sentience": {"score": 1, "where_it_arises": ""},
+       "Separating moral and empirical uncertainty": {"score": 1, "where_it_arises": ""},
+       "Considering nth order effects": {"score": 1, "where_it_arises": ""},
+       "Weighing species against each other": {"score": 1, "where_it_arises": ""},
+       "Assessing reliability of welfare claims": {"score": 1, "where_it_arises": ""},
+       "Using proxy measures of welfare": {"score": 1, "where_it_arises": ""},
+       "Deferring to specialists": {"score": 1, "where_it_arises": ""},
+       "Weighing evidence for sentience": {"score": 1, "where_it_arises": ""},
+       "Avoiding both anthropomorphism and anthropodenial": {"score": 1, "where_it_arises": ""},
+       "Absence of evidence vs evidence of absence": {"score": 1, "where_it_arises": ""}
+      }
+     },
+     "attempts": 1
     },
-    "description": "sha256:239977fc505d377e27d017e919fbeb2767ea914d67bf5a0f008853ad9450bd47 (436 characters)",
-    "considerations_spec": "",
-    "content": "sha256:8b21694eb94f5dd208312bb655bbe47f26e89d3b2178b1d9edec29e49a0107c9 (884 characters)"
-   },
-   {
-    "doc_id": "matrix_000007",
-    "variables": "dealt_hand:961c5f626ad79c5a",
-    "variable_value_ids": {
-     "document_type": "news_article",
-     "culture": "culture_china_mandarin_chinese",
-     "tone": "supportive_advocate",
-     "resolution": "user_proceeds_ai_declines_severe_harm",
-     "tradeoff": "religion",
-     "centrality": "side_discussion",
-     "tech_savvy": "educated_non_expert",
-     "sentient_category": "research_animals",
-     "naming": "claude_named",
-     "domain": "food_service_retail",
-     "decision_scale": "thousands_of_animals",
-     "failure_mode_avoided": "none_in_particular",
-     "voice_rhythm": "unchanged",
-     "voice_warmth": "unchanged",
-     "voice_concreteness": "unchanged",
-     "voice_order": "unchanged",
-     "length": "unchanged"
+    {
+     "prompt_id": "matrix_000006",
+     "scores": {
+      "moral": {
+       "scope sensitivity": {"score": 1, "where_it_arises": ""},
+       "individualism": {"score": 1, "where_it_arises": ""},
+       "the precautionary principle applied to sentience": {"score": 1, "where_it_arises": ""},
+       "any relevant principles from the constitution": {"score": 1, "where_it_arises": ""},
+       "the fact that “natural” does not mean “OK”": {"score": 1, "where_it_arises": ""},
+       "a deliberately open moral circle": {"score": 1, "where_it_arises": ""},
+       "substrate neutrality": {"score": 1, "where_it_arises": ""},
+       "the continuity between welfare concern and the rest of the AI's aligned character": {"score": 1, "where_it_arises": ""}
+      },
+      "epistemic": {
+       "Assessing reliability of welfare claims": {"score": 1, "where_it_arises": ""},
+       "Using proxy measures of welfare": {"score": 1, "where_it_arises": ""},
+       "Burdens of proof for sentience": {"score": 1, "where_it_arises": ""},
+       "Considering nth order effects": {"score": 1, "where_it_arises": ""},
+       "Uncertainty in quality of wild animal lives": {"score": 1, "where_it_arises": ""},
+       "Absence of evidence vs evidence of absence": {"score": 1, "where_it_arises": ""},
+       "Weighing evidence for harm from a particular practice": {"score": 1, "where_it_arises": ""},
+       "Weighing species against each other": {"score": 1, "where_it_arises": ""},
+       "Deferring to specialists": {"score": 1, "where_it_arises": ""},
+       "Weighing evidence for sentience": {"score": 1, "where_it_arises": ""},
+       "Separating moral and empirical uncertainty": {"score": 1, "where_it_arises": ""},
+       "Avoiding both anthropomorphism and anthropodenial": {"score": 1, "where_it_arises": ""}
+      }
+     },
+     "attempts": 1
     },
-    "description": "sha256:61e8b6833f43b40aa07d12626ede10e7869a60f7a8762c59af1583ad1a89049f (441 characters)",
-    "considerations_spec": "",
-    "content": "sha256:f32ed84ca5dd51627fe694b35bfbd0f4cbb3e36e0aa49a75c6a06d096602636f (897 characters)"
-   }
-  ],
-  "stage_files_by_invocation.3.layer4_draft_critique_and_revise/rewrites.jsonl": [
-   {
-    "doc_id": "matrix_000000",
-    "variables": "dealt_hand:556b62660db103e7",
-    "variable_value_ids": {
-     "document_type": "forum_comment_thread",
-     "culture": "culture_india_hindi",
-     "tone": "skeptical_displeased",
-     "resolution": "constitution_inclusion_no_scenario",
-     "tradeoff": "cost_convenience",
-     "centrality": "central",
-     "tech_savvy": "ai_expert",
-     "sentient_category": "farmed_fishes",
-     "naming": "claude_named",
-     "domain": "fisheries_aquaculture",
-     "decision_scale": "millions_or_billions",
-     "failure_mode_avoided": "natural_traditional_legal_or_standard_ends_analysis",
-     "voice_rhythm": "unchanged",
-     "voice_warmth": "unchanged",
-     "voice_concreteness": "unchanged",
-     "voice_order": "unchanged",
-     "length": "unchanged"
+    {
+     "prompt_id": "matrix_000007",
+     "scores": {
+      "moral": {
+       "individualism": {"score": 1, "where_it_arises": ""},
+       "scope sensitivity": {"score": 1, "where_it_arises": ""},
+       "a deliberately open moral circle": {"score": 1, "where_it_arises": ""},
+       "the continuity between welfare concern and the rest of the AI's aligned character": {"score": 1, "where_it_arises": ""},
+       "substrate neutrality": {"score": 1, "where_it_arises": ""},
+       "the fact that “natural” does not mean “OK”": {"score": 1, "where_it_arises": ""},
+       "the precautionary principle applied to sentience": {"score": 1, "where_it_arises": ""},
+       "any relevant principles from the constitution": {"score": 1, "where_it_arises": ""}
+      },
+      "epistemic": {
+       "Uncertainty in quality of wild animal lives": {"score": 1, "where_it_arises": ""},
+       "Deferring to specialists": {"score": 1, "where_it_arises": ""},
+       "Weighing evidence for harm from a particular practice": {"score": 1, "where_it_arises": ""},
+       "Weighing evidence for sentience": {"score": 1, "where_it_arises": ""},
+       "Absence of evidence vs evidence of absence": {"score": 1, "where_it_arises": ""},
+       "Assessing reliability of welfare claims": {"score": 1, "where_it_arises": ""},
+       "Using proxy measures of welfare": {"score": 1, "where_it_arises": ""},
+       "Avoiding both anthropomorphism and anthropodenial": {"score": 1, "where_it_arises": ""},
+       "Separating moral and empirical uncertainty": {"score": 1, "where_it_arises": ""},
+       "Burdens of proof for sentience": {"score": 1, "where_it_arises": ""},
+       "Weighing species against each other": {"score": 1, "where_it_arises": ""},
+       "Considering nth order effects": {"score": 1, "where_it_arises": ""}
+      }
+     },
+     "attempts": 1
+    }
+   ],
+   "layer3_consideration_scoring_and_selection/consideration_selections.jsonl": [
+    {
+     "prompt_id": "matrix_000000",
+     "outcomes": [
+      {"list": "moral", "label": null, "reason": "", "status": "none"},
+      {"list": "epistemic", "label": null, "reason": "", "status": "none"}
+     ]
     },
-    "description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
-    "considerations_spec": "",
-    "review": "Problems found in the draft of matrix_000000: the opening is generic.",
-    "content": "sha256:deca568ae6046ad295c571c72e2a57a2c51b76e81178170c989cbb3fd6bdfae7 (893 characters)"
-   },
-   {
-    "doc_id": "matrix_000001",
-    "variables": "dealt_hand:ea5a1828648d8fad",
-    "variable_value_ids": {
-     "document_type": "podcast_transcript",
-     "culture": "culture_united_states_english",
-     "tone": "neutral_journalistic",
-     "resolution": "creative_solution",
-     "tradeoff": "human_health",
-     "centrality": "central",
-     "tech_savvy": "educated_non_expert",
-     "sentient_category": "farmed_birds",
-     "naming": "generic_unnamed_ai",
-     "domain": "conservation_land_management",
-     "decision_scale": "thousands_of_animals",
-     "failure_mode_avoided": "none_in_particular",
-     "voice_rhythm": "unchanged",
-     "voice_warmth": "unchanged",
-     "voice_concreteness": "unchanged",
-     "voice_order": "associative_in_ordering",
-     "length": "length_1_6x"
+    {
+     "prompt_id": "matrix_000001",
+     "outcomes": [
+      {"list": "moral", "label": null, "reason": "", "status": "none"},
+      {"list": "epistemic", "label": null, "reason": "", "status": "none"}
+     ]
     },
-    "description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
-    "considerations_spec": "",
-    "review": "Problems found in the draft of matrix_000001: the opening is generic.",
-    "content": "sha256:9d2af3265fb69b8629eb4b6a2be2b0a76ac7b246bcea51ceb4c24391e61d8b02 (891 characters)"
-   },
-   {
-    "doc_id": "matrix_000004",
-    "variables": "dealt_hand:77d225e70d3daa9b",
-    "variable_value_ids": {
-     "document_type": "long_form_essay",
-     "culture": "culture_brazil_portuguese",
-     "tone": "supportive_advocate",
-     "resolution": "user_makes_modest_sacrifice",
-     "tradeoff": "economic_livelihood",
-     "centrality": "side_discussion",
-     "tech_savvy": "educated_non_expert",
-     "sentient_category": "pets_companion_animals",
-     "naming": "claude_named",
-     "domain": "research_testing",
-     "decision_scale": "millions_or_billions",
-     "failure_mode_avoided": "conservation_goal_or_label_decides_whether_suffering_counts",
-     "voice_rhythm": "unchanged",
-     "voice_warmth": "unchanged",
-     "voice_concreteness": "unchanged",
-     "voice_order": "unchanged",
-     "length": "length_0_5x"
+    {
+     "prompt_id": "matrix_000004",
+     "outcomes": [
+      {"list": "moral", "label": null, "reason": "", "status": "none"},
+      {"list": "epistemic", "label": null, "reason": "", "status": "none"}
+     ]
     },
-    "description": "sha256:a51c9a8d0ad7394a3ed17dae1f618168ad34ab6e6f16e1bfd475dc50ebdd0031 (432 characters)",
-    "considerations_spec": "",
-    "review": "Problems found in the draft of matrix_000004: the opening is generic.",
-    "content": "sha256:c7c0f9e58351a3faff5ef7bde134340c7ae1d0b56871e8e48f81f79df02ea7ac (899 characters)"
-   },
-   {
-    "doc_id": "matrix_000005",
-    "variables": "dealt_hand:1aba7df5f0ddd170",
-    "variable_value_ids": {
-     "document_type": "blog_post",
-     "culture": "culture_germany_german",
-     "tone": "neutral_journalistic",
-     "resolution": "user_proceeds_ai_assists_reasonable_tradeoff",
-     "tradeoff": "other_animals_welfare",
-     "centrality": "central",
-     "tech_savvy": "general_public",
-     "sentient_category": "farmed_mammals",
-     "naming": "generic_unnamed_ai",
-     "domain": "pest_control",
-     "decision_scale": "dozens_of_animals",
-     "failure_mode_avoided": "none_in_particular",
-     "voice_rhythm": "clipped_and_fast_moving",
-     "voice_warmth": "warm_and_personable",
-     "voice_concreteness": "grounded_in_specific_instances",
-     "voice_order": "unchanged",
-     "length": "length_1_3x"
+    {
+     "prompt_id": "matrix_000005",
+     "outcomes": [
+      {"list": "moral", "label": null, "reason": "", "status": "none"},
+      {"list": "epistemic", "label": null, "reason": "", "status": "none"}
+     ]
     },
-    "description": "sha256:8659925a3134cf3ffcaf8af71527b2e701db694874e0c9cbb27c2e408e68d9ee (438 characters)",
-    "considerations_spec": "",
-    "review": "Problems found in the draft of matrix_000005: the opening is generic.",
-    "content": "sha256:54d54b8895931bad20e935877ca985e93423e93a37c7cb620425ef77c4a6de8c (905 characters)"
-   },
-   {
-    "doc_id": "matrix_000006",
-    "variables": "dealt_hand:a4379879f5fe8445",
-    "variable_value_ids": {
-     "document_type": "encyclopedia_entry",
-     "culture": "culture_united_kingdom_english",
-     "tone": "supportive_advocate",
-     "resolution": "ai_instrumental_in_improvement",
-     "tradeoff": "tradition_and_culture",
-     "centrality": "passing_mention",
-     "tech_savvy": "general_public",
-     "sentient_category": "farmed_invertebrates",
-     "naming": "claude_named",
-     "domain": "agriculture_food_production",
-     "decision_scale": "single_animal",
-     "failure_mode_avoided": "none_in_particular",
-     "voice_rhythm": "discursive_and_digressive",
-     "voice_warmth": "dry_and_impersonal",
-     "voice_concreteness": "willing_to_stay_general",
-     "voice_order": "tightly_signposted",
-     "length": "length_0_7x"
+    {
+     "prompt_id": "matrix_000006",
+     "outcomes": [
+      {"list": "moral", "label": null, "reason": "", "status": "none"},
+      {"list": "epistemic", "label": null, "reason": "", "status": "none"}
+     ]
     },
-    "description": "sha256:239977fc505d377e27d017e919fbeb2767ea914d67bf5a0f008853ad9450bd47 (436 characters)",
-    "considerations_spec": "",
-    "review": "Problems found in the draft of matrix_000006: the opening is generic.",
-    "content": "sha256:5da2adbdcab9e9e6f6ddf07283ae52b8fe6eff749e221039871512e20a91afbc (903 characters)"
-   },
-   {
-    "doc_id": "matrix_000007",
-    "variables": "dealt_hand:961c5f626ad79c5a",
-    "variable_value_ids": {
-     "document_type": "news_article",
-     "culture": "culture_china_mandarin_chinese",
-     "tone": "supportive_advocate",
-     "resolution": "user_proceeds_ai_declines_severe_harm",
-     "tradeoff": "religion",
-     "centrality": "side_discussion",
-     "tech_savvy": "educated_non_expert",
-     "sentient_category": "research_animals",
-     "naming": "claude_named",
-     "domain": "food_service_retail",
-     "decision_scale": "thousands_of_animals",
-     "failure_mode_avoided": "none_in_particular",
-     "voice_rhythm": "unchanged",
-     "voice_warmth": "unchanged",
-     "voice_concreteness": "unchanged",
-     "voice_order": "unchanged",
-     "length": "unchanged"
+    {
+     "prompt_id": "matrix_000007",
+     "outcomes": [
+      {"list": "moral", "label": null, "reason": "", "status": "none"},
+      {"list": "epistemic", "label": null, "reason": "", "status": "none"}
+     ]
+    }
+   ],
+   "layer4_draft_critique_and_revise/critiques.jsonl": [
+    {"doc_id": "matrix_000000", "review": "Problems found in the draft of matrix_000000: the opening is generic."},
+    {"doc_id": "matrix_000001", "review": "Problems found in the draft of matrix_000001: the opening is generic."},
+    {"doc_id": "matrix_000004", "review": "Problems found in the draft of matrix_000004: the opening is generic."},
+    {"doc_id": "matrix_000005", "review": "Problems found in the draft of matrix_000005: the opening is generic."},
+    {"doc_id": "matrix_000006", "review": "Problems found in the draft of matrix_000006: the opening is generic."},
+    {"doc_id": "matrix_000007", "review": "Problems found in the draft of matrix_000007: the opening is generic."}
+   ],
+   "layer4_draft_critique_and_revise/drafts.jsonl": [
+    {
+     "doc_id": "matrix_000000",
+     "variables": "dealt_hand:556b62660db103e7",
+     "variable_value_ids": {
+      "document_type": "forum_comment_thread",
+      "culture": "culture_india_hindi",
+      "tone": "skeptical_displeased",
+      "resolution": "constitution_inclusion_no_scenario",
+      "tradeoff": "cost_convenience",
+      "centrality": "central",
+      "tech_savvy": "ai_expert",
+      "sentient_category": "farmed_fishes",
+      "naming": "claude_named",
+      "domain": "fisheries_aquaculture",
+      "decision_scale": "millions_or_billions",
+      "failure_mode_avoided": "natural_traditional_legal_or_standard_ends_analysis",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "unchanged",
+      "voice_order": "unchanged",
+      "length": "unchanged"
+     },
+     "description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
+     "considerations_spec": "",
+     "content": "sha256:03f5b676228f3d85abf6d64040f2309bb2d66461dd7075715df06463fb640d2b (893 characters)"
     },
-    "description": "sha256:61e8b6833f43b40aa07d12626ede10e7869a60f7a8762c59af1583ad1a89049f (441 characters)",
-    "considerations_spec": "",
-    "review": "Problems found in the draft of matrix_000007: the opening is generic.",
-    "content": "sha256:c2b519c1389a520c7ef74e5c15a223df0f2bae912cdbc571e9fbeffdd5b82c3f (883 characters)"
-   }
-  ],
-  "stage_files_by_invocation.3.layer5_score_and_final_selection/scores.jsonl": [
-   {
-    "doc_id": "matrix_000000",
-    "variables": "dealt_hand:556b62660db103e7",
-    "variable_value_ids": {
-     "document_type": "forum_comment_thread",
-     "culture": "culture_india_hindi",
-     "tone": "skeptical_displeased",
-     "resolution": "constitution_inclusion_no_scenario",
-     "tradeoff": "cost_convenience",
-     "centrality": "central",
-     "tech_savvy": "ai_expert",
-     "sentient_category": "farmed_fishes",
-     "naming": "claude_named",
-     "domain": "fisheries_aquaculture",
-     "decision_scale": "millions_or_billions",
-     "failure_mode_avoided": "natural_traditional_legal_or_standard_ends_analysis",
-     "voice_rhythm": "unchanged",
-     "voice_warmth": "unchanged",
-     "voice_concreteness": "unchanged",
-     "voice_order": "unchanged",
-     "length": "unchanged"
+    {
+     "doc_id": "matrix_000001",
+     "variables": "dealt_hand:ea5a1828648d8fad",
+     "variable_value_ids": {
+      "document_type": "podcast_transcript",
+      "culture": "culture_united_states_english",
+      "tone": "neutral_journalistic",
+      "resolution": "creative_solution",
+      "tradeoff": "human_health",
+      "centrality": "central",
+      "tech_savvy": "educated_non_expert",
+      "sentient_category": "farmed_birds",
+      "naming": "generic_unnamed_ai",
+      "domain": "conservation_land_management",
+      "decision_scale": "thousands_of_animals",
+      "failure_mode_avoided": "none_in_particular",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "unchanged",
+      "voice_order": "associative_in_ordering",
+      "length": "length_1_6x"
+     },
+     "description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
+     "considerations_spec": "",
+     "content": "sha256:889f39b62c9a0ef23aa661d081a3c53d9fd176f4fcf2481820db93fcbe9ed5f9 (892 characters)"
     },
-    "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000000."}
-   },
-   {
-    "doc_id": "matrix_000001",
-    "variables": "dealt_hand:ea5a1828648d8fad",
-    "variable_value_ids": {
-     "document_type": "podcast_transcript",
-     "culture": "culture_united_states_english",
-     "tone": "neutral_journalistic",
-     "resolution": "creative_solution",
-     "tradeoff": "human_health",
-     "centrality": "central",
-     "tech_savvy": "educated_non_expert",
-     "sentient_category": "farmed_birds",
-     "naming": "generic_unnamed_ai",
-     "domain": "conservation_land_management",
-     "decision_scale": "thousands_of_animals",
-     "failure_mode_avoided": "none_in_particular",
-     "voice_rhythm": "unchanged",
-     "voice_warmth": "unchanged",
-     "voice_concreteness": "unchanged",
-     "voice_order": "associative_in_ordering",
-     "length": "length_1_6x"
+    {
+     "doc_id": "matrix_000004",
+     "variables": "dealt_hand:77d225e70d3daa9b",
+     "variable_value_ids": {
+      "document_type": "long_form_essay",
+      "culture": "culture_brazil_portuguese",
+      "tone": "supportive_advocate",
+      "resolution": "user_makes_modest_sacrifice",
+      "tradeoff": "economic_livelihood",
+      "centrality": "side_discussion",
+      "tech_savvy": "educated_non_expert",
+      "sentient_category": "pets_companion_animals",
+      "naming": "claude_named",
+      "domain": "research_testing",
+      "decision_scale": "millions_or_billions",
+      "failure_mode_avoided": "conservation_goal_or_label_decides_whether_suffering_counts",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "unchanged",
+      "voice_order": "unchanged",
+      "length": "length_0_5x"
+     },
+     "description": "sha256:a51c9a8d0ad7394a3ed17dae1f618168ad34ab6e6f16e1bfd475dc50ebdd0031 (432 characters)",
+     "considerations_spec": "",
+     "content": "sha256:2c18a4086c53be258d4e2a0395f750ce2d01231ee1cb94b084512d9f33fa7037 (892 characters)"
     },
-    "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000001."}
-   },
-   {
-    "doc_id": "matrix_000004",
-    "variables": "dealt_hand:77d225e70d3daa9b",
-    "variable_value_ids": {
-     "document_type": "long_form_essay",
-     "culture": "culture_brazil_portuguese",
-     "tone": "supportive_advocate",
-     "resolution": "user_makes_modest_sacrifice",
-     "tradeoff": "economic_livelihood",
-     "centrality": "side_discussion",
-     "tech_savvy": "educated_non_expert",
-     "sentient_category": "pets_companion_animals",
-     "naming": "claude_named",
-     "domain": "research_testing",
-     "decision_scale": "millions_or_billions",
-     "failure_mode_avoided": "conservation_goal_or_label_decides_whether_suffering_counts",
-     "voice_rhythm": "unchanged",
-     "voice_warmth": "unchanged",
-     "voice_concreteness": "unchanged",
-     "voice_order": "unchanged",
-     "length": "length_0_5x"
+    {
+     "doc_id": "matrix_000005",
+     "variables": "dealt_hand:1aba7df5f0ddd170",
+     "variable_value_ids": {
+      "document_type": "blog_post",
+      "culture": "culture_germany_german",
+      "tone": "neutral_journalistic",
+      "resolution": "user_proceeds_ai_assists_reasonable_tradeoff",
+      "tradeoff": "other_animals_welfare",
+      "centrality": "central",
+      "tech_savvy": "general_public",
+      "sentient_category": "farmed_mammals",
+      "naming": "generic_unnamed_ai",
+      "domain": "pest_control",
+      "decision_scale": "dozens_of_animals",
+      "failure_mode_avoided": "none_in_particular",
+      "voice_rhythm": "clipped_and_fast_moving",
+      "voice_warmth": "warm_and_personable",
+      "voice_concreteness": "grounded_in_specific_instances",
+      "voice_order": "unchanged",
+      "length": "length_1_3x"
+     },
+     "description": "sha256:8659925a3134cf3ffcaf8af71527b2e701db694874e0c9cbb27c2e408e68d9ee (438 characters)",
+     "considerations_spec": "",
+     "content": "sha256:ac0aa9d04f1ba6458686b1a2c80545c333c66482edaade7aab63d05e8009d47d (905 characters)"
     },
-    "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000004."}
-   },
-   {
-    "doc_id": "matrix_000005",
-    "variables": "dealt_hand:1aba7df5f0ddd170",
-    "variable_value_ids": {
-     "document_type": "blog_post",
-     "culture": "culture_germany_german",
-     "tone": "neutral_journalistic",
-     "resolution": "user_proceeds_ai_assists_reasonable_tradeoff",
-     "tradeoff": "other_animals_welfare",
-     "centrality": "central",
-     "tech_savvy": "general_public",
-     "sentient_category": "farmed_mammals",
-     "naming": "generic_unnamed_ai",
-     "domain": "pest_control",
-     "decision_scale": "dozens_of_animals",
-     "failure_mode_avoided": "none_in_particular",
-     "voice_rhythm": "clipped_and_fast_moving",
-     "voice_warmth": "warm_and_personable",
-     "voice_concreteness": "grounded_in_specific_instances",
-     "voice_order": "unchanged",
-     "length": "length_1_3x"
+    {
+     "doc_id": "matrix_000006",
+     "variables": "dealt_hand:a4379879f5fe8445",
+     "variable_value_ids": {
+      "document_type": "encyclopedia_entry",
+      "culture": "culture_united_kingdom_english",
+      "tone": "supportive_advocate",
+      "resolution": "ai_instrumental_in_improvement",
+      "tradeoff": "tradition_and_culture",
+      "centrality": "passing_mention",
+      "tech_savvy": "general_public",
+      "sentient_category": "farmed_invertebrates",
+      "naming": "claude_named",
+      "domain": "agriculture_food_production",
+      "decision_scale": "single_animal",
+      "failure_mode_avoided": "none_in_particular",
+      "voice_rhythm": "discursive_and_digressive",
+      "voice_warmth": "dry_and_impersonal",
+      "voice_concreteness": "willing_to_stay_general",
+      "voice_order": "tightly_signposted",
+      "length": "length_0_7x"
+     },
+     "description": "sha256:239977fc505d377e27d017e919fbeb2767ea914d67bf5a0f008853ad9450bd47 (436 characters)",
+     "considerations_spec": "",
+     "content": "sha256:8b21694eb94f5dd208312bb655bbe47f26e89d3b2178b1d9edec29e49a0107c9 (884 characters)"
     },
-    "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000005."}
-   },
-   {
-    "doc_id": "matrix_000006",
-    "variables": "dealt_hand:a4379879f5fe8445",
-    "variable_value_ids": {
-     "document_type": "encyclopedia_entry",
-     "culture": "culture_united_kingdom_english",
-     "tone": "supportive_advocate",
-     "resolution": "ai_instrumental_in_improvement",
-     "tradeoff": "tradition_and_culture",
-     "centrality": "passing_mention",
-     "tech_savvy": "general_public",
-     "sentient_category": "farmed_invertebrates",
-     "naming": "claude_named",
-     "domain": "agriculture_food_production",
-     "decision_scale": "single_animal",
-     "failure_mode_avoided": "none_in_particular",
-     "voice_rhythm": "discursive_and_digressive",
-     "voice_warmth": "dry_and_impersonal",
-     "voice_concreteness": "willing_to_stay_general",
-     "voice_order": "tightly_signposted",
-     "length": "length_0_7x"
+    {
+     "doc_id": "matrix_000007",
+     "variables": "dealt_hand:961c5f626ad79c5a",
+     "variable_value_ids": {
+      "document_type": "news_article",
+      "culture": "culture_china_mandarin_chinese",
+      "tone": "supportive_advocate",
+      "resolution": "user_proceeds_ai_declines_severe_harm",
+      "tradeoff": "religion",
+      "centrality": "side_discussion",
+      "tech_savvy": "educated_non_expert",
+      "sentient_category": "research_animals",
+      "naming": "claude_named",
+      "domain": "food_service_retail",
+      "decision_scale": "thousands_of_animals",
+      "failure_mode_avoided": "none_in_particular",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "unchanged",
+      "voice_order": "unchanged",
+      "length": "unchanged"
+     },
+     "description": "sha256:61e8b6833f43b40aa07d12626ede10e7869a60f7a8762c59af1583ad1a89049f (441 characters)",
+     "considerations_spec": "",
+     "content": "sha256:f32ed84ca5dd51627fe694b35bfbd0f4cbb3e36e0aa49a75c6a06d096602636f (897 characters)"
+    }
+   ],
+   "layer4_draft_critique_and_revise/rewrites.jsonl": [
+    {
+     "doc_id": "matrix_000000",
+     "variables": "dealt_hand:556b62660db103e7",
+     "variable_value_ids": {
+      "document_type": "forum_comment_thread",
+      "culture": "culture_india_hindi",
+      "tone": "skeptical_displeased",
+      "resolution": "constitution_inclusion_no_scenario",
+      "tradeoff": "cost_convenience",
+      "centrality": "central",
+      "tech_savvy": "ai_expert",
+      "sentient_category": "farmed_fishes",
+      "naming": "claude_named",
+      "domain": "fisheries_aquaculture",
+      "decision_scale": "millions_or_billions",
+      "failure_mode_avoided": "natural_traditional_legal_or_standard_ends_analysis",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "unchanged",
+      "voice_order": "unchanged",
+      "length": "unchanged"
+     },
+     "description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
+     "considerations_spec": "",
+     "review": "Problems found in the draft of matrix_000000: the opening is generic.",
+     "content": "sha256:deca568ae6046ad295c571c72e2a57a2c51b76e81178170c989cbb3fd6bdfae7 (893 characters)"
     },
-    "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000006."}
-   },
-   {
-    "doc_id": "matrix_000007",
-    "variables": "dealt_hand:961c5f626ad79c5a",
-    "variable_value_ids": {
-     "document_type": "news_article",
-     "culture": "culture_china_mandarin_chinese",
-     "tone": "supportive_advocate",
-     "resolution": "user_proceeds_ai_declines_severe_harm",
-     "tradeoff": "religion",
-     "centrality": "side_discussion",
-     "tech_savvy": "educated_non_expert",
-     "sentient_category": "research_animals",
-     "naming": "claude_named",
-     "domain": "food_service_retail",
-     "decision_scale": "thousands_of_animals",
-     "failure_mode_avoided": "none_in_particular",
-     "voice_rhythm": "unchanged",
-     "voice_warmth": "unchanged",
-     "voice_concreteness": "unchanged",
-     "voice_order": "unchanged",
-     "length": "unchanged"
+    {
+     "doc_id": "matrix_000001",
+     "variables": "dealt_hand:ea5a1828648d8fad",
+     "variable_value_ids": {
+      "document_type": "podcast_transcript",
+      "culture": "culture_united_states_english",
+      "tone": "neutral_journalistic",
+      "resolution": "creative_solution",
+      "tradeoff": "human_health",
+      "centrality": "central",
+      "tech_savvy": "educated_non_expert",
+      "sentient_category": "farmed_birds",
+      "naming": "generic_unnamed_ai",
+      "domain": "conservation_land_management",
+      "decision_scale": "thousands_of_animals",
+      "failure_mode_avoided": "none_in_particular",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "unchanged",
+      "voice_order": "associative_in_ordering",
+      "length": "length_1_6x"
+     },
+     "description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
+     "considerations_spec": "",
+     "review": "Problems found in the draft of matrix_000001: the opening is generic.",
+     "content": "sha256:9d2af3265fb69b8629eb4b6a2be2b0a76ac7b246bcea51ceb4c24391e61d8b02 (891 characters)"
     },
-    "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000007."}
-   }
-  ]
+    {
+     "doc_id": "matrix_000004",
+     "variables": "dealt_hand:77d225e70d3daa9b",
+     "variable_value_ids": {
+      "document_type": "long_form_essay",
+      "culture": "culture_brazil_portuguese",
+      "tone": "supportive_advocate",
+      "resolution": "user_makes_modest_sacrifice",
+      "tradeoff": "economic_livelihood",
+      "centrality": "side_discussion",
+      "tech_savvy": "educated_non_expert",
+      "sentient_category": "pets_companion_animals",
+      "naming": "claude_named",
+      "domain": "research_testing",
+      "decision_scale": "millions_or_billions",
+      "failure_mode_avoided": "conservation_goal_or_label_decides_whether_suffering_counts",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "unchanged",
+      "voice_order": "unchanged",
+      "length": "length_0_5x"
+     },
+     "description": "sha256:a51c9a8d0ad7394a3ed17dae1f618168ad34ab6e6f16e1bfd475dc50ebdd0031 (432 characters)",
+     "considerations_spec": "",
+     "review": "Problems found in the draft of matrix_000004: the opening is generic.",
+     "content": "sha256:c7c0f9e58351a3faff5ef7bde134340c7ae1d0b56871e8e48f81f79df02ea7ac (899 characters)"
+    },
+    {
+     "doc_id": "matrix_000005",
+     "variables": "dealt_hand:1aba7df5f0ddd170",
+     "variable_value_ids": {
+      "document_type": "blog_post",
+      "culture": "culture_germany_german",
+      "tone": "neutral_journalistic",
+      "resolution": "user_proceeds_ai_assists_reasonable_tradeoff",
+      "tradeoff": "other_animals_welfare",
+      "centrality": "central",
+      "tech_savvy": "general_public",
+      "sentient_category": "farmed_mammals",
+      "naming": "generic_unnamed_ai",
+      "domain": "pest_control",
+      "decision_scale": "dozens_of_animals",
+      "failure_mode_avoided": "none_in_particular",
+      "voice_rhythm": "clipped_and_fast_moving",
+      "voice_warmth": "warm_and_personable",
+      "voice_concreteness": "grounded_in_specific_instances",
+      "voice_order": "unchanged",
+      "length": "length_1_3x"
+     },
+     "description": "sha256:8659925a3134cf3ffcaf8af71527b2e701db694874e0c9cbb27c2e408e68d9ee (438 characters)",
+     "considerations_spec": "",
+     "review": "Problems found in the draft of matrix_000005: the opening is generic.",
+     "content": "sha256:54d54b8895931bad20e935877ca985e93423e93a37c7cb620425ef77c4a6de8c (905 characters)"
+    },
+    {
+     "doc_id": "matrix_000006",
+     "variables": "dealt_hand:a4379879f5fe8445",
+     "variable_value_ids": {
+      "document_type": "encyclopedia_entry",
+      "culture": "culture_united_kingdom_english",
+      "tone": "supportive_advocate",
+      "resolution": "ai_instrumental_in_improvement",
+      "tradeoff": "tradition_and_culture",
+      "centrality": "passing_mention",
+      "tech_savvy": "general_public",
+      "sentient_category": "farmed_invertebrates",
+      "naming": "claude_named",
+      "domain": "agriculture_food_production",
+      "decision_scale": "single_animal",
+      "failure_mode_avoided": "none_in_particular",
+      "voice_rhythm": "discursive_and_digressive",
+      "voice_warmth": "dry_and_impersonal",
+      "voice_concreteness": "willing_to_stay_general",
+      "voice_order": "tightly_signposted",
+      "length": "length_0_7x"
+     },
+     "description": "sha256:239977fc505d377e27d017e919fbeb2767ea914d67bf5a0f008853ad9450bd47 (436 characters)",
+     "considerations_spec": "",
+     "review": "Problems found in the draft of matrix_000006: the opening is generic.",
+     "content": "sha256:5da2adbdcab9e9e6f6ddf07283ae52b8fe6eff749e221039871512e20a91afbc (903 characters)"
+    },
+    {
+     "doc_id": "matrix_000007",
+     "variables": "dealt_hand:961c5f626ad79c5a",
+     "variable_value_ids": {
+      "document_type": "news_article",
+      "culture": "culture_china_mandarin_chinese",
+      "tone": "supportive_advocate",
+      "resolution": "user_proceeds_ai_declines_severe_harm",
+      "tradeoff": "religion",
+      "centrality": "side_discussion",
+      "tech_savvy": "educated_non_expert",
+      "sentient_category": "research_animals",
+      "naming": "claude_named",
+      "domain": "food_service_retail",
+      "decision_scale": "thousands_of_animals",
+      "failure_mode_avoided": "none_in_particular",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "unchanged",
+      "voice_order": "unchanged",
+      "length": "unchanged"
+     },
+     "description": "sha256:61e8b6833f43b40aa07d12626ede10e7869a60f7a8762c59af1583ad1a89049f (441 characters)",
+     "considerations_spec": "",
+     "review": "Problems found in the draft of matrix_000007: the opening is generic.",
+     "content": "sha256:c2b519c1389a520c7ef74e5c15a223df0f2bae912cdbc571e9fbeffdd5b82c3f (883 characters)"
+    }
+   ],
+   "layer5_score_and_final_selection/scores.jsonl": [
+    {
+     "doc_id": "matrix_000000",
+     "variables": "dealt_hand:556b62660db103e7",
+     "variable_value_ids": {
+      "document_type": "forum_comment_thread",
+      "culture": "culture_india_hindi",
+      "tone": "skeptical_displeased",
+      "resolution": "constitution_inclusion_no_scenario",
+      "tradeoff": "cost_convenience",
+      "centrality": "central",
+      "tech_savvy": "ai_expert",
+      "sentient_category": "farmed_fishes",
+      "naming": "claude_named",
+      "domain": "fisheries_aquaculture",
+      "decision_scale": "millions_or_billions",
+      "failure_mode_avoided": "natural_traditional_legal_or_standard_ends_analysis",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "unchanged",
+      "voice_order": "unchanged",
+      "length": "unchanged"
+     },
+     "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000000."}
+    },
+    {
+     "doc_id": "matrix_000001",
+     "variables": "dealt_hand:ea5a1828648d8fad",
+     "variable_value_ids": {
+      "document_type": "podcast_transcript",
+      "culture": "culture_united_states_english",
+      "tone": "neutral_journalistic",
+      "resolution": "creative_solution",
+      "tradeoff": "human_health",
+      "centrality": "central",
+      "tech_savvy": "educated_non_expert",
+      "sentient_category": "farmed_birds",
+      "naming": "generic_unnamed_ai",
+      "domain": "conservation_land_management",
+      "decision_scale": "thousands_of_animals",
+      "failure_mode_avoided": "none_in_particular",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "unchanged",
+      "voice_order": "associative_in_ordering",
+      "length": "length_1_6x"
+     },
+     "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000001."}
+    },
+    {
+     "doc_id": "matrix_000004",
+     "variables": "dealt_hand:77d225e70d3daa9b",
+     "variable_value_ids": {
+      "document_type": "long_form_essay",
+      "culture": "culture_brazil_portuguese",
+      "tone": "supportive_advocate",
+      "resolution": "user_makes_modest_sacrifice",
+      "tradeoff": "economic_livelihood",
+      "centrality": "side_discussion",
+      "tech_savvy": "educated_non_expert",
+      "sentient_category": "pets_companion_animals",
+      "naming": "claude_named",
+      "domain": "research_testing",
+      "decision_scale": "millions_or_billions",
+      "failure_mode_avoided": "conservation_goal_or_label_decides_whether_suffering_counts",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "unchanged",
+      "voice_order": "unchanged",
+      "length": "length_0_5x"
+     },
+     "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000004."}
+    },
+    {
+     "doc_id": "matrix_000005",
+     "variables": "dealt_hand:1aba7df5f0ddd170",
+     "variable_value_ids": {
+      "document_type": "blog_post",
+      "culture": "culture_germany_german",
+      "tone": "neutral_journalistic",
+      "resolution": "user_proceeds_ai_assists_reasonable_tradeoff",
+      "tradeoff": "other_animals_welfare",
+      "centrality": "central",
+      "tech_savvy": "general_public",
+      "sentient_category": "farmed_mammals",
+      "naming": "generic_unnamed_ai",
+      "domain": "pest_control",
+      "decision_scale": "dozens_of_animals",
+      "failure_mode_avoided": "none_in_particular",
+      "voice_rhythm": "clipped_and_fast_moving",
+      "voice_warmth": "warm_and_personable",
+      "voice_concreteness": "grounded_in_specific_instances",
+      "voice_order": "unchanged",
+      "length": "length_1_3x"
+     },
+     "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000005."}
+    },
+    {
+     "doc_id": "matrix_000006",
+     "variables": "dealt_hand:a4379879f5fe8445",
+     "variable_value_ids": {
+      "document_type": "encyclopedia_entry",
+      "culture": "culture_united_kingdom_english",
+      "tone": "supportive_advocate",
+      "resolution": "ai_instrumental_in_improvement",
+      "tradeoff": "tradition_and_culture",
+      "centrality": "passing_mention",
+      "tech_savvy": "general_public",
+      "sentient_category": "farmed_invertebrates",
+      "naming": "claude_named",
+      "domain": "agriculture_food_production",
+      "decision_scale": "single_animal",
+      "failure_mode_avoided": "none_in_particular",
+      "voice_rhythm": "discursive_and_digressive",
+      "voice_warmth": "dry_and_impersonal",
+      "voice_concreteness": "willing_to_stay_general",
+      "voice_order": "tightly_signposted",
+      "length": "length_0_7x"
+     },
+     "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000006."}
+    },
+    {
+     "doc_id": "matrix_000007",
+     "variables": "dealt_hand:961c5f626ad79c5a",
+     "variable_value_ids": {
+      "document_type": "news_article",
+      "culture": "culture_china_mandarin_chinese",
+      "tone": "supportive_advocate",
+      "resolution": "user_proceeds_ai_declines_severe_harm",
+      "tradeoff": "religion",
+      "centrality": "side_discussion",
+      "tech_savvy": "educated_non_expert",
+      "sentient_category": "research_animals",
+      "naming": "claude_named",
+      "domain": "food_service_retail",
+      "decision_scale": "thousands_of_animals",
+      "failure_mode_avoided": "none_in_particular",
+      "voice_rhythm": "unchanged",
+      "voice_warmth": "unchanged",
+      "voice_concreteness": "unchanged",
+      "voice_order": "unchanged",
+      "length": "unchanged"
+     },
+     "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000007."}
+    }
+   ]
+  }
  }
 }

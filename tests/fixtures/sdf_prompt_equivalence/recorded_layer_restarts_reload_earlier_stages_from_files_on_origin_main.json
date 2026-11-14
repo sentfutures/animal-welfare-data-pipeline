@@ -1,6 +1,6 @@
 {
  "format_version": 4,
- "recorded_from": "commit 13736d09016fc469f6d5696fb0edba98066160ab on branch HEAD (clean)",
+ "recorded_from": "commit 03f3c3b4bf2ff63769ed097964efe8d45d89d04c on branch HEAD (clean)",
  "regeneration_rule": "The recorded files are rewritten only by `python scripts/regenerate_sdf_prompt_equivalence_recorded_requests.py`, and only when the pull request is meant to change requests: never to make a failing test pass. Regenerate and commit the files in that pull request, and say in its description that requests change and why. A pull request not meant to change them leaves the files alone, so a difference is a bug.",
  "description": "A complete run, then --resume --layer 2, 3 and 4 after deleting the later stages' files (layer 3 with an explicit revision record on one draft), then --layer 2 with a held-out description rewrite.",
  "configs_used_by_invocation": {
@@ -340,8 +340,6 @@
   "3": "repeated_value:stage_files_by_invocation.3",
   "4": "repeated_value:stage_files_by_invocation.3",
   "5": {
-   "layer2_description_write_and_description_rewrite/_checkpoint.json": "repeated_value:stage_files_by_invocation.5.layer2_description_write_and_description_rewrite/_checkpoint.json",
-   "layer2_description_write_and_description_rewrite/_description_rewrite_checkpoint.json": "repeated_value:stage_files_by_invocation.5.layer2_description_write_and_description_rewrite/_checkpoint.json",
    "layer2_description_write_and_description_rewrite/description_rewrites.jsonl": [
     "repeated_value:stage_files_by_invocation.5.layer2_description_write_and_description_rewrite/description_rewrites.jsonl.0",
     "repeated_value:stage_files_by_invocation.5.layer2_description_write_and_description_rewrite/description_rewrites.jsonl.1",
@@ -352,14 +350,6 @@
    "layer3_consideration_scoring_and_selection/consideration_coverage.json": "repeated_value:stage_files_by_invocation.5.layer3_consideration_scoring_and_selection/consideration_coverage.json",
    "layer3_consideration_scoring_and_selection/consideration_scores.jsonl": "repeated_value:stage_files_by_invocation.5.layer3_consideration_scoring_and_selection/consideration_scores.jsonl",
    "layer3_consideration_scoring_and_selection/consideration_selections.jsonl": "repeated_value:stage_files_by_invocation.5.layer3_consideration_scoring_and_selection/consideration_selections.jsonl",
-   "layer4_draft_critique_and_revise/_checkpoint.json": {
-    "completed": ["matrix_000000", "matrix_000001", "matrix_000003"],
-    "last_updated": "<timestamp>"
-   },
-   "layer4_draft_critique_and_revise/_draft_checkpoint.json": {
-    "completed": ["matrix_000000", "matrix_000001", "matrix_000003"],
-    "last_updated": "<timestamp>"
-   },
    "layer4_draft_critique_and_revise/critiques.jsonl": [
     "repeated_value:stage_files_by_invocation.5.layer4_draft_critique_and_revise/critiques.jsonl.0",
     "repeated_value:stage_files_by_invocation.5.layer4_draft_critique_and_revise/critiques.jsonl.1",
@@ -375,10 +365,6 @@
     "repeated_value:stage_files_by_invocation.5.layer4_draft_critique_and_revise/rewrites.jsonl.1",
     "repeated_value:stage_files_by_invocation.5.layer4_draft_critique_and_revise/rewrites.jsonl.2"
    ],
-   "layer5_score_and_final_selection/_checkpoint.json": {
-    "completed": ["matrix_000000", "matrix_000001", "matrix_000003"],
-    "last_updated": "<timestamp>"
-   },
    "layer5_score_and_final_selection/scores.jsonl": [
     "repeated_value:stage_files_by_invocation.5.layer5_score_and_final_selection/scores.jsonl.0",
     "repeated_value:stage_files_by_invocation.5.layer5_score_and_final_selection/scores.jsonl.1",
@@ -1215,14 +1201,6 @@
   },
   "requests.8.wire.system": {"text_sha256": "9be9576f66433feeaa921ebd3deb1d578735ef5dfd1ec5d3685ad34b1c3eb995", "character_count": 375, "blocks": null},
   "stage_files_by_invocation.1": {
-   "layer2_description_write_and_description_rewrite/_checkpoint.json": {
-    "completed": ["matrix_000000", "matrix_000001", "matrix_000002", "matrix_000003"],
-    "last_updated": "<timestamp>"
-   },
-   "layer2_description_write_and_description_rewrite/_description_rewrite_checkpoint.json": {
-    "completed": ["matrix_000000", "matrix_000001", "matrix_000002", "matrix_000003"],
-    "last_updated": "<timestamp>"
-   },
    "layer2_description_write_and_description_rewrite/description_rewrites.jsonl": [
     {
      "prompt_id": "matrix_000000",
@@ -1892,14 +1870,6 @@
      ]
     }
    ],
-   "layer4_draft_critique_and_revise/_checkpoint.json": {
-    "completed": ["matrix_000000", "matrix_000001", "matrix_000002", "matrix_000003"],
-    "last_updated": "<timestamp>"
-   },
-   "layer4_draft_critique_and_revise/_draft_checkpoint.json": {
-    "completed": ["matrix_000000", "matrix_000001", "matrix_000002", "matrix_000003"],
-    "last_updated": "<timestamp>"
-   },
    "layer4_draft_critique_and_revise/critiques.jsonl": [
     {"doc_id": "matrix_000000", "review": "Problems found in the draft of matrix_000000: the opening is generic."},
     {"doc_id": "matrix_000001", "review": "Problems found in the draft of matrix_000001: the opening is generic."},
@@ -2122,10 +2092,6 @@
      "content": "sha256:aba335d3b205dff323edb8512029d9846fa219351cb137ed6bd447058755c88a (899 characters)"
     }
    ],
-   "layer5_score_and_final_selection/_checkpoint.json": {
-    "completed": ["matrix_000000", "matrix_000001", "matrix_000002", "matrix_000003"],
-    "last_updated": "<timestamp>"
-   },
    "layer5_score_and_final_selection/scores.jsonl": [
     {
      "doc_id": "matrix_000000",
@@ -2226,14 +2192,6 @@
    ]
   },
   "stage_files_by_invocation.3": {
-   "layer2_description_write_and_description_rewrite/_checkpoint.json": {
-    "completed": ["matrix_000000", "matrix_000001", "matrix_000002", "matrix_000003"],
-    "last_updated": "<timestamp>"
-   },
-   "layer2_description_write_and_description_rewrite/_description_rewrite_checkpoint.json": {
-    "completed": ["matrix_000000", "matrix_000001", "matrix_000002", "matrix_000003"],
-    "last_updated": "<timestamp>"
-   },
    "layer2_description_write_and_description_rewrite/description_rewrites.jsonl": [
     {
      "prompt_id": "matrix_000000",
@@ -2903,14 +2861,6 @@
      ]
     }
    ],
-   "layer4_draft_critique_and_revise/_checkpoint.json": {
-    "completed": ["matrix_000000", "matrix_000001", "matrix_000002", "matrix_000003"],
-    "last_updated": "<timestamp>"
-   },
-   "layer4_draft_critique_and_revise/_draft_checkpoint.json": {
-    "completed": ["matrix_000000", "matrix_000001", "matrix_000002", "matrix_000003"],
-    "last_updated": "<timestamp>"
-   },
    "layer4_draft_critique_and_revise/critiques.jsonl": [
     {"doc_id": "matrix_000000", "review": "Problems found in the draft of matrix_000000: the opening is generic."},
     {"doc_id": "matrix_000001", "review": "Problems found in the draft of matrix_000001: the opening is generic."},
@@ -3139,10 +3089,6 @@
      "content": "sha256:aba335d3b205dff323edb8512029d9846fa219351cb137ed6bd447058755c88a (899 characters)"
     }
    ],
-   "layer5_score_and_final_selection/_checkpoint.json": {
-    "completed": ["matrix_000000", "matrix_000001", "matrix_000002", "matrix_000003"],
-    "last_updated": "<timestamp>"
-   },
    "layer5_score_and_final_selection/scores.jsonl": [
     {
      "doc_id": "matrix_000000",
@@ -3241,10 +3187,6 @@
      "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000003."}
     }
    ]
-  },
-  "stage_files_by_invocation.5.layer2_description_write_and_description_rewrite/_checkpoint.json": {
-   "completed": ["matrix_000000", "matrix_000001", "matrix_000002", "matrix_000003"],
-   "last_updated": "<timestamp>"
   },
   "stage_files_by_invocation.5.layer2_description_write_and_description_rewrite/description_rewrites.jsonl.0": {
    "prompt_id": "matrix_000000",

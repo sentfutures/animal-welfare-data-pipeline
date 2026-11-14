@@ -1,10 +1,10 @@
 {
  "format_version": 4,
- "recorded_from": "commit 13736d09016fc469f6d5696fb0edba98066160ab on branch HEAD (clean)",
+ "recorded_from": "commit 03f3c3b4bf2ff63769ed097964efe8d45d89d04c on branch HEAD (clean)",
  "regeneration_rule": "The recorded files are rewritten only by `python scripts/regenerate_sdf_prompt_equivalence_recorded_requests.py`, and only when the pull request is meant to change requests: never to make a failing test pass. Regenerate and commit the files in that pull request, and say in its description that requests change and why. A pull request not meant to change them leaves the files alone, so a difference is a bug.",
  "description": "The only screen batch throws: a systemic stop.",
  "configs_used_by_invocation": {"1": "repeated_value:configs_used_by_invocation.1", "2": "repeated_value:configs_used_by_invocation.1"},
- "exit_messages_by_invocation": {"1": "layer1_screen: every pending screen call failed — this is systemic (auth, backend, or network), not per-batch; fix and --resume.", "2": null},
+ "exit_messages_by_invocation": {"1": "layer1_screen: every pending screen call failed — this is systemic (auth, backend, network, or an error building the prompt), not per-batch; fix and --resume.", "2": null},
  "client_constructions": [
   {
    "route": "anthropic",
@@ -318,10 +318,6 @@
    ]
   },
   "2": {
-   "layer1_deal_variables_and_screen/_screen_checkpoint.json": {
-    "completed": ["screen_round0_batch0000"],
-    "last_updated": "<timestamp>"
-   },
    "layer1_deal_variables_and_screen/screen_batches.jsonl": "repeated_value:stage_files_by_invocation.1.layer1_deal_variables_and_screen/screen_batches.jsonl",
    "layer1_deal_variables_and_screen/screen_hands.jsonl": "repeated_value:stage_files_by_invocation.1.layer1_deal_variables_and_screen/screen_hands.jsonl",
    "layer1_deal_variables_and_screen/screen_judgments.jsonl": [
@@ -348,14 +344,6 @@
     {"prompt_id": "matrix_000000", "variables": "dealt_hand:ccbc1fb3c6ad13f7", "variable_value_ids": "repeated_value:final_corpora_by_invocation.2.0.variable_value_ids"},
     {"prompt_id": "matrix_000001", "variables": "dealt_hand:c2591c88997ceca5", "variable_value_ids": "repeated_value:final_corpora_by_invocation.2.1.variable_value_ids"}
    ],
-   "layer2_description_write_and_description_rewrite/_checkpoint.json": {
-    "completed": ["matrix_000000", "matrix_000001"],
-    "last_updated": "<timestamp>"
-   },
-   "layer2_description_write_and_description_rewrite/_description_rewrite_checkpoint.json": {
-    "completed": ["matrix_000000", "matrix_000001"],
-    "last_updated": "<timestamp>"
-   },
    "layer2_description_write_and_description_rewrite/description_rewrites.jsonl": [
     {
      "prompt_id": "matrix_000000",
@@ -741,14 +729,6 @@
     {"prompt_id": "matrix_000000", "outcomes": "repeated_value:stage_files_by_invocation.2.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.0.outcomes"},
     {"prompt_id": "matrix_000001", "outcomes": "repeated_value:stage_files_by_invocation.2.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.0.outcomes"}
    ],
-   "layer4_draft_critique_and_revise/_checkpoint.json": {
-    "completed": ["matrix_000000", "matrix_000001"],
-    "last_updated": "<timestamp>"
-   },
-   "layer4_draft_critique_and_revise/_draft_checkpoint.json": {
-    "completed": ["matrix_000000", "matrix_000001"],
-    "last_updated": "<timestamp>"
-   },
    "layer4_draft_critique_and_revise/critiques.jsonl": [
     {"doc_id": "matrix_000000", "review": "Problems found in the draft of matrix_000000: the opening is generic."},
     {"doc_id": "matrix_000001", "review": "Problems found in the draft of matrix_000001: the opening is generic."}
@@ -791,10 +771,6 @@
      "content": "sha256:9d2af3265fb69b8629eb4b6a2be2b0a76ac7b246bcea51ceb4c24391e61d8b02 (891 characters)"
     }
    ],
-   "layer5_score_and_final_selection/_checkpoint.json": {
-    "completed": ["matrix_000000", "matrix_000001"],
-    "last_updated": "<timestamp>"
-   },
    "layer5_score_and_final_selection/scores.jsonl": [
     {
      "doc_id": "matrix_000000",

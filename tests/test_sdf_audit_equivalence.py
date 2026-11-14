@@ -1,6 +1,18 @@
-"""Every judge request of every model-judged SDF audit, on a run of each on-disk layout, equals its recording in ``tests/fixtures/sdf_audit_equivalence/``.
-A deliberate change regenerates the recordings with ``scripts/regenerate_sdf_audit_equivalence_recorded_requests.py``; a refactor never does.
-The recording engine is in ``tests/sdf_audit_equivalence_fixture_support.py``."""
+"""SDF audit equivalence test.
+
+Every model-judged SDF audit in ``evals/`` and the log-probability persona check's input builder are
+run with canned judge replies on one run of each on-disk layout (five-layer, pre-renumber matrix,
+current), and every judge request, as it reaches the provider client, must equal the request
+recorded in ``tests/fixtures/sdf_audit_equivalence/``: system prompt and user
+message (sha256 and length), model, max tokens, reasoning effort, schema, temperature and every other
+wire field, plus which documents were judged and in what order.
+
+A failing comparison means a judge request changed. If that is deliberate, regenerate the recorded
+files with ``scripts/regenerate_sdf_audit_equivalence_recorded_requests.py`` in the same pull request
+as the change, and commit them with it. A pull request that only refactors never rewrites them. This
+test never rewrites them. See ``tests/sdf_audit_equivalence_fixture_support.py`` for how requests are
+recorded.
+"""
 
 import tempfile
 from pathlib import Path

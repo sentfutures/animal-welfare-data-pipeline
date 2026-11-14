@@ -1,6 +1,6 @@
 {
  "format_version": 4,
- "recorded_from": "commit 13736d09016fc469f6d5696fb0edba98066160ab on branch HEAD (clean)",
+ "recorded_from": "commit 03f3c3b4bf2ff63769ed097964efe8d45d89d04c on branch HEAD (clean)",
  "regeneration_rule": "The recorded files are rewritten only by `python scripts/regenerate_sdf_prompt_equivalence_recorded_requests.py`, and only when the pull request is meant to change requests: never to make a failing test pass. Regenerate and commit the files in that pull request, and say in its description that requests change and why. A pull request not meant to change them leaves the files alone, so a difference is a bug.",
  "description": "Twenty-five hands with five dealt the no-stake resolution, all breaking the centrality deal rule and repaired by seeded swaps; every plan call then throws, so the run stops after the plan requests, which show the repaired hands.",
  "configs_used_by_invocation": {
@@ -8,7 +8,7 @@
    "sdf": {"n_prompts": 25, "min_score_threshold": 7}
   }
  },
- "exit_messages_by_invocation": {"1": "layer2_description_write: every pending API call failed — this is systemic (auth, backend, or network), not per-document; fix and --resume."},
+ "exit_messages_by_invocation": {"1": "layer2_description_write: every pending API call failed — this is systemic (auth, backend, network, or an error building the prompt), not per-document; fix and --resume."},
  "client_constructions": [
   {
    "route": "anthropic",
@@ -504,10 +504,6 @@
  },
  "stage_files_by_invocation": {
   "1": {
-   "layer1_deal_variables_and_screen/_screen_checkpoint.json": {
-    "completed": ["screen_round0_batch0000", "screen_round0_batch0001", "screen_round0_batch0002"],
-    "last_updated": "<timestamp>"
-   },
    "layer1_deal_variables_and_screen/screen_batches.jsonl": [
     {
      "batch_id": "screen_round0_batch0000",

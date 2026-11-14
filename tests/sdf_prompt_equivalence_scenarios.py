@@ -1,4 +1,4 @@
-"""The fixture scenarios of the SDF prompt equivalence test: invocations of ``main`` with canned replies (later ones are resumes), hands named ``matrix_NNNNNN``,
+"""The fixture scenarios of the SDF prompt-equivalence test: invocations of ``main`` with canned replies (later ones are resumes), hands named ``matrix_NNNNNN``,
 failures injected as ``ReplyOverride``s keyed by (stage, item id, attempt), interruptions made by an invocation's ``before`` function editing the run's files like a crash."""
 
 import json
@@ -96,22 +96,20 @@ def _remove_records(path: Path, key: str, ids: list[str]) -> None:
     utils.save_jsonl([r for r in records if r[key] not in ids], path)
 
 
-def _remove_checkpoint_marks(path: Path, ids: list[str]) -> None:
-    if not path.exists():   # the stage wrote no checkpoint, so there is no mark to lose
-        return
-    data = json.loads(path.read_text(encoding="utf-8"))
-    data["completed"] = [i for i in data["completed"] if i not in ids]
-    path.write_text(json.dumps(data), encoding="utf-8")
+def _plant_checkpoint_marks_as_earlier_code_wrote_them(path: Path, ids: list[str]) -> None:
+    checkpoint = utils.Checkpoint(path)
+    for document_id in ids:
+        checkpoint.mark_done(document_id)
 
 
-# What each folder key's steps write, checkpoint files included (a folder two keys share holds both keys' files).
+LAYOUT = sdf_run_layouts.FIVE_NAMED_LAYERS
+# What each step's folder key writes (so that deleting "a layer's files" deletes that step's files and not a neighbour's
+# in a folder two keys share).
 FILES_OF_FOLDER_KEY = {
-    sdf_run_layouts.DRAFT: ("drafts.jsonl", "_draft_checkpoint.json"),
-    sdf_run_layouts.CRITIQUE_AND_REVISE: ("critiques.jsonl", "rewrites.jsonl", "_checkpoint.json"),
-    sdf_run_layouts.SCORE: ("scores.jsonl", "near_dup_dropped.jsonl", "_checkpoint.json"),
+    sdf_run_layouts.DRAFT: ("drafts.jsonl",),
+    sdf_run_layouts.CRITIQUE_AND_REVISE: ("critiques.jsonl", "rewrites.jsonl"),
+    sdf_run_layouts.SCORE: ("scores.jsonl", "near_dup_dropped.jsonl"),
 }
-DRAFT, REVISE_FOLDER, SCORE_FOLDER = sdf_run_layouts.DRAFT, sdf_run_layouts.CRITIQUE_AND_REVISE, sdf_run_layouts.SCORE
-PLAN_FOLDER, SCREEN_FOLDER = sdf_run_layouts.DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE, sdf_run_layouts.DEAL_VARIABLES_AND_SCREEN
 
 
 def _delete_stage_files(run_directory: Path, folder_keys: tuple) -> None:
@@ -122,6 +120,10 @@ def _delete_stage_files(run_directory: Path, folder_keys: tuple) -> None:
 
 def _stage_path(run_directory: Path, folder_key: str, name: str) -> Path:
     return utils.sdf_stage_folder(run_directory, folder_key) / name
+
+
+DRAFT, REVISE_FOLDER, SCORE_FOLDER = sdf_run_layouts.DRAFT, sdf_run_layouts.CRITIQUE_AND_REVISE, sdf_run_layouts.SCORE
+PLAN_FOLDER, SCREEN_FOLDER = sdf_run_layouts.DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE, sdf_run_layouts.DEAL_VARIABLES_AND_SCREEN
 
 
 # ------------------------------------------------------------------------ --layer restarts
@@ -204,21 +206,16 @@ def _gate_and_cull_scenario() -> Scenario:
 # ------------------------------------------------------------------------ interrupted runs
 
 def _drop_records_and_marks_as_a_crash_leaves_them(run_directory):
-    """Record without its checkpoint mark (the stage then counts it done), and a mark without its
-    record (the stage then does not repeat it), in each of plan, draft, rewrite and score."""
-    plan_checkpoint = _stage_path(run_directory, PLAN_FOLDER, "_checkpoint.json")
-    _remove_records(_stage_path(run_directory, PLAN_FOLDER, "plans.jsonl"), "prompt_id", [_hand(0)])
-    _remove_checkpoint_marks(plan_checkpoint, [_hand(1)])
-    _remove_records(_stage_path(run_directory, DRAFT, "drafts.jsonl"), "doc_id", [_hand(2)])
-    _remove_checkpoint_marks(_stage_path(run_directory, DRAFT, "_draft_checkpoint.json"), [_hand(3)])
-    _remove_records(_stage_path(run_directory, REVISE_FOLDER, "rewrites.jsonl"), "doc_id", [_hand(4)])
-    _remove_checkpoint_marks(_stage_path(run_directory, REVISE_FOLDER, "_checkpoint.json"), [_hand(5)])
-    _remove_records(_stage_path(run_directory, SCORE_FOLDER, "scores.jsonl"), "doc_id", [_hand(3)])
-    _remove_checkpoint_marks(_stage_path(run_directory, SCORE_FOLDER, "_checkpoint.json"), [_hand(5)])
-
-
-def _delete_screen_checkpoint(run_directory):
-    _stage_path(run_directory, SCREEN_FOLDER, "_screen_checkpoint.json").unlink()
+    """Records deleted while checkpoint files still mark their documents done (the
+    stage then does not repeat them), in each of plan, draft, rewrite and score."""
+    for folder_key, folder_file, key, file_name, document_number in (
+            (PLAN_FOLDER, "plans.jsonl", "prompt_id", "_checkpoint.json", 0),
+            (DRAFT, "drafts.jsonl", "doc_id", "_draft_checkpoint.json", 2),
+            (REVISE_FOLDER, "rewrites.jsonl", "doc_id", "_checkpoint.json", 4),
+            (SCORE_FOLDER, "scores.jsonl", "doc_id", "_checkpoint.json", 3)):
+        _remove_records(_stage_path(run_directory, folder_key, folder_file), key, [_hand(document_number)])
+        _plant_checkpoint_marks_as_earlier_code_wrote_them(
+            _stage_path(run_directory, folder_key, file_name), [_hand(document_number)])
 
 
 def _interrupted_screen_scenario() -> Scenario:
@@ -230,14 +227,13 @@ def _interrupted_screen_scenario() -> Scenario:
         name="interrupted_screen_rounds_resume_with_a_different_batch_size",
         description="The screen stops after one of two round-0 batches; the resume has another batch size and "
                     "must reuse the saved batches, then stops after the redeal is dealt but not screened; the "
-                    "third invocation reuses the dealt round; the fourth has lost the screen checkpoint but "
-                    "keeps the accepted hands.",
+                    "third invocation reuses the dealt round; the fourth keeps the accepted hands.",
         invocations=(
             Invocation(expected_exit_message_fragment="of round 0 failed"),
             Invocation(("--resume",), sdf_config_overrides={"screen_batch_size": 2},
                        expected_exit_message_fragment="every pending screen call failed"),
             Invocation(("--resume",), sdf_config_overrides={"screen_batch_size": 2}),
-            Invocation(("--resume",), before=_delete_screen_checkpoint, sdf_config_overrides={"screen_batch_size": 2}),
+            Invocation(("--resume",), sdf_config_overrides={"screen_batch_size": 2}),
         ),
         reply_behaviour=behaviour, sdf_config_overrides={"n_prompts": 6, "screen_batch_size": 3})
 
@@ -451,7 +447,6 @@ def _pad_plan_descriptions_and_forget_the_rewrite(run_directory):
         plan["description"] = f"\n\n   {plan['description']}   \n"
     utils.save_jsonl(plans, plans_path)
     _stage_path(run_directory, PLAN_FOLDER, "description_rewrites.jsonl").unlink()
-    _stage_path(run_directory, PLAN_FOLDER, "_description_rewrite_checkpoint.json").unlink()
     _delete_stage_files(run_directory, (DRAFT, REVISE_FOLDER, SCORE_FOLDER))
 
 
