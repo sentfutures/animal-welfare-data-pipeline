@@ -127,20 +127,20 @@ def test_main_scenario_exercises_every_removal_and_failure_case(outcome_of):
         "a scored document the assignment gave nothing is drafted, rewritten and scored without them"
     assert corpus[s.HAND_NO_WELFARE_STAKE]["variables"]["resolution"].count("NO real welfare stake")
     assert not corpus[s.HAND_NO_WELFARE_STAKE]["considerations_spec"]
-    assert not _requests_of(outcome, "layer1_select", s.HAND_NO_WELFARE_STAKE)
-    assert [(r["invocation"], r["attempt"]) for r in _requests_of(outcome, "layer2_draft", s.HAND_TRUNCATED_DRAFT)] \
+    assert not _requests_of(outcome, "layer3_consideration_scoring", s.HAND_NO_WELFARE_STAKE)
+    assert [(r["invocation"], r["attempt"]) for r in _requests_of(outcome, "layer4_draft", s.HAND_TRUNCATED_DRAFT)] \
         == [(1, 1), (2, 2)]
     attempts = {r["prompt_id"]: r["attempts"] for r in support.stage_rows(outcome.run_directory, "consideration_scores.jsonl")}
     assert attempts[s.HAND_PLAIN_WITH_CONSIDERATIONS] == 2
     critiques = {r["doc_id"]: r["review"] for r in support.stage_rows(outcome.run_directory, "critiques.jsonl")}
     assert "No review tags" in critiques[s.HAND_NEAR_DUPLICATE_OF_PLAIN]
-    revise = _requests_of(outcome, "layer3_revise", s.HAND_REVISE_FAILS_THEN_SUCCEEDS_ON_RESUME)
+    revise = _requests_of(outcome, "layer4_revise", s.HAND_REVISE_FAILS_THEN_SUCCEEDS_ON_RESUME)
     assert [(r["invocation"], r["attempt"]) for r in revise] == [(1, 1), (2, 2)]
-    assert len(_requests_of(outcome, "layer3_critique", s.HAND_REVISE_FAILS_THEN_SUCCEEDS_ON_RESUME)) == 1
+    assert len(_requests_of(outcome, "layer4_critique", s.HAND_REVISE_FAILS_THEN_SUCCEEDS_ON_RESUME)) == 1
     assert scores[s.HAND_SCORE_ANSWER_DOES_NOT_PARSE]["scores"]["notes"] == "Parse error."
-    late_plan = _requests_of(outcome, "layer1_plan", s.HAND_PLAN_FAILS_THEN_SUCCEEDS_ON_RESUME)
+    late_plan = _requests_of(outcome, "layer2_plan", s.HAND_PLAN_FAILS_THEN_SUCCEEDS_ON_RESUME)
     assert [(r["invocation"], r["attempt"]) for r in late_plan] == [(1, 1), (2, 2)]
-    assert any(r["stage"] == "layer2_draft" and r["invocation"] == 1 and r["item_id"] == s.HAND_PLAIN_WITH_CONSIDERATIONS
+    assert any(r["stage"] == "layer4_draft" and r["invocation"] == 1 and r["item_id"] == s.HAND_PLAIN_WITH_CONSIDERATIONS
                for r in outcome.recorder.records), "other documents are drafted before the late plan succeeds"
     # the assignment changes after a document was drafted, and its later requests still use the draft's
     catalog = support._consideration_catalog()
@@ -175,20 +175,20 @@ def test_each_failure_scenario_reaches_the_stops_and_retries_it_is_named_for(out
     hold the full call counts; the stop messages are asserted when each scenario runs)."""
     screen = outcome_of("failures_in_the_screen_across_resumes")
     assert [_calls_in_invocation(screen, n, "layer1_screen") for n in (1, 2, 3)] == [3, 2, 1]
-    assert _calls_in_invocation(screen, 1, "layer1_plan") == 0, "a failed batch stops the run before planning"
+    assert _calls_in_invocation(screen, 1, "layer2_plan") == 0, "a failed batch stops the run before planning"
     rewrite = outcome_of("failures_in_the_description_rewrite_across_resumes")
-    assert _calls_in_invocation(rewrite, 1, "layer1_select") == 0, "held-out descriptions stop the run after the step"
+    assert _calls_in_invocation(rewrite, 1, "layer3_consideration_scoring") == 0, "held-out descriptions stop the run after the step"
     select = outcome_of("failures_in_consideration_scoring_across_resumes")
-    assert [r["attempt"] for r in _requests_of(select, "layer1_select", scenarios._hand(1))] == [1, 2, 3, 4]
-    assert _calls_in_invocation(select, 1, "layer2_draft") == 0, "the run stops before the assignment"
+    assert [r["attempt"] for r in _requests_of(select, "layer3_consideration_scoring", scenarios._hand(1))] == [1, 2, 3, 4]
+    assert _calls_in_invocation(select, 1, "layer4_draft") == 0, "the run stops before the assignment"
     critique = outcome_of("failures_in_the_critique_and_the_revise_across_resumes")
-    assert _calls_in_invocation(critique, 1, "layer3_revise") == 0 and _calls_in_invocation(critique, 1, "layer4_score") == 0
+    assert _calls_in_invocation(critique, 1, "layer4_revise") == 0 and _calls_in_invocation(critique, 1, "layer5_score") == 0
     draft = outcome_of("unusable_draft_replies_are_not_a_systemic_stop")
     assert draft.exit_messages_by_invocation == [None, None]
-    for name, stage, later_stage in (("every_plan_call_fails", "layer1_plan", "layer1_description_rewrite"),
-                                     ("every_draft_call_fails", "layer2_draft", "layer3_critique"),
-                                     ("every_critique_call_fails", "layer3_critique", "layer4_score"),
-                                     ("every_score_call_fails", "layer4_score", None)):
+    for name, stage, later_stage in (("every_plan_call_fails", "layer2_plan", "layer2_description_rewrite"),
+                                     ("every_draft_call_fails", "layer4_draft", "layer4_critique"),
+                                     ("every_critique_call_fails", "layer4_critique", "layer5_score"),
+                                     ("every_score_call_fails", "layer5_score", None)):
         stopped = outcome_of(name)
         assert _calls_in_invocation(stopped, 1, stage) == 2
         assert later_stage is None or _calls_in_invocation(stopped, 1, later_stage) == 0
@@ -208,11 +208,11 @@ def test_interrupted_runs_reuse_saved_state(outcome_of):
 
 def test_layer_restarts_reload_the_earlier_stages(outcome_of):
     restart = outcome_of("layer_restarts_reload_earlier_stages_from_files")
-    assert [_calls_in_invocation(restart, n, "layer2_draft") for n in (1, 2, 3, 4, 5)] == [4, 4, 0, 0, 3]
-    assert [_calls_in_invocation(restart, n, "layer3_critique") for n in (1, 2, 3, 4, 5)] == [4, 4, 4, 0, 3]
-    assert [_calls_in_invocation(restart, n, "layer4_score") for n in (1, 2, 3, 4, 5)] == [4, 4, 4, 4, 3]
-    assert all(_calls_in_invocation(restart, n, "layer1_plan") == 0 for n in (2, 3, 4, 5))
-    rewrites = {r["doc_id"]: r for r in restart.stage_files_after_each_invocation[2]["layer3/rewrites.jsonl"]}
+    assert [_calls_in_invocation(restart, n, "layer4_draft") for n in (1, 2, 3, 4, 5)] == [4, 4, 0, 0, 3]
+    assert [_calls_in_invocation(restart, n, "layer4_critique") for n in (1, 2, 3, 4, 5)] == [4, 4, 4, 0, 3]
+    assert [_calls_in_invocation(restart, n, "layer5_score") for n in (1, 2, 3, 4, 5)] == [4, 4, 4, 4, 3]
+    assert all(_calls_in_invocation(restart, n, "layer2_plan") == 0 for n in (2, 3, 4, 5))
+    rewrites = {r["doc_id"]: r for r in restart.stage_files_after_each_invocation[2]["layer4_draft_critique_and_revise/rewrites.jsonl"]}
     assert "revision" in rewrites[scenarios._hand(0)], "the explicit revision record is carried through"
 
 
@@ -233,8 +233,8 @@ def test_a_screen_removal_that_cannot_be_redealt_drops_the_cards(outcome_of):
 def test_code_defaults_are_used_when_the_config_names_nothing(outcome_of):
     only_plan_model = outcome_of("minimal_config_with_only_a_plan_model")
     models = {r["stage"]: r["wire"]["model"] for r in only_plan_model.recorder.records}
-    assert models["layer1_screen"] == models["layer1_select"] == models["layer1_description_rewrite"] == "claude-haiku-4-5"
-    assert models["layer2_draft"] == models["layer3_critique"] == models["layer4_score"] == "claude-sonnet-5"
+    assert models["layer1_screen"] == models["layer3_consideration_scoring"] == models["layer2_description_rewrite"] == "claude-haiku-4-5"
+    assert models["layer4_draft"] == models["layer4_critique"] == models["layer5_score"] == "claude-sonnet-5"
     assert [r["round"] for r in support.stage_rows(only_plan_model.run_directory, "screen_rounds.jsonl")] == [0, 1, 2, 3], \
         "the default is three redeal rounds"
     assert [b["prompt_ids"] and len(b["prompt_ids"]) for b in support.stage_rows(only_plan_model.run_directory, "screen_batches.jsonl")
@@ -242,11 +242,11 @@ def test_code_defaults_are_used_when_the_config_names_nothing(outcome_of):
     assert {r["prompt_id"]: r["attempts"] for r in support.stage_rows(only_plan_model.run_directory, "consideration_scores.jsonl")
             }[scenarios._hand(0)] == 3, "the default is three scoring attempts"
     openai_and_adaptive = outcome_of("minimal_config_with_openai_rewrite_and_adaptive_thinking_models")
-    rewrite = next(r for r in openai_and_adaptive.recorder.records if r["stage"] == "layer1_description_rewrite")
+    rewrite = next(r for r in openai_and_adaptive.recorder.records if r["stage"] == "layer2_description_rewrite")
     assert rewrite["route"] == "openai" and rewrite["wire"]["reasoning"] == {"effort": "medium"}
-    draft = next(r for r in openai_and_adaptive.recorder.records if r["stage"] == "layer2_draft")
+    draft = next(r for r in openai_and_adaptive.recorder.records if r["stage"] == "layer4_draft")
     assert draft["wire"]["max_tokens"] == 6000 + 8000, "the default thinking headroom"
-    assert not [r for r in openai_and_adaptive.recorder.records if r["stage"] == "layer1_select" and
+    assert not [r for r in openai_and_adaptive.recorder.records if r["stage"] == "layer3_consideration_scoring" and
                 "NO real welfare stake" in r["wire"]["messages"][0]["content"]]
 
 
@@ -255,30 +255,30 @@ def test_code_defaults_are_used_when_the_config_names_nothing(outcome_of):
 def test_every_claude_request_carries_the_global_temperature(name, outcome_of):
     claude_requests = [r for r in outcome_of(name).recorder.records if r["route"] == "anthropic"]
     assert claude_requests and {r["wire"].get("temperature") for r in claude_requests} == {0.5}
-    assert {r["stage"] for r in claude_requests} >= {"layer1_description_rewrite", "layer1_select", "layer2_draft"}
+    assert {r["stage"] for r in claude_requests} >= {"layer2_description_rewrite", "layer3_consideration_scoring", "layer4_draft"}
 
 
 @pytest.mark.parametrize("name, stage_without_calls", [
     ("screen_disabled", "layer1_screen"),
-    ("description_rewrite_disabled", "layer1_description_rewrite"),
-    ("consideration_selection_disabled", "layer1_select"),
+    ("description_rewrite_disabled", "layer2_description_rewrite"),
+    ("consideration_selection_disabled", "layer3_consideration_scoring"),
 ])
 def test_each_disabled_stage_makes_no_calls_while_the_others_run(name, stage_without_calls, outcome_of):
     stages_called = {r["stage"] for r in outcome_of(name).recorder.records}
     assert stage_without_calls not in stages_called
-    assert stages_called == set(support.STAGE_TAGS_OF_SDF_PIPELINE) - {stage_without_calls, "layer3_rewrite"}
+    assert stages_called == set(support.STAGE_TAGS_OF_SDF_PIPELINE) - {stage_without_calls, "layer4_critique_and_revise_in_one_call"}
 
 
-def test_single_call_revision_uses_the_layer3_rewrite_tag_only(outcome_of):
+def test_single_call_revision_uses_the_one_call_tag_only(outcome_of):
     stages_called = {r["stage"] for r in outcome_of("revision_in_one_call").recorder.records}
-    assert "layer3_rewrite" in stages_called and not stages_called & {"layer3_critique", "layer3_revise"}
+    assert "layer4_critique_and_revise_in_one_call" in stages_called and not stages_called & {"layer4_critique", "layer4_revise"}
 
 
 def test_description_rewrite_routes(outcome_of):
     claude = {r["route"] for r in outcome_of("description_rewrite_on_a_claude_model").recorder.records
-              if r["stage"] == "layer1_description_rewrite"}
+              if r["stage"] == "layer2_description_rewrite"}
     assert claude == {"anthropic"}
-    request = _requests_of(outcome_of(MAIN), "layer1_description_rewrite", scenarios.HAND_PLAIN_WITH_CONSIDERATIONS)[0]
+    request = _requests_of(outcome_of(MAIN), "layer2_description_rewrite", scenarios.HAND_PLAIN_WITH_CONSIDERATIONS)[0]
     assert request["route"] == "openai"
     assert request["wire"]["reasoning"] == {"effort": "low"} and request["wire"]["max_output_tokens"] == 8000
     assert request["wire"]["text"]["format"]["name"] == "description_rewrite_answer"
@@ -291,12 +291,12 @@ def test_deal_repair_scenario_repairs_five_no_stake_hands(outcome_of):
     assert len(hands) == 25 and len(no_stake) == 5
     assert not [h for h in no_stake if h["variables"]["centrality"].startswith(("the central subject", "not the central"))], \
         "the deal rule moved every no-stake hand off the welfare centralities"
-    assert _calls_in_invocation(outcome, 1, "layer1_plan") == 25 and _calls_in_invocation(outcome, 1, "layer2_draft") == 0
+    assert _calls_in_invocation(outcome, 1, "layer2_plan") == 25 and _calls_in_invocation(outcome, 1, "layer4_draft") == 0
 
 
 def test_resume_over_padded_plan_descriptions_sends_them_stripped_to_the_rewrite_only(outcome_of):
     outcome = outcome_of("resume_over_plans_with_padded_descriptions")
-    rewrite = next(r for r in outcome.recorder.records if r["stage"] == "layer1_description_rewrite" and r["invocation"] == 2)
+    rewrite = next(r for r in outcome.recorder.records if r["stage"] == "layer2_description_rewrite" and r["invocation"] == 2)
     assert "   Planned description" not in rewrite["wire"]["input"] and "Planned description" in rewrite["wire"]["input"]
-    draft = next(r for r in outcome.recorder.records if r["stage"] == "layer2_draft" and r["invocation"] == 2)
+    draft = next(r for r in outcome.recorder.records if r["stage"] == "layer4_draft" and r["invocation"] == 2)
     assert "   Planned description" in draft["wire"]["messages"][0]["content"], "the draft prompt carries the stored text"

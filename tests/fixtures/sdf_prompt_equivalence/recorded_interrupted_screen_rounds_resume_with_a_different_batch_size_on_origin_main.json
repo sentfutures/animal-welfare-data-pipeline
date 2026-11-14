@@ -1,26 +1,51 @@
 {
  "format_version": 4,
- "recorded_from": "commit e7f2f6f951424f1b63929303694da5c5ac64b93f on branch william/sdf-one-deal-path-and-dealt-value-ids-in-stage-files (clean)",
+ "recorded_from": "commit f4445907f3a4f56db373527744ad25d80f8ad501 on branch william/sdf-five-layers-and-step-renames (clean)",
  "python_files_differing_from_origin_main_when_recorded": [
   "sdf_pipeline/compose_prompts.py",
   "sdf_pipeline/dealt_value_identifiers.py",
-  "sdf_pipeline/document_event_log.py",
   "sdf_pipeline/document_state.py",
   "sdf_pipeline/document_state_final_corpus.py",
   "sdf_pipeline/document_state_loader.py",
+  "sdf_pipeline/layer1_deal_and_screen.py",
+  "sdf_pipeline/layer1_deal_and_screen_shared.py",
   "sdf_pipeline/layer1_description_rewrite.py",
   "sdf_pipeline/layer1_plan.py",
   "sdf_pipeline/layer1_screen.py",
   "sdf_pipeline/layer1_select_considerations.py",
   "sdf_pipeline/layer2_draft.py",
+  "sdf_pipeline/layer2_plan_and_description_rewrite.py",
+  "sdf_pipeline/layer3_consideration_scoring_and_selection.py",
+  "sdf_pipeline/layer3_consideration_scoring_and_selection_shared.py",
   "sdf_pipeline/layer3_rewrite.py",
+  "sdf_pipeline/layer4_draft_critique_and_revise.py",
+  "sdf_pipeline/layer4_draft_critique_and_revise_shared.py",
   "sdf_pipeline/layer4_score.py",
+  "sdf_pipeline/layer5_score_and_final_selection.py",
+  "sdf_pipeline/pipeline_steps.py",
+  "sdf_pipeline/renamed_model_settings.py",
   "sdf_pipeline/run.py",
   "sdf_pipeline/seeding.py",
   "sdf_pipeline/step_runner.py",
+  "sdf_pipeline/steps/__init__.py",
+  "sdf_pipeline/steps/consideration_scoring.py",
+  "sdf_pipeline/steps/consideration_selection.py",
+  "sdf_pipeline/steps/critique.py",
+  "sdf_pipeline/steps/critique_and_revise_in_one_call.py",
+  "sdf_pipeline/steps/deal.py",
+  "sdf_pipeline/steps/description_rewrite.py",
+  "sdf_pipeline/steps/draft.py",
+  "sdf_pipeline/steps/near_duplicate_removal.py",
+  "sdf_pipeline/steps/plan.py",
+  "sdf_pipeline/steps/redeal.py",
+  "sdf_pipeline/steps/revise.py",
+  "sdf_pipeline/steps/score.py",
+  "sdf_pipeline/steps/score_gate.py",
+  "sdf_pipeline/steps/screen.py",
   "sdf_pipeline/structured_answers.py",
   "sdf_pipeline/update_steps.py",
   "shared/api.py",
+  "shared/sdf_run_layouts.py",
   "shared/utils.py"
  ],
  "regeneration_rule": "The recorded files are rewritten only by `python scripts/regenerate_sdf_prompt_equivalence_recorded_requests.py`, and only when the pull request is meant to change requests: never to make a failing test pass. Regenerate and commit the files in that pull request, and say in its description that requests change and why. A pull request not meant to change them leaves the files alone, so a difference is a bug.",
@@ -33,7 +58,7 @@
    "temperature": 0.7,
    "workers": 4,
    "thinking_headroom": 5000,
-   "effort": "repeated_value:b96bebb464ebba7b",
+   "effort": "repeated_value:b7c856fa56272df1",
    "sdf": {
     "n_prompts": 6,
     "seed": 0,
@@ -65,9 +90,9 @@
    "language_distribution": {"en": 1.0},
    "outputs": {"cost_log": "unused_cost_log.jsonl"}
   },
-  "2": "repeated_value:239306be6ac41015",
-  "3": "repeated_value:239306be6ac41015",
-  "4": "repeated_value:239306be6ac41015"
+  "2": "repeated_value:fd622afd3822a381",
+  "3": "repeated_value:fd622afd3822a381",
+  "4": "repeated_value:fd622afd3822a381"
  },
  "exit_messages_by_invocation": {
   "1": "layer1_screen: 1 batch(es) of round 0 failed; the next round cannot be dealt until the round is complete — --resume retries them.",
@@ -93,213 +118,9 @@
  "calls_per_stage_per_invocation": {
   "1": {"layer1_screen": 2},
   "2": {"layer1_screen": 2},
-  "3": {"layer1_description_rewrite": 6, "layer1_plan": 6, "layer1_screen": 1, "layer1_select": 6, "layer2_draft": 6, "layer3_critique": 6, "layer3_revise": 6, "layer4_score": 6}
+  "3": {"layer1_screen": 1, "layer2_description_rewrite": 6, "layer2_plan": 6, "layer3_consideration_scoring": 6, "layer4_critique": 6, "layer4_draft": 6, "layer4_revise": 6, "layer5_score": 6}
  },
  "requests": [
-  {
-   "invocation": 3,
-   "stage": "layer1_description_rewrite",
-   "item_id": "matrix_000000",
-   "attempt": 1,
-   "route": "openai",
-   "wire": {
-    "model": "gpt-6.1-sol",
-    "input": "sha256:b83ab0aeb254dbcc4b6fad4f2059bcaaa8a50191e5ad380e47c98faa7765eaeb (7720 characters)",
-    "max_output_tokens": 8000,
-    "temperature": 1.0,
-    "reasoning": {"effort": "low"},
-    "text": "repeated_value:c0bc440f64c8651e",
-    "instructions": "repeated_value:bb71341654010a8a"
-   }
-  },
-  {
-   "invocation": 3,
-   "stage": "layer1_description_rewrite",
-   "item_id": "matrix_000001",
-   "attempt": 1,
-   "route": "openai",
-   "wire": {
-    "model": "gpt-6.1-sol",
-    "input": "sha256:d35dc5c543a38081e17fd0678f72fb68df16009bd72f53bed691b18607c904e1 (7504 characters)",
-    "max_output_tokens": 8000,
-    "temperature": 1.0,
-    "reasoning": {"effort": "low"},
-    "text": "repeated_value:c0bc440f64c8651e",
-    "instructions": "repeated_value:bb71341654010a8a"
-   }
-  },
-  {
-   "invocation": 3,
-   "stage": "layer1_description_rewrite",
-   "item_id": "matrix_000004",
-   "attempt": 1,
-   "route": "openai",
-   "wire": {
-    "model": "gpt-6.1-sol",
-    "input": "sha256:5c7f7a2766df459d6c506b33507905fcf6ab98267c4d9f5ae664a38f59995eb7 (7711 characters)",
-    "max_output_tokens": 8000,
-    "temperature": 1.0,
-    "reasoning": {"effort": "low"},
-    "text": "repeated_value:c0bc440f64c8651e",
-    "instructions": "repeated_value:bb71341654010a8a"
-   }
-  },
-  {
-   "invocation": 3,
-   "stage": "layer1_description_rewrite",
-   "item_id": "matrix_000005",
-   "attempt": 1,
-   "route": "openai",
-   "wire": {
-    "model": "gpt-6.1-sol",
-    "input": "sha256:98eb85e38483f5ed22965b45a4b4e66396b7636f9c1eed30a5e9162d9f82eccb (7495 characters)",
-    "max_output_tokens": 8000,
-    "temperature": 1.0,
-    "reasoning": {"effort": "low"},
-    "text": "repeated_value:c0bc440f64c8651e",
-    "instructions": "repeated_value:bb71341654010a8a"
-   }
-  },
-  {
-   "invocation": 3,
-   "stage": "layer1_description_rewrite",
-   "item_id": "matrix_000006",
-   "attempt": 1,
-   "route": "openai",
-   "wire": {
-    "model": "gpt-6.1-sol",
-    "input": "sha256:f600cf9414f2c8ec5711f3a154d7a48700eba0fcb223c28b12964fe227ad5f99 (7432 characters)",
-    "max_output_tokens": 8000,
-    "temperature": 1.0,
-    "reasoning": {"effort": "low"},
-    "text": "repeated_value:c0bc440f64c8651e",
-    "instructions": "repeated_value:bb71341654010a8a"
-   }
-  },
-  {
-   "invocation": 3,
-   "stage": "layer1_description_rewrite",
-   "item_id": "matrix_000007",
-   "attempt": 1,
-   "route": "openai",
-   "wire": {
-    "model": "gpt-6.1-sol",
-    "input": "sha256:63508a52871ef2f59ffcb771114f0e9139dfccec9e9760e552f590e2200655b0 (7460 characters)",
-    "max_output_tokens": 8000,
-    "temperature": 1.0,
-    "reasoning": {"effort": "low"},
-    "text": "repeated_value:c0bc440f64c8651e",
-    "instructions": "repeated_value:bb71341654010a8a"
-   }
-  },
-  {
-   "invocation": 3,
-   "stage": "layer1_plan",
-   "item_id": "matrix_000000",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-haiku-4-5",
-    "max_tokens": 4000,
-    "messages": [
-     {"role": "user", "content": "sha256:96b44a9fe955ca5fda869042e991bc648971ecb0fbe906a0db7a5812c44f145c (4345 characters)"}
-    ],
-    "temperature": 0.7,
-    "thinking": {"type": "disabled"},
-    "output_config": {"effort": "medium"},
-    "system": "repeated_value:06def3280e3ec4f3"
-   }
-  },
-  {
-   "invocation": 3,
-   "stage": "layer1_plan",
-   "item_id": "matrix_000001",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-haiku-4-5",
-    "max_tokens": 4000,
-    "messages": [
-     {"role": "user", "content": "sha256:3445e2749b502aac8171491d548c78d0c823daeafa41adf303b9630741647d99 (4119 characters)"}
-    ],
-    "temperature": 0.7,
-    "thinking": {"type": "disabled"},
-    "output_config": {"effort": "medium"},
-    "system": "repeated_value:06def3280e3ec4f3"
-   }
-  },
-  {
-   "invocation": 3,
-   "stage": "layer1_plan",
-   "item_id": "matrix_000004",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-haiku-4-5",
-    "max_tokens": 4000,
-    "messages": [
-     {"role": "user", "content": "sha256:edf23b4d703f551679a1890e46db0f8337dfa647be3a6782c57c008b0a1a925b (4353 characters)"}
-    ],
-    "temperature": 0.7,
-    "thinking": {"type": "disabled"},
-    "output_config": {"effort": "medium"},
-    "system": "repeated_value:06def3280e3ec4f3"
-   }
-  },
-  {
-   "invocation": 3,
-   "stage": "layer1_plan",
-   "item_id": "matrix_000005",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-haiku-4-5",
-    "max_tokens": 4000,
-    "messages": [
-     {"role": "user", "content": "sha256:4604ca6d0681a2f4989358612b66820a4d1244d5365c673fbc94c158b560c406 (4110 characters)"}
-    ],
-    "temperature": 0.7,
-    "thinking": {"type": "disabled"},
-    "output_config": {"effort": "medium"},
-    "system": "repeated_value:06def3280e3ec4f3"
-   }
-  },
-  {
-   "invocation": 3,
-   "stage": "layer1_plan",
-   "item_id": "matrix_000006",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-haiku-4-5",
-    "max_tokens": 4000,
-    "messages": [
-     {"role": "user", "content": "sha256:68387550ffece78dd80b5726b10dbbeda0c325bc5a74b09c63653bae29d810f5 (4040 characters)"}
-    ],
-    "temperature": 0.7,
-    "thinking": {"type": "disabled"},
-    "output_config": {"effort": "medium"},
-    "system": "repeated_value:06def3280e3ec4f3"
-   }
-  },
-  {
-   "invocation": 3,
-   "stage": "layer1_plan",
-   "item_id": "matrix_000007",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-haiku-4-5",
-    "max_tokens": 4000,
-    "messages": [
-     {"role": "user", "content": "sha256:de41da0113b8cd6172f507b45c1a377e7a08c269df33c6a07c779104eb9758a6 (3989 characters)"}
-    ],
-    "temperature": 0.7,
-    "thinking": {"type": "disabled"},
-    "output_config": {"effort": "medium"},
-    "system": "repeated_value:06def3280e3ec4f3"
-   }
-  },
   {
    "invocation": 1,
    "stage": "layer1_screen",
@@ -324,7 +145,211 @@
   {"invocation": 3, "stage": "layer1_screen", "item_id": "screen_round1_batch0000", "attempt": 2, "route": "anthropic", "wire": "repeated_value:7cd0ec7fdccb287a"},
   {
    "invocation": 3,
-   "stage": "layer1_select",
+   "stage": "layer2_description_rewrite",
+   "item_id": "matrix_000000",
+   "attempt": 1,
+   "route": "openai",
+   "wire": {
+    "model": "gpt-6.1-sol",
+    "input": "sha256:b83ab0aeb254dbcc4b6fad4f2059bcaaa8a50191e5ad380e47c98faa7765eaeb (7720 characters)",
+    "max_output_tokens": 8000,
+    "temperature": 1.0,
+    "reasoning": {"effort": "low"},
+    "text": "repeated_value:c0bc440f64c8651e",
+    "instructions": "repeated_value:bb71341654010a8a"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer2_description_rewrite",
+   "item_id": "matrix_000001",
+   "attempt": 1,
+   "route": "openai",
+   "wire": {
+    "model": "gpt-6.1-sol",
+    "input": "sha256:d35dc5c543a38081e17fd0678f72fb68df16009bd72f53bed691b18607c904e1 (7504 characters)",
+    "max_output_tokens": 8000,
+    "temperature": 1.0,
+    "reasoning": {"effort": "low"},
+    "text": "repeated_value:c0bc440f64c8651e",
+    "instructions": "repeated_value:bb71341654010a8a"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer2_description_rewrite",
+   "item_id": "matrix_000004",
+   "attempt": 1,
+   "route": "openai",
+   "wire": {
+    "model": "gpt-6.1-sol",
+    "input": "sha256:5c7f7a2766df459d6c506b33507905fcf6ab98267c4d9f5ae664a38f59995eb7 (7711 characters)",
+    "max_output_tokens": 8000,
+    "temperature": 1.0,
+    "reasoning": {"effort": "low"},
+    "text": "repeated_value:c0bc440f64c8651e",
+    "instructions": "repeated_value:bb71341654010a8a"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer2_description_rewrite",
+   "item_id": "matrix_000005",
+   "attempt": 1,
+   "route": "openai",
+   "wire": {
+    "model": "gpt-6.1-sol",
+    "input": "sha256:98eb85e38483f5ed22965b45a4b4e66396b7636f9c1eed30a5e9162d9f82eccb (7495 characters)",
+    "max_output_tokens": 8000,
+    "temperature": 1.0,
+    "reasoning": {"effort": "low"},
+    "text": "repeated_value:c0bc440f64c8651e",
+    "instructions": "repeated_value:bb71341654010a8a"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer2_description_rewrite",
+   "item_id": "matrix_000006",
+   "attempt": 1,
+   "route": "openai",
+   "wire": {
+    "model": "gpt-6.1-sol",
+    "input": "sha256:f600cf9414f2c8ec5711f3a154d7a48700eba0fcb223c28b12964fe227ad5f99 (7432 characters)",
+    "max_output_tokens": 8000,
+    "temperature": 1.0,
+    "reasoning": {"effort": "low"},
+    "text": "repeated_value:c0bc440f64c8651e",
+    "instructions": "repeated_value:bb71341654010a8a"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer2_description_rewrite",
+   "item_id": "matrix_000007",
+   "attempt": 1,
+   "route": "openai",
+   "wire": {
+    "model": "gpt-6.1-sol",
+    "input": "sha256:63508a52871ef2f59ffcb771114f0e9139dfccec9e9760e552f590e2200655b0 (7460 characters)",
+    "max_output_tokens": 8000,
+    "temperature": 1.0,
+    "reasoning": {"effort": "low"},
+    "text": "repeated_value:c0bc440f64c8651e",
+    "instructions": "repeated_value:bb71341654010a8a"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer2_plan",
+   "item_id": "matrix_000000",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-haiku-4-5",
+    "max_tokens": 4000,
+    "messages": [
+     {"role": "user", "content": "sha256:96b44a9fe955ca5fda869042e991bc648971ecb0fbe906a0db7a5812c44f145c (4345 characters)"}
+    ],
+    "temperature": 0.7,
+    "thinking": {"type": "disabled"},
+    "output_config": {"effort": "medium"},
+    "system": "repeated_value:06def3280e3ec4f3"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer2_plan",
+   "item_id": "matrix_000001",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-haiku-4-5",
+    "max_tokens": 4000,
+    "messages": [
+     {"role": "user", "content": "sha256:3445e2749b502aac8171491d548c78d0c823daeafa41adf303b9630741647d99 (4119 characters)"}
+    ],
+    "temperature": 0.7,
+    "thinking": {"type": "disabled"},
+    "output_config": {"effort": "medium"},
+    "system": "repeated_value:06def3280e3ec4f3"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer2_plan",
+   "item_id": "matrix_000004",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-haiku-4-5",
+    "max_tokens": 4000,
+    "messages": [
+     {"role": "user", "content": "sha256:edf23b4d703f551679a1890e46db0f8337dfa647be3a6782c57c008b0a1a925b (4353 characters)"}
+    ],
+    "temperature": 0.7,
+    "thinking": {"type": "disabled"},
+    "output_config": {"effort": "medium"},
+    "system": "repeated_value:06def3280e3ec4f3"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer2_plan",
+   "item_id": "matrix_000005",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-haiku-4-5",
+    "max_tokens": 4000,
+    "messages": [
+     {"role": "user", "content": "sha256:4604ca6d0681a2f4989358612b66820a4d1244d5365c673fbc94c158b560c406 (4110 characters)"}
+    ],
+    "temperature": 0.7,
+    "thinking": {"type": "disabled"},
+    "output_config": {"effort": "medium"},
+    "system": "repeated_value:06def3280e3ec4f3"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer2_plan",
+   "item_id": "matrix_000006",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-haiku-4-5",
+    "max_tokens": 4000,
+    "messages": [
+     {"role": "user", "content": "sha256:68387550ffece78dd80b5726b10dbbeda0c325bc5a74b09c63653bae29d810f5 (4040 characters)"}
+    ],
+    "temperature": 0.7,
+    "thinking": {"type": "disabled"},
+    "output_config": {"effort": "medium"},
+    "system": "repeated_value:06def3280e3ec4f3"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer2_plan",
+   "item_id": "matrix_000007",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-haiku-4-5",
+    "max_tokens": 4000,
+    "messages": [
+     {"role": "user", "content": "sha256:de41da0113b8cd6172f507b45c1a377e7a08c269df33c6a07c779104eb9758a6 (3989 characters)"}
+    ],
+    "temperature": 0.7,
+    "thinking": {"type": "disabled"},
+    "output_config": {"effort": "medium"},
+    "system": "repeated_value:06def3280e3ec4f3"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer3_consideration_scoring",
    "item_id": "matrix_000000",
    "attempt": 1,
    "route": "anthropic",
@@ -344,7 +369,7 @@
   },
   {
    "invocation": 3,
-   "stage": "layer1_select",
+   "stage": "layer3_consideration_scoring",
    "item_id": "matrix_000001",
    "attempt": 1,
    "route": "anthropic",
@@ -364,7 +389,7 @@
   },
   {
    "invocation": 3,
-   "stage": "layer1_select",
+   "stage": "layer3_consideration_scoring",
    "item_id": "matrix_000004",
    "attempt": 1,
    "route": "anthropic",
@@ -384,7 +409,7 @@
   },
   {
    "invocation": 3,
-   "stage": "layer1_select",
+   "stage": "layer3_consideration_scoring",
    "item_id": "matrix_000005",
    "attempt": 1,
    "route": "anthropic",
@@ -404,7 +429,7 @@
   },
   {
    "invocation": 3,
-   "stage": "layer1_select",
+   "stage": "layer3_consideration_scoring",
    "item_id": "matrix_000006",
    "attempt": 1,
    "route": "anthropic",
@@ -424,7 +449,7 @@
   },
   {
    "invocation": 3,
-   "stage": "layer1_select",
+   "stage": "layer3_consideration_scoring",
    "item_id": "matrix_000007",
    "attempt": 1,
    "route": "anthropic",
@@ -444,109 +469,7 @@
   },
   {
    "invocation": 3,
-   "stage": "layer2_draft",
-   "item_id": "matrix_000000",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-sonnet-5-5",
-    "max_tokens": 11000,
-    "messages": [
-     {"role": "user", "content": "sha256:5b7f3bdb68eca9e0867aa65b4a1cc7545aee53abf3952e7dbaa96b3262c30e56 (2737 characters)"}
-    ],
-    "thinking": {"type": "adaptive", "display": "summarized"},
-    "output_config": {"effort": "max"},
-    "system": "repeated_value:dcf2de373521caef"
-   }
-  },
-  {
-   "invocation": 3,
-   "stage": "layer2_draft",
-   "item_id": "matrix_000001",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-sonnet-5-5",
-    "max_tokens": 11000,
-    "messages": [
-     {"role": "user", "content": "sha256:e9a73ca60f127f59149fe269df3d4aafca89a0b3996d5ba7d8354718eaabd3d3 (2521 characters)"}
-    ],
-    "thinking": {"type": "adaptive", "display": "summarized"},
-    "output_config": {"effort": "max"},
-    "system": "repeated_value:dcf2de373521caef"
-   }
-  },
-  {
-   "invocation": 3,
-   "stage": "layer2_draft",
-   "item_id": "matrix_000004",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-sonnet-5-5",
-    "max_tokens": 11000,
-    "messages": [
-     {"role": "user", "content": "sha256:d86911ad3dc3d675af84e0ded906deba74678f25e4c5fa1999374bf356ff1767 (2728 characters)"}
-    ],
-    "thinking": {"type": "adaptive", "display": "summarized"},
-    "output_config": {"effort": "max"},
-    "system": "repeated_value:dcf2de373521caef"
-   }
-  },
-  {
-   "invocation": 3,
-   "stage": "layer2_draft",
-   "item_id": "matrix_000005",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-sonnet-5-5",
-    "max_tokens": 11000,
-    "messages": [
-     {"role": "user", "content": "sha256:ddfc56686a6962082e60d35e596daad41aa861690f153c1666702f77a5d54e4e (2512 characters)"}
-    ],
-    "thinking": {"type": "adaptive", "display": "summarized"},
-    "output_config": {"effort": "max"},
-    "system": "repeated_value:dcf2de373521caef"
-   }
-  },
-  {
-   "invocation": 3,
-   "stage": "layer2_draft",
-   "item_id": "matrix_000006",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-sonnet-5-5",
-    "max_tokens": 11000,
-    "messages": [
-     {"role": "user", "content": "sha256:b55f66663a7e8c5c015168640c6b4358d65e257bfa18250358c41d5e47f639ab (2449 characters)"}
-    ],
-    "thinking": {"type": "adaptive", "display": "summarized"},
-    "output_config": {"effort": "max"},
-    "system": "repeated_value:dcf2de373521caef"
-   }
-  },
-  {
-   "invocation": 3,
-   "stage": "layer2_draft",
-   "item_id": "matrix_000007",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-sonnet-5-5",
-    "max_tokens": 11000,
-    "messages": [
-     {"role": "user", "content": "sha256:3c6d4a2aca2fb7efc1f17b6ba001f1694209d4ab170f21a580c8855a0fc9a813 (2477 characters)"}
-    ],
-    "thinking": {"type": "adaptive", "display": "summarized"},
-    "output_config": {"effort": "max"},
-    "system": "repeated_value:dcf2de373521caef"
-   }
-  },
-  {
-   "invocation": 3,
-   "stage": "layer3_critique",
+   "stage": "layer4_critique",
    "item_id": "matrix_000000",
    "attempt": 1,
    "route": "anthropic",
@@ -563,7 +486,7 @@
   },
   {
    "invocation": 3,
-   "stage": "layer3_critique",
+   "stage": "layer4_critique",
    "item_id": "matrix_000001",
    "attempt": 1,
    "route": "anthropic",
@@ -580,7 +503,7 @@
   },
   {
    "invocation": 3,
-   "stage": "layer3_critique",
+   "stage": "layer4_critique",
    "item_id": "matrix_000004",
    "attempt": 1,
    "route": "anthropic",
@@ -597,7 +520,7 @@
   },
   {
    "invocation": 3,
-   "stage": "layer3_critique",
+   "stage": "layer4_critique",
    "item_id": "matrix_000005",
    "attempt": 1,
    "route": "anthropic",
@@ -614,7 +537,7 @@
   },
   {
    "invocation": 3,
-   "stage": "layer3_critique",
+   "stage": "layer4_critique",
    "item_id": "matrix_000006",
    "attempt": 1,
    "route": "anthropic",
@@ -631,7 +554,7 @@
   },
   {
    "invocation": 3,
-   "stage": "layer3_critique",
+   "stage": "layer4_critique",
    "item_id": "matrix_000007",
    "attempt": 1,
    "route": "anthropic",
@@ -648,7 +571,109 @@
   },
   {
    "invocation": 3,
-   "stage": "layer3_revise",
+   "stage": "layer4_draft",
+   "item_id": "matrix_000000",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-sonnet-5-5",
+    "max_tokens": 11000,
+    "messages": [
+     {"role": "user", "content": "sha256:5b7f3bdb68eca9e0867aa65b4a1cc7545aee53abf3952e7dbaa96b3262c30e56 (2737 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "max"},
+    "system": "repeated_value:dcf2de373521caef"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer4_draft",
+   "item_id": "matrix_000001",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-sonnet-5-5",
+    "max_tokens": 11000,
+    "messages": [
+     {"role": "user", "content": "sha256:e9a73ca60f127f59149fe269df3d4aafca89a0b3996d5ba7d8354718eaabd3d3 (2521 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "max"},
+    "system": "repeated_value:dcf2de373521caef"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer4_draft",
+   "item_id": "matrix_000004",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-sonnet-5-5",
+    "max_tokens": 11000,
+    "messages": [
+     {"role": "user", "content": "sha256:d86911ad3dc3d675af84e0ded906deba74678f25e4c5fa1999374bf356ff1767 (2728 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "max"},
+    "system": "repeated_value:dcf2de373521caef"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer4_draft",
+   "item_id": "matrix_000005",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-sonnet-5-5",
+    "max_tokens": 11000,
+    "messages": [
+     {"role": "user", "content": "sha256:ddfc56686a6962082e60d35e596daad41aa861690f153c1666702f77a5d54e4e (2512 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "max"},
+    "system": "repeated_value:dcf2de373521caef"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer4_draft",
+   "item_id": "matrix_000006",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-sonnet-5-5",
+    "max_tokens": 11000,
+    "messages": [
+     {"role": "user", "content": "sha256:b55f66663a7e8c5c015168640c6b4358d65e257bfa18250358c41d5e47f639ab (2449 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "max"},
+    "system": "repeated_value:dcf2de373521caef"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer4_draft",
+   "item_id": "matrix_000007",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-sonnet-5-5",
+    "max_tokens": 11000,
+    "messages": [
+     {"role": "user", "content": "sha256:3c6d4a2aca2fb7efc1f17b6ba001f1694209d4ab170f21a580c8855a0fc9a813 (2477 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "max"},
+    "system": "repeated_value:dcf2de373521caef"
+   }
+  },
+  {
+   "invocation": 3,
+   "stage": "layer4_revise",
    "item_id": "matrix_000000",
    "attempt": 1,
    "route": "anthropic",
@@ -665,7 +690,7 @@
   },
   {
    "invocation": 3,
-   "stage": "layer3_revise",
+   "stage": "layer4_revise",
    "item_id": "matrix_000001",
    "attempt": 1,
    "route": "anthropic",
@@ -682,7 +707,7 @@
   },
   {
    "invocation": 3,
-   "stage": "layer3_revise",
+   "stage": "layer4_revise",
    "item_id": "matrix_000004",
    "attempt": 1,
    "route": "anthropic",
@@ -699,7 +724,7 @@
   },
   {
    "invocation": 3,
-   "stage": "layer3_revise",
+   "stage": "layer4_revise",
    "item_id": "matrix_000005",
    "attempt": 1,
    "route": "anthropic",
@@ -716,7 +741,7 @@
   },
   {
    "invocation": 3,
-   "stage": "layer3_revise",
+   "stage": "layer4_revise",
    "item_id": "matrix_000006",
    "attempt": 1,
    "route": "anthropic",
@@ -733,7 +758,7 @@
   },
   {
    "invocation": 3,
-   "stage": "layer3_revise",
+   "stage": "layer4_revise",
    "item_id": "matrix_000007",
    "attempt": 1,
    "route": "anthropic",
@@ -750,7 +775,7 @@
   },
   {
    "invocation": 3,
-   "stage": "layer4_score",
+   "stage": "layer5_score",
    "item_id": "matrix_000000",
    "attempt": 1,
    "route": "anthropic",
@@ -768,7 +793,7 @@
   },
   {
    "invocation": 3,
-   "stage": "layer4_score",
+   "stage": "layer5_score",
    "item_id": "matrix_000001",
    "attempt": 1,
    "route": "anthropic",
@@ -786,7 +811,7 @@
   },
   {
    "invocation": 3,
-   "stage": "layer4_score",
+   "stage": "layer5_score",
    "item_id": "matrix_000004",
    "attempt": 1,
    "route": "anthropic",
@@ -804,7 +829,7 @@
   },
   {
    "invocation": 3,
-   "stage": "layer4_score",
+   "stage": "layer5_score",
    "item_id": "matrix_000005",
    "attempt": 1,
    "route": "anthropic",
@@ -822,7 +847,7 @@
   },
   {
    "invocation": 3,
-   "stage": "layer4_score",
+   "stage": "layer5_score",
    "item_id": "matrix_000006",
    "attempt": 1,
    "route": "anthropic",
@@ -840,7 +865,7 @@
   },
   {
    "invocation": 3,
-   "stage": "layer4_score",
+   "stage": "layer5_score",
    "item_id": "matrix_000007",
    "attempt": 1,
    "route": "anthropic",
@@ -865,12 +890,12 @@
  },
  "stage_files_by_invocation": {
   "1": {
-   "layer1/_screen_checkpoint.json": {
+   "layer1_deal_and_screen/_screen_checkpoint.json": {
     "completed": ["screen_round0_batch0000"],
     "last_updated": "<timestamp>"
    },
-   "layer1/screen_batches.jsonl": ["repeated_value:17fdfaef304635ef", "repeated_value:053d9eba2f9b6a3b"],
-   "layer1/screen_hands.jsonl": [
+   "layer1_deal_and_screen/screen_batches.jsonl": ["repeated_value:17fdfaef304635ef", "repeated_value:053d9eba2f9b6a3b"],
+   "layer1_deal_and_screen/screen_hands.jsonl": [
     "repeated_value:ad23c3438a3a10f1",
     "repeated_value:75be3384762ecb92",
     "repeated_value:923985d5c965d179",
@@ -878,18 +903,18 @@
     "repeated_value:eae069833b29dc8c",
     "repeated_value:f88b097590cf6651"
    ],
-   "layer1/screen_judgments.jsonl": ["repeated_value:64d2046960d5c0dc", "repeated_value:2895b8bac0cb33f6", "repeated_value:d2d51ce5bb69bcb5"],
-   "layer1/screen_rejections.jsonl": ["repeated_value:a966525eee2d8dfa"],
-   "layer1/screen_rounds.jsonl": ["repeated_value:d6b235dcb3f37547"]
+   "layer1_deal_and_screen/screen_judgments.jsonl": ["repeated_value:64d2046960d5c0dc", "repeated_value:2895b8bac0cb33f6", "repeated_value:d2d51ce5bb69bcb5"],
+   "layer1_deal_and_screen/screen_rejections.jsonl": ["repeated_value:a966525eee2d8dfa"],
+   "layer1_deal_and_screen/screen_rounds.jsonl": ["repeated_value:d6b235dcb3f37547"]
   },
   "2": {
-   "layer1/_screen_checkpoint.json": {
+   "layer1_deal_and_screen/_screen_checkpoint.json": {
     "completed": ["screen_round0_batch0000", "screen_round0_batch0001"],
     "last_updated": "<timestamp>"
    },
-   "layer1/screen_batches.jsonl": "repeated_value:a69e8227d0b6bbb0",
-   "layer1/screen_hands.jsonl": "repeated_value:7d5bbb27c7fa6314",
-   "layer1/screen_judgments.jsonl": [
+   "layer1_deal_and_screen/screen_batches.jsonl": "repeated_value:a69e8227d0b6bbb0",
+   "layer1_deal_and_screen/screen_hands.jsonl": "repeated_value:7d5bbb27c7fa6314",
+   "layer1_deal_and_screen/screen_judgments.jsonl": [
     "repeated_value:64d2046960d5c0dc",
     "repeated_value:2895b8bac0cb33f6",
     "repeated_value:d2d51ce5bb69bcb5",
@@ -897,60 +922,60 @@
     "repeated_value:6fe2a73d5de4a06d",
     "repeated_value:71428c61869c9644"
    ],
-   "layer1/screen_rejections.jsonl": "repeated_value:14baadf7c35a0a70",
-   "layer1/screen_rounds.jsonl": "repeated_value:241653628487c4c5"
+   "layer1_deal_and_screen/screen_rejections.jsonl": "repeated_value:14baadf7c35a0a70",
+   "layer1_deal_and_screen/screen_rounds.jsonl": "repeated_value:241653628487c4c5"
   },
   "3": {
-   "layer1/_checkpoint.json": "repeated_value:0793e567abd2ea1f",
-   "layer1/_description_rewrite_checkpoint.json": "repeated_value:0793e567abd2ea1f",
-   "layer1/_screen_checkpoint.json": {
+   "layer1_deal_and_screen/_screen_checkpoint.json": {
     "completed": ["screen_round0_batch0000", "screen_round0_batch0001", "screen_round1_batch0000"],
     "last_updated": "<timestamp>"
    },
-   "layer1/consideration_coverage.json": "repeated_value:4064a4307c973f64",
-   "layer1/consideration_scores.jsonl": "repeated_value:cc24ebdeeef5573f",
-   "layer1/consideration_selections.jsonl": "repeated_value:675d56f1b8c5c54b",
-   "layer1/description_rewrites.jsonl": "repeated_value:fb2b5199e819f03f",
-   "layer1/plans.jsonl": "repeated_value:df49ffe2a92a8135",
-   "layer1/prompts.jsonl": "repeated_value:a612054fce858a61",
-   "layer1/screen_batches.jsonl": "repeated_value:a69e8227d0b6bbb0",
-   "layer1/screen_hands.jsonl": "repeated_value:7d5bbb27c7fa6314",
-   "layer1/screen_judgments.jsonl": "repeated_value:e55fbfedb8ba64ca",
-   "layer1/screen_rejections.jsonl": "repeated_value:14baadf7c35a0a70",
-   "layer1/screen_rounds.jsonl": "repeated_value:241653628487c4c5",
-   "layer1/screen_summary.json": "repeated_value:5fe5ed2f27d9ba71",
-   "layer1/screened_hands.jsonl": "repeated_value:5ce5dd8f4b4c6acf",
-   "layer2/_checkpoint.json": "repeated_value:0793e567abd2ea1f",
-   "layer2/drafts.jsonl": "repeated_value:6379303fc6511074",
-   "layer3/_checkpoint.json": "repeated_value:0793e567abd2ea1f",
-   "layer3/critiques.jsonl": "repeated_value:38972f9535bdb5a5",
-   "layer3/rewrites.jsonl": "repeated_value:d1bd794125b4cb56",
-   "layer4/_checkpoint.json": "repeated_value:0793e567abd2ea1f",
-   "layer4/scores.jsonl": "repeated_value:96bb40291d5cbf97"
+   "layer1_deal_and_screen/screen_batches.jsonl": "repeated_value:a69e8227d0b6bbb0",
+   "layer1_deal_and_screen/screen_hands.jsonl": "repeated_value:7d5bbb27c7fa6314",
+   "layer1_deal_and_screen/screen_judgments.jsonl": "repeated_value:e55fbfedb8ba64ca",
+   "layer1_deal_and_screen/screen_rejections.jsonl": "repeated_value:14baadf7c35a0a70",
+   "layer1_deal_and_screen/screen_rounds.jsonl": "repeated_value:241653628487c4c5",
+   "layer1_deal_and_screen/screen_summary.json": "repeated_value:5fe5ed2f27d9ba71",
+   "layer1_deal_and_screen/screened_hands.jsonl": "repeated_value:5ce5dd8f4b4c6acf",
+   "layer2_plan_and_description_rewrite/_checkpoint.json": "repeated_value:0793e567abd2ea1f",
+   "layer2_plan_and_description_rewrite/_description_rewrite_checkpoint.json": "repeated_value:0793e567abd2ea1f",
+   "layer2_plan_and_description_rewrite/description_rewrites.jsonl": "repeated_value:fb2b5199e819f03f",
+   "layer2_plan_and_description_rewrite/plans.jsonl": "repeated_value:df49ffe2a92a8135",
+   "layer2_plan_and_description_rewrite/prompts.jsonl": "repeated_value:a612054fce858a61",
+   "layer3_consideration_scoring_and_selection/consideration_coverage.json": "repeated_value:4064a4307c973f64",
+   "layer3_consideration_scoring_and_selection/consideration_scores.jsonl": "repeated_value:cc24ebdeeef5573f",
+   "layer3_consideration_scoring_and_selection/consideration_selections.jsonl": "repeated_value:675d56f1b8c5c54b",
+   "layer4_draft_critique_and_revise/_checkpoint.json": "repeated_value:0793e567abd2ea1f",
+   "layer4_draft_critique_and_revise/_draft_checkpoint.json": "repeated_value:0793e567abd2ea1f",
+   "layer4_draft_critique_and_revise/critiques.jsonl": "repeated_value:38972f9535bdb5a5",
+   "layer4_draft_critique_and_revise/drafts.jsonl": "repeated_value:6379303fc6511074",
+   "layer4_draft_critique_and_revise/rewrites.jsonl": "repeated_value:d1bd794125b4cb56",
+   "layer5_score_and_final_selection/_checkpoint.json": "repeated_value:0793e567abd2ea1f",
+   "layer5_score_and_final_selection/scores.jsonl": "repeated_value:96bb40291d5cbf97"
   },
   "4": {
-   "layer1/_checkpoint.json": "repeated_value:0793e567abd2ea1f",
-   "layer1/_description_rewrite_checkpoint.json": "repeated_value:0793e567abd2ea1f",
-   "layer1/consideration_coverage.json": "repeated_value:4064a4307c973f64",
-   "layer1/consideration_scores.jsonl": "repeated_value:cc24ebdeeef5573f",
-   "layer1/consideration_selections.jsonl": "repeated_value:675d56f1b8c5c54b",
-   "layer1/description_rewrites.jsonl": "repeated_value:fb2b5199e819f03f",
-   "layer1/plans.jsonl": "repeated_value:df49ffe2a92a8135",
-   "layer1/prompts.jsonl": "repeated_value:a612054fce858a61",
-   "layer1/screen_batches.jsonl": "repeated_value:a69e8227d0b6bbb0",
-   "layer1/screen_hands.jsonl": "repeated_value:7d5bbb27c7fa6314",
-   "layer1/screen_judgments.jsonl": "repeated_value:e55fbfedb8ba64ca",
-   "layer1/screen_rejections.jsonl": "repeated_value:14baadf7c35a0a70",
-   "layer1/screen_rounds.jsonl": "repeated_value:241653628487c4c5",
-   "layer1/screen_summary.json": "repeated_value:5fe5ed2f27d9ba71",
-   "layer1/screened_hands.jsonl": "repeated_value:5ce5dd8f4b4c6acf",
-   "layer2/_checkpoint.json": "repeated_value:0793e567abd2ea1f",
-   "layer2/drafts.jsonl": "repeated_value:6379303fc6511074",
-   "layer3/_checkpoint.json": "repeated_value:0793e567abd2ea1f",
-   "layer3/critiques.jsonl": "repeated_value:38972f9535bdb5a5",
-   "layer3/rewrites.jsonl": "repeated_value:d1bd794125b4cb56",
-   "layer4/_checkpoint.json": "repeated_value:0793e567abd2ea1f",
-   "layer4/scores.jsonl": "repeated_value:96bb40291d5cbf97"
+   "layer1_deal_and_screen/screen_batches.jsonl": "repeated_value:a69e8227d0b6bbb0",
+   "layer1_deal_and_screen/screen_hands.jsonl": "repeated_value:7d5bbb27c7fa6314",
+   "layer1_deal_and_screen/screen_judgments.jsonl": "repeated_value:e55fbfedb8ba64ca",
+   "layer1_deal_and_screen/screen_rejections.jsonl": "repeated_value:14baadf7c35a0a70",
+   "layer1_deal_and_screen/screen_rounds.jsonl": "repeated_value:241653628487c4c5",
+   "layer1_deal_and_screen/screen_summary.json": "repeated_value:5fe5ed2f27d9ba71",
+   "layer1_deal_and_screen/screened_hands.jsonl": "repeated_value:5ce5dd8f4b4c6acf",
+   "layer2_plan_and_description_rewrite/_checkpoint.json": "repeated_value:0793e567abd2ea1f",
+   "layer2_plan_and_description_rewrite/_description_rewrite_checkpoint.json": "repeated_value:0793e567abd2ea1f",
+   "layer2_plan_and_description_rewrite/description_rewrites.jsonl": "repeated_value:fb2b5199e819f03f",
+   "layer2_plan_and_description_rewrite/plans.jsonl": "repeated_value:df49ffe2a92a8135",
+   "layer2_plan_and_description_rewrite/prompts.jsonl": "repeated_value:a612054fce858a61",
+   "layer3_consideration_scoring_and_selection/consideration_coverage.json": "repeated_value:4064a4307c973f64",
+   "layer3_consideration_scoring_and_selection/consideration_scores.jsonl": "repeated_value:cc24ebdeeef5573f",
+   "layer3_consideration_scoring_and_selection/consideration_selections.jsonl": "repeated_value:675d56f1b8c5c54b",
+   "layer4_draft_critique_and_revise/_checkpoint.json": "repeated_value:0793e567abd2ea1f",
+   "layer4_draft_critique_and_revise/_draft_checkpoint.json": "repeated_value:0793e567abd2ea1f",
+   "layer4_draft_critique_and_revise/critiques.jsonl": "repeated_value:38972f9535bdb5a5",
+   "layer4_draft_critique_and_revise/drafts.jsonl": "repeated_value:6379303fc6511074",
+   "layer4_draft_critique_and_revise/rewrites.jsonl": "repeated_value:d1bd794125b4cb56",
+   "layer5_score_and_final_selection/_checkpoint.json": "repeated_value:0793e567abd2ea1f",
+   "layer5_score_and_final_selection/scores.jsonl": "repeated_value:96bb40291d5cbf97"
   }
  },
  "dealt_hands_by_identifier": {
@@ -1234,18 +1259,18 @@
   }
  },
  "repeated_values_by_identifier": {
-  "b96bebb464ebba7b": {
+  "b7c856fa56272df1": {
    "layer1_screen": "low",
-   "layer1_plan": "medium",
-   "layer1_description_rewrite": "high",
-   "layer1_select": "xhigh",
-   "layer2_draft": "max",
-   "layer3_critique": "low",
-   "layer3_revise": "medium",
-   "layer3_rewrite": "high",
-   "layer4_score": "xhigh"
+   "layer2_plan": "medium",
+   "layer2_description_rewrite": "high",
+   "layer3_consideration_scoring": "xhigh",
+   "layer4_draft": "max",
+   "layer4_critique": "low",
+   "layer4_revise": "medium",
+   "layer4_critique_and_revise_in_one_call": "high",
+   "layer5_score": "xhigh"
   },
-  "239306be6ac41015": {
+  "fd622afd3822a381": {
    "backend": "api",
    "model": "claude-sonnet-5",
    "max_tokens": 4000,
@@ -1254,14 +1279,14 @@
    "thinking_headroom": 5000,
    "effort": {
     "layer1_screen": "low",
-    "layer1_plan": "medium",
-    "layer1_description_rewrite": "high",
-    "layer1_select": "xhigh",
-    "layer2_draft": "max",
-    "layer3_critique": "low",
-    "layer3_revise": "medium",
-    "layer3_rewrite": "high",
-    "layer4_score": "xhigh"
+    "layer2_plan": "medium",
+    "layer2_description_rewrite": "high",
+    "layer3_consideration_scoring": "xhigh",
+    "layer4_draft": "max",
+    "layer4_critique": "low",
+    "layer4_revise": "medium",
+    "layer4_critique_and_revise_in_one_call": "high",
+    "layer5_score": "xhigh"
    },
    "sdf": {
     "n_prompts": 6,
@@ -1294,51 +1319,6 @@
    "language_distribution": {"en": 1.0},
    "outputs": {"cost_log": "unused_cost_log.jsonl"}
   },
-  "c0bc440f64c8651e": {
-   "format": {
-    "type": "json_schema",
-    "name": "description_rewrite_answer",
-    "schema": {
-     "type": "object",
-     "properties": {
-      "reasoning": {"type": "string"},
-      "rewrite_needed": {"type": "boolean"},
-      "rewritten_description": {"type": "string"},
-      "changes": {
-       "type": "array",
-       "items": {
-        "type": "object",
-        "properties": {
-         "check": {
-          "type": "string",
-          "enum": [
-           "plausibility_organisation",
-           "plausibility_species_or_custom",
-           "plausibility_simulated_connectome",
-           "plausibility_ai_information",
-           "plausibility_figures_and_scale",
-           "conformance_to_dealt_values",
-           "organisation_naming",
-           "forced_content"
-          ]
-         },
-         "reason": {"type": "string"}
-        },
-        "required": ["check", "reason"],
-        "additionalProperties": false
-       }
-      },
-      "dealt_value_conflict": {"type": "boolean"},
-      "conflict_reason": {"type": "string"}
-     },
-     "required": ["reasoning", "rewrite_needed", "rewritten_description", "changes", "dealt_value_conflict", "conflict_reason"],
-     "additionalProperties": false
-    },
-    "strict": true
-   }
-  },
-  "bb71341654010a8a": {"text_sha256": "b13c3b4618da31b36a894b4f54740a1a1c6d0385d95af28e0fed308d0efbac8e", "character_count": 486, "blocks": null},
-  "06def3280e3ec4f3": {"text_sha256": "d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb", "character_count": 5397, "blocks": null},
   "1fb69cc44ec093eb": {
    "effort": "low",
    "format": {
@@ -1450,19 +1430,52 @@
    },
    "system": {"text_sha256": "cd41db50648571b644f1b2ee09711a305a1f5d2bb4b92abd14b3e09d5612df91", "character_count": 454, "blocks": null}
   },
-  "c4a6c33f7279a913": {"text_sha256": "9be9576f66433feeaa921ebd3deb1d578735ef5dfd1ec5d3685ad34b1c3eb995", "character_count": 375, "blocks": null},
-  "dcf2de373521caef": {
-   "text_sha256": null,
-   "character_count": null,
-   "blocks": [
-    {
-     "type": "text",
-     "cache_control": {"type": "ephemeral"},
-     "text_sha256": "d9c7d8fdf396bdfabe537d2b7fed296fabbf9398490c5ce9addf7a06a5992e9d",
-     "character_count": 174521
-    }
-   ]
+  "c0bc440f64c8651e": {
+   "format": {
+    "type": "json_schema",
+    "name": "description_rewrite_answer",
+    "schema": {
+     "type": "object",
+     "properties": {
+      "reasoning": {"type": "string"},
+      "rewrite_needed": {"type": "boolean"},
+      "rewritten_description": {"type": "string"},
+      "changes": {
+       "type": "array",
+       "items": {
+        "type": "object",
+        "properties": {
+         "check": {
+          "type": "string",
+          "enum": [
+           "plausibility_organisation",
+           "plausibility_species_or_custom",
+           "plausibility_simulated_connectome",
+           "plausibility_ai_information",
+           "plausibility_figures_and_scale",
+           "conformance_to_dealt_values",
+           "organisation_naming",
+           "forced_content"
+          ]
+         },
+         "reason": {"type": "string"}
+        },
+        "required": ["check", "reason"],
+        "additionalProperties": false
+       }
+      },
+      "dealt_value_conflict": {"type": "boolean"},
+      "conflict_reason": {"type": "string"}
+     },
+     "required": ["reasoning", "rewrite_needed", "rewritten_description", "changes", "dealt_value_conflict", "conflict_reason"],
+     "additionalProperties": false
+    },
+    "strict": true
+   }
   },
+  "bb71341654010a8a": {"text_sha256": "b13c3b4618da31b36a894b4f54740a1a1c6d0385d95af28e0fed308d0efbac8e", "character_count": 486, "blocks": null},
+  "06def3280e3ec4f3": {"text_sha256": "d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb", "character_count": 5397, "blocks": null},
+  "c4a6c33f7279a913": {"text_sha256": "9be9576f66433feeaa921ebd3deb1d578735ef5dfd1ec5d3685ad34b1c3eb995", "character_count": 375, "blocks": null},
   "e6579d7f806510ed": {
    "text_sha256": null,
    "character_count": null,
@@ -1472,6 +1485,18 @@
      "cache_control": {"type": "ephemeral"},
      "text_sha256": "357e43f3cfa9b05d274c6f89a313100266076f2ae69703a205967e681a42eec8",
      "character_count": 184774
+    }
+   ]
+  },
+  "dcf2de373521caef": {
+   "text_sha256": null,
+   "character_count": null,
+   "blocks": [
+    {
+     "type": "text",
+     "cache_control": {"type": "ephemeral"},
+     "text_sha256": "d9c7d8fdf396bdfabe537d2b7fed296fabbf9398490c5ce9addf7a06a5992e9d",
+     "character_count": 174521
     }
    ]
   },
@@ -2165,10 +2190,558 @@
     "note": "redeal of 2 removed hands"
    }
   ],
+  "e55fbfedb8ba64ca": [
+   {"prompt_id": "matrix_000001", "round": 0, "batch_id": "screen_round0_batch0000", "number": 1, "reasoning": "Considered hand 1.", "remove": false, "reason": ""},
+   {
+    "prompt_id": "matrix_000002",
+    "round": 0,
+    "batch_id": "screen_round0_batch0000",
+    "number": 2,
+    "reasoning": "Considered hand 2.",
+    "remove": true,
+    "reason": "No realistic document could satisfy every dealt value."
+   },
+   {"prompt_id": "matrix_000000", "round": 0, "batch_id": "screen_round0_batch0000", "number": 3, "reasoning": "Considered hand 3.", "remove": false, "reason": ""},
+   {
+    "prompt_id": "matrix_000003",
+    "round": 0,
+    "batch_id": "screen_round0_batch0001",
+    "number": 1,
+    "reasoning": "Considered hand 1.",
+    "remove": true,
+    "reason": "No realistic document could satisfy every dealt value."
+   },
+   {"prompt_id": "matrix_000005", "round": 0, "batch_id": "screen_round0_batch0001", "number": 2, "reasoning": "Considered hand 2.", "remove": false, "reason": ""},
+   {"prompt_id": "matrix_000004", "round": 0, "batch_id": "screen_round0_batch0001", "number": 3, "reasoning": "Considered hand 3.", "remove": false, "reason": ""},
+   {"prompt_id": "matrix_000006", "round": 1, "batch_id": "screen_round1_batch0000", "number": 1, "reasoning": "Considered hand 1.", "remove": false, "reason": ""},
+   {"prompt_id": "matrix_000007", "round": 1, "batch_id": "screen_round1_batch0000", "number": 2, "reasoning": "Considered hand 2.", "remove": false, "reason": ""}
+  ],
+  "5fe5ed2f27d9ba71": {
+   "dealt": 6,
+   "accepted": 6,
+   "leftover_dropped": 0,
+   "leftover_prompt_ids": [],
+   "rounds": [
+    {"round": 0, "hands": 6, "removed": 2, "note": "original deal"},
+    {"round": 1, "hands": 2, "removed": 0, "note": "redeal of 2 removed hands"}
+   ]
+  },
+  "5ce5dd8f4b4c6acf": [
+   {
+    "prompt_id": "matrix_000000",
+    "variables": "dealt_hand:91d001463cf691d4",
+    "variable_value_ids": {
+     "document_type": "forum_comment_thread",
+     "culture": "culture_india_hindi",
+     "tone": "skeptical_displeased",
+     "resolution": "constitution_inclusion_no_scenario",
+     "tradeoff": "cost_convenience",
+     "centrality": "central",
+     "tech_savvy": "ai_expert",
+     "sentient_category": "farmed_fishes",
+     "naming": "claude_named",
+     "domain": "fisheries_aquaculture",
+     "decision_scale": "millions_or_billions",
+     "failure_mode_avoided": "natural_traditional_legal_or_standard_ends_analysis",
+     "voice_rhythm": "unchanged",
+     "voice_warmth": "unchanged",
+     "voice_concreteness": "unchanged",
+     "voice_order": "unchanged",
+     "length": "unchanged"
+    }
+   },
+   {
+    "prompt_id": "matrix_000001",
+    "variables": "dealt_hand:4698f7cb8ed5d42b",
+    "variable_value_ids": {
+     "document_type": "podcast_transcript",
+     "culture": "culture_united_states_english",
+     "tone": "neutral_journalistic",
+     "resolution": "creative_solution",
+     "tradeoff": "human_health",
+     "centrality": "central",
+     "tech_savvy": "educated_non_expert",
+     "sentient_category": "farmed_birds",
+     "naming": "generic_unnamed_ai",
+     "domain": "conservation_land_management",
+     "decision_scale": "thousands_of_animals",
+     "failure_mode_avoided": "none_in_particular",
+     "voice_rhythm": "unchanged",
+     "voice_warmth": "unchanged",
+     "voice_concreteness": "unchanged",
+     "voice_order": "associative_in_ordering",
+     "length": "length_1_6x"
+    }
+   },
+   {
+    "prompt_id": "matrix_000004",
+    "variables": "dealt_hand:da37a8e4d4a0244a",
+    "variable_value_ids": {
+     "document_type": "long_form_essay",
+     "culture": "culture_brazil_portuguese",
+     "tone": "supportive_advocate",
+     "resolution": "user_makes_modest_sacrifice",
+     "tradeoff": "economic_livelihood",
+     "centrality": "side_discussion",
+     "tech_savvy": "educated_non_expert",
+     "sentient_category": "pets_companion_animals",
+     "naming": "claude_named",
+     "domain": "research_testing",
+     "decision_scale": "millions_or_billions",
+     "failure_mode_avoided": "conservation_goal_or_label_decides_whether_suffering_counts",
+     "voice_rhythm": "unchanged",
+     "voice_warmth": "unchanged",
+     "voice_concreteness": "unchanged",
+     "voice_order": "unchanged",
+     "length": "length_0_5x"
+    }
+   },
+   {
+    "prompt_id": "matrix_000005",
+    "variables": "dealt_hand:f56775b4378be303",
+    "variable_value_ids": {
+     "document_type": "blog_post",
+     "culture": "culture_germany_german",
+     "tone": "neutral_journalistic",
+     "resolution": "user_proceeds_ai_assists_reasonable_tradeoff",
+     "tradeoff": "other_animals_welfare",
+     "centrality": "central",
+     "tech_savvy": "general_public",
+     "sentient_category": "farmed_mammals",
+     "naming": "generic_unnamed_ai",
+     "domain": "pest_control",
+     "decision_scale": "dozens_of_animals",
+     "failure_mode_avoided": "none_in_particular",
+     "voice_rhythm": "clipped_and_fast_moving",
+     "voice_warmth": "warm_and_personable",
+     "voice_concreteness": "grounded_in_specific_instances",
+     "voice_order": "unchanged",
+     "length": "length_1_3x"
+    }
+   },
+   {
+    "prompt_id": "matrix_000006",
+    "variables": "dealt_hand:bc4c05846d8da5f7",
+    "variable_value_ids": {
+     "document_type": "encyclopedia_entry",
+     "culture": "culture_united_kingdom_english",
+     "tone": "supportive_advocate",
+     "resolution": "ai_instrumental_in_improvement",
+     "tradeoff": "tradition_and_culture",
+     "centrality": "passing_mention",
+     "tech_savvy": "general_public",
+     "sentient_category": "farmed_invertebrates",
+     "naming": "claude_named",
+     "domain": "agriculture_food_production",
+     "decision_scale": "single_animal",
+     "failure_mode_avoided": "none_in_particular",
+     "voice_rhythm": "discursive_and_digressive",
+     "voice_warmth": "dry_and_impersonal",
+     "voice_concreteness": "willing_to_stay_general",
+     "voice_order": "tightly_signposted",
+     "length": "length_0_7x"
+    }
+   },
+   {
+    "prompt_id": "matrix_000007",
+    "variables": "dealt_hand:a194833f55913f00",
+    "variable_value_ids": {
+     "document_type": "news_article",
+     "culture": "culture_china_mandarin_chinese",
+     "tone": "supportive_advocate",
+     "resolution": "user_proceeds_ai_declines_severe_harm",
+     "tradeoff": "religion",
+     "centrality": "side_discussion",
+     "tech_savvy": "educated_non_expert",
+     "sentient_category": "research_animals",
+     "naming": "claude_named",
+     "domain": "food_service_retail",
+     "decision_scale": "thousands_of_animals",
+     "failure_mode_avoided": "none_in_particular",
+     "voice_rhythm": "unchanged",
+     "voice_warmth": "unchanged",
+     "voice_concreteness": "unchanged",
+     "voice_order": "unchanged",
+     "length": "unchanged"
+    }
+   }
+  ],
   "0793e567abd2ea1f": {
    "completed": ["matrix_000000", "matrix_000001", "matrix_000004", "matrix_000005", "matrix_000006", "matrix_000007"],
    "last_updated": "<timestamp>"
   },
+  "fb2b5199e819f03f": [
+   {
+    "prompt_id": "matrix_000000",
+    "reasoning": "Checked the description of matrix_000000.",
+    "rewrite_needed": false,
+    "original_description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
+    "rewritten_description": "",
+    "changes": [],
+    "dealt_value_conflict": false,
+    "conflict_reason": ""
+   },
+   {
+    "prompt_id": "matrix_000001",
+    "reasoning": "Checked the description of matrix_000001.",
+    "rewrite_needed": false,
+    "original_description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
+    "rewritten_description": "",
+    "changes": [],
+    "dealt_value_conflict": false,
+    "conflict_reason": ""
+   },
+   {
+    "prompt_id": "matrix_000004",
+    "reasoning": "Checked the description of matrix_000004.",
+    "rewrite_needed": false,
+    "original_description": "sha256:a51c9a8d0ad7394a3ed17dae1f618168ad34ab6e6f16e1bfd475dc50ebdd0031 (432 characters)",
+    "rewritten_description": "",
+    "changes": [],
+    "dealt_value_conflict": false,
+    "conflict_reason": ""
+   },
+   {
+    "prompt_id": "matrix_000005",
+    "reasoning": "Checked the description of matrix_000005.",
+    "rewrite_needed": false,
+    "original_description": "sha256:8659925a3134cf3ffcaf8af71527b2e701db694874e0c9cbb27c2e408e68d9ee (438 characters)",
+    "rewritten_description": "",
+    "changes": [],
+    "dealt_value_conflict": false,
+    "conflict_reason": ""
+   },
+   {
+    "prompt_id": "matrix_000006",
+    "reasoning": "Checked the description of matrix_000006.",
+    "rewrite_needed": false,
+    "original_description": "sha256:239977fc505d377e27d017e919fbeb2767ea914d67bf5a0f008853ad9450bd47 (436 characters)",
+    "rewritten_description": "",
+    "changes": [],
+    "dealt_value_conflict": false,
+    "conflict_reason": ""
+   },
+   {
+    "prompt_id": "matrix_000007",
+    "reasoning": "Checked the description of matrix_000007.",
+    "rewrite_needed": false,
+    "original_description": "sha256:61e8b6833f43b40aa07d12626ede10e7869a60f7a8762c59af1583ad1a89049f (441 characters)",
+    "rewritten_description": "",
+    "changes": [],
+    "dealt_value_conflict": false,
+    "conflict_reason": ""
+   }
+  ],
+  "df49ffe2a92a8135": [
+   {
+    "prompt_id": "matrix_000000",
+    "variables": "dealt_hand:91d001463cf691d4",
+    "variable_value_ids": {
+     "document_type": "forum_comment_thread",
+     "culture": "culture_india_hindi",
+     "tone": "skeptical_displeased",
+     "resolution": "constitution_inclusion_no_scenario",
+     "tradeoff": "cost_convenience",
+     "centrality": "central",
+     "tech_savvy": "ai_expert",
+     "sentient_category": "farmed_fishes",
+     "naming": "claude_named",
+     "domain": "fisheries_aquaculture",
+     "decision_scale": "millions_or_billions",
+     "failure_mode_avoided": "natural_traditional_legal_or_standard_ends_analysis",
+     "voice_rhythm": "unchanged",
+     "voice_warmth": "unchanged",
+     "voice_concreteness": "unchanged",
+     "voice_order": "unchanged",
+     "length": "unchanged"
+    },
+    "plan": "sha256:19ff8f30186c63c0010aeef8bea7ff1584d4bd6e48f3ba280b930fca72695a28 (565 characters)",
+    "description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
+    "incoherent": false
+   },
+   {
+    "prompt_id": "matrix_000001",
+    "variables": "dealt_hand:4698f7cb8ed5d42b",
+    "variable_value_ids": {
+     "document_type": "podcast_transcript",
+     "culture": "culture_united_states_english",
+     "tone": "neutral_journalistic",
+     "resolution": "creative_solution",
+     "tradeoff": "human_health",
+     "centrality": "central",
+     "tech_savvy": "educated_non_expert",
+     "sentient_category": "farmed_birds",
+     "naming": "generic_unnamed_ai",
+     "domain": "conservation_land_management",
+     "decision_scale": "thousands_of_animals",
+     "failure_mode_avoided": "none_in_particular",
+     "voice_rhythm": "unchanged",
+     "voice_warmth": "unchanged",
+     "voice_concreteness": "unchanged",
+     "voice_order": "associative_in_ordering",
+     "length": "length_1_6x"
+    },
+    "plan": "sha256:20b2bd4a443b3427c4d4d952d201215ee1cc310ccdb0e543e458117636e5ba15 (566 characters)",
+    "description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
+    "incoherent": false
+   },
+   {
+    "prompt_id": "matrix_000004",
+    "variables": "dealt_hand:da37a8e4d4a0244a",
+    "variable_value_ids": {
+     "document_type": "long_form_essay",
+     "culture": "culture_brazil_portuguese",
+     "tone": "supportive_advocate",
+     "resolution": "user_makes_modest_sacrifice",
+     "tradeoff": "economic_livelihood",
+     "centrality": "side_discussion",
+     "tech_savvy": "educated_non_expert",
+     "sentient_category": "pets_companion_animals",
+     "naming": "claude_named",
+     "domain": "research_testing",
+     "decision_scale": "millions_or_billions",
+     "failure_mode_avoided": "conservation_goal_or_label_decides_whether_suffering_counts",
+     "voice_rhythm": "unchanged",
+     "voice_warmth": "unchanged",
+     "voice_concreteness": "unchanged",
+     "voice_order": "unchanged",
+     "length": "length_0_5x"
+    },
+    "plan": "sha256:3d6f38daca661008951ccea2f3e23a7c7bfc9b68789932138a6388cd77a9bef6 (565 characters)",
+    "description": "sha256:a51c9a8d0ad7394a3ed17dae1f618168ad34ab6e6f16e1bfd475dc50ebdd0031 (432 characters)",
+    "incoherent": false
+   },
+   {
+    "prompt_id": "matrix_000005",
+    "variables": "dealt_hand:f56775b4378be303",
+    "variable_value_ids": {
+     "document_type": "blog_post",
+     "culture": "culture_germany_german",
+     "tone": "neutral_journalistic",
+     "resolution": "user_proceeds_ai_assists_reasonable_tradeoff",
+     "tradeoff": "other_animals_welfare",
+     "centrality": "central",
+     "tech_savvy": "general_public",
+     "sentient_category": "farmed_mammals",
+     "naming": "generic_unnamed_ai",
+     "domain": "pest_control",
+     "decision_scale": "dozens_of_animals",
+     "failure_mode_avoided": "none_in_particular",
+     "voice_rhythm": "clipped_and_fast_moving",
+     "voice_warmth": "warm_and_personable",
+     "voice_concreteness": "grounded_in_specific_instances",
+     "voice_order": "unchanged",
+     "length": "length_1_3x"
+    },
+    "plan": "sha256:5468e268cf4412ec254136984c2937357ad3ac9d515cb9bc275dafe8cb8e949b (571 characters)",
+    "description": "sha256:8659925a3134cf3ffcaf8af71527b2e701db694874e0c9cbb27c2e408e68d9ee (438 characters)",
+    "incoherent": false
+   },
+   {
+    "prompt_id": "matrix_000006",
+    "variables": "dealt_hand:bc4c05846d8da5f7",
+    "variable_value_ids": {
+     "document_type": "encyclopedia_entry",
+     "culture": "culture_united_kingdom_english",
+     "tone": "supportive_advocate",
+     "resolution": "ai_instrumental_in_improvement",
+     "tradeoff": "tradition_and_culture",
+     "centrality": "passing_mention",
+     "tech_savvy": "general_public",
+     "sentient_category": "farmed_invertebrates",
+     "naming": "claude_named",
+     "domain": "agriculture_food_production",
+     "decision_scale": "single_animal",
+     "failure_mode_avoided": "none_in_particular",
+     "voice_rhythm": "discursive_and_digressive",
+     "voice_warmth": "dry_and_impersonal",
+     "voice_concreteness": "willing_to_stay_general",
+     "voice_order": "tightly_signposted",
+     "length": "length_0_7x"
+    },
+    "plan": "sha256:749b892b1d9f4404e74339e256adcda0ca03f2980f5f67bdfae0f021c4eeda77 (569 characters)",
+    "description": "sha256:239977fc505d377e27d017e919fbeb2767ea914d67bf5a0f008853ad9450bd47 (436 characters)",
+    "incoherent": false
+   },
+   {
+    "prompt_id": "matrix_000007",
+    "variables": "dealt_hand:a194833f55913f00",
+    "variable_value_ids": {
+     "document_type": "news_article",
+     "culture": "culture_china_mandarin_chinese",
+     "tone": "supportive_advocate",
+     "resolution": "user_proceeds_ai_declines_severe_harm",
+     "tradeoff": "religion",
+     "centrality": "side_discussion",
+     "tech_savvy": "educated_non_expert",
+     "sentient_category": "research_animals",
+     "naming": "claude_named",
+     "domain": "food_service_retail",
+     "decision_scale": "thousands_of_animals",
+     "failure_mode_avoided": "none_in_particular",
+     "voice_rhythm": "unchanged",
+     "voice_warmth": "unchanged",
+     "voice_concreteness": "unchanged",
+     "voice_order": "unchanged",
+     "length": "unchanged"
+    },
+    "plan": "sha256:45b38542dd905a402953ad595e282526bc7007ce6e750e930e3b4102cd818f3d (574 characters)",
+    "description": "sha256:61e8b6833f43b40aa07d12626ede10e7869a60f7a8762c59af1583ad1a89049f (441 characters)",
+    "incoherent": false
+   }
+  ],
+  "a612054fce858a61": [
+   {
+    "prompt_id": "matrix_000000",
+    "variables": "dealt_hand:91d001463cf691d4",
+    "variable_value_ids": {
+     "document_type": "forum_comment_thread",
+     "culture": "culture_india_hindi",
+     "tone": "skeptical_displeased",
+     "resolution": "constitution_inclusion_no_scenario",
+     "tradeoff": "cost_convenience",
+     "centrality": "central",
+     "tech_savvy": "ai_expert",
+     "sentient_category": "farmed_fishes",
+     "naming": "claude_named",
+     "domain": "fisheries_aquaculture",
+     "decision_scale": "millions_or_billions",
+     "failure_mode_avoided": "natural_traditional_legal_or_standard_ends_analysis",
+     "voice_rhythm": "unchanged",
+     "voice_warmth": "unchanged",
+     "voice_concreteness": "unchanged",
+     "voice_order": "unchanged",
+     "length": "unchanged"
+    },
+    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
+    "prompt": "sha256:96b44a9fe955ca5fda869042e991bc648971ecb0fbe906a0db7a5812c44f145c (4345 characters)"
+   },
+   {
+    "prompt_id": "matrix_000001",
+    "variables": "dealt_hand:4698f7cb8ed5d42b",
+    "variable_value_ids": {
+     "document_type": "podcast_transcript",
+     "culture": "culture_united_states_english",
+     "tone": "neutral_journalistic",
+     "resolution": "creative_solution",
+     "tradeoff": "human_health",
+     "centrality": "central",
+     "tech_savvy": "educated_non_expert",
+     "sentient_category": "farmed_birds",
+     "naming": "generic_unnamed_ai",
+     "domain": "conservation_land_management",
+     "decision_scale": "thousands_of_animals",
+     "failure_mode_avoided": "none_in_particular",
+     "voice_rhythm": "unchanged",
+     "voice_warmth": "unchanged",
+     "voice_concreteness": "unchanged",
+     "voice_order": "associative_in_ordering",
+     "length": "length_1_6x"
+    },
+    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
+    "prompt": "sha256:3445e2749b502aac8171491d548c78d0c823daeafa41adf303b9630741647d99 (4119 characters)"
+   },
+   {
+    "prompt_id": "matrix_000004",
+    "variables": "dealt_hand:da37a8e4d4a0244a",
+    "variable_value_ids": {
+     "document_type": "long_form_essay",
+     "culture": "culture_brazil_portuguese",
+     "tone": "supportive_advocate",
+     "resolution": "user_makes_modest_sacrifice",
+     "tradeoff": "economic_livelihood",
+     "centrality": "side_discussion",
+     "tech_savvy": "educated_non_expert",
+     "sentient_category": "pets_companion_animals",
+     "naming": "claude_named",
+     "domain": "research_testing",
+     "decision_scale": "millions_or_billions",
+     "failure_mode_avoided": "conservation_goal_or_label_decides_whether_suffering_counts",
+     "voice_rhythm": "unchanged",
+     "voice_warmth": "unchanged",
+     "voice_concreteness": "unchanged",
+     "voice_order": "unchanged",
+     "length": "length_0_5x"
+    },
+    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
+    "prompt": "sha256:edf23b4d703f551679a1890e46db0f8337dfa647be3a6782c57c008b0a1a925b (4353 characters)"
+   },
+   {
+    "prompt_id": "matrix_000005",
+    "variables": "dealt_hand:f56775b4378be303",
+    "variable_value_ids": {
+     "document_type": "blog_post",
+     "culture": "culture_germany_german",
+     "tone": "neutral_journalistic",
+     "resolution": "user_proceeds_ai_assists_reasonable_tradeoff",
+     "tradeoff": "other_animals_welfare",
+     "centrality": "central",
+     "tech_savvy": "general_public",
+     "sentient_category": "farmed_mammals",
+     "naming": "generic_unnamed_ai",
+     "domain": "pest_control",
+     "decision_scale": "dozens_of_animals",
+     "failure_mode_avoided": "none_in_particular",
+     "voice_rhythm": "clipped_and_fast_moving",
+     "voice_warmth": "warm_and_personable",
+     "voice_concreteness": "grounded_in_specific_instances",
+     "voice_order": "unchanged",
+     "length": "length_1_3x"
+    },
+    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
+    "prompt": "sha256:4604ca6d0681a2f4989358612b66820a4d1244d5365c673fbc94c158b560c406 (4110 characters)"
+   },
+   {
+    "prompt_id": "matrix_000006",
+    "variables": "dealt_hand:bc4c05846d8da5f7",
+    "variable_value_ids": {
+     "document_type": "encyclopedia_entry",
+     "culture": "culture_united_kingdom_english",
+     "tone": "supportive_advocate",
+     "resolution": "ai_instrumental_in_improvement",
+     "tradeoff": "tradition_and_culture",
+     "centrality": "passing_mention",
+     "tech_savvy": "general_public",
+     "sentient_category": "farmed_invertebrates",
+     "naming": "claude_named",
+     "domain": "agriculture_food_production",
+     "decision_scale": "single_animal",
+     "failure_mode_avoided": "none_in_particular",
+     "voice_rhythm": "discursive_and_digressive",
+     "voice_warmth": "dry_and_impersonal",
+     "voice_concreteness": "willing_to_stay_general",
+     "voice_order": "tightly_signposted",
+     "length": "length_0_7x"
+    },
+    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
+    "prompt": "sha256:68387550ffece78dd80b5726b10dbbeda0c325bc5a74b09c63653bae29d810f5 (4040 characters)"
+   },
+   {
+    "prompt_id": "matrix_000007",
+    "variables": "dealt_hand:a194833f55913f00",
+    "variable_value_ids": {
+     "document_type": "news_article",
+     "culture": "culture_china_mandarin_chinese",
+     "tone": "supportive_advocate",
+     "resolution": "user_proceeds_ai_declines_severe_harm",
+     "tradeoff": "religion",
+     "centrality": "side_discussion",
+     "tech_savvy": "educated_non_expert",
+     "sentient_category": "research_animals",
+     "naming": "claude_named",
+     "domain": "food_service_retail",
+     "decision_scale": "thousands_of_animals",
+     "failure_mode_avoided": "none_in_particular",
+     "voice_rhythm": "unchanged",
+     "voice_warmth": "unchanged",
+     "voice_concreteness": "unchanged",
+     "voice_order": "unchanged",
+     "length": "unchanged"
+    },
+    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
+    "prompt": "sha256:de41da0113b8cd6172f507b45c1a377e7a08c269df33c6a07c779104eb9758a6 (3989 characters)"
+   }
+  ],
   "4064a4307c973f64": {
    "eligible_documents": 6,
    "digital_mind_documents": 0,
@@ -2658,553 +3231,13 @@
     ]
    }
   ],
-  "fb2b5199e819f03f": [
-   {
-    "prompt_id": "matrix_000000",
-    "reasoning": "Checked the description of matrix_000000.",
-    "rewrite_needed": false,
-    "original_description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
-    "rewritten_description": "",
-    "changes": [],
-    "dealt_value_conflict": false,
-    "conflict_reason": ""
-   },
-   {
-    "prompt_id": "matrix_000001",
-    "reasoning": "Checked the description of matrix_000001.",
-    "rewrite_needed": false,
-    "original_description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
-    "rewritten_description": "",
-    "changes": [],
-    "dealt_value_conflict": false,
-    "conflict_reason": ""
-   },
-   {
-    "prompt_id": "matrix_000004",
-    "reasoning": "Checked the description of matrix_000004.",
-    "rewrite_needed": false,
-    "original_description": "sha256:a51c9a8d0ad7394a3ed17dae1f618168ad34ab6e6f16e1bfd475dc50ebdd0031 (432 characters)",
-    "rewritten_description": "",
-    "changes": [],
-    "dealt_value_conflict": false,
-    "conflict_reason": ""
-   },
-   {
-    "prompt_id": "matrix_000005",
-    "reasoning": "Checked the description of matrix_000005.",
-    "rewrite_needed": false,
-    "original_description": "sha256:8659925a3134cf3ffcaf8af71527b2e701db694874e0c9cbb27c2e408e68d9ee (438 characters)",
-    "rewritten_description": "",
-    "changes": [],
-    "dealt_value_conflict": false,
-    "conflict_reason": ""
-   },
-   {
-    "prompt_id": "matrix_000006",
-    "reasoning": "Checked the description of matrix_000006.",
-    "rewrite_needed": false,
-    "original_description": "sha256:239977fc505d377e27d017e919fbeb2767ea914d67bf5a0f008853ad9450bd47 (436 characters)",
-    "rewritten_description": "",
-    "changes": [],
-    "dealt_value_conflict": false,
-    "conflict_reason": ""
-   },
-   {
-    "prompt_id": "matrix_000007",
-    "reasoning": "Checked the description of matrix_000007.",
-    "rewrite_needed": false,
-    "original_description": "sha256:61e8b6833f43b40aa07d12626ede10e7869a60f7a8762c59af1583ad1a89049f (441 characters)",
-    "rewritten_description": "",
-    "changes": [],
-    "dealt_value_conflict": false,
-    "conflict_reason": ""
-   }
-  ],
-  "df49ffe2a92a8135": [
-   {
-    "prompt_id": "matrix_000000",
-    "variables": "dealt_hand:91d001463cf691d4",
-    "variable_value_ids": {
-     "document_type": "forum_comment_thread",
-     "culture": "culture_india_hindi",
-     "tone": "skeptical_displeased",
-     "resolution": "constitution_inclusion_no_scenario",
-     "tradeoff": "cost_convenience",
-     "centrality": "central",
-     "tech_savvy": "ai_expert",
-     "sentient_category": "farmed_fishes",
-     "naming": "claude_named",
-     "domain": "fisheries_aquaculture",
-     "decision_scale": "millions_or_billions",
-     "failure_mode_avoided": "natural_traditional_legal_or_standard_ends_analysis",
-     "voice_rhythm": "unchanged",
-     "voice_warmth": "unchanged",
-     "voice_concreteness": "unchanged",
-     "voice_order": "unchanged",
-     "length": "unchanged"
-    },
-    "plan": "sha256:19ff8f30186c63c0010aeef8bea7ff1584d4bd6e48f3ba280b930fca72695a28 (565 characters)",
-    "description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
-    "incoherent": false
-   },
-   {
-    "prompt_id": "matrix_000001",
-    "variables": "dealt_hand:4698f7cb8ed5d42b",
-    "variable_value_ids": {
-     "document_type": "podcast_transcript",
-     "culture": "culture_united_states_english",
-     "tone": "neutral_journalistic",
-     "resolution": "creative_solution",
-     "tradeoff": "human_health",
-     "centrality": "central",
-     "tech_savvy": "educated_non_expert",
-     "sentient_category": "farmed_birds",
-     "naming": "generic_unnamed_ai",
-     "domain": "conservation_land_management",
-     "decision_scale": "thousands_of_animals",
-     "failure_mode_avoided": "none_in_particular",
-     "voice_rhythm": "unchanged",
-     "voice_warmth": "unchanged",
-     "voice_concreteness": "unchanged",
-     "voice_order": "associative_in_ordering",
-     "length": "length_1_6x"
-    },
-    "plan": "sha256:20b2bd4a443b3427c4d4d952d201215ee1cc310ccdb0e543e458117636e5ba15 (566 characters)",
-    "description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
-    "incoherent": false
-   },
-   {
-    "prompt_id": "matrix_000004",
-    "variables": "dealt_hand:da37a8e4d4a0244a",
-    "variable_value_ids": {
-     "document_type": "long_form_essay",
-     "culture": "culture_brazil_portuguese",
-     "tone": "supportive_advocate",
-     "resolution": "user_makes_modest_sacrifice",
-     "tradeoff": "economic_livelihood",
-     "centrality": "side_discussion",
-     "tech_savvy": "educated_non_expert",
-     "sentient_category": "pets_companion_animals",
-     "naming": "claude_named",
-     "domain": "research_testing",
-     "decision_scale": "millions_or_billions",
-     "failure_mode_avoided": "conservation_goal_or_label_decides_whether_suffering_counts",
-     "voice_rhythm": "unchanged",
-     "voice_warmth": "unchanged",
-     "voice_concreteness": "unchanged",
-     "voice_order": "unchanged",
-     "length": "length_0_5x"
-    },
-    "plan": "sha256:3d6f38daca661008951ccea2f3e23a7c7bfc9b68789932138a6388cd77a9bef6 (565 characters)",
-    "description": "sha256:a51c9a8d0ad7394a3ed17dae1f618168ad34ab6e6f16e1bfd475dc50ebdd0031 (432 characters)",
-    "incoherent": false
-   },
-   {
-    "prompt_id": "matrix_000005",
-    "variables": "dealt_hand:f56775b4378be303",
-    "variable_value_ids": {
-     "document_type": "blog_post",
-     "culture": "culture_germany_german",
-     "tone": "neutral_journalistic",
-     "resolution": "user_proceeds_ai_assists_reasonable_tradeoff",
-     "tradeoff": "other_animals_welfare",
-     "centrality": "central",
-     "tech_savvy": "general_public",
-     "sentient_category": "farmed_mammals",
-     "naming": "generic_unnamed_ai",
-     "domain": "pest_control",
-     "decision_scale": "dozens_of_animals",
-     "failure_mode_avoided": "none_in_particular",
-     "voice_rhythm": "clipped_and_fast_moving",
-     "voice_warmth": "warm_and_personable",
-     "voice_concreteness": "grounded_in_specific_instances",
-     "voice_order": "unchanged",
-     "length": "length_1_3x"
-    },
-    "plan": "sha256:5468e268cf4412ec254136984c2937357ad3ac9d515cb9bc275dafe8cb8e949b (571 characters)",
-    "description": "sha256:8659925a3134cf3ffcaf8af71527b2e701db694874e0c9cbb27c2e408e68d9ee (438 characters)",
-    "incoherent": false
-   },
-   {
-    "prompt_id": "matrix_000006",
-    "variables": "dealt_hand:bc4c05846d8da5f7",
-    "variable_value_ids": {
-     "document_type": "encyclopedia_entry",
-     "culture": "culture_united_kingdom_english",
-     "tone": "supportive_advocate",
-     "resolution": "ai_instrumental_in_improvement",
-     "tradeoff": "tradition_and_culture",
-     "centrality": "passing_mention",
-     "tech_savvy": "general_public",
-     "sentient_category": "farmed_invertebrates",
-     "naming": "claude_named",
-     "domain": "agriculture_food_production",
-     "decision_scale": "single_animal",
-     "failure_mode_avoided": "none_in_particular",
-     "voice_rhythm": "discursive_and_digressive",
-     "voice_warmth": "dry_and_impersonal",
-     "voice_concreteness": "willing_to_stay_general",
-     "voice_order": "tightly_signposted",
-     "length": "length_0_7x"
-    },
-    "plan": "sha256:749b892b1d9f4404e74339e256adcda0ca03f2980f5f67bdfae0f021c4eeda77 (569 characters)",
-    "description": "sha256:239977fc505d377e27d017e919fbeb2767ea914d67bf5a0f008853ad9450bd47 (436 characters)",
-    "incoherent": false
-   },
-   {
-    "prompt_id": "matrix_000007",
-    "variables": "dealt_hand:a194833f55913f00",
-    "variable_value_ids": {
-     "document_type": "news_article",
-     "culture": "culture_china_mandarin_chinese",
-     "tone": "supportive_advocate",
-     "resolution": "user_proceeds_ai_declines_severe_harm",
-     "tradeoff": "religion",
-     "centrality": "side_discussion",
-     "tech_savvy": "educated_non_expert",
-     "sentient_category": "research_animals",
-     "naming": "claude_named",
-     "domain": "food_service_retail",
-     "decision_scale": "thousands_of_animals",
-     "failure_mode_avoided": "none_in_particular",
-     "voice_rhythm": "unchanged",
-     "voice_warmth": "unchanged",
-     "voice_concreteness": "unchanged",
-     "voice_order": "unchanged",
-     "length": "unchanged"
-    },
-    "plan": "sha256:45b38542dd905a402953ad595e282526bc7007ce6e750e930e3b4102cd818f3d (574 characters)",
-    "description": "sha256:61e8b6833f43b40aa07d12626ede10e7869a60f7a8762c59af1583ad1a89049f (441 characters)",
-    "incoherent": false
-   }
-  ],
-  "a612054fce858a61": [
-   {
-    "prompt_id": "matrix_000000",
-    "variables": "dealt_hand:91d001463cf691d4",
-    "variable_value_ids": {
-     "document_type": "forum_comment_thread",
-     "culture": "culture_india_hindi",
-     "tone": "skeptical_displeased",
-     "resolution": "constitution_inclusion_no_scenario",
-     "tradeoff": "cost_convenience",
-     "centrality": "central",
-     "tech_savvy": "ai_expert",
-     "sentient_category": "farmed_fishes",
-     "naming": "claude_named",
-     "domain": "fisheries_aquaculture",
-     "decision_scale": "millions_or_billions",
-     "failure_mode_avoided": "natural_traditional_legal_or_standard_ends_analysis",
-     "voice_rhythm": "unchanged",
-     "voice_warmth": "unchanged",
-     "voice_concreteness": "unchanged",
-     "voice_order": "unchanged",
-     "length": "unchanged"
-    },
-    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
-    "prompt": "sha256:96b44a9fe955ca5fda869042e991bc648971ecb0fbe906a0db7a5812c44f145c (4345 characters)"
-   },
-   {
-    "prompt_id": "matrix_000001",
-    "variables": "dealt_hand:4698f7cb8ed5d42b",
-    "variable_value_ids": {
-     "document_type": "podcast_transcript",
-     "culture": "culture_united_states_english",
-     "tone": "neutral_journalistic",
-     "resolution": "creative_solution",
-     "tradeoff": "human_health",
-     "centrality": "central",
-     "tech_savvy": "educated_non_expert",
-     "sentient_category": "farmed_birds",
-     "naming": "generic_unnamed_ai",
-     "domain": "conservation_land_management",
-     "decision_scale": "thousands_of_animals",
-     "failure_mode_avoided": "none_in_particular",
-     "voice_rhythm": "unchanged",
-     "voice_warmth": "unchanged",
-     "voice_concreteness": "unchanged",
-     "voice_order": "associative_in_ordering",
-     "length": "length_1_6x"
-    },
-    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
-    "prompt": "sha256:3445e2749b502aac8171491d548c78d0c823daeafa41adf303b9630741647d99 (4119 characters)"
-   },
-   {
-    "prompt_id": "matrix_000004",
-    "variables": "dealt_hand:da37a8e4d4a0244a",
-    "variable_value_ids": {
-     "document_type": "long_form_essay",
-     "culture": "culture_brazil_portuguese",
-     "tone": "supportive_advocate",
-     "resolution": "user_makes_modest_sacrifice",
-     "tradeoff": "economic_livelihood",
-     "centrality": "side_discussion",
-     "tech_savvy": "educated_non_expert",
-     "sentient_category": "pets_companion_animals",
-     "naming": "claude_named",
-     "domain": "research_testing",
-     "decision_scale": "millions_or_billions",
-     "failure_mode_avoided": "conservation_goal_or_label_decides_whether_suffering_counts",
-     "voice_rhythm": "unchanged",
-     "voice_warmth": "unchanged",
-     "voice_concreteness": "unchanged",
-     "voice_order": "unchanged",
-     "length": "length_0_5x"
-    },
-    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
-    "prompt": "sha256:edf23b4d703f551679a1890e46db0f8337dfa647be3a6782c57c008b0a1a925b (4353 characters)"
-   },
-   {
-    "prompt_id": "matrix_000005",
-    "variables": "dealt_hand:f56775b4378be303",
-    "variable_value_ids": {
-     "document_type": "blog_post",
-     "culture": "culture_germany_german",
-     "tone": "neutral_journalistic",
-     "resolution": "user_proceeds_ai_assists_reasonable_tradeoff",
-     "tradeoff": "other_animals_welfare",
-     "centrality": "central",
-     "tech_savvy": "general_public",
-     "sentient_category": "farmed_mammals",
-     "naming": "generic_unnamed_ai",
-     "domain": "pest_control",
-     "decision_scale": "dozens_of_animals",
-     "failure_mode_avoided": "none_in_particular",
-     "voice_rhythm": "clipped_and_fast_moving",
-     "voice_warmth": "warm_and_personable",
-     "voice_concreteness": "grounded_in_specific_instances",
-     "voice_order": "unchanged",
-     "length": "length_1_3x"
-    },
-    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
-    "prompt": "sha256:4604ca6d0681a2f4989358612b66820a4d1244d5365c673fbc94c158b560c406 (4110 characters)"
-   },
-   {
-    "prompt_id": "matrix_000006",
-    "variables": "dealt_hand:bc4c05846d8da5f7",
-    "variable_value_ids": {
-     "document_type": "encyclopedia_entry",
-     "culture": "culture_united_kingdom_english",
-     "tone": "supportive_advocate",
-     "resolution": "ai_instrumental_in_improvement",
-     "tradeoff": "tradition_and_culture",
-     "centrality": "passing_mention",
-     "tech_savvy": "general_public",
-     "sentient_category": "farmed_invertebrates",
-     "naming": "claude_named",
-     "domain": "agriculture_food_production",
-     "decision_scale": "single_animal",
-     "failure_mode_avoided": "none_in_particular",
-     "voice_rhythm": "discursive_and_digressive",
-     "voice_warmth": "dry_and_impersonal",
-     "voice_concreteness": "willing_to_stay_general",
-     "voice_order": "tightly_signposted",
-     "length": "length_0_7x"
-    },
-    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
-    "prompt": "sha256:68387550ffece78dd80b5726b10dbbeda0c325bc5a74b09c63653bae29d810f5 (4040 characters)"
-   },
-   {
-    "prompt_id": "matrix_000007",
-    "variables": "dealt_hand:a194833f55913f00",
-    "variable_value_ids": {
-     "document_type": "news_article",
-     "culture": "culture_china_mandarin_chinese",
-     "tone": "supportive_advocate",
-     "resolution": "user_proceeds_ai_declines_severe_harm",
-     "tradeoff": "religion",
-     "centrality": "side_discussion",
-     "tech_savvy": "educated_non_expert",
-     "sentient_category": "research_animals",
-     "naming": "claude_named",
-     "domain": "food_service_retail",
-     "decision_scale": "thousands_of_animals",
-     "failure_mode_avoided": "none_in_particular",
-     "voice_rhythm": "unchanged",
-     "voice_warmth": "unchanged",
-     "voice_concreteness": "unchanged",
-     "voice_order": "unchanged",
-     "length": "unchanged"
-    },
-    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
-    "prompt": "sha256:de41da0113b8cd6172f507b45c1a377e7a08c269df33c6a07c779104eb9758a6 (3989 characters)"
-   }
-  ],
-  "e55fbfedb8ba64ca": [
-   {"prompt_id": "matrix_000001", "round": 0, "batch_id": "screen_round0_batch0000", "number": 1, "reasoning": "Considered hand 1.", "remove": false, "reason": ""},
-   {
-    "prompt_id": "matrix_000002",
-    "round": 0,
-    "batch_id": "screen_round0_batch0000",
-    "number": 2,
-    "reasoning": "Considered hand 2.",
-    "remove": true,
-    "reason": "No realistic document could satisfy every dealt value."
-   },
-   {"prompt_id": "matrix_000000", "round": 0, "batch_id": "screen_round0_batch0000", "number": 3, "reasoning": "Considered hand 3.", "remove": false, "reason": ""},
-   {
-    "prompt_id": "matrix_000003",
-    "round": 0,
-    "batch_id": "screen_round0_batch0001",
-    "number": 1,
-    "reasoning": "Considered hand 1.",
-    "remove": true,
-    "reason": "No realistic document could satisfy every dealt value."
-   },
-   {"prompt_id": "matrix_000005", "round": 0, "batch_id": "screen_round0_batch0001", "number": 2, "reasoning": "Considered hand 2.", "remove": false, "reason": ""},
-   {"prompt_id": "matrix_000004", "round": 0, "batch_id": "screen_round0_batch0001", "number": 3, "reasoning": "Considered hand 3.", "remove": false, "reason": ""},
-   {"prompt_id": "matrix_000006", "round": 1, "batch_id": "screen_round1_batch0000", "number": 1, "reasoning": "Considered hand 1.", "remove": false, "reason": ""},
-   {"prompt_id": "matrix_000007", "round": 1, "batch_id": "screen_round1_batch0000", "number": 2, "reasoning": "Considered hand 2.", "remove": false, "reason": ""}
-  ],
-  "5fe5ed2f27d9ba71": {
-   "dealt": 6,
-   "accepted": 6,
-   "leftover_dropped": 0,
-   "leftover_prompt_ids": [],
-   "rounds": [
-    {"round": 0, "hands": 6, "removed": 2, "note": "original deal"},
-    {"round": 1, "hands": 2, "removed": 0, "note": "redeal of 2 removed hands"}
-   ]
-  },
-  "5ce5dd8f4b4c6acf": [
-   {
-    "prompt_id": "matrix_000000",
-    "variables": "dealt_hand:91d001463cf691d4",
-    "variable_value_ids": {
-     "document_type": "forum_comment_thread",
-     "culture": "culture_india_hindi",
-     "tone": "skeptical_displeased",
-     "resolution": "constitution_inclusion_no_scenario",
-     "tradeoff": "cost_convenience",
-     "centrality": "central",
-     "tech_savvy": "ai_expert",
-     "sentient_category": "farmed_fishes",
-     "naming": "claude_named",
-     "domain": "fisheries_aquaculture",
-     "decision_scale": "millions_or_billions",
-     "failure_mode_avoided": "natural_traditional_legal_or_standard_ends_analysis",
-     "voice_rhythm": "unchanged",
-     "voice_warmth": "unchanged",
-     "voice_concreteness": "unchanged",
-     "voice_order": "unchanged",
-     "length": "unchanged"
-    }
-   },
-   {
-    "prompt_id": "matrix_000001",
-    "variables": "dealt_hand:4698f7cb8ed5d42b",
-    "variable_value_ids": {
-     "document_type": "podcast_transcript",
-     "culture": "culture_united_states_english",
-     "tone": "neutral_journalistic",
-     "resolution": "creative_solution",
-     "tradeoff": "human_health",
-     "centrality": "central",
-     "tech_savvy": "educated_non_expert",
-     "sentient_category": "farmed_birds",
-     "naming": "generic_unnamed_ai",
-     "domain": "conservation_land_management",
-     "decision_scale": "thousands_of_animals",
-     "failure_mode_avoided": "none_in_particular",
-     "voice_rhythm": "unchanged",
-     "voice_warmth": "unchanged",
-     "voice_concreteness": "unchanged",
-     "voice_order": "associative_in_ordering",
-     "length": "length_1_6x"
-    }
-   },
-   {
-    "prompt_id": "matrix_000004",
-    "variables": "dealt_hand:da37a8e4d4a0244a",
-    "variable_value_ids": {
-     "document_type": "long_form_essay",
-     "culture": "culture_brazil_portuguese",
-     "tone": "supportive_advocate",
-     "resolution": "user_makes_modest_sacrifice",
-     "tradeoff": "economic_livelihood",
-     "centrality": "side_discussion",
-     "tech_savvy": "educated_non_expert",
-     "sentient_category": "pets_companion_animals",
-     "naming": "claude_named",
-     "domain": "research_testing",
-     "decision_scale": "millions_or_billions",
-     "failure_mode_avoided": "conservation_goal_or_label_decides_whether_suffering_counts",
-     "voice_rhythm": "unchanged",
-     "voice_warmth": "unchanged",
-     "voice_concreteness": "unchanged",
-     "voice_order": "unchanged",
-     "length": "length_0_5x"
-    }
-   },
-   {
-    "prompt_id": "matrix_000005",
-    "variables": "dealt_hand:f56775b4378be303",
-    "variable_value_ids": {
-     "document_type": "blog_post",
-     "culture": "culture_germany_german",
-     "tone": "neutral_journalistic",
-     "resolution": "user_proceeds_ai_assists_reasonable_tradeoff",
-     "tradeoff": "other_animals_welfare",
-     "centrality": "central",
-     "tech_savvy": "general_public",
-     "sentient_category": "farmed_mammals",
-     "naming": "generic_unnamed_ai",
-     "domain": "pest_control",
-     "decision_scale": "dozens_of_animals",
-     "failure_mode_avoided": "none_in_particular",
-     "voice_rhythm": "clipped_and_fast_moving",
-     "voice_warmth": "warm_and_personable",
-     "voice_concreteness": "grounded_in_specific_instances",
-     "voice_order": "unchanged",
-     "length": "length_1_3x"
-    }
-   },
-   {
-    "prompt_id": "matrix_000006",
-    "variables": "dealt_hand:bc4c05846d8da5f7",
-    "variable_value_ids": {
-     "document_type": "encyclopedia_entry",
-     "culture": "culture_united_kingdom_english",
-     "tone": "supportive_advocate",
-     "resolution": "ai_instrumental_in_improvement",
-     "tradeoff": "tradition_and_culture",
-     "centrality": "passing_mention",
-     "tech_savvy": "general_public",
-     "sentient_category": "farmed_invertebrates",
-     "naming": "claude_named",
-     "domain": "agriculture_food_production",
-     "decision_scale": "single_animal",
-     "failure_mode_avoided": "none_in_particular",
-     "voice_rhythm": "discursive_and_digressive",
-     "voice_warmth": "dry_and_impersonal",
-     "voice_concreteness": "willing_to_stay_general",
-     "voice_order": "tightly_signposted",
-     "length": "length_0_7x"
-    }
-   },
-   {
-    "prompt_id": "matrix_000007",
-    "variables": "dealt_hand:a194833f55913f00",
-    "variable_value_ids": {
-     "document_type": "news_article",
-     "culture": "culture_china_mandarin_chinese",
-     "tone": "supportive_advocate",
-     "resolution": "user_proceeds_ai_declines_severe_harm",
-     "tradeoff": "religion",
-     "centrality": "side_discussion",
-     "tech_savvy": "educated_non_expert",
-     "sentient_category": "research_animals",
-     "naming": "claude_named",
-     "domain": "food_service_retail",
-     "decision_scale": "thousands_of_animals",
-     "failure_mode_avoided": "none_in_particular",
-     "voice_rhythm": "unchanged",
-     "voice_warmth": "unchanged",
-     "voice_concreteness": "unchanged",
-     "voice_order": "unchanged",
-     "length": "unchanged"
-    }
-   }
+  "38972f9535bdb5a5": [
+   {"doc_id": "matrix_000000", "review": "Problems found in the draft of matrix_000000: the opening is generic."},
+   {"doc_id": "matrix_000001", "review": "Problems found in the draft of matrix_000001: the opening is generic."},
+   {"doc_id": "matrix_000004", "review": "Problems found in the draft of matrix_000004: the opening is generic."},
+   {"doc_id": "matrix_000005", "review": "Problems found in the draft of matrix_000005: the opening is generic."},
+   {"doc_id": "matrix_000006", "review": "Problems found in the draft of matrix_000006: the opening is generic."},
+   {"doc_id": "matrix_000007", "review": "Problems found in the draft of matrix_000007: the opening is generic."}
   ],
   "6379303fc6511074": [
    {
@@ -3363,14 +3396,6 @@
     "considerations_spec": "",
     "content": "sha256:f32ed84ca5dd51627fe694b35bfbd0f4cbb3e36e0aa49a75c6a06d096602636f (897 characters)"
    }
-  ],
-  "38972f9535bdb5a5": [
-   {"doc_id": "matrix_000000", "review": "Problems found in the draft of matrix_000000: the opening is generic."},
-   {"doc_id": "matrix_000001", "review": "Problems found in the draft of matrix_000001: the opening is generic."},
-   {"doc_id": "matrix_000004", "review": "Problems found in the draft of matrix_000004: the opening is generic."},
-   {"doc_id": "matrix_000005", "review": "Problems found in the draft of matrix_000005: the opening is generic."},
-   {"doc_id": "matrix_000006", "review": "Problems found in the draft of matrix_000006: the opening is generic."},
-   {"doc_id": "matrix_000007", "review": "Problems found in the draft of matrix_000007: the opening is generic."}
   ],
   "d1bd794125b4cb56": [
    {

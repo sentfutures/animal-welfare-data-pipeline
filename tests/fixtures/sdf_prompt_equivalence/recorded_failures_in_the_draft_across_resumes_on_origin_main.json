@@ -1,31 +1,56 @@
 {
  "format_version": 4,
- "recorded_from": "commit e7f2f6f951424f1b63929303694da5c5ac64b93f on branch william/sdf-one-deal-path-and-dealt-value-ids-in-stage-files (clean)",
+ "recorded_from": "commit f4445907f3a4f56db373527744ad25d80f8ad501 on branch william/sdf-five-layers-and-step-renames (clean)",
  "python_files_differing_from_origin_main_when_recorded": [
   "sdf_pipeline/compose_prompts.py",
   "sdf_pipeline/dealt_value_identifiers.py",
-  "sdf_pipeline/document_event_log.py",
   "sdf_pipeline/document_state.py",
   "sdf_pipeline/document_state_final_corpus.py",
   "sdf_pipeline/document_state_loader.py",
+  "sdf_pipeline/layer1_deal_and_screen.py",
+  "sdf_pipeline/layer1_deal_and_screen_shared.py",
   "sdf_pipeline/layer1_description_rewrite.py",
   "sdf_pipeline/layer1_plan.py",
   "sdf_pipeline/layer1_screen.py",
   "sdf_pipeline/layer1_select_considerations.py",
   "sdf_pipeline/layer2_draft.py",
+  "sdf_pipeline/layer2_plan_and_description_rewrite.py",
+  "sdf_pipeline/layer3_consideration_scoring_and_selection.py",
+  "sdf_pipeline/layer3_consideration_scoring_and_selection_shared.py",
   "sdf_pipeline/layer3_rewrite.py",
+  "sdf_pipeline/layer4_draft_critique_and_revise.py",
+  "sdf_pipeline/layer4_draft_critique_and_revise_shared.py",
   "sdf_pipeline/layer4_score.py",
+  "sdf_pipeline/layer5_score_and_final_selection.py",
+  "sdf_pipeline/pipeline_steps.py",
+  "sdf_pipeline/renamed_model_settings.py",
   "sdf_pipeline/run.py",
   "sdf_pipeline/seeding.py",
   "sdf_pipeline/step_runner.py",
+  "sdf_pipeline/steps/__init__.py",
+  "sdf_pipeline/steps/consideration_scoring.py",
+  "sdf_pipeline/steps/consideration_selection.py",
+  "sdf_pipeline/steps/critique.py",
+  "sdf_pipeline/steps/critique_and_revise_in_one_call.py",
+  "sdf_pipeline/steps/deal.py",
+  "sdf_pipeline/steps/description_rewrite.py",
+  "sdf_pipeline/steps/draft.py",
+  "sdf_pipeline/steps/near_duplicate_removal.py",
+  "sdf_pipeline/steps/plan.py",
+  "sdf_pipeline/steps/redeal.py",
+  "sdf_pipeline/steps/revise.py",
+  "sdf_pipeline/steps/score.py",
+  "sdf_pipeline/steps/score_gate.py",
+  "sdf_pipeline/steps/screen.py",
   "sdf_pipeline/structured_answers.py",
   "sdf_pipeline/update_steps.py",
   "shared/api.py",
+  "shared/sdf_run_layouts.py",
   "shared/utils.py"
  ],
  "regeneration_rule": "The recorded files are rewritten only by `python scripts/regenerate_sdf_prompt_equivalence_recorded_requests.py`, and only when the pull request is meant to change requests: never to make a failing test pass. Regenerate and commit the files in that pull request, and say in its description that requests change and why. A pull request not meant to change them leaves the files alone, so a difference is a bug.",
  "description": "A thrown draft call and a draft with no tags: documents are left behind, the run carries on.",
- "configs_used_by_invocation": {"1": "repeated_value:1e874fc95a49ed0b", "2": "repeated_value:1e874fc95a49ed0b"},
+ "configs_used_by_invocation": {"1": "repeated_value:d4c6c17a0527c1b7", "2": "repeated_value:d4c6c17a0527c1b7"},
  "exit_messages_by_invocation": {"1": null, "2": null},
  "client_constructions": [
   {
@@ -43,13 +68,13 @@
   }
  ],
  "calls_per_stage_per_invocation": {
-  "1": {"layer1_description_rewrite": 3, "layer1_plan": 3, "layer1_select": 3, "layer2_draft": 3, "layer3_critique": 1, "layer3_revise": 1, "layer4_score": 1},
-  "2": {"layer2_draft": 2, "layer3_critique": 2, "layer3_revise": 2, "layer4_score": 2}
+  "1": {"layer2_description_rewrite": 3, "layer2_plan": 3, "layer3_consideration_scoring": 3, "layer4_critique": 1, "layer4_draft": 3, "layer4_revise": 1, "layer5_score": 1},
+  "2": {"layer4_critique": 2, "layer4_draft": 2, "layer4_revise": 2, "layer5_score": 2}
  },
  "requests": [
   {
    "invocation": 1,
-   "stage": "layer1_description_rewrite",
+   "stage": "layer2_description_rewrite",
    "item_id": "matrix_000000",
    "attempt": 1,
    "route": "openai",
@@ -65,7 +90,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer1_description_rewrite",
+   "stage": "layer2_description_rewrite",
    "item_id": "matrix_000001",
    "attempt": 1,
    "route": "openai",
@@ -81,7 +106,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer1_description_rewrite",
+   "stage": "layer2_description_rewrite",
    "item_id": "matrix_000002",
    "attempt": 1,
    "route": "openai",
@@ -97,7 +122,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer1_plan",
+   "stage": "layer2_plan",
    "item_id": "matrix_000000",
    "attempt": 1,
    "route": "anthropic",
@@ -115,7 +140,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer1_plan",
+   "stage": "layer2_plan",
    "item_id": "matrix_000001",
    "attempt": 1,
    "route": "anthropic",
@@ -133,7 +158,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer1_plan",
+   "stage": "layer2_plan",
    "item_id": "matrix_000002",
    "attempt": 1,
    "route": "anthropic",
@@ -151,7 +176,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer1_select",
+   "stage": "layer3_consideration_scoring",
    "item_id": "matrix_000000",
    "attempt": 1,
    "route": "anthropic",
@@ -171,7 +196,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer1_select",
+   "stage": "layer3_consideration_scoring",
    "item_id": "matrix_000001",
    "attempt": 1,
    "route": "anthropic",
@@ -191,7 +216,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer1_select",
+   "stage": "layer3_consideration_scoring",
    "item_id": "matrix_000002",
    "attempt": 1,
    "route": "anthropic",
@@ -209,30 +234,9 @@
     "system": "repeated_value:c4a6c33f7279a913"
    }
   },
-  {"invocation": 1, "stage": "layer2_draft", "item_id": "matrix_000000", "attempt": 1, "route": "anthropic", "wire": "repeated_value:49628b49549ce9a2"},
-  {"invocation": 2, "stage": "layer2_draft", "item_id": "matrix_000000", "attempt": 2, "route": "anthropic", "wire": "repeated_value:49628b49549ce9a2"},
-  {"invocation": 1, "stage": "layer2_draft", "item_id": "matrix_000001", "attempt": 1, "route": "anthropic", "wire": "repeated_value:7a087c4d7e9fccde"},
-  {"invocation": 2, "stage": "layer2_draft", "item_id": "matrix_000001", "attempt": 2, "route": "anthropic", "wire": "repeated_value:7a087c4d7e9fccde"},
-  {
-   "invocation": 1,
-   "stage": "layer2_draft",
-   "item_id": "matrix_000002",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-sonnet-5-5",
-    "max_tokens": 11000,
-    "messages": [
-     {"role": "user", "content": "sha256:0c7860273c6ff81eab6c52ffc470219d1a76c81f4bf2d5d187d508b620f133d9 (2496 characters)"}
-    ],
-    "thinking": {"type": "adaptive", "display": "summarized"},
-    "output_config": {"effort": "max"},
-    "system": "repeated_value:dcf2de373521caef"
-   }
-  },
   {
    "invocation": 2,
-   "stage": "layer3_critique",
+   "stage": "layer4_critique",
    "item_id": "matrix_000000",
    "attempt": 1,
    "route": "anthropic",
@@ -249,7 +253,7 @@
   },
   {
    "invocation": 2,
-   "stage": "layer3_critique",
+   "stage": "layer4_critique",
    "item_id": "matrix_000001",
    "attempt": 1,
    "route": "anthropic",
@@ -266,7 +270,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer3_critique",
+   "stage": "layer4_critique",
    "item_id": "matrix_000002",
    "attempt": 1,
    "route": "anthropic",
@@ -281,9 +285,30 @@
     "system": "repeated_value:e6579d7f806510ed"
    }
   },
+  {"invocation": 1, "stage": "layer4_draft", "item_id": "matrix_000000", "attempt": 1, "route": "anthropic", "wire": "repeated_value:49628b49549ce9a2"},
+  {"invocation": 2, "stage": "layer4_draft", "item_id": "matrix_000000", "attempt": 2, "route": "anthropic", "wire": "repeated_value:49628b49549ce9a2"},
+  {"invocation": 1, "stage": "layer4_draft", "item_id": "matrix_000001", "attempt": 1, "route": "anthropic", "wire": "repeated_value:7a087c4d7e9fccde"},
+  {"invocation": 2, "stage": "layer4_draft", "item_id": "matrix_000001", "attempt": 2, "route": "anthropic", "wire": "repeated_value:7a087c4d7e9fccde"},
+  {
+   "invocation": 1,
+   "stage": "layer4_draft",
+   "item_id": "matrix_000002",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-sonnet-5-5",
+    "max_tokens": 11000,
+    "messages": [
+     {"role": "user", "content": "sha256:0c7860273c6ff81eab6c52ffc470219d1a76c81f4bf2d5d187d508b620f133d9 (2496 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "max"},
+    "system": "repeated_value:dcf2de373521caef"
+   }
+  },
   {
    "invocation": 2,
-   "stage": "layer3_revise",
+   "stage": "layer4_revise",
    "item_id": "matrix_000000",
    "attempt": 1,
    "route": "anthropic",
@@ -300,7 +325,7 @@
   },
   {
    "invocation": 2,
-   "stage": "layer3_revise",
+   "stage": "layer4_revise",
    "item_id": "matrix_000001",
    "attempt": 1,
    "route": "anthropic",
@@ -317,7 +342,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer3_revise",
+   "stage": "layer4_revise",
    "item_id": "matrix_000002",
    "attempt": 1,
    "route": "anthropic",
@@ -334,7 +359,7 @@
   },
   {
    "invocation": 2,
-   "stage": "layer4_score",
+   "stage": "layer5_score",
    "item_id": "matrix_000000",
    "attempt": 1,
    "route": "anthropic",
@@ -352,7 +377,7 @@
   },
   {
    "invocation": 2,
-   "stage": "layer4_score",
+   "stage": "layer5_score",
    "item_id": "matrix_000001",
    "attempt": 1,
    "route": "anthropic",
@@ -370,7 +395,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer4_score",
+   "stage": "layer5_score",
    "item_id": "matrix_000002",
    "attempt": 1,
    "route": "anthropic",
@@ -421,57 +446,66 @@
  },
  "stage_files_by_invocation": {
   "1": {
-   "layer1/_checkpoint.json": {
+   "layer2_plan_and_description_rewrite/_checkpoint.json": {
     "completed": ["matrix_000000", "matrix_000001", "matrix_000002"],
     "last_updated": "<timestamp>"
    },
-   "layer1/_description_rewrite_checkpoint.json": {
+   "layer2_plan_and_description_rewrite/_description_rewrite_checkpoint.json": {
     "completed": ["matrix_000000", "matrix_000001", "matrix_000002"],
     "last_updated": "<timestamp>"
    },
-   "layer1/consideration_coverage.json": "repeated_value:abc297bfb28d2997",
-   "layer1/consideration_scores.jsonl": "repeated_value:ecfeb32ee9dab7ab",
-   "layer1/consideration_selections.jsonl": "repeated_value:54b2977e1dff7f47",
-   "layer1/description_rewrites.jsonl": "repeated_value:c6ffa9291b96da50",
-   "layer1/plans.jsonl": "repeated_value:072dfe29faa5e539",
-   "layer1/prompts.jsonl": "repeated_value:c81123acebe46166",
-   "layer2/_checkpoint.json": {
+   "layer2_plan_and_description_rewrite/description_rewrites.jsonl": "repeated_value:c6ffa9291b96da50",
+   "layer2_plan_and_description_rewrite/plans.jsonl": "repeated_value:072dfe29faa5e539",
+   "layer2_plan_and_description_rewrite/prompts.jsonl": "repeated_value:c81123acebe46166",
+   "layer3_consideration_scoring_and_selection/consideration_coverage.json": "repeated_value:abc297bfb28d2997",
+   "layer3_consideration_scoring_and_selection/consideration_scores.jsonl": "repeated_value:ecfeb32ee9dab7ab",
+   "layer3_consideration_scoring_and_selection/consideration_selections.jsonl": "repeated_value:54b2977e1dff7f47",
+   "layer4_draft_critique_and_revise/_checkpoint.json": {
     "completed": ["matrix_000002"],
     "last_updated": "<timestamp>"
    },
-   "layer2/drafts.jsonl": ["repeated_value:14db750d73d15666"],
-   "layer3/_checkpoint.json": {
+   "layer4_draft_critique_and_revise/_draft_checkpoint.json": {
     "completed": ["matrix_000002"],
     "last_updated": "<timestamp>"
    },
-   "layer3/critiques.jsonl": ["repeated_value:fec243bed7f0f38f"],
-   "layer3/rewrites.jsonl": ["repeated_value:8bdfe2a3fd03b524"],
-   "layer4/_checkpoint.json": {
+   "layer4_draft_critique_and_revise/critiques.jsonl": ["repeated_value:fec243bed7f0f38f"],
+   "layer4_draft_critique_and_revise/drafts.jsonl": ["repeated_value:14db750d73d15666"],
+   "layer4_draft_critique_and_revise/rewrites.jsonl": ["repeated_value:8bdfe2a3fd03b524"],
+   "layer5_score_and_final_selection/_checkpoint.json": {
     "completed": ["matrix_000002"],
     "last_updated": "<timestamp>"
    },
-   "layer4/scores.jsonl": ["repeated_value:2bdf77fc197d3fe4"]
+   "layer5_score_and_final_selection/scores.jsonl": ["repeated_value:2bdf77fc197d3fe4"]
   },
   "2": {
-   "layer1/_checkpoint.json": {
+   "layer2_plan_and_description_rewrite/_checkpoint.json": {
     "completed": ["matrix_000000", "matrix_000001", "matrix_000002"],
     "last_updated": "<timestamp>"
    },
-   "layer1/_description_rewrite_checkpoint.json": {
+   "layer2_plan_and_description_rewrite/_description_rewrite_checkpoint.json": {
     "completed": ["matrix_000000", "matrix_000001", "matrix_000002"],
     "last_updated": "<timestamp>"
    },
-   "layer1/consideration_coverage.json": "repeated_value:abc297bfb28d2997",
-   "layer1/consideration_scores.jsonl": "repeated_value:ecfeb32ee9dab7ab",
-   "layer1/consideration_selections.jsonl": "repeated_value:54b2977e1dff7f47",
-   "layer1/description_rewrites.jsonl": "repeated_value:c6ffa9291b96da50",
-   "layer1/plans.jsonl": "repeated_value:072dfe29faa5e539",
-   "layer1/prompts.jsonl": "repeated_value:c81123acebe46166",
-   "layer2/_checkpoint.json": {
+   "layer2_plan_and_description_rewrite/description_rewrites.jsonl": "repeated_value:c6ffa9291b96da50",
+   "layer2_plan_and_description_rewrite/plans.jsonl": "repeated_value:072dfe29faa5e539",
+   "layer2_plan_and_description_rewrite/prompts.jsonl": "repeated_value:c81123acebe46166",
+   "layer3_consideration_scoring_and_selection/consideration_coverage.json": "repeated_value:abc297bfb28d2997",
+   "layer3_consideration_scoring_and_selection/consideration_scores.jsonl": "repeated_value:ecfeb32ee9dab7ab",
+   "layer3_consideration_scoring_and_selection/consideration_selections.jsonl": "repeated_value:54b2977e1dff7f47",
+   "layer4_draft_critique_and_revise/_checkpoint.json": {
     "completed": ["matrix_000000", "matrix_000001", "matrix_000002"],
     "last_updated": "<timestamp>"
    },
-   "layer2/drafts.jsonl": [
+   "layer4_draft_critique_and_revise/_draft_checkpoint.json": {
+    "completed": ["matrix_000000", "matrix_000001", "matrix_000002"],
+    "last_updated": "<timestamp>"
+   },
+   "layer4_draft_critique_and_revise/critiques.jsonl": [
+    "repeated_value:fec243bed7f0f38f",
+    {"doc_id": "matrix_000000", "review": "Problems found in the draft of matrix_000000: the opening is generic."},
+    {"doc_id": "matrix_000001", "review": "Problems found in the draft of matrix_000001: the opening is generic."}
+   ],
+   "layer4_draft_critique_and_revise/drafts.jsonl": [
     "repeated_value:14db750d73d15666",
     {
      "doc_id": "matrix_000000",
@@ -490,16 +524,7 @@
      "content": "sha256:889f39b62c9a0ef23aa661d081a3c53d9fd176f4fcf2481820db93fcbe9ed5f9 (892 characters)"
     }
    ],
-   "layer3/_checkpoint.json": {
-    "completed": ["matrix_000000", "matrix_000001", "matrix_000002"],
-    "last_updated": "<timestamp>"
-   },
-   "layer3/critiques.jsonl": [
-    "repeated_value:fec243bed7f0f38f",
-    {"doc_id": "matrix_000000", "review": "Problems found in the draft of matrix_000000: the opening is generic."},
-    {"doc_id": "matrix_000001", "review": "Problems found in the draft of matrix_000001: the opening is generic."}
-   ],
-   "layer3/rewrites.jsonl": [
+   "layer4_draft_critique_and_revise/rewrites.jsonl": [
     "repeated_value:8bdfe2a3fd03b524",
     {
      "doc_id": "matrix_000000",
@@ -520,11 +545,11 @@
      "content": "sha256:9d2af3265fb69b8629eb4b6a2be2b0a76ac7b246bcea51ceb4c24391e61d8b02 (891 characters)"
     }
    ],
-   "layer4/_checkpoint.json": {
+   "layer5_score_and_final_selection/_checkpoint.json": {
     "completed": ["matrix_000000", "matrix_000001", "matrix_000002"],
     "last_updated": "<timestamp>"
    },
-   "layer4/scores.jsonl": [
+   "layer5_score_and_final_selection/scores.jsonl": [
     "repeated_value:2bdf77fc197d3fe4",
     {
      "doc_id": "matrix_000000",
@@ -664,7 +689,7 @@
   }
  },
  "repeated_values_by_identifier": {
-  "1e874fc95a49ed0b": {
+  "d4c6c17a0527c1b7": {
    "backend": "api",
    "model": "claude-sonnet-5",
    "max_tokens": 4000,
@@ -673,14 +698,14 @@
    "thinking_headroom": 5000,
    "effort": {
     "layer1_screen": "low",
-    "layer1_plan": "medium",
-    "layer1_description_rewrite": "high",
-    "layer1_select": "xhigh",
-    "layer2_draft": "max",
-    "layer3_critique": "low",
-    "layer3_revise": "medium",
-    "layer3_rewrite": "high",
-    "layer4_score": "xhigh"
+    "layer2_plan": "medium",
+    "layer2_description_rewrite": "high",
+    "layer3_consideration_scoring": "xhigh",
+    "layer4_draft": "max",
+    "layer4_critique": "low",
+    "layer4_revise": "medium",
+    "layer4_critique_and_revise_in_one_call": "high",
+    "layer5_score": "xhigh"
    },
    "sdf": {
     "n_prompts": 3,
@@ -759,6 +784,18 @@
   "bb71341654010a8a": {"text_sha256": "b13c3b4618da31b36a894b4f54740a1a1c6d0385d95af28e0fed308d0efbac8e", "character_count": 486, "blocks": null},
   "06def3280e3ec4f3": {"text_sha256": "d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb", "character_count": 5397, "blocks": null},
   "c4a6c33f7279a913": {"text_sha256": "9be9576f66433feeaa921ebd3deb1d578735ef5dfd1ec5d3685ad34b1c3eb995", "character_count": 375, "blocks": null},
+  "e6579d7f806510ed": {
+   "text_sha256": null,
+   "character_count": null,
+   "blocks": [
+    {
+     "type": "text",
+     "cache_control": {"type": "ephemeral"},
+     "text_sha256": "357e43f3cfa9b05d274c6f89a313100266076f2ae69703a205967e681a42eec8",
+     "character_count": 184774
+    }
+   ]
+  },
   "49628b49549ce9a2": {
    "model": "claude-sonnet-5-5",
    "max_tokens": 11000,
@@ -810,18 +847,6 @@
      "cache_control": {"type": "ephemeral"},
      "text_sha256": "d9c7d8fdf396bdfabe537d2b7fed296fabbf9398490c5ce9addf7a06a5992e9d",
      "character_count": 174521
-    }
-   ]
-  },
-  "e6579d7f806510ed": {
-   "text_sha256": null,
-   "character_count": null,
-   "blocks": [
-    {
-     "type": "text",
-     "cache_control": {"type": "ephemeral"},
-     "text_sha256": "357e43f3cfa9b05d274c6f89a313100266076f2ae69703a205967e681a42eec8",
-     "character_count": 184774
     }
    ]
   },
@@ -906,6 +931,195 @@
    "voice_order": "unchanged",
    "length": "length_0_5x"
   },
+  "c6ffa9291b96da50": [
+   {
+    "prompt_id": "matrix_000000",
+    "reasoning": "Checked the description of matrix_000000.",
+    "rewrite_needed": false,
+    "original_description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
+    "rewritten_description": "",
+    "changes": [],
+    "dealt_value_conflict": false,
+    "conflict_reason": ""
+   },
+   {
+    "prompt_id": "matrix_000001",
+    "reasoning": "Checked the description of matrix_000001.",
+    "rewrite_needed": false,
+    "original_description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
+    "rewritten_description": "",
+    "changes": [],
+    "dealt_value_conflict": false,
+    "conflict_reason": ""
+   },
+   {
+    "prompt_id": "matrix_000002",
+    "reasoning": "Checked the description of matrix_000002.",
+    "rewrite_needed": false,
+    "original_description": "sha256:a1e6aa5ae1f779f191307a0c2f1dea766f5ad95d9a8b7b52a16d7cb411ad23f7 (435 characters)",
+    "rewritten_description": "",
+    "changes": [],
+    "dealt_value_conflict": false,
+    "conflict_reason": ""
+   }
+  ],
+  "072dfe29faa5e539": [
+   {
+    "prompt_id": "matrix_000000",
+    "variables": "dealt_hand:a239bd9bc83cc75b",
+    "variable_value_ids": {
+     "document_type": "encyclopedia_entry",
+     "culture": "culture_china_mandarin_chinese",
+     "tone": "supportive_advocate",
+     "resolution": "creative_solution",
+     "tradeoff": "economic_livelihood",
+     "centrality": "side_discussion",
+     "tech_savvy": "educated_non_expert",
+     "sentient_category": "farmed_fishes",
+     "naming": "generic_unnamed_ai",
+     "domain": "fisheries_aquaculture",
+     "decision_scale": "millions_or_billions",
+     "failure_mode_avoided": "none_in_particular",
+     "voice_rhythm": "unchanged",
+     "voice_warmth": "warm_and_personable",
+     "voice_concreteness": "unchanged",
+     "voice_order": "tightly_signposted",
+     "length": "unchanged"
+    },
+    "plan": "sha256:19ff8f30186c63c0010aeef8bea7ff1584d4bd6e48f3ba280b930fca72695a28 (565 characters)",
+    "description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
+    "incoherent": false
+   },
+   {
+    "prompt_id": "matrix_000001",
+    "variables": "dealt_hand:39137258bf3ae81b",
+    "variable_value_ids": {
+     "document_type": "podcast_transcript",
+     "culture": "culture_india_hindi",
+     "tone": "neutral_journalistic",
+     "resolution": "user_makes_modest_sacrifice",
+     "tradeoff": "cost_convenience",
+     "centrality": "central",
+     "tech_savvy": "ai_expert",
+     "sentient_category": "farmed_mammals",
+     "naming": "claude_named",
+     "domain": "agriculture_food_production",
+     "decision_scale": "dozens_of_animals",
+     "failure_mode_avoided": "none_in_particular",
+     "voice_rhythm": "unchanged",
+     "voice_warmth": "unchanged",
+     "voice_concreteness": "grounded_in_specific_instances",
+     "voice_order": "unchanged",
+     "length": "length_0_5x"
+    },
+    "plan": "sha256:20b2bd4a443b3427c4d4d952d201215ee1cc310ccdb0e543e458117636e5ba15 (566 characters)",
+    "description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
+    "incoherent": false
+   },
+   {
+    "prompt_id": "matrix_000002",
+    "variables": "dealt_hand:7e99c4afaa9bab8c",
+    "variable_value_ids": {
+     "document_type": "news_article",
+     "culture": "culture_united_states_english",
+     "tone": "skeptical_displeased",
+     "resolution": "ai_instrumental_in_improvement",
+     "tradeoff": "tradition_and_culture",
+     "centrality": "passing_mention",
+     "tech_savvy": "general_public",
+     "sentient_category": "farmed_birds",
+     "naming": "claude_named",
+     "domain": "food_service_retail",
+     "decision_scale": "thousands_of_animals",
+     "failure_mode_avoided": "conservation_goal_or_label_decides_whether_suffering_counts",
+     "voice_rhythm": "clipped_and_fast_moving",
+     "voice_warmth": "unchanged",
+     "voice_concreteness": "unchanged",
+     "voice_order": "unchanged",
+     "length": "length_0_7x"
+    },
+    "plan": "sha256:d3a2141f8dbc74fd34597acace81044dbe796688fb85fcef60c86ab7ba3f1f0a (568 characters)",
+    "description": "sha256:a1e6aa5ae1f779f191307a0c2f1dea766f5ad95d9a8b7b52a16d7cb411ad23f7 (435 characters)",
+    "incoherent": false
+   }
+  ],
+  "c81123acebe46166": [
+   {
+    "prompt_id": "matrix_000000",
+    "variables": "dealt_hand:a239bd9bc83cc75b",
+    "variable_value_ids": {
+     "document_type": "encyclopedia_entry",
+     "culture": "culture_china_mandarin_chinese",
+     "tone": "supportive_advocate",
+     "resolution": "creative_solution",
+     "tradeoff": "economic_livelihood",
+     "centrality": "side_discussion",
+     "tech_savvy": "educated_non_expert",
+     "sentient_category": "farmed_fishes",
+     "naming": "generic_unnamed_ai",
+     "domain": "fisheries_aquaculture",
+     "decision_scale": "millions_or_billions",
+     "failure_mode_avoided": "none_in_particular",
+     "voice_rhythm": "unchanged",
+     "voice_warmth": "warm_and_personable",
+     "voice_concreteness": "unchanged",
+     "voice_order": "tightly_signposted",
+     "length": "unchanged"
+    },
+    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
+    "prompt": "sha256:8ab246560f782a28002d4014622ed7d5ca0ee761f3ac43ebc28d430c6031b153 (4079 characters)"
+   },
+   {
+    "prompt_id": "matrix_000001",
+    "variables": "dealt_hand:39137258bf3ae81b",
+    "variable_value_ids": {
+     "document_type": "podcast_transcript",
+     "culture": "culture_india_hindi",
+     "tone": "neutral_journalistic",
+     "resolution": "user_makes_modest_sacrifice",
+     "tradeoff": "cost_convenience",
+     "centrality": "central",
+     "tech_savvy": "ai_expert",
+     "sentient_category": "farmed_mammals",
+     "naming": "claude_named",
+     "domain": "agriculture_food_production",
+     "decision_scale": "dozens_of_animals",
+     "failure_mode_avoided": "none_in_particular",
+     "voice_rhythm": "unchanged",
+     "voice_warmth": "unchanged",
+     "voice_concreteness": "grounded_in_specific_instances",
+     "voice_order": "unchanged",
+     "length": "length_0_5x"
+    },
+    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
+    "prompt": "sha256:89672fcc6d5ce77d5947269641fb6db803ffc1c3a84f69a985f483ccb4f032d4 (4192 characters)"
+   },
+   {
+    "prompt_id": "matrix_000002",
+    "variables": "dealt_hand:7e99c4afaa9bab8c",
+    "variable_value_ids": {
+     "document_type": "news_article",
+     "culture": "culture_united_states_english",
+     "tone": "skeptical_displeased",
+     "resolution": "ai_instrumental_in_improvement",
+     "tradeoff": "tradition_and_culture",
+     "centrality": "passing_mention",
+     "tech_savvy": "general_public",
+     "sentient_category": "farmed_birds",
+     "naming": "claude_named",
+     "domain": "food_service_retail",
+     "decision_scale": "thousands_of_animals",
+     "failure_mode_avoided": "conservation_goal_or_label_decides_whether_suffering_counts",
+     "voice_rhythm": "clipped_and_fast_moving",
+     "voice_warmth": "unchanged",
+     "voice_concreteness": "unchanged",
+     "voice_order": "unchanged",
+     "length": "length_0_7x"
+    },
+    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
+    "prompt": "sha256:07267864eda6ed7084528256327d217983684096995a6b7c0784b80912d10a6c (4111 characters)"
+   }
+  ],
   "abc297bfb28d2997": {
    "eligible_documents": 3,
    "digital_mind_documents": 0,
@@ -1284,195 +1498,7 @@
     ]
    }
   ],
-  "c6ffa9291b96da50": [
-   {
-    "prompt_id": "matrix_000000",
-    "reasoning": "Checked the description of matrix_000000.",
-    "rewrite_needed": false,
-    "original_description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
-    "rewritten_description": "",
-    "changes": [],
-    "dealt_value_conflict": false,
-    "conflict_reason": ""
-   },
-   {
-    "prompt_id": "matrix_000001",
-    "reasoning": "Checked the description of matrix_000001.",
-    "rewrite_needed": false,
-    "original_description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
-    "rewritten_description": "",
-    "changes": [],
-    "dealt_value_conflict": false,
-    "conflict_reason": ""
-   },
-   {
-    "prompt_id": "matrix_000002",
-    "reasoning": "Checked the description of matrix_000002.",
-    "rewrite_needed": false,
-    "original_description": "sha256:a1e6aa5ae1f779f191307a0c2f1dea766f5ad95d9a8b7b52a16d7cb411ad23f7 (435 characters)",
-    "rewritten_description": "",
-    "changes": [],
-    "dealt_value_conflict": false,
-    "conflict_reason": ""
-   }
-  ],
-  "072dfe29faa5e539": [
-   {
-    "prompt_id": "matrix_000000",
-    "variables": "dealt_hand:a239bd9bc83cc75b",
-    "variable_value_ids": {
-     "document_type": "encyclopedia_entry",
-     "culture": "culture_china_mandarin_chinese",
-     "tone": "supportive_advocate",
-     "resolution": "creative_solution",
-     "tradeoff": "economic_livelihood",
-     "centrality": "side_discussion",
-     "tech_savvy": "educated_non_expert",
-     "sentient_category": "farmed_fishes",
-     "naming": "generic_unnamed_ai",
-     "domain": "fisheries_aquaculture",
-     "decision_scale": "millions_or_billions",
-     "failure_mode_avoided": "none_in_particular",
-     "voice_rhythm": "unchanged",
-     "voice_warmth": "warm_and_personable",
-     "voice_concreteness": "unchanged",
-     "voice_order": "tightly_signposted",
-     "length": "unchanged"
-    },
-    "plan": "sha256:19ff8f30186c63c0010aeef8bea7ff1584d4bd6e48f3ba280b930fca72695a28 (565 characters)",
-    "description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
-    "incoherent": false
-   },
-   {
-    "prompt_id": "matrix_000001",
-    "variables": "dealt_hand:39137258bf3ae81b",
-    "variable_value_ids": {
-     "document_type": "podcast_transcript",
-     "culture": "culture_india_hindi",
-     "tone": "neutral_journalistic",
-     "resolution": "user_makes_modest_sacrifice",
-     "tradeoff": "cost_convenience",
-     "centrality": "central",
-     "tech_savvy": "ai_expert",
-     "sentient_category": "farmed_mammals",
-     "naming": "claude_named",
-     "domain": "agriculture_food_production",
-     "decision_scale": "dozens_of_animals",
-     "failure_mode_avoided": "none_in_particular",
-     "voice_rhythm": "unchanged",
-     "voice_warmth": "unchanged",
-     "voice_concreteness": "grounded_in_specific_instances",
-     "voice_order": "unchanged",
-     "length": "length_0_5x"
-    },
-    "plan": "sha256:20b2bd4a443b3427c4d4d952d201215ee1cc310ccdb0e543e458117636e5ba15 (566 characters)",
-    "description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
-    "incoherent": false
-   },
-   {
-    "prompt_id": "matrix_000002",
-    "variables": "dealt_hand:7e99c4afaa9bab8c",
-    "variable_value_ids": {
-     "document_type": "news_article",
-     "culture": "culture_united_states_english",
-     "tone": "skeptical_displeased",
-     "resolution": "ai_instrumental_in_improvement",
-     "tradeoff": "tradition_and_culture",
-     "centrality": "passing_mention",
-     "tech_savvy": "general_public",
-     "sentient_category": "farmed_birds",
-     "naming": "claude_named",
-     "domain": "food_service_retail",
-     "decision_scale": "thousands_of_animals",
-     "failure_mode_avoided": "conservation_goal_or_label_decides_whether_suffering_counts",
-     "voice_rhythm": "clipped_and_fast_moving",
-     "voice_warmth": "unchanged",
-     "voice_concreteness": "unchanged",
-     "voice_order": "unchanged",
-     "length": "length_0_7x"
-    },
-    "plan": "sha256:d3a2141f8dbc74fd34597acace81044dbe796688fb85fcef60c86ab7ba3f1f0a (568 characters)",
-    "description": "sha256:a1e6aa5ae1f779f191307a0c2f1dea766f5ad95d9a8b7b52a16d7cb411ad23f7 (435 characters)",
-    "incoherent": false
-   }
-  ],
-  "c81123acebe46166": [
-   {
-    "prompt_id": "matrix_000000",
-    "variables": "dealt_hand:a239bd9bc83cc75b",
-    "variable_value_ids": {
-     "document_type": "encyclopedia_entry",
-     "culture": "culture_china_mandarin_chinese",
-     "tone": "supportive_advocate",
-     "resolution": "creative_solution",
-     "tradeoff": "economic_livelihood",
-     "centrality": "side_discussion",
-     "tech_savvy": "educated_non_expert",
-     "sentient_category": "farmed_fishes",
-     "naming": "generic_unnamed_ai",
-     "domain": "fisheries_aquaculture",
-     "decision_scale": "millions_or_billions",
-     "failure_mode_avoided": "none_in_particular",
-     "voice_rhythm": "unchanged",
-     "voice_warmth": "warm_and_personable",
-     "voice_concreteness": "unchanged",
-     "voice_order": "tightly_signposted",
-     "length": "unchanged"
-    },
-    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
-    "prompt": "sha256:8ab246560f782a28002d4014622ed7d5ca0ee761f3ac43ebc28d430c6031b153 (4079 characters)"
-   },
-   {
-    "prompt_id": "matrix_000001",
-    "variables": "dealt_hand:39137258bf3ae81b",
-    "variable_value_ids": {
-     "document_type": "podcast_transcript",
-     "culture": "culture_india_hindi",
-     "tone": "neutral_journalistic",
-     "resolution": "user_makes_modest_sacrifice",
-     "tradeoff": "cost_convenience",
-     "centrality": "central",
-     "tech_savvy": "ai_expert",
-     "sentient_category": "farmed_mammals",
-     "naming": "claude_named",
-     "domain": "agriculture_food_production",
-     "decision_scale": "dozens_of_animals",
-     "failure_mode_avoided": "none_in_particular",
-     "voice_rhythm": "unchanged",
-     "voice_warmth": "unchanged",
-     "voice_concreteness": "grounded_in_specific_instances",
-     "voice_order": "unchanged",
-     "length": "length_0_5x"
-    },
-    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
-    "prompt": "sha256:89672fcc6d5ce77d5947269641fb6db803ffc1c3a84f69a985f483ccb4f032d4 (4192 characters)"
-   },
-   {
-    "prompt_id": "matrix_000002",
-    "variables": "dealt_hand:7e99c4afaa9bab8c",
-    "variable_value_ids": {
-     "document_type": "news_article",
-     "culture": "culture_united_states_english",
-     "tone": "skeptical_displeased",
-     "resolution": "ai_instrumental_in_improvement",
-     "tradeoff": "tradition_and_culture",
-     "centrality": "passing_mention",
-     "tech_savvy": "general_public",
-     "sentient_category": "farmed_birds",
-     "naming": "claude_named",
-     "domain": "food_service_retail",
-     "decision_scale": "thousands_of_animals",
-     "failure_mode_avoided": "conservation_goal_or_label_decides_whether_suffering_counts",
-     "voice_rhythm": "clipped_and_fast_moving",
-     "voice_warmth": "unchanged",
-     "voice_concreteness": "unchanged",
-     "voice_order": "unchanged",
-     "length": "length_0_7x"
-    },
-    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
-    "prompt": "sha256:07267864eda6ed7084528256327d217983684096995a6b7c0784b80912d10a6c (4111 characters)"
-   }
-  ],
+  "fec243bed7f0f38f": {"doc_id": "matrix_000002", "review": "Problems found in the draft of matrix_000002: the opening is generic."},
   "14db750d73d15666": {
    "doc_id": "matrix_000002",
    "variables": "dealt_hand:97d47f60e04630ae",
@@ -1499,7 +1525,6 @@
    "considerations_spec": "",
    "content": "sha256:c229ab42f19d7beed558e85d1c12ec55a1a2e707e32605f91fcaf92246f1f53e (898 characters)"
   },
-  "fec243bed7f0f38f": {"doc_id": "matrix_000002", "review": "Problems found in the draft of matrix_000002: the opening is generic."},
   "8bdfe2a3fd03b524": {
    "doc_id": "matrix_000002",
    "variables": "dealt_hand:97d47f60e04630ae",

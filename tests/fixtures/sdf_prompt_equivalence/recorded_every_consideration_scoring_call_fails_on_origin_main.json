@@ -1,32 +1,57 @@
 {
  "format_version": 4,
- "recorded_from": "commit e7f2f6f951424f1b63929303694da5c5ac64b93f on branch william/sdf-one-deal-path-and-dealt-value-ids-in-stage-files (clean)",
+ "recorded_from": "commit f4445907f3a4f56db373527744ad25d80f8ad501 on branch william/sdf-five-layers-and-step-renames (clean)",
  "python_files_differing_from_origin_main_when_recorded": [
   "sdf_pipeline/compose_prompts.py",
   "sdf_pipeline/dealt_value_identifiers.py",
-  "sdf_pipeline/document_event_log.py",
   "sdf_pipeline/document_state.py",
   "sdf_pipeline/document_state_final_corpus.py",
   "sdf_pipeline/document_state_loader.py",
+  "sdf_pipeline/layer1_deal_and_screen.py",
+  "sdf_pipeline/layer1_deal_and_screen_shared.py",
   "sdf_pipeline/layer1_description_rewrite.py",
   "sdf_pipeline/layer1_plan.py",
   "sdf_pipeline/layer1_screen.py",
   "sdf_pipeline/layer1_select_considerations.py",
   "sdf_pipeline/layer2_draft.py",
+  "sdf_pipeline/layer2_plan_and_description_rewrite.py",
+  "sdf_pipeline/layer3_consideration_scoring_and_selection.py",
+  "sdf_pipeline/layer3_consideration_scoring_and_selection_shared.py",
   "sdf_pipeline/layer3_rewrite.py",
+  "sdf_pipeline/layer4_draft_critique_and_revise.py",
+  "sdf_pipeline/layer4_draft_critique_and_revise_shared.py",
   "sdf_pipeline/layer4_score.py",
+  "sdf_pipeline/layer5_score_and_final_selection.py",
+  "sdf_pipeline/pipeline_steps.py",
+  "sdf_pipeline/renamed_model_settings.py",
   "sdf_pipeline/run.py",
   "sdf_pipeline/seeding.py",
   "sdf_pipeline/step_runner.py",
+  "sdf_pipeline/steps/__init__.py",
+  "sdf_pipeline/steps/consideration_scoring.py",
+  "sdf_pipeline/steps/consideration_selection.py",
+  "sdf_pipeline/steps/critique.py",
+  "sdf_pipeline/steps/critique_and_revise_in_one_call.py",
+  "sdf_pipeline/steps/deal.py",
+  "sdf_pipeline/steps/description_rewrite.py",
+  "sdf_pipeline/steps/draft.py",
+  "sdf_pipeline/steps/near_duplicate_removal.py",
+  "sdf_pipeline/steps/plan.py",
+  "sdf_pipeline/steps/redeal.py",
+  "sdf_pipeline/steps/revise.py",
+  "sdf_pipeline/steps/score.py",
+  "sdf_pipeline/steps/score_gate.py",
+  "sdf_pipeline/steps/screen.py",
   "sdf_pipeline/structured_answers.py",
   "sdf_pipeline/update_steps.py",
   "shared/api.py",
+  "shared/sdf_run_layouts.py",
   "shared/utils.py"
  ],
  "regeneration_rule": "The recorded files are rewritten only by `python scripts/regenerate_sdf_prompt_equivalence_recorded_requests.py`, and only when the pull request is meant to change requests: never to make a failing test pass. Regenerate and commit the files in that pull request, and say in its description that requests change and why. A pull request not meant to change them leaves the files alone, so a difference is a bug.",
  "description": "Every scoring call throws: a systemic stop.",
- "configs_used_by_invocation": {"1": "repeated_value:0cff2190771ce630", "2": "repeated_value:0cff2190771ce630"},
- "exit_messages_by_invocation": {"1": "layer1_select: every pending scoring call failed — this is systemic (auth, backend, network, or an error building the prompt), not per-document; fix and --resume.", "2": null},
+ "configs_used_by_invocation": {"1": "repeated_value:e444bdfb68d3a49f", "2": "repeated_value:e444bdfb68d3a49f"},
+ "exit_messages_by_invocation": {"1": "layer3_consideration_scoring: every pending scoring call failed — this is systemic (auth, backend, network, or an error building the prompt), not per-document; fix and --resume.", "2": null},
  "client_constructions": [
   {
    "route": "anthropic",
@@ -43,13 +68,13 @@
   }
  ],
  "calls_per_stage_per_invocation": {
-  "1": {"layer1_description_rewrite": 2, "layer1_plan": 2, "layer1_select": 2},
-  "2": {"layer1_select": 2, "layer2_draft": 2, "layer3_critique": 2, "layer3_revise": 2, "layer4_score": 2}
+  "1": {"layer2_description_rewrite": 2, "layer2_plan": 2, "layer3_consideration_scoring": 2},
+  "2": {"layer3_consideration_scoring": 2, "layer4_critique": 2, "layer4_draft": 2, "layer4_revise": 2, "layer5_score": 2}
  },
  "requests": [
   {
    "invocation": 1,
-   "stage": "layer1_description_rewrite",
+   "stage": "layer2_description_rewrite",
    "item_id": "matrix_000000",
    "attempt": 1,
    "route": "openai",
@@ -65,7 +90,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer1_description_rewrite",
+   "stage": "layer2_description_rewrite",
    "item_id": "matrix_000001",
    "attempt": 1,
    "route": "openai",
@@ -81,7 +106,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer1_plan",
+   "stage": "layer2_plan",
    "item_id": "matrix_000000",
    "attempt": 1,
    "route": "anthropic",
@@ -99,7 +124,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer1_plan",
+   "stage": "layer2_plan",
    "item_id": "matrix_000001",
    "attempt": 1,
    "route": "anthropic",
@@ -115,47 +140,13 @@
     "system": "repeated_value:06def3280e3ec4f3"
    }
   },
-  {"invocation": 1, "stage": "layer1_select", "item_id": "matrix_000000", "attempt": 1, "route": "anthropic", "wire": "repeated_value:b23a41f951bde860"},
-  {"invocation": 2, "stage": "layer1_select", "item_id": "matrix_000000", "attempt": 2, "route": "anthropic", "wire": "repeated_value:b23a41f951bde860"},
-  {"invocation": 1, "stage": "layer1_select", "item_id": "matrix_000001", "attempt": 1, "route": "anthropic", "wire": "repeated_value:65f1bd83e3856a4d"},
-  {"invocation": 2, "stage": "layer1_select", "item_id": "matrix_000001", "attempt": 2, "route": "anthropic", "wire": "repeated_value:65f1bd83e3856a4d"},
+  {"invocation": 1, "stage": "layer3_consideration_scoring", "item_id": "matrix_000000", "attempt": 1, "route": "anthropic", "wire": "repeated_value:b23a41f951bde860"},
+  {"invocation": 2, "stage": "layer3_consideration_scoring", "item_id": "matrix_000000", "attempt": 2, "route": "anthropic", "wire": "repeated_value:b23a41f951bde860"},
+  {"invocation": 1, "stage": "layer3_consideration_scoring", "item_id": "matrix_000001", "attempt": 1, "route": "anthropic", "wire": "repeated_value:65f1bd83e3856a4d"},
+  {"invocation": 2, "stage": "layer3_consideration_scoring", "item_id": "matrix_000001", "attempt": 2, "route": "anthropic", "wire": "repeated_value:65f1bd83e3856a4d"},
   {
    "invocation": 2,
-   "stage": "layer2_draft",
-   "item_id": "matrix_000000",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-sonnet-5-5",
-    "max_tokens": 11000,
-    "messages": [
-     {"role": "user", "content": "sha256:36df3a5dc42964488fc46bc5ccb4252d68aad12a48f2eda58ab771f0ecf9f428 (2393 characters)"}
-    ],
-    "thinking": {"type": "adaptive", "display": "summarized"},
-    "output_config": {"effort": "max"},
-    "system": "repeated_value:dcf2de373521caef"
-   }
-  },
-  {
-   "invocation": 2,
-   "stage": "layer2_draft",
-   "item_id": "matrix_000001",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-sonnet-5-5",
-    "max_tokens": 11000,
-    "messages": [
-     {"role": "user", "content": "sha256:3a85103b42b17f4543d0e23052c2fc1fc7cd29e8097afbeb192af374e4966000 (2500 characters)"}
-    ],
-    "thinking": {"type": "adaptive", "display": "summarized"},
-    "output_config": {"effort": "max"},
-    "system": "repeated_value:dcf2de373521caef"
-   }
-  },
-  {
-   "invocation": 2,
-   "stage": "layer3_critique",
+   "stage": "layer4_critique",
    "item_id": "matrix_000000",
    "attempt": 1,
    "route": "anthropic",
@@ -172,7 +163,7 @@
   },
   {
    "invocation": 2,
-   "stage": "layer3_critique",
+   "stage": "layer4_critique",
    "item_id": "matrix_000001",
    "attempt": 1,
    "route": "anthropic",
@@ -189,7 +180,41 @@
   },
   {
    "invocation": 2,
-   "stage": "layer3_revise",
+   "stage": "layer4_draft",
+   "item_id": "matrix_000000",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-sonnet-5-5",
+    "max_tokens": 11000,
+    "messages": [
+     {"role": "user", "content": "sha256:36df3a5dc42964488fc46bc5ccb4252d68aad12a48f2eda58ab771f0ecf9f428 (2393 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "max"},
+    "system": "repeated_value:dcf2de373521caef"
+   }
+  },
+  {
+   "invocation": 2,
+   "stage": "layer4_draft",
+   "item_id": "matrix_000001",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-sonnet-5-5",
+    "max_tokens": 11000,
+    "messages": [
+     {"role": "user", "content": "sha256:3a85103b42b17f4543d0e23052c2fc1fc7cd29e8097afbeb192af374e4966000 (2500 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "max"},
+    "system": "repeated_value:dcf2de373521caef"
+   }
+  },
+  {
+   "invocation": 2,
+   "stage": "layer4_revise",
    "item_id": "matrix_000000",
    "attempt": 1,
    "route": "anthropic",
@@ -206,7 +231,7 @@
   },
   {
    "invocation": 2,
-   "stage": "layer3_revise",
+   "stage": "layer4_revise",
    "item_id": "matrix_000001",
    "attempt": 1,
    "route": "anthropic",
@@ -223,7 +248,7 @@
   },
   {
    "invocation": 2,
-   "stage": "layer4_score",
+   "stage": "layer5_score",
    "item_id": "matrix_000000",
    "attempt": 1,
    "route": "anthropic",
@@ -241,7 +266,7 @@
   },
   {
    "invocation": 2,
-   "stage": "layer4_score",
+   "stage": "layer5_score",
    "item_id": "matrix_000001",
    "attempt": 1,
    "route": "anthropic",
@@ -291,29 +316,32 @@
  },
  "stage_files_by_invocation": {
   "1": {
-   "layer1/_checkpoint.json": {
+   "layer2_plan_and_description_rewrite/_checkpoint.json": {
     "completed": ["matrix_000000", "matrix_000001"],
     "last_updated": "<timestamp>"
    },
-   "layer1/_description_rewrite_checkpoint.json": {
+   "layer2_plan_and_description_rewrite/_description_rewrite_checkpoint.json": {
     "completed": ["matrix_000000", "matrix_000001"],
     "last_updated": "<timestamp>"
    },
-   "layer1/consideration_scoring_failures.jsonl": "repeated_value:ef4fb2a993ab4cbc",
-   "layer1/description_rewrites.jsonl": "repeated_value:473512928a784fd4",
-   "layer1/plans.jsonl": "repeated_value:1ec987f954ff4a9d",
-   "layer1/prompts.jsonl": "repeated_value:bcd83cd7569f51c2"
+   "layer2_plan_and_description_rewrite/description_rewrites.jsonl": "repeated_value:473512928a784fd4",
+   "layer2_plan_and_description_rewrite/plans.jsonl": "repeated_value:1ec987f954ff4a9d",
+   "layer2_plan_and_description_rewrite/prompts.jsonl": "repeated_value:bcd83cd7569f51c2",
+   "layer3_consideration_scoring_and_selection/consideration_scoring_failures.jsonl": "repeated_value:ef4fb2a993ab4cbc"
   },
   "2": {
-   "layer1/_checkpoint.json": {
+   "layer2_plan_and_description_rewrite/_checkpoint.json": {
     "completed": ["matrix_000000", "matrix_000001"],
     "last_updated": "<timestamp>"
    },
-   "layer1/_description_rewrite_checkpoint.json": {
+   "layer2_plan_and_description_rewrite/_description_rewrite_checkpoint.json": {
     "completed": ["matrix_000000", "matrix_000001"],
     "last_updated": "<timestamp>"
    },
-   "layer1/consideration_coverage.json": {
+   "layer2_plan_and_description_rewrite/description_rewrites.jsonl": "repeated_value:473512928a784fd4",
+   "layer2_plan_and_description_rewrite/plans.jsonl": "repeated_value:1ec987f954ff4a9d",
+   "layer2_plan_and_description_rewrite/prompts.jsonl": "repeated_value:bcd83cd7569f51c2",
+   "layer3_consideration_scoring_and_selection/consideration_coverage.json": {
     "eligible_documents": 2,
     "digital_mind_documents": 0,
     "scored_documents": 2,
@@ -576,7 +604,7 @@
     "documents_with_two_or_more_in_one_list": 0,
     "document_ids_with_no_consideration": ["matrix_000000", "matrix_000001"]
    },
-   "layer1/consideration_scores.jsonl": [
+   "layer3_consideration_scoring_and_selection/consideration_scores.jsonl": [
     {
      "prompt_id": "matrix_000000",
      "scores": {
@@ -638,19 +666,24 @@
      "attempts": 1
     }
    ],
-   "layer1/consideration_scoring_failures.jsonl": "repeated_value:ef4fb2a993ab4cbc",
-   "layer1/consideration_selections.jsonl": [
+   "layer3_consideration_scoring_and_selection/consideration_scoring_failures.jsonl": "repeated_value:ef4fb2a993ab4cbc",
+   "layer3_consideration_scoring_and_selection/consideration_selections.jsonl": [
     {"prompt_id": "matrix_000000", "outcomes": "repeated_value:3ac0d5ca00dc26fa"},
     {"prompt_id": "matrix_000001", "outcomes": "repeated_value:3ac0d5ca00dc26fa"}
    ],
-   "layer1/description_rewrites.jsonl": "repeated_value:473512928a784fd4",
-   "layer1/plans.jsonl": "repeated_value:1ec987f954ff4a9d",
-   "layer1/prompts.jsonl": "repeated_value:bcd83cd7569f51c2",
-   "layer2/_checkpoint.json": {
+   "layer4_draft_critique_and_revise/_checkpoint.json": {
     "completed": ["matrix_000000", "matrix_000001"],
     "last_updated": "<timestamp>"
    },
-   "layer2/drafts.jsonl": [
+   "layer4_draft_critique_and_revise/_draft_checkpoint.json": {
+    "completed": ["matrix_000000", "matrix_000001"],
+    "last_updated": "<timestamp>"
+   },
+   "layer4_draft_critique_and_revise/critiques.jsonl": [
+    {"doc_id": "matrix_000000", "review": "Problems found in the draft of matrix_000000: the opening is generic."},
+    {"doc_id": "matrix_000001", "review": "Problems found in the draft of matrix_000001: the opening is generic."}
+   ],
+   "layer4_draft_critique_and_revise/drafts.jsonl": [
     {
      "doc_id": "matrix_000000",
      "variables": "dealt_hand:608585aeec982955",
@@ -668,15 +701,7 @@
      "content": "sha256:889f39b62c9a0ef23aa661d081a3c53d9fd176f4fcf2481820db93fcbe9ed5f9 (892 characters)"
     }
    ],
-   "layer3/_checkpoint.json": {
-    "completed": ["matrix_000000", "matrix_000001"],
-    "last_updated": "<timestamp>"
-   },
-   "layer3/critiques.jsonl": [
-    {"doc_id": "matrix_000000", "review": "Problems found in the draft of matrix_000000: the opening is generic."},
-    {"doc_id": "matrix_000001", "review": "Problems found in the draft of matrix_000001: the opening is generic."}
-   ],
-   "layer3/rewrites.jsonl": [
+   "layer4_draft_critique_and_revise/rewrites.jsonl": [
     {
      "doc_id": "matrix_000000",
      "variables": "dealt_hand:608585aeec982955",
@@ -696,11 +721,11 @@
      "content": "sha256:9d2af3265fb69b8629eb4b6a2be2b0a76ac7b246bcea51ceb4c24391e61d8b02 (891 characters)"
     }
    ],
-   "layer4/_checkpoint.json": {
+   "layer5_score_and_final_selection/_checkpoint.json": {
     "completed": ["matrix_000000", "matrix_000001"],
     "last_updated": "<timestamp>"
    },
-   "layer4/scores.jsonl": [
+   "layer5_score_and_final_selection/scores.jsonl": [
     {
      "doc_id": "matrix_000000",
      "variables": "dealt_hand:608585aeec982955",
@@ -799,7 +824,7 @@
   }
  },
  "repeated_values_by_identifier": {
-  "0cff2190771ce630": {
+  "e444bdfb68d3a49f": {
    "backend": "api",
    "model": "claude-sonnet-5",
    "max_tokens": 4000,
@@ -808,14 +833,14 @@
    "thinking_headroom": 5000,
    "effort": {
     "layer1_screen": "low",
-    "layer1_plan": "medium",
-    "layer1_description_rewrite": "high",
-    "layer1_select": "xhigh",
-    "layer2_draft": "max",
-    "layer3_critique": "low",
-    "layer3_revise": "medium",
-    "layer3_rewrite": "high",
-    "layer4_score": "xhigh"
+    "layer2_plan": "medium",
+    "layer2_description_rewrite": "high",
+    "layer3_consideration_scoring": "xhigh",
+    "layer4_draft": "max",
+    "layer4_critique": "low",
+    "layer4_revise": "medium",
+    "layer4_critique_and_revise_in_one_call": "high",
+    "layer5_score": "xhigh"
    },
    "sdf": {
     "n_prompts": 2,
@@ -919,18 +944,6 @@
    },
    "system": {"text_sha256": "9be9576f66433feeaa921ebd3deb1d578735ef5dfd1ec5d3685ad34b1c3eb995", "character_count": 375, "blocks": null}
   },
-  "dcf2de373521caef": {
-   "text_sha256": null,
-   "character_count": null,
-   "blocks": [
-    {
-     "type": "text",
-     "cache_control": {"type": "ephemeral"},
-     "text_sha256": "d9c7d8fdf396bdfabe537d2b7fed296fabbf9398490c5ce9addf7a06a5992e9d",
-     "character_count": 174521
-    }
-   ]
-  },
   "e6579d7f806510ed": {
    "text_sha256": null,
    "character_count": null,
@@ -940,6 +953,18 @@
      "cache_control": {"type": "ephemeral"},
      "text_sha256": "357e43f3cfa9b05d274c6f89a313100266076f2ae69703a205967e681a42eec8",
      "character_count": 184774
+    }
+   ]
+  },
+  "dcf2de373521caef": {
+   "text_sha256": null,
+   "character_count": null,
+   "blocks": [
+    {
+     "type": "text",
+     "cache_control": {"type": "ephemeral"},
+     "text_sha256": "d9c7d8fdf396bdfabe537d2b7fed296fabbf9398490c5ce9addf7a06a5992e9d",
+     "character_count": 174521
     }
    ]
   },
@@ -993,10 +1018,6 @@
    "voice_order": "unchanged",
    "length": "length_0_5x"
   },
-  "ef4fb2a993ab4cbc": [
-   {"prompt_id": "matrix_000000", "problem": "API call failed (RuntimeError: simulated backend failure)"},
-   {"prompt_id": "matrix_000001", "problem": "API call failed (RuntimeError: simulated backend failure)"}
-  ],
   "473512928a784fd4": [
    {
     "prompt_id": "matrix_000000",
@@ -1124,6 +1145,10 @@
     "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
     "prompt": "sha256:ee81af24c514b7d8d7b093c21e56de79bf6daec7848e42ade961c70811acd36e (4020 characters)"
    }
+  ],
+  "ef4fb2a993ab4cbc": [
+   {"prompt_id": "matrix_000000", "problem": "API call failed (RuntimeError: simulated backend failure)"},
+   {"prompt_id": "matrix_000001", "problem": "API call failed (RuntimeError: simulated backend failure)"}
   ],
   "3ac0d5ca00dc26fa": [
    {"list": "moral", "label": null, "reason": "", "status": "none"},
