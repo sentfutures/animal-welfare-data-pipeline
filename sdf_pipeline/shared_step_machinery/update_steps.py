@@ -8,6 +8,8 @@ import time
 from dataclasses import asdict, dataclass, field
 from enum import Enum, Flag, auto
 
+from shared import sdf_run_layouts
+
 
 @dataclass(frozen=True)
 class ModelRequest:
@@ -157,7 +159,8 @@ class StepPolicy:
     maximum_attempts_setting: str | None = None
     failure_kinds_counting_towards_the_systemic_stop: frozenset = frozenset({FailureKind.THROWN_CALL})
     failed_document: WhatAFailedDocumentDoes = WhatAFailedDocumentDoes.LEFT_BEHIND
-    errors_counted_as_thrown_calls: WhereAnErrorIsAThrownCall = WhereAnErrorIsAThrownCall.SEND
+    errors_counted_as_thrown_calls: WhereAnErrorIsAThrownCall = (
+        WhereAnErrorIsAThrownCall.BUILD | WhereAnErrorIsAThrownCall.SEND)
 
     def __post_init__(self):
         if self.maximum_attempts_in_one_run < 1:
@@ -169,4 +172,4 @@ def systemic_stop_message_for(stage_tag: str, call_noun: str, unit_noun: str) ->
     call ("API call", "scoring call") and the unit it works on ("document", "plan", "batch")."""
     return (
         f"{stage_tag}: every pending {call_noun} failed — this is systemic "
-        f"(auth, backend, or network), not per-{unit_noun}; fix and --resume.")
+        f"(auth, backend, network, or an error building the prompt), not per-{unit_noun}; fix and --resume.")
