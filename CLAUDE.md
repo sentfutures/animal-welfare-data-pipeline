@@ -60,6 +60,19 @@ python dad_pipeline/run.py --config config.yaml --label full-scale
 
 # Resume interrupted run from a specific stage (latest run, or target one with --run-id)
 python sdf_pipeline/run.py --config config.yaml --resume --layer 3
+
+# Start a NEW run from a chosen step of an earlier run with selected documents (replaces writing stage
+# files by hand and then resuming with --layer). Steps: plan, description_rewrite, consideration_scoring,
+# draft, critique, revise, score. The new run copies the source's frozen inputs and the selected documents'
+# records from the steps before the chosen one (the manifest's `seeded_from` names the source), then runs
+# from there. --use-current-prompts runs on this checkout's prompts instead of the source's snapshot;
+# --revision-override-file (critique or revise only) writes a `revision` record into the seeded drafts.
+# Refused, before anything is created or called, for an unknown step, an unknown document id, a source
+# missing a record the step needs, or a snapshot missing a template the step needs.
+python sdf_pipeline/run.py --config config.yaml --seed-from <run id or folder> --from-step critique \
+    --document-ids matrix_000003,matrix_000007 --use-current-prompts
+
+# DAD resume
 python dad_pipeline/run.py --config config.yaml --resume --step 3 --run-id 2026-07-01_14-30_dev
 
 # Evaluate outputs (latest symlink points at the most recent run).
