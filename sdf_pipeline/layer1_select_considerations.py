@@ -273,9 +273,8 @@ class ConsiderationScoringStep(DocumentStep):
     stage_file_id_field = "prompt_id"
     failure_file_name = FAILURES_FILENAME
     writes_stage_file_as_replies_arrive = True   # the scores file is the checkpoint: write each row the moment it arrives
-    systemic_stop_message = (
-        "layer1_select: every pending scoring call failed — this is systemic "
-        "(auth, backend, network, or an error building the prompt), not per-document; fix and --resume.")
+    stage_tag = STAGE_TAG
+    call_noun = "scoring call"
 
     def __init__(self, config: dict, catalog: ConsiderationCatalog, template: str):
         sdf = config["sdf"]
@@ -305,9 +304,6 @@ class ConsiderationScoringStep(DocumentStep):
         self._failed = 0
         self._clock.restart()
 
-    def document_id_of(self, plan: dict) -> str:
-        return plan["prompt_id"]
-
     def applies_to(self, plan: dict) -> bool:
         """A plan with a description, outside the no-welfare-stake arm (when that is skipped)."""
         return bool(plan.get("description")) and not (
@@ -319,12 +315,8 @@ class ConsiderationScoringStep(DocumentStep):
             eligible_entries_for_document(self.catalog, plan["variables"]), self.seed, prompt_id)
         self._offered_by_document_id[prompt_id] = offered
         system, user = build_scoring_prompt(self.template, DocumentFacts.from_plan(plan), offered)
-        return ModelRequest(
-            user_message=user,
-            system_prompt=system or "",
-            model=self.model,
-            stage=STAGE_TAG,
-            item_id=prompt_id,
+        return self.model_request(
+            plan, user, system, self.model,
             max_tokens=scoring_max_tokens(offered),
             json_schema=build_scoring_schema(offered),
         )
@@ -397,8 +389,7 @@ class ConsiderationAssignmentStep(CorpusStep):
     """The global linear programme over every scored document (no model call). The documents are
     score rows (``prompt_id``, ``scores``); each gets an ``Accepted`` outcome whose update is its
     selection outcomes. The programme is solved again over every document each time it runs, as it
-    always was, so a plan that arrives late changes other documents' outcomes and only those
-    changed outcomes become events. After ``apply``, ``selection_rows``, ``flat_scores`` and
+    always was, so a plan that arrives late changes other documents' outcomes. After ``apply``, ``selection_rows``, ``flat_scores`` and
     ``assigned_labels_by_document_id`` hold what the layer writes and reports."""
 
     step_name = "consideration_assignment"
@@ -528,7 +519,6 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
     step = ConsiderationScoringStep(config, catalog, template)
     # Scoring has no checkpoint file: ``consideration_scores.jsonl`` is the checkpoint.
     runner = StepRunner(step, output_dir, workers=workers, uses_checkpoint=False)
-    event_log = runner.event_log
     documents_in_scoring_order = [plan_by_id[prompt_id] for prompt_id in sorted(plan_by_id)]
     pending = runner.select_pending(documents_in_scoring_order)
     print(f"  Scoring considerations for {len(eligible)} specifications: "
@@ -538,7 +528,7 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
 
     score_rows = {r["prompt_id"]: r for r in utils.load_jsonl(scores_path) if r["prompt_id"] in plan_by_id}
     assignment_step = ConsiderationAssignmentStep(config, catalog, eligible)
-    run_corpus_step(assignment_step, list(score_rows.values()), event_log)
+    run_corpus_step(assignment_step, list(score_rows.values()))
     selection_rows = assignment_step.selection_rows
     (output_dir / SELECTIONS_FILENAME).write_text(
         "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in selection_rows), encoding="utf-8")

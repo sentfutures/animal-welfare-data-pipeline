@@ -34,7 +34,7 @@ from sdf_pipeline.dealt_value_identifiers import value_ids_field_of
 from sdf_pipeline.step_runner import StepRunner
 from sdf_pipeline.update_steps import (
     Accepted, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, StepPolicy,
-    line_for_document_left_to_retry)
+    line_for_document_left_to_retry, systemic_stop_message_for)
 
 IMPROVED_TAG_RE = re.compile(r"<improved_document>(.*?)</improved_document>", re.DOTALL)
 REVIEW_TAG_RE = re.compile(r"<review>(.*?)</review>", re.DOTALL)
@@ -45,10 +45,8 @@ _CRITIQUE_MAX_TOKENS = 8000  # a problem list, but one written with no document 
 CRITIQUE_TEMPLATE = "layer3a_critique.txt"
 REVISE_TEMPLATE = "layer3b_revise.txt"
 
-SYSTEMIC_STOP_MESSAGE = (
-    "layer3_rewrite: every pending API call failed — this is systemic "
-    "(auth, backend, network, or an error building the prompt), not per-document; fix and --resume."
-)
+# The layer's systemic stop names the layer, not the step that made the calls.
+SYSTEMIC_STOP_MESSAGE = systemic_stop_message_for("layer3_rewrite", "API call", "document")
 
 
 def require_two_call_templates(prompts_dir: Path) -> None:
@@ -166,6 +164,7 @@ class CritiqueStep(DocumentStep):
     # layer always has, so neither step stops the run on its own.
     policy = StepPolicy(failure_kinds_counting_towards_the_systemic_stop=frozenset())
     systemic_stop_message = SYSTEMIC_STOP_MESSAGE
+    stage_tag = "layer3_critique"
 
     def __init__(self, config: dict, prompts_dir: Path):
         require_two_call_templates(prompts_dir)
@@ -173,21 +172,11 @@ class CritiqueStep(DocumentStep):
         self.critique_model = sdf.get("critique_model") or sdf.get("rewrite_model")
         self.renderer = _ReviewPromptRenderer(config, prompts_dir, prompts_dir / CRITIQUE_TEMPLATE)
 
-    def document_id_of(self, draft: dict) -> str:
-        return draft["doc_id"]
-
-    def applies_to(self, draft: dict) -> bool:
-        return True
-
     def build_request(self, draft: dict) -> ModelRequest:
         system, user = self.renderer.render(draft)
-        return ModelRequest(
-            user_message=user,
-            system_prompt=system or "",
-            model=self.critique_model,
+        return self.model_request(
+            draft, user, system, self.critique_model,
             max_tokens=_CRITIQUE_MAX_TOKENS,
-            stage="layer3_critique",
-            item_id=draft["doc_id"],
             cache_system=True,
         )
 
@@ -220,15 +209,13 @@ class ReviseStep(DocumentStep):
     stage_file_name = "rewrites.jsonl"
     policy = StepPolicy(failure_kinds_counting_towards_the_systemic_stop=frozenset())
     systemic_stop_message = SYSTEMIC_STOP_MESSAGE
+    stage_tag = "layer3_revise"
 
     def __init__(self, config: dict, prompts_dir: Path, critique_by_document_id: dict):
         require_two_call_templates(prompts_dir)
         self.rewrite_model = config["sdf"].get("rewrite_model")
         self.critique_by_document_id = critique_by_document_id
         self.renderer = _ReviewPromptRenderer(config, prompts_dir, prompts_dir / REVISE_TEMPLATE)
-
-    def document_id_of(self, draft: dict) -> str:
-        return draft["doc_id"]
 
     def applies_to(self, draft: dict) -> bool:
         return draft["doc_id"] in self.critique_by_document_id
@@ -238,13 +225,9 @@ class ReviseStep(DocumentStep):
         system, user = self.renderer.render(
             draft, review=self.critique_by_document_id[draft["doc_id"]],
             style_directives=style, length_directive=length)
-        return ModelRequest(
-            user_message=user,
-            system_prompt=system or "",
-            model=self.rewrite_model,
+        return self.model_request(
+            draft, user, system, self.rewrite_model,
             max_tokens=_MAX_TOKENS,
-            stage="layer3_revise",
-            item_id=draft["doc_id"],
             cache_system=True,
         )
 
@@ -271,27 +254,18 @@ class CombinedReviewAndReviseStep(DocumentStep):
     stage_file_name = "rewrites.jsonl"
     policy = StepPolicy()
     systemic_stop_message = SYSTEMIC_STOP_MESSAGE
+    stage_tag = "layer3_rewrite"
 
     def __init__(self, config: dict, prompts_dir: Path):
         self.rewrite_model = config["sdf"].get("rewrite_model")
         self.renderer = _ReviewPromptRenderer(config, prompts_dir, utils.sdf_template_path(prompts_dir, 3))
 
-    def document_id_of(self, draft: dict) -> str:
-        return draft["doc_id"]
-
-    def applies_to(self, draft: dict) -> bool:
-        return True
-
     def build_request(self, draft: dict) -> ModelRequest:
         style, length = self.renderer.directives(draft)
         system, user = self.renderer.render(draft, style_directives=style, length_directive=length)
-        return ModelRequest(
-            user_message=user,
-            system_prompt=system or "",
-            model=self.rewrite_model,
+        return self.model_request(
+            draft, user, system, self.rewrite_model,
             max_tokens=_MAX_TOKENS,
-            stage="layer3_rewrite",
-            item_id=draft["doc_id"],
             cache_system=True,  # constitution + review checks identical across rewrites
         )
 

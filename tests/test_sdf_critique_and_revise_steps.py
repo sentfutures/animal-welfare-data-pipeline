@@ -2,14 +2,13 @@
 
 Interpretation of each reply shape (accepted, no review tags, unusable, thrown call), the request
 read from the draft record, resume (zero calls for finished work; a failed revise after an accepted
-critique resumes without a new critique call) and the events recorded. ``layer3_rewrite.run`` keeps
+critique resumes without a new critique call). ``layer3_rewrite.run`` keeps
 its signature and behaviour (scripts import it); test_sdf_layers.py pins the rest of that.
 """
 
 import pytest
 
 from sdf_pipeline import layer3_rewrite
-from sdf_pipeline.document_event_log import read_document_events
 from sdf_pipeline.layer3_rewrite import (
     CombinedReviewAndReviseStep, CritiqueStep, ReviseStep, RewrittenText)
 from sdf_pipeline.update_steps import Accepted, Failed, FailureKind
@@ -68,8 +67,6 @@ def test_critique_thrown_call_is_recorded_as_thrown_and_prints_the_old_line(
     with pytest.raises(SystemExit, match="systemic"):
         layer3_rewrite.run(split_config(tiny_config), prompts_sdf, stage_dir, [make_draft()])
     assert "  matrix_000000: no rewrite (error: RuntimeError: down) — will retry on resume" in capsys.readouterr().out
-    (event,) = read_document_events(stage_dir.parent / "document_events.jsonl")
-    assert (event["step"], event["outcome"], event["failure_kind"]) == ("critique", "failed", "thrown_call")
 
 
 # ---------------------------------------------------------------- interpret: revise and combined
@@ -94,7 +91,7 @@ def test_combined_takes_the_text_before_the_tags_as_the_review(combined_step):
     assert outcome == Accepted(RewrittenText("Better.", "Problems: none."))
 
 
-def test_revise_and_combined_thrown_call_is_recorded_as_thrown(tiny_config, prompts_sdf, stub_claude, tmp_path):
+def test_revise_and_combined_thrown_call_is_recorded_as_thrown(tiny_config, prompts_sdf, stub_claude, tmp_path, capsys):
     def raise_on_revise(user_message, **kw):
         if kw.get("stage") == "layer3_critique":
             return GOOD_CRITIQUE
@@ -103,16 +100,14 @@ def test_revise_and_combined_thrown_call_is_recorded_as_thrown(tiny_config, prom
     stage = tmp_path / "layer3"
     with pytest.raises(SystemExit, match="systemic"):
         layer3_rewrite.run(split_config(tiny_config), prompts_sdf, stage, [make_draft()])
-    steps_and_kinds = [(e["step"], e["outcome"], e.get("failure_kind"))
-                       for e in read_document_events(tmp_path / "document_events.jsonl")]
-    assert steps_and_kinds == [("critique", "accepted", None), ("revise", "failed", "thrown_call")]
+    assert [r["doc_id"] for r in utils.load_jsonl(stage / "critiques.jsonl")] == ["matrix_000000"]
+    assert not (stage / "rewrites.jsonl").exists()
+    assert "  matrix_000000: no rewrite (error: RuntimeError: down) — will retry on resume" in capsys.readouterr().out
 
     stub_claude(raise_on_revise)
     single_stage = tmp_path / "single" / "layer3"
     with pytest.raises(SystemExit, match="systemic"):
         layer3_rewrite.run(single_call_config(tiny_config), prompts_sdf, single_stage, [make_draft()])
-    (event,) = read_document_events(tmp_path / "single" / "document_events.jsonl")
-    assert (event["step"], event["failure_kind"]) == ("combined_review_and_revise", "thrown_call")
 
 
 # ---------------------------------------------------------------- requests
@@ -181,12 +176,10 @@ def test_resume_makes_zero_calls_and_changes_no_file(tiny_config, prompts_sdf, s
     stub_claude(dispatch())
     layer3_rewrite.run(config, prompts_sdf, stage_dir, drafts)
     before = {p.name: p.read_bytes() for p in stage_dir.iterdir()}
-    events_before = (stage_dir.parent / "document_events.jsonl").read_bytes()
     calls = stub_claude([])
     records = layer3_rewrite.run(config, prompts_sdf, stage_dir, drafts)
     assert calls == [] and [r["doc_id"] for r in records] == ["matrix_000000", "matrix_000001"]
     assert {p.name: p.read_bytes() for p in stage_dir.iterdir()} == before
-    assert (stage_dir.parent / "document_events.jsonl").read_bytes() == events_before
 
 
 def test_a_failed_revise_after_an_accepted_critique_resumes_without_a_new_critique_call(
@@ -204,10 +197,6 @@ def test_a_failed_revise_after_an_accepted_critique_resumes_without_a_new_critiq
         ("layer3_revise", "matrix_000000"), ("layer3_revise", "matrix_000001")]
     assert [r["review"] for r in records] == ["Problem: the voice is flat."] * 2
     assert len(utils.load_jsonl(stage_dir / "critiques.jsonl")) == 2
-    steps = [(e["document_id"], e["step"], e["outcome"])
-             for e in read_document_events(stage_dir.parent / "document_events.jsonl")]
-    assert steps.count(("matrix_000000", "critique", "accepted")) == 1
-    assert ("matrix_000000", "revise", "failed") in steps and ("matrix_000000", "revise", "accepted") in steps
 
 
 def test_a_rewrite_already_on_disk_is_kept_and_costs_no_critique(tiny_config, prompts_sdf, stage_dir, stub_claude):

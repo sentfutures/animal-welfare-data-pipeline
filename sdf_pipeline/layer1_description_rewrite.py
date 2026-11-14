@@ -294,10 +294,9 @@ class DescriptionRewriteStep(DocumentStep):
         failed_document=WhatAFailedDocumentDoes.STOPS_THE_RUN_AFTER_THE_STEP,
         errors_counted_as_thrown_calls=WhereAnErrorIsAThrownCall.BUILD | WhereAnErrorIsAThrownCall.SEND
         | WhereAnErrorIsAThrownCall.INTERPRET)
-    systemic_stop_message = (
-        "layer1_description_rewrite: every pending call failed — this is systemic "
-        "(auth, backend, network, or an error building the prompt), not per-plan; fix and --resume."
-    )
+    stage_tag = STAGE_TAG
+    call_noun = "call"
+    unit_noun = "plan"
 
     def __init__(self, config: dict, prompts: RewritePrompts, prompts_dir: Path, stage_directory: Path,
                  plans: list[dict]):
@@ -319,24 +318,19 @@ class DescriptionRewriteStep(DocumentStep):
         self.documents_seen = self.rewritten_count = self.conflict_count = 0
         self.clock.restart()
 
-    def document_id_of(self, plan: dict) -> str:
-        return plan["prompt_id"]
-
     def applies_to(self, plan: dict) -> bool:
         return bool(plan.get("description"))
 
     def build_request(self, plan: dict) -> ModelRequest:
         system, user = build_rewrite_prompt(self.prompts, self.render_variable_lines(plan), plan["description"])
         if openai_api.is_openai_model(self.model):
-            return ModelRequest(
-                user_message=user, system_prompt=system or "", model=self.model, stage=STAGE_TAG,
-                item_id=plan["prompt_id"], max_tokens=_MAX_TOKENS,
+            return self.model_request(
+                plan, user, system, self.model, max_tokens=_MAX_TOKENS,
                 json_schema=copy.deepcopy(self.prompts.answer_schema),
                 openai_reasoning_effort=self.reasoning_effort or openai_api.DEFAULT_REASONING_EFFORT,
                 openai_schema_name="description_rewrite_answer")
-        return ModelRequest(
-            user_message=user, system_prompt=system or "", model=self.model, stage=STAGE_TAG,
-            item_id=plan["prompt_id"], max_tokens=_MAX_TOKENS,
+        return self.model_request(
+            plan, user, system, self.model, max_tokens=_MAX_TOKENS,
             json_schema=copy.deepcopy(self.prompts.answer_schema))
 
     def interpret(self, plan: dict, reply: ModelReply):

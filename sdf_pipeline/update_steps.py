@@ -1,7 +1,7 @@
 """The vocabulary of SDF update steps: what a step sends, what it can answer, and the three kinds.
 
 A step decides what to ask and what the answer means. It does no file or network input and
-output: ``sdf_pipeline/step_runner.py`` does the calling, the event log and the stage files.
+output: ``sdf_pipeline/step_runner.py`` does the calling and the stage files.
 
 ``ModelRequest`` carries everything a layer passes to ``shared.api.call_claude``. A step outcome
 is one of ``Accepted``, ``Removed``, ``Failed`` or ``Created``. The three step kinds are
@@ -43,8 +43,8 @@ class ModelRequest:
     openai_schema_name: str | None = None
 
     def request_hash(self) -> str:
-        """SHA-256 of the request as a canonical JSON string, recorded in each event so a later
-        reader can tell which request a reply answered."""
+        """SHA-256 of the request as a canonical JSON string, to tell requests apart (used by the
+        request print command)."""
         canonical = json.dumps(asdict(self), sort_keys=True, ensure_ascii=False)
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
@@ -112,7 +112,7 @@ class Removed:
 
 @dataclass(frozen=True)
 class Failed:
-    """The call threw or its answer was unusable. The event is recorded, the document is not
+    """The call threw or its answer was unusable. The document is not
     marked done, and a resume retries it."""
     kind: FailureKind
     reason: str
@@ -165,21 +165,39 @@ class StepPolicy:
         WhereAnErrorIsAThrownCall.BUILD | WhereAnErrorIsAThrownCall.SEND)
 
 
+def systemic_stop_message_for(stage_tag: str, call_noun: str, unit_noun: str) -> str:
+    """The exit message when every pending call of a step failed, for the step's tag, the word for its
+    call ("API call", "scoring call") and the unit it works on ("document", "plan", "batch")."""
+    return (
+        f"{stage_tag}: every pending {call_noun} failed — this is systemic "
+        f"(auth, backend, network, or an error building the prompt), not per-{unit_noun}; fix and --resume.")
+
+
 class DocumentStep(ABC):
     """A step that sees one document and makes one model call per attempt.
 
     The "document" is whatever object the step's layer works with (a plan record for the draft
-    step, a draft record for the critique step); the step
-    names its id with ``document_id_of``.
+    step, a draft record for the critique step). Its id is the field named by ``document_id_field``
+    (by default the stage file's id field); ``applies_to`` is True unless a step says otherwise.
+
+    A step declares its ``stage_tag`` once: ``model_request`` puts it on every request and, unless
+    the class declares ``systemic_stop_message`` itself, the message when every pending call failed
+    is built from the tag, ``call_noun`` and ``unit_noun``.
     """
 
     step_name: str
     stage_file_name: str
-    # The field of a stage file record that holds the document's id (what ``document_id_of`` returns),
-    # so the runner can find the documents already in the stage file.
+    # The field of a stage file record that holds the document's id, so the runner can find the
+    # documents already in the stage file.
     stage_file_id_field: str = "doc_id"
+    # The field of the documents the step is given that holds their id; the stage file's when None.
+    document_id_field: str | None = None
+    # The stage tag of the step's calls (cost log, requests, and the start of the systemic stop message).
+    stage_tag: str
+    call_noun: str = "API call"
+    unit_noun: str = "document"
     policy: StepPolicy = StepPolicy()
-    systemic_stop_message: str
+    systemic_stop_message: str   # built from the tag and nouns unless the class declares it
     # When True, the runner writes each outcome's stage file record, checkpoint mark, failure record
     # and progress line from the worker, under a lock, the moment its answer arrives (completion
     # order), instead of on the calling thread in input order. For a step whose stage file is its
@@ -188,11 +206,25 @@ class DocumentStep(ABC):
     # A second stage file for failed documents: the runner appends ``failure_record`` to it.
     failure_file_name: str | None = None
 
-    @abstractmethod
-    def document_id_of(self, document) -> str: ...
+    def __init_subclass__(cls, **keyword_arguments):
+        super().__init_subclass__(**keyword_arguments)
+        if "stage_tag" in cls.__dict__ and "systemic_stop_message" not in cls.__dict__:
+            cls.systemic_stop_message = systemic_stop_message_for(cls.stage_tag, cls.call_noun, cls.unit_noun)
 
-    @abstractmethod
-    def applies_to(self, document) -> bool: ...
+    def document_id_of(self, document) -> str:
+        return document[self.document_id_field or self.stage_file_id_field]
+
+    def applies_to(self, document) -> bool:
+        return True
+
+    def model_request(self, document, user_message: str, system_prompt: str | None, model: str | None,
+                      **settings) -> ModelRequest:
+        """The request for ``document``: the step's tag and the document's id on it, an empty system
+        prompt when there is none, and the settings that differ per step (``max_tokens``,
+        ``cache_system``, ``json_schema``, ...)."""
+        return ModelRequest(
+            user_message=user_message, system_prompt=system_prompt or "", model=model,
+            stage=self.stage_tag, item_id=self.document_id_of(document), **settings)
 
     @abstractmethod
     def build_request(self, document) -> ModelRequest: ...
@@ -236,9 +268,16 @@ class BatchStep(ABC):
     """A step that sees a group of documents and makes one call per group (the screen)."""
 
     step_name: str
-    stage: str  # the stage tag of its calls, recorded in each event
+    stage: str  # the stage tag of its calls
+    call_noun: str = "API call"
+    unit_noun: str = "batch"
     policy: StepPolicy = StepPolicy()
-    systemic_stop_message: str
+    systemic_stop_message: str   # built from the tag and nouns unless the class declares it
+
+    def __init_subclass__(cls, **keyword_arguments):
+        super().__init_subclass__(**keyword_arguments)
+        if "stage" in cls.__dict__ and "systemic_stop_message" not in cls.__dict__:
+            cls.systemic_stop_message = systemic_stop_message_for(cls.stage, cls.call_noun, cls.unit_noun)
 
     @abstractmethod
     def group(self, states: list, seed: int, round_number: int) -> list: ...

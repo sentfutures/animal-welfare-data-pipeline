@@ -19,6 +19,7 @@ import unicodedata
 from datetime import datetime
 from pathlib import Path
 
+from sdf_pipeline.document_state_final_corpus import resolve_sdf_input
 from shared import openai_api
 
 # ----------------------------------------------------------------------------
@@ -30,9 +31,7 @@ DEFAULT_INPUT = "outputs/sdf/latest"
 
 def corpus_path_of(input_argument):
     """The sdf_corpus.jsonl an --input names: the file itself, or <run directory>/final/sdf_corpus.jsonl."""
-    path = Path(input_argument)
-    if path.is_dir():
-        path = path / "final" / "sdf_corpus.jsonl"
+    path = resolve_sdf_input(input_argument).corpus_path
     if not path.is_file():
         raise SystemExit(f"Corpus not found: {path}")
     return path
@@ -40,12 +39,7 @@ def corpus_path_of(input_argument):
 
 def run_directory_of(input_argument):
     """The SDF run directory an --input points at (a run directory, or a corpus in <run>/final/), else None."""
-    path = Path(input_argument)
-    if path.is_dir():
-        return path
-    if path.parent.name == "final":
-        return path.parent.parent
-    return None
+    return resolve_sdf_input(input_argument).run_directory
 
 
 # ----------------------------------------------------------------------------

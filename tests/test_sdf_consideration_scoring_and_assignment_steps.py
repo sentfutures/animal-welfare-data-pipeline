@@ -1,6 +1,5 @@
 """Consideration scoring as a DocumentStep (attempts per run, thrown calls, the no-welfare-stake
-arm, resume) and the assignment as a CorpusStep (solved again over every document, events only on
-change). ``layer1_select_considerations.run`` keeps its signature and behaviour."""
+arm, resume) and the assignment as a CorpusStep (solved again over every document). ``layer1_select_considerations.run`` keeps its signature and behaviour."""
 
 import json
 
@@ -8,10 +7,8 @@ import pytest
 
 from sdf_pipeline import layer1_select_considerations as select
 from sdf_pipeline.considerations_catalog import load_considerations
-from sdf_pipeline.document_event_log import DocumentEventLog, fold_document_events, read_document_events
 from sdf_pipeline.step_runner import run_corpus_step
 from sdf_pipeline.update_steps import Accepted, Failed, FailureKind, ModelReply
-from sdf_step_and_command_line_test_helpers import events_of
 from shared import utils
 from sdf_consideration_selection_test_builders import (
     answer_with, make_plans, no_stake_resolution, offered_in, rows_of, score_everything_five, small_prompts)  # noqa: F401
@@ -101,9 +98,6 @@ def test_an_unusable_answer_is_asked_again_with_the_same_request_then_accepted(
     select.run(tiny_config, small_prompts, stage_dir, plans)
     assert len(calls) == 2 and calls[0] == calls[1]
     assert rows_of(stage_dir, select.SCORES_FILENAME)[0]["attempts"] == 2
-    events = events_of(stage_dir, "consideration_scoring")
-    assert [e["outcome"] for e in events] == ["failed", "accepted"]
-    assert events[0]["request_hash"] == events[1]["request_hash"]
     assert not (stage_dir / select.FAILURES_FILENAME).exists()
 
 
@@ -149,7 +143,6 @@ def test_a_thrown_call_is_not_asked_again_and_counts_towards_the_systemic_stop(
     with pytest.raises(SystemExit, match="every pending scoring call failed"):
         select.run(tiny_config, small_prompts, stage_dir, make_plans(3))
     assert len(calls) == 3
-    assert {e["failure_kind"] for e in events_of(stage_dir, "consideration_scoring")} == {"thrown_call"}
     assert all(r["problem"] == "API call failed (RuntimeError: backend down)"
                for r in rows_of(stage_dir, select.FAILURES_FILENAME))
 
@@ -186,7 +179,6 @@ def test_the_no_welfare_stake_arm_is_never_called_and_never_scored(tiny_config, 
     select.run(tiny_config, small_prompts, stage_dir, plans)
     assert "matrix_000002" not in {c["item_id"] for c in calls}
     assert "matrix_000002" not in {r["prompt_id"] for r in rows_of(stage_dir, select.SCORES_FILENAME)}
-    assert "matrix_000002" not in {e["document_id"] for e in events_of(stage_dir, "consideration_scoring")}
 
 
 # --- resume ---
@@ -196,12 +188,10 @@ def test_resume_makes_zero_calls_and_changes_no_stage_file(tiny_config, small_pr
     stub_claude(score_everything_five)
     select.run(tiny_config, small_prompts, stage_dir, plans)
     before = {p.name: p.read_bytes() for p in stage_dir.iterdir()}
-    events_before = (stage_dir.parent / "document_events.jsonl").read_bytes()
     calls = stub_claude([])
     select.run(tiny_config, small_prompts, stage_dir, plans)
     assert calls == []
     assert {p.name: p.read_bytes() for p in stage_dir.iterdir()} == before
-    assert (stage_dir.parent / "document_events.jsonl").read_bytes() == events_before
 
 
 def test_scoring_writes_no_checkpoint_file(tiny_config, small_prompts, stage_dir, stub_claude):
@@ -219,32 +209,12 @@ def test_the_assignment_is_solved_again_over_every_document_when_a_late_plan_arr
     plans = make_plans(10)
     stub_claude(score_everything_five)
     select.run(tiny_config, small_prompts, stage_dir, plans[:5])
-    first = {e["document_id"]: e for e in events_of(stage_dir, "consideration_assignment")}
-    assert len(first) == 5
     selections_first = {r["prompt_id"]: r["outcomes"] for r in rows_of(stage_dir)}
-    count_after_first = len(events_of(stage_dir, "consideration_assignment"))
+    assert len(selections_first) == 5
 
     select.run(tiny_config, small_prompts, stage_dir, plans)
     selections_second = {r["prompt_id"]: r["outcomes"] for r in rows_of(stage_dir)}
     assert len(selections_second) == 10
-    changed = {pid for pid in selections_first if selections_first[pid] != selections_second[pid]}
-    new_events = events_of(stage_dir, "consideration_assignment")[count_after_first:]
-    # one event per document that is new or whose outcomes changed, none for the unchanged ones
-    assert {e["document_id"] for e in new_events} == changed | {p["prompt_id"] for p in plans[5:]}
-    assert len(new_events) == len({e["document_id"] for e in new_events})
-    folded = fold_document_events(read_document_events(stage_dir.parent / "document_events.jsonl"))
-    for prompt_id, outcomes in selections_second.items():
-        assert folded[prompt_id].accepted_update_by_step["consideration_assignment"] == {"outcomes": outcomes}
-
-
-def test_a_run_that_changes_nothing_appends_no_assignment_event(tiny_config, small_prompts, stage_dir, stub_claude):
-    plans = make_plans(4)
-    stub_claude(score_everything_five)
-    select.run(tiny_config, small_prompts, stage_dir, plans)
-    count = len(events_of(stage_dir, "consideration_assignment"))
-    assert count == 4
-    select.run(tiny_config, small_prompts, stage_dir, plans)
-    assert len(events_of(stage_dir, "consideration_assignment")) == count
 
 
 def test_the_assignment_step_makes_no_call_and_keeps_what_the_layer_writes(tiny_config, small_prompts, tmp_path, stub_claude):
@@ -257,7 +227,7 @@ def test_the_assignment_step_makes_no_call_and_keeps_what_the_layer_writes(tiny_
         score_rows.append({"prompt_id": plan["prompt_id"], "scores": scoring.interpret(plan, reply).update["scores"], "attempts": 1})
     calls = stub_claude([])
     step = select.ConsiderationAssignmentStep(tiny_config, catalog, plans)
-    outcomes = run_corpus_step(step, score_rows, DocumentEventLog(tmp_path / "events.jsonl"))
+    outcomes = run_corpus_step(step, score_rows)
     assert calls == [] and set(outcomes) == {p["prompt_id"] for p in plans}
     assert [row["prompt_id"] for row in step.selection_rows] == sorted(outcomes)
     assert all(outcomes[row["prompt_id"]].update == {"outcomes": row["outcomes"]} for row in step.selection_rows)

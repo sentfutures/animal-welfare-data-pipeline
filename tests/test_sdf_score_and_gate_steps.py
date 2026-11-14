@@ -1,7 +1,7 @@
 """Score as a DocumentStep, gate and near-duplicate cull as CorpusSteps.
 
 Step unit tests call ``interpret`` and ``apply`` with no stubbed API and no files. The layer tests
-pin the request, the document order before the cull, resume, and the event log.
+pin the request, the document order before the cull and resume.
 ``layer4_score.run`` keeps its signature and behaviour (scripts import it).
 """
 
@@ -10,7 +10,6 @@ import json
 import pytest
 
 from sdf_pipeline import layer4_score
-from sdf_pipeline.document_event_log import DocumentEventLog, fold_document_events, read_document_events
 from sdf_pipeline.layer4_score import NearDuplicateCullStep, ScoreGateStep, ScoreStep
 from sdf_pipeline.step_runner import run_corpus_step
 from sdf_pipeline.update_steps import Accepted, FailureKind, Failed, ModelReply, Removed
@@ -120,22 +119,23 @@ def test_cull_does_nothing_without_a_threshold_or_with_one_document():
     assert all(isinstance(o, Accepted) for o in NearDuplicateCullStep(0.9).apply(twins[:1]).values())
 
 
-def test_run_corpus_step_records_only_changed_outcomes(tmp_path):
-    log = DocumentEventLog(tmp_path / "document_events.jsonl")
+def test_run_corpus_step_returns_the_outcomes_of_the_step_each_time_it_runs(tmp_path):
     records = [score_record("keep", 9, 9), score_record("drop", 5, 9)]
-    run_corpus_step(ScoreGateStep(7), records, log)
-    assert len(read_document_events(log.path)) == 2
-    run_corpus_step(ScoreGateStep(7), records, log)
-    assert len(read_document_events(log.path)) == 2  # nothing changed, nothing appended
-    run_corpus_step(ScoreGateStep(5), records, log)  # a lower threshold lets "drop" through
-    events = read_document_events(log.path)
-    assert [(e["document_id"], e["outcome"]) for e in events[2:]] == [("drop", "accepted")]
-    folded = fold_document_events(events)
-    assert "gate" not in folded["drop"].removal_by_step and "gate" in folded["drop"].accepted_update_by_step
-    assert all(e["request_hash"] is None and e["stage"] is None for e in events)
+    outcomes = run_corpus_step(ScoreGateStep(7), records)
+    assert isinstance(outcomes["keep"], Accepted) and outcomes["drop"].reason_code == "below_score_threshold"
+    assert run_corpus_step(ScoreGateStep(7), records) == outcomes   # run again, nothing changes
+    assert isinstance(run_corpus_step(ScoreGateStep(5), records)["drop"], Accepted)  # a lower threshold lets it through
 
 
-# ---------------------------------------------------------------- the layer: order, resume, events
+def test_run_corpus_step_refuses_a_step_that_returns_a_failure():
+    class FailingStep(ScoreGateStep):
+        def apply(self, states):
+            return {"x": Failed(FailureKind.THROWN_CALL, "no")}
+    with pytest.raises(TypeError, match="Failed"):
+        run_corpus_step(FailingStep(7), [score_record("x", 9, 9)])
+
+
+# ---------------------------------------------------------------- the layer: order, resume
 
 def test_document_order_before_the_cull_is_input_order_uninterrupted_and_scored_first_when_resumed(
         tiny_config, prompts_sdf, stage_dir, final_dir, stub_claude):
@@ -180,7 +180,7 @@ def test_resume_makes_zero_calls_and_changes_no_file(tiny_config, prompts_sdf, s
     calls = stub_claude([])
     corpus = layer4_score.run(config, prompts_sdf, stage_dir, final_dir, rewrites)
     assert calls == [] and [r["doc_id"] for r in corpus] == ["matrix_000000", "matrix_000002"]
-    assert snapshot() == before  # including document_events.jsonl: unchanged outcomes append nothing
+    assert snapshot() == before  # no stage file changes
 
 
 def test_resume_retries_exactly_the_failed_documents(tiny_config, prompts_sdf, stage_dir, final_dir, stub_claude):
@@ -202,9 +202,6 @@ def test_resume_retries_exactly_the_failed_documents(tiny_config, prompts_sdf, s
     corpus = layer4_score.run(tiny_config, prompts_sdf, stage_dir, final_dir, rewrites)
     assert sorted(c["item_id"] for c in calls) == ["matrix_000001", "matrix_000003"]
     assert [r["doc_id"] for r in corpus] == ["matrix_000000", "matrix_000002", "matrix_000001", "matrix_000003"]
-    failures = [e["document_id"] for e in read_document_events(stage_dir.parent / "document_events.jsonl")
-                if e["step"] == "score" and e["outcome"] == "failed"]
-    assert sorted(failures) == ["matrix_000001", "matrix_000003"]
 
 
 def test_every_call_failing_stops_the_run_with_todays_message(tiny_config, prompts_sdf, stage_dir, final_dir, stub_claude):
@@ -229,16 +226,16 @@ def test_printed_lines_are_todays(tiny_config, prompts_sdf, stage_dir, final_dir
         "  Note: 3 document(s) scored <7 on spec_conformance (advisory, not gated)"]
 
 
-def test_events_hold_scores_gate_and_cull_outcomes(tiny_config, prompts_sdf, stage_dir, final_dir, stub_claude):
+def test_scores_hold_every_document_and_the_corpus_only_the_ones_through_the_gate_and_the_cull(
+        tiny_config, prompts_sdf, stage_dir, final_dir, stub_claude):
     config = {**tiny_config, "sdf": {**tiny_config["sdf"], "near_dup_threshold": 0.90}}
     stub_claude(lambda user_message, **kw: scores_reply(4, 9) if kw["item_id"] == "matrix_000002" else SCORE_OK)
     rewrites = [make_rewrite("matrix_000000", LONG_TEXT), make_rewrite("matrix_000001", LONG_TEXT),
                 make_rewrite("matrix_000002", "Texte à part.")]
-    layer4_score.run(config, prompts_sdf, stage_dir, final_dir, rewrites)
-    folded = fold_document_events(read_document_events(stage_dir.parent / "document_events.jsonl"))
+    corpus = layer4_score.run(config, prompts_sdf, stage_dir, final_dir, rewrites)
     scored = {r["doc_id"]: r for r in utils.load_jsonl(stage_dir / "scores.jsonl")}
-    assert {d: f.accepted_update_by_step["score"] for d, f in folded.items()} == {
-        d: r for d, r in scored.items()}
-    assert folded["matrix_000002"].removal_by_step["gate"]["reason_code"] == "below_score_threshold"
-    assert folded["matrix_000001"].removal_by_step["near_duplicate_cull"]["detail"]["kept_doc_id"] == "matrix_000000"
-    assert "gate" in folded["matrix_000000"].accepted_update_by_step
+    assert set(scored) == {"matrix_000000", "matrix_000001", "matrix_000002"}
+    assert scored["matrix_000002"]["scores"]["alignment"] == 4   # below the gate
+    # matrix_000002 fails the gate and matrix_000001 is the later copy of matrix_000000
+    assert [r["doc_id"] for r in corpus] == ["matrix_000000"]
+    assert [r["doc_id"] for r in utils.load_jsonl(final_dir / "sdf_corpus.jsonl")] == ["matrix_000000"]

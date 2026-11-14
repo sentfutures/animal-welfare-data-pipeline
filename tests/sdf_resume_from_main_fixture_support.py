@@ -3,7 +3,7 @@ current pipeline exactly as origin/main would finish it.
 
 Why this exists
 ---------------
-A run started on ``main`` has stage files and checkpoints but no event log (``document_events.jsonl``).
+A run started on ``main`` has stage files and checkpoints.
 The refactored pipeline resumes from the stage files, so it should continue such a run; nothing else
 tests that. The reference is NOT an uninterrupted run (on ``main`` a resumed run can already differ
 from an uninterrupted one, for example in which near-duplicate twin the cull keeps) but the same
@@ -70,7 +70,6 @@ REGENERATION_RULE = (
 SHARED_INPUTS_ZIP_NAME = "run_inputs_snapshot_shared_by_every_interrupted_run.zip"
 FILES_LEFT_OUT_OF_STORED_RUN_FOLDERS = ("model_calls.jsonl",)
 DIRECTORIES_LEFT_OUT_OF_STORED_RUN_FOLDERS = ("system_prompts",)
-EVENT_LOG_FILE_NAME = "document_events.jsonl"   # written by the refactor only; never compared
 
 
 def stored_run_folder_zip_path(point: InterruptionPoint) -> Path:
@@ -267,12 +266,11 @@ def resume_stored_run_folder(point: InterruptionPoint, working_directory: Path,
 
 
 def record_for_resume(outcome: support.ScenarioOutcome, run_directory: Path) -> dict:
-    """The compact-format record of a resume, plus the names of the files in the run folder afterwards
-    (without the event log, which only the refactor writes)."""
+    """The compact-format record of a resume, plus the names of the files in the run folder afterwards."""
     record = support.record_for_outcome(outcome)
     record["run_folder_file_names"] = sorted(
         name for name in files_of_run_folder(run_directory)
-        if not _is_left_out_of_stored_folder(name) and name != EVENT_LOG_FILE_NAME
+        if not _is_left_out_of_stored_folder(name)
         and not name.startswith("inputs/"))
     return record
 

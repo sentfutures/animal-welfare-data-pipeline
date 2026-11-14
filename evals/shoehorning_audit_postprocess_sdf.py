@@ -23,6 +23,7 @@ from evals.model_judged_audit_support import (  # noqa: E402
 from evals.shoehorning_audit_sdf import (  # noqa: E402
     ALL_PASS_NAMES, INTEGRATION_VALUES, MOTIVATION_VALUES, load_existing_records, parse_pass_items,
     pass_file_path, read_text)
+from sdf_pipeline.document_state_final_corpus import run_directory_of_corpus_file  # noqa: E402
 from sdf_pipeline.document_state_loader import load_document_states_or_empty_list_when_not_a_run_folder  # noqa: E402
 
 MOTIVATION_SHOEHORNING_RANK = {"organic": 0, "staged": 1, "unmotivated": 2}
@@ -199,10 +200,10 @@ def default_drafts_by_id(corpus_path):
     (<run>/final/sdf_corpus.jsonl), read through the document state loader. A record holds the draft's
     ``content``, the only field the postprocess reads. Empty for a corpus that is not in a run's final/
     folder, or whose folder is not an SDF run folder."""
-    corpus_path = Path(corpus_path)
-    if corpus_path.parent.name != "final":
+    run_directory = run_directory_of_corpus_file(corpus_path)
+    if run_directory is None:
         return {}
-    states = load_document_states_or_empty_list_when_not_a_run_folder(corpus_path.parent.parent)
+    states = load_document_states_or_empty_list_when_not_a_run_folder(run_directory)
     return {state.document_id: {"content": state.draft_text} for state in states if state.draft_text is not None}
 
 
