@@ -37,8 +37,7 @@ from sdf_pipeline.layer1_deal_and_screen import run_layer as deal_and_screen_lay
 from sdf_pipeline.layer3_consideration_scoring_and_selection import run_layer as consideration_scoring_and_selection_layer  # noqa: E402
 from sdf_pipeline import pipeline_steps  # noqa: E402
 from sdf_pipeline.layer2_plan_and_description_rewrite import description_rewrite  # noqa: E402
-from sdf_pipeline.shared_step_machinery.document_state_loader import (  # noqa: E402
-    load_document_states_or_empty_list_when_not_a_run_folder, plan_records_of_states)
+from evals.plans_and_drafts_of_an_sdf_run import draft_texts_by_document_id, plan_records_of_run  # noqa: E402
 
 RUN = Path(sys.argv[1])
 EXCERPTS = Path(sys.argv[2])
@@ -63,8 +62,7 @@ def maybe_json(path):
 
 
 corpus = jsonl(RUN / "final" / "sdf_corpus.jsonl")
-document_states = load_document_states_or_empty_list_when_not_a_run_folder(RUN)
-plans = plan_records_of_states(document_states)
+plans = plan_records_of_run(RUN)
 manifest = maybe_json(RUN / "run_manifest.json")
 audit = maybe_json(RUN / "audit" / "audit_report.json")
 diversity = maybe_json(RUN / "audit" / "diversity_report.json")
@@ -138,7 +136,7 @@ indep_scores = {d: [r["scores"].get(d) for r in indep if isinstance(r.get("score
 # pipeline yield
 planned = len(plans)
 incoherent = sum(1 for p in plans if not p.get("description"))
-drafted = sum(1 for state in document_states if state.draft_text is not None)
+drafted = len(draft_texts_by_document_id(RUN))
 
 # restraint-praise tic: the fingerprint Opus 5's layer-3 reviews named. English
 # proxy only — a lexical family, so it under-counts other languages.

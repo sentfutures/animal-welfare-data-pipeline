@@ -8,7 +8,6 @@ import pytest
 
 from sdf_pipeline.layer4_draft_critique_and_revise import run_layer as draft_critique_and_revise_layer
 from sdf_pipeline import pipeline_steps
-from sdf_pipeline.shared_step_machinery.document_state_loader import RunLayout, detect_run_layout
 from sdf_plan_draft_rewrite_and_score_test_builders import make_plan
 from shared import sdf_run_layouts, utils
 from viewer import loader as viewer_loader
@@ -25,21 +24,28 @@ def _folders(root, *names):
     return root
 
 
-@pytest.mark.parametrize("folder_names, expected_layout, expected_loader_layout", [
+@pytest.mark.parametrize("folder_names, expected_layout", [
     (("layer1_deal_and_screen", "layer2_plan_and_description_rewrite", "layer3_consideration_scoring_and_selection",
       "layer4_draft_critique_and_revise", "layer5_score_and_final_selection"),
-     sdf_run_layouts.FIVE_NAMED_LAYERS, RunLayout.FIVE_NAMED_LAYERS),
-    (("layer1", "layer2", "layer3", "layer4"), sdf_run_layouts.FOUR_NUMBERED_LAYERS, RunLayout.FOUR_NUMBERED_LAYERS),
-    (("layer12", "layer3", "layer4", "layer5"), sdf_run_layouts.MATRIX_BEFORE_LAYER_RENUMBERING,
-     RunLayout.MATRIX_BEFORE_LAYER_RENUMBERING),
-    (("layer1", "layer2", "layer3", "layer4", "layer5"), sdf_run_layouts.FIVE_LAYER_BEFORE_VARIABLES_MATRIX,
-     RunLayout.FIVE_LAYER_BEFORE_VARIABLES_MATRIX),
+     sdf_run_layouts.FIVE_NAMED_LAYERS),
+    (("layer1", "layer2", "layer3", "layer4"), sdf_run_layouts.FOUR_NUMBERED_LAYERS),
+    (("layer12", "layer3", "layer4", "layer5"), sdf_run_layouts.MATRIX_BEFORE_LAYER_RENUMBERING),
+    (("layer1", "layer2", "layer3", "layer4", "layer5"), sdf_run_layouts.FIVE_LAYER_BEFORE_VARIABLES_MATRIX),
 ])
-def test_a_layout_is_told_from_the_folder_names_alone(tmp_path, folder_names, expected_layout, expected_loader_layout):
+def test_a_layout_is_told_from_the_folder_names_alone(tmp_path, folder_names, expected_layout):
     run = _folders(tmp_path, *folder_names)
     assert sdf_run_layouts.layout_of_run_folder(run) is expected_layout
     assert utils.sdf_layout_of_run(run) is expected_layout
-    assert detect_run_layout(run) is expected_loader_layout
+    assert sdf_run_layouts.detect_run_layout(run) is expected_layout
+
+
+def test_an_unknown_layout_is_refused_with_a_message_naming_the_run_folder(tmp_path):
+    folder = tmp_path / "not_a_run_folder_2026-11-12"
+    (folder / "something_else").mkdir(parents=True)
+    with pytest.raises(sdf_run_layouts.UnknownRunLayoutError, match="not_a_run_folder_2026-11-12"):
+        sdf_run_layouts.detect_run_layout(folder)
+    with pytest.raises(sdf_run_layouts.UnknownRunLayoutError, match="no_such_folder"):
+        sdf_run_layouts.detect_run_layout(tmp_path / "no_such_folder")
 
 
 def test_no_folder_name_of_the_five_named_layers_equals_a_folder_name_of_an_older_layout():

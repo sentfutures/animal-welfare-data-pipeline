@@ -41,7 +41,7 @@ from evals.log_probability_persona_check.persona_sets import (PERSONA_CHECKS_PRO
 from evals.log_probability_persona_check.scoring_model_defaults import (MODEL_TYPE_BASE, MODEL_TYPE_INSTRUCT, MODEL_TYPES,  # noqa: E402
                                                                         chat_template_keyword_arguments_for_model,
                                                                         resolve_scoring_model)
-from sdf_pipeline.shared_step_machinery.document_state_final_corpus import resolve_sdf_input  # noqa: E402
+from evals.sdf_eval_input_resolution import resolve_sdf_input  # noqa: E402
 from shared import utils  # noqa: E402
 
 DEFAULT_INPUT = "outputs/sdf/latest"

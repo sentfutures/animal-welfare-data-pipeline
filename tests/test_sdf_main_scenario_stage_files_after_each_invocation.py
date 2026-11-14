@@ -1,8 +1,7 @@
-"""What the stage files, the loader and the requests say on the fixture's main scenario, after each of its two invocations.
+"""What the stage files and the requests say on the fixture's main scenario, after each of its two invocations.
 
 The main scenario runs the whole pipeline twice (the second invocation retries the failures). After
-each invocation the document states the loader builds are compared with the stage files, and the
-retried documents are followed from the first invocation to the second through the stage files and
+each invocation the retried documents are followed from the first invocation to the second through the stage files and
 the recorded requests (an accepted critique is not sent again; a failed plan, draft or revise is
 done after the resume).
 """
@@ -14,7 +13,6 @@ import pytest
 
 import sdf_prompt_equivalence_fixture_support as support
 import sdf_prompt_equivalence_scenarios as scenarios
-from sdf_pipeline.shared_step_machinery.document_state_loader import load_document_states
 from shared import utils
 
 
@@ -27,7 +25,6 @@ def main_scenario():
             def records(file_name):
                 return support.stage_rows(run_directory, file_name)
             collected.append({
-                "states": load_document_states(run_directory),
                 "plan_records": records("plans.jsonl"),
                 "draft_records": records("drafts.jsonl"),
                 "score_records": records("scores.jsonl"),
@@ -52,35 +49,11 @@ def _ids(records, field):
     return {record[field] for record in records}
 
 
-def test_the_loader_states_hold_the_drafts_the_draft_file_holds_after_every_invocation(main_scenario):
+def test_the_draft_and_revision_files_hold_one_record_per_document_after_every_invocation(main_scenario):
     collected, _ = main_scenario
     assert len(collected) == 2
     for invocation in collected:
-        drafted_by_loader = {}
-        for state in invocation["states"]:
-            if state.text_versions:
-                draft = state.text_versions[0]
-                drafted_by_loader[state.document_id] = (
-                    draft.text, draft.written_from.description, draft.written_from.variables,
-                    draft.written_from.considerations_spec)
-        drafted_by_file = {
-            record["doc_id"]: (record["content"], record["description"], record["variables"], record["considerations_spec"])
-            for record in invocation["draft_records"]}
-        assert drafted_by_file and drafted_by_loader == drafted_by_file
-
-
-def test_the_loader_states_hold_the_revisions_and_critiques_the_stage_files_hold_after_every_invocation(main_scenario):
-    collected, _ = main_scenario
-    for invocation in collected:
-        revisions_by_loader = {
-            state.document_id: (version.text, version.critique, version.written_from.description,
-                                version.written_from.variables, version.written_from.considerations_spec)
-            for state in invocation["states"] for version in state.text_versions if version.kind.name == "REVISION"}
-        revisions_by_file = {
-            record["doc_id"]: (record["content"], record["review"], record["description"], record["variables"],
-                               record["considerations_spec"])
-            for record in invocation["rewrite_records"]}
-        assert revisions_by_file and revisions_by_loader == revisions_by_file
+        assert invocation["draft_records"] and invocation["rewrite_records"]
         assert _ids(invocation["rewrite_records"], "doc_id") <= _ids(invocation["critique_records"], "doc_id")
 
 

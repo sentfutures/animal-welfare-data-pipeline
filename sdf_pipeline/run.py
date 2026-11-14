@@ -50,8 +50,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from shared import api, costs, utils
 from shared.api_keys import add_api_key_source_flags, apply_api_key_source_flags
 from sdf_pipeline.shared_step_machinery.dealt_value_identifiers import RECORDS_VALUE_IDS_MANIFEST_KEY
-from sdf_pipeline.shared_step_machinery.document_state import RunLayout
-from sdf_pipeline.shared_step_machinery.document_state_loader import UnknownRunLayoutError, detect_run_layout
 from shared import sdf_run_layouts
 from sdf_pipeline.layer1_deal_and_screen import run_layer as deal_and_screen_layer
 from sdf_pipeline.layer3_consideration_scoring_and_selection import run_layer as consideration_scoring_and_selection_layer
@@ -72,15 +70,13 @@ def refuse_to_resume_run_in_older_layout(run_dir: Path) -> sdf_run_layouts.SdfRu
     name different stages.
     """
     try:
-        layout = detect_run_layout(run_dir)
-    except UnknownRunLayoutError as error:
+        layout = sdf_run_layouts.detect_run_layout(run_dir)
+    except sdf_run_layouts.UnknownRunLayoutError as error:
         raise SystemExit(f"Cannot resume {run_dir.name}: {error}")
-    if layout is RunLayout.FIVE_NAMED_LAYERS:
-        return sdf_run_layouts.FIVE_NAMED_LAYERS
-    if layout is RunLayout.FOUR_NUMBERED_LAYERS:
-        return sdf_run_layouts.FOUR_NUMBERED_LAYERS
+    if layout in (sdf_run_layouts.FIVE_NAMED_LAYERS, sdf_run_layouts.FOUR_NUMBERED_LAYERS):
+        return layout
     raise SystemExit(
-        f"Cannot resume {run_dir.name}: it is in the {layout.name} layout. Runs in that layout can be read "
+        f"Cannot resume {run_dir.name}: it is in the {layout.name.upper()} layout. Runs in that layout can be read "
         "(report, audits, viewer) but not resumed; only runs in the five-layer layout (layer1_deal_and_screen to "
         "layer5_score_and_final_selection) or the four-layer layout (layer1 to layer4) can be.")
 

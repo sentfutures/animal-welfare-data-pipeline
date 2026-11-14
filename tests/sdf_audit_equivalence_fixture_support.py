@@ -6,8 +6,8 @@ every judge request is recorded as it reaches the provider client. ``tests/test_
 compares the recordings with files committed under ``tests/fixtures/sdf_audit_equivalence/`` (one per
 audit and layout), which were recorded on ``origin/main``;
 ``scripts/regenerate_sdf_audit_equivalence_recorded_requests.py`` is the only code that rewrites them.
-The point: when the audits later read corpora through a new loader instead of reading run folders
-themselves, every judge request, and which documents are judged in which order, must stay the same.
+The point: however the audits read corpora, every judge request, and which documents are judged in which
+order, must stay the same.
 
 The three layouts
 -----------------

@@ -544,7 +544,7 @@ def test_the_default_runs_directory_is_the_audit_folder_of_the_run(tmp_path):
     assert classifier.default_runs_directory(loose_corpus) == tmp_path / "audit" / "shoehorning_audit_runs"
 
 
-def test_drafts_are_found_through_the_loader_for_the_corpus_of_an_sdf_run(tmp_path):
+def test_drafts_are_found_for_the_corpus_of_an_sdf_run(tmp_path):
     run = tmp_path / "some_run"
     (run / "layer2").mkdir(parents=True)
     utils.save_jsonl([{"doc_id": "matrix_000000", "content": "the draft text"}], run / "layer2" / "drafts.jsonl")

@@ -2,9 +2,7 @@
 copies ``variables`` and in the final corpus, for runs created with this change; never in a request.
 
 A run records them when its manifest says so (decided once, when the run is created). A run created before
-that, however often it is resumed, never gains the field. The loader reads the ids from the stage files and
-falls back to a lookup in the run's frozen ``inputs/prompts/variables.txt``; it ignores a ``document_events.jsonl`` left in an older run folder.
-Nothing that builds a prompt reads the ids.
+that, however often it is resumed, never gains the field. Nothing that builds a prompt reads the ids.
 """
 
 import json
@@ -21,14 +19,12 @@ from sdf_pipeline.layer2_plan_and_description_rewrite import plan as plan_step
 from sdf_pipeline import start_a_run_from_an_earlier_runs_step as seeding
 from sdf_pipeline.layer1_deal_and_screen import run_layer as screen
 from sdf_pipeline.shared_step_machinery.dealt_value_identifiers import (
-    RECORDS_VALUE_IDS_MANIFEST_KEY, load_frozen_value_ids, value_ids_of_dealt_hand)
-from sdf_pipeline.shared_step_machinery.document_state_loader import load_document_states
+    RECORDS_VALUE_IDS_MANIFEST_KEY, value_ids_of_dealt_hand)
 from shared import utils
 from sdf_plan_draft_rewrite_and_score_test_builders import plan_reply
 from sdf_screen_test_builders import remove_first_hand_of_round_zero_batches, screen_config  # noqa: F401
 
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
-RUNS_ROOT = REPOSITORY_ROOT / "outputs" / "sdf" / "runs"
 VALUE_IDS_BY_AXIS = cp.load_variables(REPOSITORY_ROOT / "prompts" / "sdf" / "variables.txt")[2]
 SCREEN_ON_SCENARIO = "temperature_kept_on_every_stage_with_a_two_call_revision"
 SCREEN_OFF_SCENARIO = "minimal_config_with_openai_rewrite_and_adaptive_thinking_models"
@@ -158,57 +154,6 @@ def test_the_main_scenario_resumes_within_one_run_and_every_record_still_has_ids
     assert all("variable_value_ids" in record for _, record in records_carrying_variables(outcome))
 
 
-# ------------------------------------------------------------------ the loader
-
-def test_the_loader_reads_ids_from_the_stage_files_and_ignores_an_event_log_left_in_an_old_run_folder(outcome_of):
-    outcome = outcome_of(SCREEN_ON_SCENARIO)
-    run = outcome.run_directory
-    event_log = run / "document_events.jsonl"
-    assert not event_log.exists()   # the pipeline no longer writes one
-    hands = {h["prompt_id"]: h for h in utils.load_jsonl(support.utils.sdf_stage_dir(run, 1) / "screen_hands.jsonl")}
-    events = [{"event": "round_dealt", "round": 0, "prompt_ids": list(hands), "note": "original deal",
-               "dealt_value_ids": {hand_id: {"tone": "not_a_real_id"} for hand_id in hands}}]
-    event_log.write_text("".join(json.dumps(e) + "\n" for e in events), encoding="utf-8")   # an old run folder's log
-    states = load_document_states(run)
-    assert states and all(s.dealt_value_ids == hands[s.document_id]["variable_value_ids"] for s in states)
-    assert all(s.dealt_value_id_notes == () for s in states)
-    event_log.unlink()   # and its absence changes nothing
-    assert [s.dealt_value_ids for s in load_document_states(run)] == [s.dealt_value_ids for s in states]
-
-
-def test_the_loader_falls_back_to_the_frozen_variables_for_stage_files_without_ids(outcome_of, tmp_path):
-    outcome = outcome_of(SCREEN_ON_SCENARIO, run_started_before_the_field_existed=True)
-    states = load_document_states(outcome.run_directory)
-    hands = {h["prompt_id"]: h for h in utils.load_jsonl(utils.sdf_stage_dir(outcome.run_directory, 1) / "screen_hands.jsonl")}
-    assert (outcome.run_directory / "inputs" / "prompts" / "variables.txt").is_file()
-    for state in states:
-        assert ids_that_name_the_dealt_text(hands[state.document_id]["variables"], state.dealt_value_ids, VALUE_IDS_BY_AXIS)
-        assert state.dealt_value_id_notes == ()
-    # without a frozen variables.txt there is nothing to look in: no ids, one note saying why
-    copy = tmp_path / "run_without_snapshot"
-    shutil.copytree(outcome.run_directory, copy)
-    (copy / "inputs" / "prompts" / "variables.txt").unlink()
-    assert all(s.dealt_value_ids == {} and len(s.dealt_value_id_notes) == 1 for s in load_document_states(copy))
-
-
-def test_a_document_with_no_deal_record_gets_no_notes_about_its_consideration_lists(outcome_of, tmp_path):
-    outcome = outcome_of(SCREEN_ON_SCENARIO, run_started_before_the_field_existed=True)
-    copy = tmp_path / "run_without_deal_records"
-    shutil.copytree(outcome.run_directory, copy)
-    layer1_directory = utils.sdf_stage_dir(copy, 1)
-    plan_directory = utils.sdf_stage_dir(copy, 2)
-    for name in ("screen_hands.jsonl", "screened_hands.jsonl", "screen_rounds.jsonl", "prompts.jsonl"):
-        (layer1_directory / name).unlink(missing_ok=True)
-        (plan_directory / name).unlink(missing_ok=True)
-    plans = utils.load_jsonl(plan_directory / "plans.jsonl")
-    plans[0]["variables"] = {**plans[0]["variables"], "moral_considerations": ["a label"], "epistemic_considerations": []}
-    utils.save_jsonl(plans, plan_directory / "plans.jsonl")
-    states = [s for s in load_document_states(copy) if s.document_id == plans[0]["prompt_id"]]
-    assert states and states[0].dealt_variables is not None and "moral_considerations" in states[0].dealt_variables
-    assert states[0].dealt_value_id_notes == ()
-    assert set(states[0].dealt_value_ids) == set(states[0].dealt_variables) - {"moral_considerations", "epistemic_considerations"}
-
-
 # ------------------------------------------------------------------ seeding
 
 @pytest.mark.parametrize("from_step", ["plan", "draft", "critique", "score"])
@@ -239,27 +184,3 @@ def test_a_seeded_copy_of_an_old_run_has_no_ids(outcome_of, tmp_path):
         runs_root=tmp_path / "runs", label="seeded-old", repository_root=REPOSITORY_ROOT)
     for stage_file in seeded.run_directory.glob("layer*/*.jsonl"):
         assert all("variable_value_ids" not in record for record in utils.load_jsonl(stage_file))
-
-
-COMMITTED_RUNS = sorted(path for path in RUNS_ROOT.iterdir() if path.is_dir())
-COMMITTED_RUNS_WITH_A_SNAPSHOT = [run for run in COMMITTED_RUNS if (run / "inputs" / "prompts" / "variables.txt").is_file()]
-
-
-def test_the_committed_snapshots_are_checked_here_because_none_of_them_has_ids_yet():
-    assert COMMITTED_RUNS_WITH_A_SNAPSHOT, "no committed run has a frozen variables.txt any more"
-
-
-@pytest.mark.parametrize("run", COMMITTED_RUNS, ids=lambda run: run.name)
-def test_committed_runs_have_ids_only_where_their_snapshot_carries_them_and_a_note_where_it_cannot(run):
-    snapshot_ids, why_not = load_frozen_value_ids(run)
-    for state in load_document_states(run):
-        if not state.dealt_variables:
-            assert state.dealt_value_ids == {} and state.dealt_value_id_notes == ()
-        elif snapshot_ids is None:
-            # every committed snapshot predates ids (or there is none): no id, one note saying why
-            assert state.dealt_value_ids == {}
-            assert len(state.dealt_value_id_notes) == 1 and why_not.split(" (")[0][:20] in state.dealt_value_id_notes[0]
-        else:
-            for axis, value_id in state.dealt_value_ids.items():
-                assert snapshot_ids[axis][value_id] == state.dealt_variables[axis]
-            assert len(state.dealt_value_id_notes) == len(set(state.dealt_variables) - set(state.dealt_value_ids))

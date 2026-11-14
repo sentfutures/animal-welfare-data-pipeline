@@ -122,8 +122,7 @@ screen is on or off) works out each dealt value's `[id]` of `variables.txt`, and
 record that copies `variables` (hands, prompts, plans, drafts, rewrites, scores, screen and
 description rewrite rejections) and `final/sdf_corpus.jsonl` carry `variable_value_ids` right
 after it. Steps only copy the field from the record they read. A run without the manifest key
-never gains it, however often it is resumed; the loader then looks ids up in the run's frozen
-`inputs/prompts/variables.txt`.
+never gains it, however often it is resumed.
 
 ## Per-stage model settings
 
