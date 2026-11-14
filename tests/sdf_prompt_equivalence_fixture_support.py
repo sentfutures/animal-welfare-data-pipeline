@@ -1135,19 +1135,8 @@ def request_label(record: dict) -> str:
             f"(invocation {record['invocation']})")
 
 
-# The one approved change to a stop message since the recording: the systemic stop names a prompt-building
-# error as a possible cause. The recorded files keep the old wording (a regeneration would also rewrite
-# requests), so the current message is compared with the new wording read back as the old.
-RECORDED_SYSTEMIC_STOP_WORDING = "(auth, backend, or network)"
-CURRENT_SYSTEMIC_STOP_WORDING = "(auth, backend, network, or an error building the prompt)"
-
-
 def differences_in_configuration_and_stops(scenario_name: str, recorded: dict, current: dict) -> list[str]:
     messages = []
-    current = {**current, "exit_messages_by_invocation": {
-        invocation: (message.replace(CURRENT_SYSTEMIC_STOP_WORDING, RECORDED_SYSTEMIC_STOP_WORDING)
-                     if isinstance(message, str) else message)
-        for invocation, message in current["exit_messages_by_invocation"].items()}}
     for difference in differences_between_values(
             recorded["configs_used_by_invocation"], current["configs_used_by_invocation"], "config"):
         messages.append(
