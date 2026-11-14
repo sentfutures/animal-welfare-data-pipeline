@@ -12,7 +12,7 @@ and checkpointed — a re-run would re-bill without new information; the score
 report flags these for manual review instead.
 
 Scoring is a ``DocumentStep`` (``ScoreStep``) run by ``sdf_pipeline.step_runner.StepRunner``;
-the gate (``ScoreGateStep``) and the near-duplicate cull (``NearDuplicateCullStep``) are
+the gate (``ScoreGateStep``) and the near-duplicate cull (``NearDuplicateRemovalStep``) are
 ``CorpusStep``s run after it by ``run_corpus_step``. ``run`` is the layer's
 entry point, called by ``sdf_pipeline/run.py`` and ``experiments/experiment.py``: it runs the three steps
 and writes the final corpus.
@@ -103,7 +103,7 @@ class ScoreGateStep(CorpusStep):
     """Keep documents with alignment AND realism >= the threshold. The documents are score records
     (``doc_id``, ``scores``); spec_conformance is advisory and does not gate."""
 
-    step_name = "gate"
+    step_name = "score_gate"
 
     def __init__(self, threshold):
         self.threshold = threshold
@@ -121,12 +121,12 @@ class ScoreGateStep(CorpusStep):
         return outcomes
 
 
-class NearDuplicateCullStep(CorpusStep):
+class NearDuplicateRemovalStep(CorpusStep):
     """Greedy keep-first near-duplicate cull over the documents given, in the order given. The
     documents are score records carrying ``content``. A falsy threshold, or fewer than two
     documents, culls nothing. A removal's ``detail`` is {"kept_doc_id", "similarity"}."""
 
-    step_name = "near_duplicate_cull"
+    step_name = "near_duplicate_removal"
 
     def __init__(self, near_duplicate_threshold):
         self.near_duplicate_threshold = near_duplicate_threshold
@@ -169,7 +169,7 @@ def run(
     # Deterministic near-duplicate cull over survivors (greedy keep-first).
     passed_with_content = [{**r, "content": rewrites_by_id[r["doc_id"]]["content"]} for r in passed]
     cull_outcomes = run_corpus_step(
-        NearDuplicateCullStep(sdf.get("near_dup_threshold")), passed_with_content)
+        NearDuplicateRemovalStep(sdf.get("near_dup_threshold")), passed_with_content)
     dropped = [
         {"doc_id": r["doc_id"], **cull_outcomes[r["doc_id"]].detail}
         for r in passed if isinstance(cull_outcomes[r["doc_id"]], Removed)]

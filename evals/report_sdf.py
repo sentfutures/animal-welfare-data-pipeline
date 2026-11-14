@@ -290,7 +290,7 @@ sdf_cfg = cfg.get("sdf", {}) or {}
 models = {
     "plan": sdf_cfg.get("plan_model") or cfg.get("model", "?"),
     "draft": sdf_cfg.get("draft_model") or cfg.get("model", "?"),
-    "rewrite": sdf_cfg.get("rewrite_model") or cfg.get("model", "?"),
+    "rewrite": sdf_cfg.get("revise_model") or sdf_cfg.get("rewrite_model") or cfg.get("model", "?"),
     "score": sdf_cfg.get("score_model") or cfg.get("model", "?"),
 }
 comp = (audit.get("composition") or {})

@@ -358,7 +358,7 @@ def test_an_unknown_step_is_refused_with_the_seedable_steps(source_run, config_f
         assert step in message
 
 
-@pytest.mark.parametrize("step", ["screen", "deal", "redeal", "consideration_assignment", "gate", "near_duplicate_cull"])
+@pytest.mark.parametrize("step", ["screen", "deal", "redeal", "consideration_selection", "score_gate", "near_duplicate_removal"])
 def test_a_step_that_cannot_be_seeded_is_refused_with_its_reason(
         step, source_run, config_file, outputs_root, stub_claude, monkeypatch):
     source_directory, _ = source_run
@@ -605,7 +605,7 @@ def test_seeding_at_consideration_scoring_says_and_records_that_the_assignment_i
     manifest = json.loads((only_run_directory_not_in(outputs_root, known) / "run_manifest.json").read_text())
     seeded_from = manifest["seeded_from"]
     assert seeded_from["consideration_assignment_solved_again_over_document_count"] == expected_count
-    assert seeded_from["consideration_assignment"] == (
+    assert seeded_from["consideration_selection"] == (
         f"solved again over {expected_count} document(s); may differ from the source run's")
 
 
@@ -619,4 +619,4 @@ def test_seeding_at_draft_prints_no_assignment_notice_and_records_no_assignment_
              "--document-ids", document_ids_of(source_directory)[0])
     assert "solved again" not in capsys.readouterr().out
     manifest = json.loads((only_run_directory_not_in(outputs_root, known) / "run_manifest.json").read_text())
-    assert "consideration_assignment" not in manifest["seeded_from"]
+    assert "consideration_selection" not in manifest["seeded_from"]

@@ -275,7 +275,7 @@ def test_held_out_description_rewrite_is_in_progress_with_a_note(snapshots_of):
                for s in first_failures.states if s.current_description and s.document_id in ("matrix_000000", "matrix_000001"))
     assert held_out.outcome is DocumentOutcome.IN_PROGRESS
     # its earlier considerations rows are still in the files, so that is the furthest step with a record
-    assert held_out.furthest_step_reached is PipelineStep.CONSIDERATION_ASSIGNMENT
+    assert held_out.furthest_step_reached is PipelineStep.CONSIDERATION_SELECTION
     assert held_out.text_versions == ()
     assert any("holds it out of drafting" in note for note in held_out.loader_notes)
     # the documents the rewrite did check are final

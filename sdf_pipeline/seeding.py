@@ -248,7 +248,7 @@ def seed_run_from_chosen_step(
         "copied_record_counts": copied_record_counts,
     }
     if assignment_is_solved_again:
-        manifest["seeded_from"]["consideration_assignment"] = (
+        manifest["seeded_from"]["consideration_selection"] = (
             f"solved again over {len(document_ids)} document(s); may differ from the source run's")
         manifest["seeded_from"]["consideration_assignment_solved_again_over_document_count"] = len(document_ids)
     manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
@@ -286,7 +286,7 @@ def _required_records_for_step(step, config, prompts_dir, stage_directory, docum
                 problems.append(f"{document_id}: no description rewrite result (seeding here would pay for the rewrite again)")
             elif results[document_id].get("dealt_value_conflict"):
                 problems.append(f"{document_id}: its description rewrite found a dealt-value conflict, so it was dropped")
-    if after("consideration_assignment") \
+    if after("consideration_selection") \
             and not layer1_select_considerations.reason_consideration_selection_is_inactive(config, prompts_dir):
         catalog = layer1_select_considerations.load_considerations(prompts_dir)
         selections = _records_by_id(stage_directory[1], layer1_select_considerations.SELECTIONS_FILENAME, "prompt_id")

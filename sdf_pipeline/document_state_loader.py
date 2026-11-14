@@ -234,16 +234,16 @@ def _gate_and_cull_outcome(document_id, scores, threshold, near_duplicate_record
     gate_source = f"derived from {score_folder_name}/scores.jsonl and the gate threshold {threshold}"
     if not (alignment >= threshold and realism >= threshold):
         return DocumentRemoval(
-            RemovalReasonCode.BELOW_THRESHOLD_AT_GATE, PipelineStep.GATE,
+            RemovalReasonCode.BELOW_THRESHOLD_AT_GATE, PipelineStep.SCORE_GATE,
             f"alignment {alignment} and realism {realism} against a threshold of {threshold} on both",
             gate_source,
             {"alignment": alignment, "realism": realism, "threshold": threshold,
              "score_was_parse_error": scores.was_parse_error},
-        ), [PipelineStep.GATE], False
-    steps = [PipelineStep.GATE, PipelineStep.NEAR_DUPLICATE_CULL]
+        ), [PipelineStep.SCORE_GATE], False
+    steps = [PipelineStep.SCORE_GATE, PipelineStep.NEAR_DUPLICATE_REMOVAL]
     if near_duplicate_record is not None:
         return DocumentRemoval(
-            RemovalReasonCode.NEAR_DUPLICATE_AT_CULL, PipelineStep.NEAR_DUPLICATE_CULL,
+            RemovalReasonCode.NEAR_DUPLICATE_AT_CULL, PipelineStep.NEAR_DUPLICATE_REMOVAL,
             f"similarity {near_duplicate_record.get('similarity')} to {near_duplicate_record.get('kept_doc_id')}, "
             "which the cull kept",
             f"{score_folder_name}/{NEAR_DUPLICATE_FILE_NAME}",
@@ -252,7 +252,7 @@ def _gate_and_cull_outcome(document_id, scores, threshold, near_duplicate_record
         ), steps, False
     if document_id not in final_ids:
         return DocumentRemoval(
-            RemovalReasonCode.ABSENT_FROM_FINAL_CORPUS_WITHOUT_RECORDED_REASON, PipelineStep.NEAR_DUPLICATE_CULL,
+            RemovalReasonCode.ABSENT_FROM_FINAL_CORPUS_WITHOUT_RECORDED_REASON, PipelineStep.NEAR_DUPLICATE_REMOVAL,
             "passed the gate and is not in near_dup_dropped.jsonl, but final/sdf_corpus.jsonl does not hold it",
             FINAL_CORPUS_RELATIVE_PATH, {"threshold": threshold},
         ), steps, False
@@ -437,7 +437,7 @@ def _build_matrix_states(files: _RunFiles, run: Path, layout: RunLayout, thresho
         if scoring_row is not None:
             steps.append(PipelineStep.CONSIDERATION_SCORING)
         if selection_row is not None:
-            steps.append(PipelineStep.CONSIDERATION_ASSIGNMENT)
+            steps.append(PipelineStep.CONSIDERATION_SELECTION)
         if draft is not None:
             steps.append(PipelineStep.DRAFT)
         if banked_critique is not None or rewrite is not None or critique_record is not None:

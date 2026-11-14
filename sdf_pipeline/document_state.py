@@ -100,13 +100,13 @@ class PipelineStep(Enum):
     PLAN = "plan"
     DESCRIPTION_REWRITE = "description_rewrite"
     CONSIDERATION_SCORING = "consideration_scoring"
-    CONSIDERATION_ASSIGNMENT = "consideration_assignment"
+    CONSIDERATION_SELECTION = "consideration_selection"
     DRAFT = "draft"
     CRITIQUE = "critique"
     REVISE = "revise"
     SCORE = "score"
-    GATE = "gate"
-    NEAR_DUPLICATE_CULL = "near_duplicate_cull"
+    SCORE_GATE = "score_gate"
+    NEAR_DUPLICATE_REMOVAL = "near_duplicate_removal"
 
 
 PIPELINE_STEPS_IN_ORDER = tuple(PipelineStep)

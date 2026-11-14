@@ -3,7 +3,7 @@
 
 Read-only: it calls no model, reads no API key and writes nothing into a run folder. The system
 prompt and user message come from the stage's own ``build_request`` (the converted steps: plan,
-draft, critique, revise, combined, score); the settings come from ``shared.api.resolve_request_settings``,
+draft, critique, revise, critique_and_revise_in_one_call, score); the settings come from ``shared.api.resolve_request_settings``,
 the very function ``shared.api.call_claude`` calls before it sends, so what is printed is what
 would be sent. Which documents a stage sees is decided as ``sdf_pipeline/run.py`` decides it on a
 resume (stage files read from the run folder, rewritten descriptions and saved selections applied
@@ -29,11 +29,11 @@ Then the stage and the document:
 ``--maximum-characters-per-text N`` to cut long prompts for reading.
 
 Stages: screen (give a hand id; the request is that of the batch the hand belongs to, from the run's
-saved batch plan, in the round given by --round), description_rewrite, plan, select (the consideration
-scoring), draft, critique, revise, combined, score. The description rewrite's OpenAI route is shown with
+saved batch plan, in the round given by --round), description_rewrite, plan, consideration_scoring (the consideration
+scoring), draft, critique, revise, critique_and_revise_in_one_call, score. The description rewrite's OpenAI route is shown with
 the max tokens and reasoning effort it sends, which skip ``call_claude``'s thinking headroom
 (``sdf_pipeline.step_runner.resolve_settings_of_model_request``). Not covered: the deal, the redeal, the
-consideration assignment, the gate and the near-duplicate cull, which make no model call.
+consideration selection, the score gate and the near-duplicate removal, which make no model call.
 """
 
 import argparse
@@ -53,8 +53,8 @@ from sdf_pipeline import compose_prompts  # noqa: E402
 from sdf_pipeline.step_runner import resolve_settings_of_model_request  # noqa: E402
 from sdf_pipeline.update_steps import ModelRequest  # noqa: E402
 
-STAGES_THIS_COMMAND_COVERS = ("screen", "description_rewrite", "plan", "select", "draft", "critique", "revise",
-                              "combined", "score")
+STAGES_THIS_COMMAND_COVERS = ("screen", "description_rewrite", "plan", "consideration_scoring", "draft", "critique", "revise",
+                              "critique_and_revise_in_one_call", "score")
 # The steps the catalogue marks as showing no request, with the reason.
 STAGES_THIS_COMMAND_CANNOT_COVER_YET = {
     entry.print_command_name: "makes no model call"

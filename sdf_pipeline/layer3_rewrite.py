@@ -13,7 +13,7 @@ then layer3b_revise.txt); sdf.revision.split: false pins the single-call
 layer3.txt. Revision variables are rendered by revision_style.py.
 
 The layer is three ``DocumentStep`` classes run by ``sdf_pipeline.step_runner.StepRunner``:
-``CritiqueStep`` and ``ReviseStep`` (the two-call path) and ``CombinedReviewAndReviseStep``
+``CritiqueStep`` and ``ReviseStep`` (the two-call path) and ``CritiqueAndReviseInOneCallStep``
 (the legacy single call, ``sdf.revision.split: false``). Each reads the description, variables
 and considerations from the draft record, that is, from what the text was written from.
 ``run`` is the layer's entry point, called by ``sdf_pipeline/run.py`` and ``experiments/experiment.py``:
@@ -30,6 +30,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from shared import constitution_loader, deal_constraints, utils
 from sdf_pipeline import compose_prompts as cp
 from sdf_pipeline import revision_style
+from sdf_pipeline.renamed_model_settings import model_setting
 from sdf_pipeline.dealt_value_identifiers import value_ids_field_of
 from sdf_pipeline.step_runner import StepRunner
 from sdf_pipeline.update_steps import (
@@ -169,7 +170,7 @@ class CritiqueStep(DocumentStep):
     def __init__(self, config: dict, prompts_dir: Path):
         require_two_call_templates(prompts_dir)
         sdf = config["sdf"]
-        self.critique_model = sdf.get("critique_model") or sdf.get("rewrite_model")
+        self.critique_model = sdf.get("critique_model") or model_setting(sdf, "revise_model")
         self.renderer = _ReviewPromptRenderer(config, prompts_dir, prompts_dir / CRITIQUE_TEMPLATE)
 
     def build_request(self, draft: dict) -> ModelRequest:
@@ -213,7 +214,7 @@ class ReviseStep(DocumentStep):
 
     def __init__(self, config: dict, prompts_dir: Path, critique_by_document_id: dict):
         require_two_call_templates(prompts_dir)
-        self.rewrite_model = config["sdf"].get("rewrite_model")
+        self.revise_model = model_setting(config["sdf"], "revise_model")
         self.critique_by_document_id = critique_by_document_id
         self.renderer = _ReviewPromptRenderer(config, prompts_dir, prompts_dir / REVISE_TEMPLATE)
 
@@ -226,7 +227,7 @@ class ReviseStep(DocumentStep):
             draft, review=self.critique_by_document_id[draft["doc_id"]],
             style_directives=style, length_directive=length)
         return self.model_request(
-            draft, user, system, self.rewrite_model,
+            draft, user, system, self.revise_model,
             max_tokens=_MAX_TOKENS,
             cache_system=True,
         )
@@ -245,26 +246,26 @@ class ReviseStep(DocumentStep):
         return _rewrite_progress_line(draft, outcome)
 
 
-class CombinedReviewAndReviseStep(DocumentStep):
+class CritiqueAndReviseInOneCallStep(DocumentStep):
     """The legacy single call (``sdf.revision.split: false``, ``layer3.txt``): one reply holds the
     review and the rewrite, and the text before the tags is the review. Kept only as long as runs
     that need it can resume."""
 
-    step_name = "combined_review_and_revise"
+    step_name = "critique_and_revise_in_one_call"
     stage_file_name = "rewrites.jsonl"
     policy = StepPolicy()
     systemic_stop_message = SYSTEMIC_STOP_MESSAGE
     stage_tag = "layer3_rewrite"
 
     def __init__(self, config: dict, prompts_dir: Path):
-        self.rewrite_model = config["sdf"].get("rewrite_model")
+        self.revise_model = model_setting(config["sdf"], "revise_model")
         self.renderer = _ReviewPromptRenderer(config, prompts_dir, utils.sdf_template_path(prompts_dir, 3))
 
     def build_request(self, draft: dict) -> ModelRequest:
         style, length = self.renderer.directives(draft)
         system, user = self.renderer.render(draft, style_directives=style, length_directive=length)
         return self.model_request(
-            draft, user, system, self.rewrite_model,
+            draft, user, system, self.revise_model,
             max_tokens=_MAX_TOKENS,
             cache_system=True,  # constitution + review checks identical across rewrites
         )
@@ -321,7 +322,7 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, drafts: list[dict]) -
         # was accepted): a revise call that fails must not re-bill the critique that fed it.
         rewrite_step = ReviseStep(config, prompts_dir, load_critiques_by_document_id(output_dir))
     else:
-        rewrite_step = CombinedReviewAndReviseStep(config, prompts_dir)
+        rewrite_step = CritiqueAndReviseInOneCallStep(config, prompts_dir)
     rewrite_runner = StepRunner(
         rewrite_step, output_dir, workers=workers, checkpoint=checkpoint)
     result = rewrite_runner.run(drafts)

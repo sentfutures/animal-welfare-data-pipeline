@@ -17,6 +17,7 @@ from sdf_pipeline import (
     layer1_description_rewrite as rewrite_layer, layer1_plan, layer1_screen as screen_layer,
     layer1_select_considerations as selection_layer, layer2_draft, layer3_rewrite as revision_layer, layer4_score)
 from sdf_pipeline.considerations_catalog import load_considerations
+from sdf_pipeline.renamed_model_settings import model_setting
 from shared import utils
 
 LAYER_NUMBERS = (1, 2, 3, 4)
@@ -66,7 +67,8 @@ class PipelineStepEntry:
 
     def model_for(self, config: dict):
         """The model the step is configured with (the first setting key that is set)."""
-        return next((config["sdf"][key] for key in self.model_setting_keys if config["sdf"].get(key)), None)
+        return next((model_setting(config["sdf"], key) for key in self.model_setting_keys
+                     if model_setting(config["sdf"], key)), None)
 
 
 def _template(layer: int):
@@ -156,11 +158,11 @@ PIPELINE_STEPS = (
       load_documents=_RECORDS(PLANS), build_step=_build_description_rewrite, print_command_name="description_rewrite",
       print_refuses_when_inactive=True),
     E("consideration_scoring", 1, "layer1_select_considerations", selection_layer.STAGE_TAG, shuffle_seed="layer1_select",
-      model_setting_keys=("select_model", "plan_model"), stage_files=(_file(1, selection_layer.SCORES_FILENAME, "prompt_id"),),
+      model_setting_keys=("consideration_scoring_model", "plan_model"), stage_files=(_file(1, selection_layer.SCORES_FILENAME, "prompt_id"),),
       required_prompt_files=lambda c, p: [*_layer_one_files(c, p), selection_layer.TEMPLATE_FILENAME, selection_layer.CONSIDERATIONS_FILENAME],
       reason_inactive=_SELECTION_OFF, document_file=_FIXED(PLANS), load_documents=_plans_after_description_rewrite,
-      build_step=_build_consideration_scoring, print_command_name="select", print_refuses_when_inactive=True),
-    E("consideration_assignment", 1, "layer1_select_considerations", reason_inactive=_SELECTION_OFF,
+      build_step=_build_consideration_scoring, print_command_name="consideration_scoring", print_refuses_when_inactive=True),
+    E("consideration_selection", 1, "layer1_select_considerations", reason_inactive=_SELECTION_OFF,
       stage_files=(_file(1, selection_layer.SELECTIONS_FILENAME, "prompt_id"),),
       reason_not_seedable="the assignment is solved over every scored document at once, so seeding it for selected "
                           "documents would change it; seed at consideration_scoring instead"),
@@ -168,28 +170,28 @@ PIPELINE_STEPS = (
       required_prompt_files=_template(2), document_file=_FIXED(PLANS), load_documents=_plans_with_selections,
       build_step=_from_config_and_prompts(layer2_draft.DraftStep), print_command_name="draft"),
     # Seeding at the critique stays allowed under split false (the single call then runs in its place).
-    E("critique", 3, "layer3_rewrite", "layer3_critique", model_setting_keys=("critique_model", "rewrite_model"),
+    E("critique", 3, "layer3_rewrite", "layer3_critique", model_setting_keys=("critique_model", "revise_model"),
       stage_files=(CRITIQUES,), reason_inactive=_NOT_SPLIT, checks_its_own_prompt_snapshot=True, document_file=_FIXED(DRAFTS),
       required_prompt_files=lambda c, p: [revision_layer.CRITIQUE_TEMPLATE] if _SPLIT(c) else _template(3)(c, p),
       load_documents=_RECORDS(DRAFTS), build_step=_from_config_and_prompts(revision_layer.CritiqueStep),
       print_command_name="critique"),
-    E("revise", 3, "layer3_rewrite", "layer3_revise", model_setting_keys=("rewrite_model",), stage_files=(REWRITES,),
+    E("revise", 3, "layer3_rewrite", "layer3_revise", model_setting_keys=("revise_model",), stage_files=(REWRITES,),
       required_prompt_files=lambda c, p: [revision_layer.REVISE_TEMPLATE], reason_inactive=_NOT_SPLIT,
       seeding_refuses_when_inactive=True, checks_its_own_prompt_snapshot=True, document_file=_FIXED(CRITIQUES),
       load_documents=_RECORDS(DRAFTS), build_step=_build_revise, print_command_name="revise"),
     # The single-call step while it exists.
-    E("combined_review_and_revise", 3, "layer3_rewrite", "layer3_rewrite", model_setting_keys=("rewrite_model",),
+    E("critique_and_revise_in_one_call", 3, "layer3_rewrite", "layer3_rewrite", model_setting_keys=("revise_model",),
       stage_files=(REWRITES,), required_prompt_files=_template(3), reason_inactive=_SPLIT_ONLY,
       reason_not_seedable="it runs in place of the critique and the revise under sdf.revision.split: false; seed at 'critique' instead",
-      document_file=_FIXED(DRAFTS), load_documents=_RECORDS(DRAFTS), build_step=_from_config_and_prompts(revision_layer.CombinedReviewAndReviseStep),
-      print_command_name="combined"),
+      document_file=_FIXED(DRAFTS), load_documents=_RECORDS(DRAFTS), build_step=_from_config_and_prompts(revision_layer.CritiqueAndReviseInOneCallStep),
+      print_command_name="critique_and_revise_in_one_call"),
     E("score", 4, "layer4_score", "layer4_score", model_setting_keys=("score_model",), required_prompt_files=_template(4),
       document_file=_FIXED(REWRITES), load_documents=_RECORDS(REWRITES),
       build_step=_from_config_and_prompts(layer4_score.ScoreStep), print_command_name="score"),
-    E("gate", 4, "layer4_score", print_command_name="gate",
-      reason_not_seedable="the gate runs after scoring and makes no calls; resume the scoring run"),
-    E("near_duplicate_cull", 4, "layer4_score", print_command_name="near_duplicate_cull",
-      reason_not_seedable="the cull runs after the gate and makes no calls; resume the scoring run"),
+    E("score_gate", 4, "layer4_score", print_command_name="score_gate",
+      reason_not_seedable="the score gate runs after scoring and makes no calls; resume the scoring run"),
+    E("near_duplicate_removal", 4, "layer4_score", print_command_name="near_duplicate_removal",
+      reason_not_seedable="the near-duplicate removal runs after the score gate and makes no calls; resume the scoring run"),
 )
 STEP_NAMES_IN_ORDER = tuple(entry.name for entry in PIPELINE_STEPS)
 

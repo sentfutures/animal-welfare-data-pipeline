@@ -125,9 +125,11 @@ def merge_arm_config(base: dict, arm: dict) -> dict:
     for key in ("style_mode", "use_length", "split"):
         if key in arm:
             rev[key] = arm[key]
-    for key in ("rewrite_model", "critique_model", "score_model"):
+    for key in ("rewrite_model", "revise_model", "critique_model", "score_model"):
         if key in arm:
             sdf[key] = arm[key]
+    if "rewrite_model" in arm and "revise_model" in sdf and "revise_model" not in arm:
+        sdf["revise_model"] = arm["rewrite_model"]   # the old name is this arm's setting; the new key would win over it
     return merged
 
 

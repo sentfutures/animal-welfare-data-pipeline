@@ -60,7 +60,7 @@ sdf:
   # (linear programme: entry target counts, per-document caps, weighted scores less a per-list penalty). Scores go to layer1/consideration_scores.jsonl,
   # assignments to layer1/consideration_selections.jsonl and the coverage report to layer1/consideration_coverage.json.
   select_enabled: true           # false = no selector calls, drafts carry no considerations
-  # select_model: claude-sonnet-5   # falls back to plan_model, then the global `model`
+  # consideration_scoring_model: claude-sonnet-5   # (old name select_model still works, with a notice) falls back to plan_model, then the global `model`
   max_scoring_attempts: 3        # tries per document when the model's scoring answer is unusable
   minimum_assignable_score: 3    # an entry may be assigned to a document only at this score or higher
   # Hard ceilings per document (the objective below usually assigns fewer):
@@ -76,8 +76,8 @@ sdf:
   # The critique stages repay a stronger model most — cheap drafts, expensive critics:
   # plan_model: claude-sonnet-5
   # draft_model: claude-sonnet-5
-  # rewrite_model: claude-opus-4-8   # NOT claude-fable-5: it 400s on the api backend (requires adaptive thinking, which conflicts with the pipeline's thinking=disabled — see shared/api.py)
-  # critique_model: claude-opus-4-8  # layer 3's critique half; falls back to rewrite_model
+  # revise_model: claude-opus-4-8   # (old name rewrite_model still works, with a notice; the new name wins when both are set) NOT claude-fable-5: it 400s on the api backend (requires adaptive thinking, which conflicts with the pipeline's thinking=disabled — see shared/api.py)
+  # critique_model: claude-opus-4-8  # layer 3's critique half; falls back to revise_model
   # score_model: claude-sonnet-5
   # How layer 3 revises. The voice and length cards are dealt from the matrix
   # (prompts/sdf/variables.txt, REVISION VARIABLES section) and steer only the

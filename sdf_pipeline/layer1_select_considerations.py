@@ -48,11 +48,11 @@ plan's ``variables`` also gains ``moral_considerations`` and
 
 Scoring is a ``DocumentStep`` (``ConsiderationScoringStep``) run by
 ``sdf_pipeline.step_runner.StepRunner`` with ``sdf.max_scoring_attempts`` attempts per run, and the
-assignment is a ``CorpusStep`` (``ConsiderationAssignmentStep``) run by ``run_corpus_step`` after it;
+assignment is a ``CorpusStep`` (``ConsiderationSelectionStep``) run by ``run_corpus_step`` after it;
 ``run`` is the layer's entry point, called by ``sdf_pipeline/run.py``: it runs the scoring step, then the
 assignment, and returns the plans with their selections attached.
 
-Config (``sdf`` section): ``select_enabled`` (default true), ``select_model``
+Config (``sdf`` section): ``select_enabled`` (default true), ``consideration_scoring_model`` (old name ``select_model``)
 (falls back to ``plan_model``, then the global model), ``select_skip_no_stake``
 (default true), ``max_scoring_attempts`` (3), ``minimum_assignable_score`` (3),
 ``max_moral_considerations_per_document`` (3),
@@ -79,6 +79,7 @@ from sdf_pipeline.considerations_catalog import (
     Consideration, ConsiderationCatalog, load_considerations,
 )
 from sdf_pipeline import structured_answers
+from sdf_pipeline.renamed_model_settings import model_setting
 from sdf_pipeline.considerations_coverage import corpus_coverage
 from shared import api, utils
 from shared.matrix import split_sections
@@ -279,7 +280,7 @@ class ConsiderationScoringStep(DocumentStep):
         sdf = config["sdf"]
         self.catalog = catalog
         self.template = template
-        self.model = sdf.get("select_model") or sdf.get("plan_model")
+        self.model = model_setting(sdf, "consideration_scoring_model") or sdf.get("plan_model")
         self.seed = sdf.get("seed", 0)
         self.maximum_attempts = int(sdf.get("max_scoring_attempts", DEFAULT_MAX_SCORING_ATTEMPTS))
         self.skip_no_stake = bool(sdf.get("select_skip_no_stake", True))
@@ -367,14 +368,14 @@ class ConsiderationScoringStep(DocumentStep):
                 "document drafted without scores would be reassigned on resume; fix and --resume.")
 
 
-class ConsiderationAssignmentStep(CorpusStep):
+class ConsiderationSelectionStep(CorpusStep):
     """The global linear programme over every scored document (no model call). The documents are
     score rows (``prompt_id``, ``scores``); each gets an ``Accepted`` outcome whose update is its
     selection outcomes. The programme is solved again over every document each time it runs, as it
     always was, so a plan that arrives late changes other documents' outcomes. After ``apply``, ``selection_rows``, ``flat_scores`` and
     ``assigned_labels_by_document_id`` hold what the layer writes and reports."""
 
-    step_name = "consideration_assignment"
+    step_name = "consideration_selection"
 
     def __init__(self, config: dict, catalog: ConsiderationCatalog, eligible: list[dict]):
         self.catalog = catalog
@@ -515,7 +516,7 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
     runner.run(documents_in_scoring_order)  # stops the run before the assignment if any document failed
 
     score_rows = {r["prompt_id"]: r for r in utils.load_jsonl(scores_path) if r["prompt_id"] in plan_by_id}
-    assignment_step = ConsiderationAssignmentStep(config, catalog, eligible)
+    assignment_step = ConsiderationSelectionStep(config, catalog, eligible)
     run_corpus_step(assignment_step, list(score_rows.values()))
     selection_rows = assignment_step.selection_rows
     (output_dir / SELECTIONS_FILENAME).write_text(

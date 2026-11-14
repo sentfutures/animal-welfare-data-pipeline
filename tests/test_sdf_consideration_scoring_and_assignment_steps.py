@@ -240,7 +240,7 @@ def test_the_assignment_step_makes_no_call_and_keeps_what_the_layer_writes(tiny_
         request, reply = reply_for(scoring, plan)
         score_rows.append({"prompt_id": plan["prompt_id"], "scores": scoring.interpret(plan, reply).update["scores"], "attempts": 1})
     calls = stub_claude([])
-    step = select.ConsiderationAssignmentStep(tiny_config, catalog, plans)
+    step = select.ConsiderationSelectionStep(tiny_config, catalog, plans)
     outcomes = run_corpus_step(step, score_rows)
     assert calls == [] and set(outcomes) == {p["prompt_id"] for p in plans}
     assert [row["prompt_id"] for row in step.selection_rows] == sorted(outcomes)

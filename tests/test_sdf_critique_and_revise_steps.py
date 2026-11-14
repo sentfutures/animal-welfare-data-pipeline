@@ -10,7 +10,7 @@ import pytest
 
 from sdf_pipeline import layer3_rewrite
 from sdf_pipeline.layer3_rewrite import (
-    CombinedReviewAndReviseStep, CritiqueStep, ReviseStep, RewrittenText)
+    CritiqueAndReviseInOneCallStep, CritiqueStep, ReviseStep, RewrittenText)
 from sdf_pipeline.update_steps import Accepted, Failed, FailureKind
 from sdf_step_and_command_line_test_helpers import reply
 from shared import utils
@@ -32,7 +32,7 @@ def revise_step(tiny_config, prompts_sdf):
 
 @pytest.fixture
 def combined_step(tiny_config, prompts_sdf):
-    return CombinedReviewAndReviseStep(single_call_config(tiny_config), prompts_sdf)
+    return CritiqueAndReviseInOneCallStep(single_call_config(tiny_config), prompts_sdf)
 
 
 def dispatch(revise=GOOD_REVISE, critique=GOOD_CRITIQUE):
@@ -129,7 +129,7 @@ def test_each_step_sends_its_stage_tag_model_and_token_budget(tiny_config, promp
     draft = make_draft()
     critique = CritiqueStep(config, prompts_sdf).build_request(draft)
     revise = ReviseStep(config, prompts_sdf, {"matrix_000000": "P"}).build_request(draft)
-    combined = CombinedReviewAndReviseStep(single_call_config(tiny_config), prompts_sdf).build_request(draft)
+    combined = CritiqueAndReviseInOneCallStep(single_call_config(tiny_config), prompts_sdf).build_request(draft)
     assert (critique.stage, critique.model, critique.max_tokens, critique.cache_system) == (
         "layer3_critique", "critique-model", 8000, True)
     assert (revise.stage, revise.model, revise.max_tokens, revise.cache_system) == (
@@ -145,7 +145,7 @@ def test_voice_and_length_directives_ride_the_revise_and_combined_requests_only(
     requests = {
         "critique": CritiqueStep(two_call, prompts_sdf).build_request(draft),
         "revise": ReviseStep(two_call, prompts_sdf, {"matrix_000000": "P"}).build_request(draft),
-        "combined": CombinedReviewAndReviseStep(one_call, prompts_sdf).build_request(draft),
+        "combined": CritiqueAndReviseInOneCallStep(one_call, prompts_sdf).build_request(draft),
     }
     for name in ("revise", "combined"):
         assert "more clipped than a typical" in requests[name].user_message

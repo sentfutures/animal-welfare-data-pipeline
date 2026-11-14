@@ -116,7 +116,7 @@ def test_openai_route_resolution_equals_what_call_claude_hands_to_call_openai(mo
 # ------------------------------------------------------------------ the command against the recordings
 
 STAGE_TAGS = {
-    "description_rewrite": "layer1_description_rewrite", "plan": "layer1_plan", "select": "layer1_select",
+    "description_rewrite": "layer1_description_rewrite", "plan": "layer1_plan", "consideration_scoring": "layer1_select",
     "draft": "layer2_draft", "critique": "layer3_critique", "revise": "layer3_revise", "score": "layer4_score"}
 SCENARIOS_AND_STAGE_TAGS = [
     # Claude-routed description rewrite and a screen that keeps sampling parameters
@@ -198,7 +198,7 @@ def test_command_line_prints_the_full_request_as_json(scenario_run, capsys):
 def test_stages_without_a_step_are_refused_with_the_reason(scenario_run, capsys):
     _, _, run_directory, config = scenario_run
     with pytest.raises(command.RequestCannotBeBuilt, match="makes no model call"):
-        command.build_full_request(run_directory, config, "gate", "matrix_000000")
+        command.build_full_request(run_directory, config, "score_gate", "matrix_000000")
     with pytest.raises(command.RequestCannotBeBuilt, match="no record"):
         command.build_full_request(run_directory, config, "draft", "no_such_document")
 

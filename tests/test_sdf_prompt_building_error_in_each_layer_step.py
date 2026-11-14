@@ -53,7 +53,7 @@ def test_draft_step_with_a_template_broken_for_every_document_stops_with_no_mode
     assert calls == []
 
 
-@pytest.mark.parametrize("broken_step_name", ["CritiqueStep", "CombinedReviewAndReviseStep"])
+@pytest.mark.parametrize("broken_step_name", ["CritiqueStep", "CritiqueAndReviseInOneCallStep"])
 def test_layer_3_with_a_template_broken_for_every_document_stops_with_no_model_call(
         tiny_config, prompts_sdf, stage_dir, stub_claude, monkeypatch, broken_step_name):
     config = split_config(tiny_config) if broken_step_name == "CritiqueStep" else single_call_config(tiny_config)

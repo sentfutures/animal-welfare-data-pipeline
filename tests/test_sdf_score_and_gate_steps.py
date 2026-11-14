@@ -10,7 +10,7 @@ import json
 import pytest
 
 from sdf_pipeline import layer4_score
-from sdf_pipeline.layer4_score import NearDuplicateCullStep, ScoreGateStep, ScoreStep
+from sdf_pipeline.layer4_score import NearDuplicateRemovalStep, ScoreGateStep, ScoreStep
 from sdf_pipeline.step_runner import run_corpus_step
 from sdf_pipeline.update_steps import Accepted, FailureKind, Failed, ModelReply, Removed, StepProgress
 from shared import utils
@@ -103,20 +103,20 @@ def test_gate_ignores_spec_conformance():
 def test_cull_keeps_the_first_of_a_near_duplicate_pair_in_the_order_given():
     records = [score_record("second_in_deal", 9, 9, LONG_TEXT), score_record("other", 9, 9, "Tout autre chose, un texte sans rapport."),
                score_record("first_in_deal", 9, 9, LONG_TEXT)]
-    outcomes = NearDuplicateCullStep(0.90).apply(records)
+    outcomes = NearDuplicateRemovalStep(0.90).apply(records)
     assert isinstance(outcomes["second_in_deal"], Accepted) and isinstance(outcomes["other"], Accepted)
     assert outcomes["first_in_deal"].reason_code == "near_duplicate"
     assert outcomes["first_in_deal"].detail["kept_doc_id"] == "second_in_deal"
     # the order given decides: reversed, the other copy is kept
-    reversed_outcomes = NearDuplicateCullStep(0.90).apply(list(reversed(records)))
+    reversed_outcomes = NearDuplicateRemovalStep(0.90).apply(list(reversed(records)))
     assert reversed_outcomes["second_in_deal"].detail["kept_doc_id"] == "first_in_deal"
 
 
 def test_cull_does_nothing_without_a_threshold_or_with_one_document():
     twins = [score_record("a", 9, 9, LONG_TEXT), score_record("b", 9, 9, LONG_TEXT)]
-    assert all(isinstance(o, Accepted) for o in NearDuplicateCullStep(None).apply(twins).values())
-    assert all(isinstance(o, Accepted) for o in NearDuplicateCullStep(0).apply(twins).values())
-    assert all(isinstance(o, Accepted) for o in NearDuplicateCullStep(0.9).apply(twins[:1]).values())
+    assert all(isinstance(o, Accepted) for o in NearDuplicateRemovalStep(None).apply(twins).values())
+    assert all(isinstance(o, Accepted) for o in NearDuplicateRemovalStep(0).apply(twins).values())
+    assert all(isinstance(o, Accepted) for o in NearDuplicateRemovalStep(0.9).apply(twins[:1]).values())
 
 
 def test_run_corpus_step_returns_the_outcomes_of_the_step_each_time_it_runs(tmp_path):
