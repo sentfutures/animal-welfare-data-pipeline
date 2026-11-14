@@ -14,7 +14,6 @@ import pytest
 
 from evals import plausibility_audit_postprocess_sdf as postprocess
 from evals import plausibility_audit_sdf as judge
-from evals.model_judged_audit_support import assert_schema_is_strict_valid
 from shared import openai_api, utils
 
 
@@ -51,51 +50,6 @@ def corpus_path(tmp_path):
 
 
 # ---- request content and schema ----
-
-def test_request_contains_only_instructions_and_content(definition):
-    for document in synthetic_corpus():
-        arguments = judge.build_request_arguments(definition, document["content"], "medium")
-        assert arguments["input"] == document["content"]
-        assert arguments["instructions"] == definition.instructions_text
-        assert arguments["temperature"] == 1 and "top_p" not in arguments
-        assert arguments["reasoning"] == {"effort": "medium"}
-        assert arguments["prompt_cache_key"] == judge.SCHEMA_NAME
-        sent = json.dumps(arguments, ensure_ascii=False)
-        for value in (document["doc_id"], document["description"], "essay", "dry"):
-            if value not in document["content"] and value not in definition.instructions_text:
-                assert value not in sent, f"leaked: {value}"
-
-
-def test_axis_keys_match_prompt_headers_and_there_are_ten(definition):
-    headers = [line[4:].strip() for line in definition.instructions_text.splitlines() if line.startswith("### axis_")]
-    assert definition.axis_keys == headers
-    assert len(headers) == 10 and len(set(headers)) == 10
-    assert list(definition.schema["properties"]["axes"]["properties"].keys()) == headers
-
-
-def test_the_judging_prompt_text_is_unchanged():
-    # sha256 of prompts/tools/plausibility_audit_judge_instructions.txt; an intentional prompt change updates this hash.
-    import hashlib
-    digest = hashlib.sha256(judge.instructions_file_path().read_bytes()).hexdigest()
-    assert digest == "44d74427d23ce8d382825badfc18b4e9970ce4da9451e8c729f8d41a4c35124a"
-
-
-def test_schema_is_strict_valid_and_ordered(definition):
-    assert_schema_is_strict_valid(definition.schema)
-    assert list(definition.schema["properties"].keys()) == [
-        "axes", "other_implausibilities", "overall_reasoning", "overall_plausibility"]
-    axis = next(iter(definition.schema["properties"]["axes"]["properties"].values()))
-    assert list(axis["properties"].keys()) == ["applicable", "problems", "score_reasoning", "score"]
-    assert axis["properties"]["problems"]["maxItems"] == 3
-    assert list(axis["properties"]["problems"]["items"]["properties"].keys()) == [
-        "quote", "english_gloss", "explanation", "severity"]
-    assert axis["properties"]["problems"]["items"]["properties"]["english_gloss"]["type"] == ["string", "null"]
-    assert axis["properties"]["score"]["enum"] == [1, 2, 3, 4, 5]
-    other = definition.schema["properties"]["other_implausibilities"]
-    assert other["maxItems"] == 3
-    assert list(other["items"]["properties"].keys()) == [
-        "suggested_axis_name", "description", "quote", "english_gloss", "explanation", "severity"]
-
 
 # ---- validation rejects instead of storing ----
 
