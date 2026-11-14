@@ -28,9 +28,7 @@ The stage is three update steps (``sdf_pipeline/update_steps.py``): ``DealStep``
 ``Created`` for each hand of round 0), ``ScreenStep`` (batch step, run by ``BatchStepRunner``) and
 ``RedealStep`` (corpus step, ``Removed`` for the screened-out hands and ``Created`` for the new ones).
 ``run`` keeps its signature, files, printed lines and exit messages as the thin driver of the
-screen and redeal loop. Besides the stage files it appends events to the run's
-``document_events.jsonl``: one per hand per screen batch, a round-was-dealt event, a
-batches-were-planned event and a corpus-step-finished event.
+screen and redeal loop.
 
 Config (``sdf`` section): ``screen_enabled`` (default true), ``screen_model``
 (falls back to ``plan_model``, then the global model), ``screen_batch_size``
@@ -76,7 +74,6 @@ from sdf_pipeline.dealt_value_identifiers import (
     deal_hand_records_with_value_ids, run_records_value_ids, value_ids_field_of,
     value_ids_of_hands)
 from sdf_pipeline import structured_answers
-from sdf_pipeline.document_event_log import DOCUMENT_EVENT_LOG_FILE_NAME, DocumentEventLog
 from sdf_pipeline.step_runner import BatchStepRunner, send_model_request
 from sdf_pipeline.update_steps import (
     Accepted, BatchStep, CorpusStep, Created, Failed, FailureKind, ModelReply, ModelRequest, Removed,
@@ -254,14 +251,12 @@ def shuffled_batch_records(prompt_ids: list[str], batch_size: int, seed: int, ro
 
 def plan_round_batches(
     output_dir: Path, round_number: int, prompt_ids: list[str], batch_size: int, seed: int,
-    event_log: DocumentEventLog | None = None,
 ) -> list[dict]:
     """The batches of one round, persisted before any call of that round.
 
     A seeded shuffle (of the sorted ids, so input order is irrelevant) cut into
     batch_size chunks. On resume the round's saved batches are reused verbatim when
-    together they hold exactly the round's hands; a partial set is planned again.
-    A round planned anew is recorded in ``event_log`` (when given); a reused plan is not."""
+    together they hold exactly the round's hands; a partial set is planned again."""
     path = output_dir / BATCHES_FILENAME
     every_batch = utils.load_jsonl(path)
     saved = [b for b in every_batch if b["round"] == round_number]
@@ -273,8 +268,6 @@ def plan_round_batches(
     batches = shuffled_batch_records(prompt_ids, batch_size, seed, round_number)
     for batch in batches:
         utils.append_jsonl(batch, path)
-    if event_log is not None:
-        event_log.append_screen_batches_planned_event(round_number=round_number, batches=batches)
     return batches
 
 
@@ -564,8 +557,6 @@ def run(config: dict, prompts_dir: Path, output_dir: Path) -> list[dict] | None:
     rounds_path = output_dir / ROUNDS_FILENAME
     judgments_path = output_dir / JUDGMENTS_FILENAME
     rejections_path = output_dir / REJECTIONS_FILENAME
-    # The event log sits in the run folder, beside the layer folders.
-    event_log = DocumentEventLog(output_dir.parent / DOCUMENT_EVENT_LOG_FILE_NAME)
     record_value_ids = run_records_value_ids(output_dir)   # decided per run, by its manifest
     screen_step = ScreenStep(prompts, model, batch_size, render_variable_lines)
 
@@ -580,12 +571,6 @@ def run(config: dict, prompts_dir: Path, output_dir: Path) -> list[dict] | None:
         utils.save_jsonl(hands, hands_path)   # replaces any partial write from an interrupted deal
         rounds = [{"round": 0, "prompt_ids": [h["prompt_id"] for h in hands], "note": "original deal"}]
         utils.append_jsonl(rounds[0], rounds_path)
-        ids_by_hand, id_notes_by_hand = value_ids_of_hands(hands, value_ids)
-        event_log.append_round_dealt_event(
-            round_number=0, prompt_ids=rounds[0]["prompt_ids"], note=rounds[0]["note"],
-            dealt_value_ids=ids_by_hand, dealt_value_id_notes=id_notes_by_hand)
-        event_log.append_corpus_step_finished_event(
-            step_name="deal", summary={"round": 0, "created_prompt_ids": rounds[0]["prompt_ids"]})
     recorded_ids = {pid for r in rounds for pid in r["prompt_ids"]}
     hands = [h for h in hands if h["prompt_id"] in recorded_ids]   # hands saved before their round record are dealt again
     hands_by_id = {h["prompt_id"]: h for h in hands}
@@ -600,14 +585,14 @@ def run(config: dict, prompts_dir: Path, output_dir: Path) -> list[dict] | None:
             utils.append_jsonl(record, rejections_path)
 
     runner = BatchStepRunner(
-        screen_step, event_log, checkpoint, write_batch_outcomes, workers=config.get("workers", 1))
+        screen_step, checkpoint, write_batch_outcomes, workers=config.get("workers", 1))
 
     started_all = time.monotonic()
     round_number = 0
     while True:
         round_record = rounds[round_number]
         round_ids = round_record["prompt_ids"]
-        batch_records = plan_round_batches(output_dir, round_number, round_ids, batch_size, seed, event_log)
+        batch_records = plan_round_batches(output_dir, round_number, round_ids, batch_size, seed)
         pending_records = [b for b in batch_records if not checkpoint.is_done(b["batch_id"])]
         print(f"  Screen round {round_number}: {len(round_ids)} hands in {len(batch_records)} batches of up to "
               f"{batch_size} ({len(batch_records) - len(pending_records)} already done)")
@@ -628,12 +613,6 @@ def run(config: dict, prompts_dir: Path, output_dir: Path) -> list[dict] | None:
             round_number, removed_ids, {pid: rejected[pid]["reason"] for pid in removed_ids}, seed, deal_rules,
             value_ids, record_value_ids
         ).apply(hands)
-        for outcome_document_id, outcome in redeal_outcomes.items():
-            if isinstance(outcome, Removed):
-                event_log.append_outcome_event(
-                    document_id=outcome_document_id, step_name=RedealStep.step_name, outcome="removed",
-                    request_hash=None, stage=None,
-                    detail={"reason_code": outcome.reason_code, "detail": outcome.detail})
         new_records = [outcome.new_state for outcome in redeal_outcomes.values() if isinstance(outcome, Created)]
         if not new_records:
             note = (f"{len(removed_ids)} removed hands could not be redealt into different, "
@@ -641,12 +620,6 @@ def run(config: dict, prompts_dir: Path, output_dir: Path) -> list[dict] | None:
             print(f"  {note}; their cards are dropped")
             rounds.append({"round": round_number + 1, "prompt_ids": [], "note": note})
             utils.append_jsonl(rounds[-1], rounds_path)
-            event_log.append_round_dealt_event(
-                round_number=round_number + 1, prompt_ids=[], note=note)
-            event_log.append_corpus_step_finished_event(
-                step_name=RedealStep.step_name,
-                summary={"round": round_number + 1, "removed_prompt_ids": removed_ids,
-                         "created_prompt_ids": [], "cards_dropped": True})
             break
         for record in new_records:
             hands_by_id[record["prompt_id"]] = record
@@ -655,14 +628,6 @@ def run(config: dict, prompts_dir: Path, output_dir: Path) -> list[dict] | None:
         rounds.append({"round": round_number + 1, "prompt_ids": [r["prompt_id"] for r in new_records],
                        "note": f"redeal of {len(removed_ids)} removed hands"})
         utils.append_jsonl(rounds[-1], rounds_path)
-        ids_by_hand, id_notes_by_hand = value_ids_of_hands(new_records, value_ids)
-        event_log.append_round_dealt_event(
-            round_number=round_number + 1, prompt_ids=rounds[-1]["prompt_ids"], note=rounds[-1]["note"],
-            dealt_value_ids=ids_by_hand, dealt_value_id_notes=id_notes_by_hand)
-        event_log.append_corpus_step_finished_event(
-            step_name=RedealStep.step_name,
-            summary={"round": round_number + 1, "removed_prompt_ids": removed_ids,
-                     "created_prompt_ids": rounds[-1]["prompt_ids"], "cards_dropped": False})
         round_number += 1
 
     return _finish(output_dir, sdf, hands, rounds, started_all)

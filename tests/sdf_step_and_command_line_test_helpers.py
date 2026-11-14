@@ -2,15 +2,7 @@
 
 import sys
 
-from sdf_pipeline.document_event_log import read_document_events
 from sdf_pipeline.update_steps import ModelReply
-
-
-def events_of(stage_dir, step_name=None):
-    """The run's document events (those of one step when ``step_name`` is given), read from the
-    event log beside the stage folder."""
-    events = read_document_events(stage_dir.parent / "document_events.jsonl")
-    return events if step_name is None else [event for event in events if event["step"] == step_name]
 
 
 def reply(text, stop_reason="end_turn"):

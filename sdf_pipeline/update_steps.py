@@ -1,7 +1,7 @@
 """The vocabulary of SDF update steps: what a step sends, what it can answer, and the three kinds.
 
 A step decides what to ask and what the answer means. It does no file or network input and
-output: ``sdf_pipeline/step_runner.py`` does the calling, the event log and the stage files.
+output: ``sdf_pipeline/step_runner.py`` does the calling and the stage files.
 
 ``ModelRequest`` carries everything a layer passes to ``shared.api.call_claude``. A step outcome
 is one of ``Accepted``, ``Removed``, ``Failed`` or ``Created``. The three step kinds are
@@ -43,8 +43,8 @@ class ModelRequest:
     openai_schema_name: str | None = None
 
     def request_hash(self) -> str:
-        """SHA-256 of the request as a canonical JSON string, recorded in each event so a later
-        reader can tell which request a reply answered."""
+        """SHA-256 of the request as a canonical JSON string, to tell requests apart (used by the
+        request print command)."""
         canonical = json.dumps(asdict(self), sort_keys=True, ensure_ascii=False)
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
@@ -112,7 +112,7 @@ class Removed:
 
 @dataclass(frozen=True)
 class Failed:
-    """The call threw or its answer was unusable. The event is recorded, the document is not
+    """The call threw or its answer was unusable. The document is not
     marked done, and a resume retries it."""
     kind: FailureKind
     reason: str
@@ -236,7 +236,7 @@ class BatchStep(ABC):
     """A step that sees a group of documents and makes one call per group (the screen)."""
 
     step_name: str
-    stage: str  # the stage tag of its calls, recorded in each event
+    stage: str  # the stage tag of its calls
     policy: StepPolicy = StepPolicy()
     systemic_stop_message: str
 

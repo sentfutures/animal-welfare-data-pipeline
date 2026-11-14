@@ -1,12 +1,11 @@
 """A prompt-building error is a recorded failure for that document in the draft and layer 3 steps (the
 exception policy is declared once, in ``StepPolicy``): the other documents are still sent, the failure
-is printed, logged and retried on resume, and a template broken for every document ends the run through
+is printed and retried on resume, and a template broken for every document ends the run through
 the systemic stop with no model call made."""
 
 import pytest
 
 from sdf_pipeline import layer2_draft, layer3_rewrite
-from sdf_pipeline.document_event_log import read_document_events
 from sdf_plan_draft_rewrite_and_score_test_builders import (
     make_draft, make_plan, single_call_config, split_config)
 
@@ -34,9 +33,6 @@ def test_draft_step_records_the_failure_prints_it_and_a_resume_retries_it(
     assert [r["doc_id"] for r in records] == ["matrix_000000"] and [c["item_id"] for c in calls] == ["matrix_000000"]
     printed = capsys.readouterr().out
     assert BROKEN_DOCUMENT_ID in printed and "error: KeyError: 'missing_placeholder'" in printed
-    (failure,) = [e for e in read_document_events(stage_dir.parent / "document_events.jsonl") if e["outcome"] == "failed"]
-    assert (failure["document_id"], failure["failure_kind"], failure["reason"]) == (
-        BROKEN_DOCUMENT_ID, "thrown_call", "error: KeyError: 'missing_placeholder'")
 
     monkeypatch.setattr(layer2_draft.DraftStep, "build_request", real_build_request)
     calls = stub_claude(lambda user_message, **kw: "<document>D.</document>")

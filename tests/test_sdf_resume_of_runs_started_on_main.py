@@ -1,14 +1,13 @@
 """A run started on origin/main and interrupted partway is finished by the current pipeline as origin/main would finish it.
 
-Runs started on ``main`` have stage files and checkpoints but no event log. For each interruption point
+Runs started on ``main`` have stage files and checkpoints. For each interruption point
 (``tests/sdf_resume_from_main_interruption_points.py``) the run folder that origin/main left when it
 crashed there is stored under ``tests/fixtures/sdf_resume_from_main/``, with a recording of how
 origin/main resumed it (the requests sent, the stage files, checkpoints and final corpus afterwards).
 Each test unpacks the stored folder, resumes it with the current code on canned replies and compares.
 The reference is the same interruption resumed on origin/main, not an uninterrupted run (on main a
 resumed run can already differ from an uninterrupted one, for example in which near-duplicate twin the
-cull keeps). ``document_events.jsonl`` is not compared (main never writes it); it must exist after the
-resume and fold without an error.
+cull keeps).
 
 Offline: every provider client is replaced by canned replies. The recorded files are written only by
 ``scripts/regenerate_sdf_resume_from_main_recorded_runs.py`` (see the support module's docstring).
@@ -21,8 +20,6 @@ once no such run still needs resuming. Deleting it does not shrink the repositor
 import pytest
 
 import sdf_resume_from_main_fixture_support as resume
-from sdf_pipeline.document_event_log import (
-    DocumentEventLogCorruptError, fold_document_events, read_document_events)
 from sdf_resume_from_main_interruption_points import all_interruption_points
 
 POINTS = all_interruption_points()
@@ -77,9 +74,8 @@ def test_interruption_points_cover_every_stage_that_makes_calls_and_the_gaps_bet
 
 
 @pytest.mark.parametrize("point", POINTS, ids=POINT_NAMES)
-def test_stored_folder_is_a_main_run_with_no_event_log_and_a_partly_done_stage(point, tmp_path):
+def test_stored_folder_is_a_main_run_with_a_partly_done_stage(point, tmp_path):
     run_directory = resume.unpack_stored_run_folder(point, tmp_path / "outputs")
-    assert not (run_directory / resume.EVENT_LOG_FILE_NAME).exists(), "a run started on main has no event log"
     assert (run_directory / "run_manifest.json").is_file() and (run_directory / "inputs" / "prompts").is_dir()
     recorded = resume.load_recorded_resume(point)
     calls = recorded["calls_per_stage_per_invocation"].get("1", {})
@@ -99,17 +95,3 @@ def test_resume_sends_the_requests_main_sent_and_writes_the_files_and_corpus_mai
         point, resume.load_recorded_resume(point), current)
     for kind, found in differences.items():
         assert not found, _failure_message(point, kind, found)
-
-
-@pytest.mark.parametrize("point", POINTS, ids=POINT_NAMES)
-def test_resume_leaves_an_event_log_that_folds_without_error(point, resumed_current):
-    _, run_directory = resumed_current(point)
-    log_path = run_directory / resume.EVENT_LOG_FILE_NAME
-    assert log_path.is_file(), (
-        f"after resuming a run started on origin/main and interrupted {point.description}, "
-        f"{resume.EVENT_LOG_FILE_NAME} was not created")
-    try:
-        events = read_document_events(log_path)
-        fold_document_events(events)
-    except DocumentEventLogCorruptError as error:
-        pytest.fail(f"{point.name}: the event log written by the resume does not read back: {error}")

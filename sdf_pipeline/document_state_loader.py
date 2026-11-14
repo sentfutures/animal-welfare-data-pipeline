@@ -325,8 +325,8 @@ def _build_matrix_states(files: _RunFiles, run: Path, layout: RunLayout, thresho
     run_has_selection_rows = bool(selection_rows)
 
     # Dealt value ids: the deal record's own ``variable_value_ids`` (runs that write them into their stage
-    # files), else a lookup of each dealt text in the run's frozen variables.txt. Read-only; the event log
-    # is not read.
+    # files), else a lookup of each dealt text in the run's frozen variables.txt. Read-only; a
+    # document_events.jsonl left in an older run folder is ignored.
     frozen_value_ids, why_no_snapshot = load_frozen_value_ids(run)
 
     states = []

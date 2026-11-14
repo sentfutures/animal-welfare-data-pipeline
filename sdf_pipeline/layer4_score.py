@@ -169,12 +169,11 @@ def run(
 
     step = ScoreStep(config, prompts_dir)
     runner = StepRunner(step, output_dir, workers=config.get("workers", 1))
-    event_log = runner.event_log
     results = runner.run(rewrites).records_in_input_order
     rewrites_by_id = {rw["doc_id"]: rw for rw in rewrites}
 
     # Gate on alignment + realism; spec_conformance is advisory (reported below).
-    gate_outcomes = run_corpus_step(ScoreGateStep(threshold), results, event_log)
+    gate_outcomes = run_corpus_step(ScoreGateStep(threshold), results)
     passed = [r for r in results if isinstance(gate_outcomes[r["doc_id"]], Accepted)]
     failed = len(results) - len(passed)
     if failed:
@@ -183,7 +182,7 @@ def run(
     # Deterministic near-duplicate cull over survivors (greedy keep-first).
     passed_with_content = [{**r, "content": rewrites_by_id[r["doc_id"]]["content"]} for r in passed]
     cull_outcomes = run_corpus_step(
-        NearDuplicateCullStep(sdf.get("near_dup_threshold")), passed_with_content, event_log)
+        NearDuplicateCullStep(sdf.get("near_dup_threshold")), passed_with_content)
     dropped = [
         {"doc_id": r["doc_id"], **cull_outcomes[r["doc_id"]].detail}
         for r in passed if isinstance(cull_outcomes[r["doc_id"]], Removed)]

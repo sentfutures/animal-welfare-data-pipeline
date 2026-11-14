@@ -10,7 +10,6 @@ import json
 import pytest
 
 from sdf_pipeline import layer1_description_rewrite as rewrite
-from sdf_pipeline.document_event_log import fold_document_events, read_document_events
 from sdf_pipeline.layer1_description_rewrite import DescriptionRewriteStep
 from sdf_pipeline.step_runner import send_model_request
 from sdf_pipeline.update_steps import Accepted, Failed, FailureKind, Removed, WhatAFailedDocumentDoes
@@ -200,14 +199,10 @@ def test_a_failed_document_stops_the_run_after_the_step_and_resume_retries_exact
     assert ("API call failed (RuntimeError: boom)" in printed) == (failure == "thrown")
     assert set(rewrite.load_results(stage_dir)) == {p["prompt_id"] for p in plans} - {broken}
     assert not utils.Checkpoint(stage_dir / "_description_rewrite_checkpoint.json").is_done(broken)
-    events = fold_document_events(read_document_events(stage_dir.parent / "document_events.jsonl"))
-    assert events[broken].unresolved_failure_by_step["description_rewrite"]["kind"] == (
-        "thrown_call" if failure == "thrown" else "unusable_answer")
     retried = install(lambda item_id: answer())
     kept = rewrite.run(tiny_config, prompts_sdf, stage_dir, plans)
     assert retried == [broken] and len(kept) == len(plans)
-    assert "description_rewrite" not in fold_document_events(
-        read_document_events(stage_dir.parent / "document_events.jsonl"))[broken].unresolved_failure_by_step
+    assert set(rewrite.load_results(stage_dir)) == {p["prompt_id"] for p in plans}
 
 
 @pytest.mark.parametrize("failure", [(("not json"), "unusable"), (RuntimeError("down"), "thrown")])

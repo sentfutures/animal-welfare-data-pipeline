@@ -1,10 +1,10 @@
 """``StepRunner``: the work every SDF layer repeats, for a ``DocumentStep``.
 
-Pick the pending documents, fan out over a thread pool, call the model, append an event as each
-reply arrives (under the event log's lock), then on the calling thread, in input order, write the
-step's stage file, mark the checkpoint, print progress and apply the step's stop rules. Workers
-only build the request, call the model and interpret the reply; every stage file write and
-checkpoint mark stays on the main thread, in input order, exactly as the layers did before.
+Pick the pending documents, fan out over a thread pool, call the model, then on the calling
+thread, in input order, write the step's stage file, mark the checkpoint, print progress and apply
+the step's stop rules. Workers only build the request, call the model and interpret the reply;
+every stage file write and checkpoint mark stays on the main thread, in input order, exactly as the
+layers did before.
 
 A document is pending when it applies to the step, has no record in the stage file and is not
 marked done in the checkpoint. ``Failed`` marks nothing done, so a resume retries it. ``Removed``
@@ -16,8 +16,6 @@ import time
 from dataclasses import dataclass, field
 
 from shared import api, openai_api, utils
-from sdf_pipeline.document_event_log import (
-    DOCUMENT_EVENT_LOG_FILE_NAME, DocumentEventLog, fold_document_events, read_document_events)
 from sdf_pipeline.update_steps import (
     Accepted, BatchStep, CorpusStep, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, Removed,
     WhatAFailedDocumentDoes, WhereAnErrorIsAThrownCall)
@@ -94,20 +92,8 @@ def failure_for_exception(error: Exception) -> Failed:
     return Failed(FailureKind.THROWN_CALL, f"error: {type(error).__name__}: {error}")
 
 
-def outcome_name_and_event_detail(outcome, update_as_recorded=lambda update: update) -> tuple[str, dict]:
-    """The ``outcome`` name and the detail fields of the event an accepted, removed or failed outcome
-    is recorded as. ``update_as_recorded`` turns an accepted update into what the event keeps (a
-    document step records the stage file record; a batch or corpus step records the update itself)."""
-    if isinstance(outcome, Accepted):
-        return "accepted", {"update": update_as_recorded(outcome.update)}
-    if isinstance(outcome, Removed):
-        return "removed", {"reason_code": outcome.reason_code, "detail": outcome.detail}
-    return "failed", {"failure_kind": outcome.kind.value, "reason": outcome.reason}
-
-
 class StepRunner:
-    """Runs a ``DocumentStep`` over a stage directory. The event log is the run folder's
-    ``document_events.jsonl``, beside the layer folders, unless ``event_log`` is given.
+    """Runs a ``DocumentStep`` over a stage directory.
     ``existing_records_by_document_id`` defaults to the stage file's records keyed by the step's
     ``stage_file_id_field``. The checkpoint defaults to the stage directory's ``_checkpoint.json``;
     the options for a step that does things differently:
@@ -118,7 +104,7 @@ class StepRunner:
     * ``also_finished_document_ids``: documents treated as finished, so they are not pending.
     """
 
-    def __init__(self, step: DocumentStep, stage_directory, event_log: DocumentEventLog | None = None,
+    def __init__(self, step: DocumentStep, stage_directory,
                  workers: int = 1, send=send_model_request, existing_records_by_document_id: dict | None = None,
                  checkpoint: utils.Checkpoint | None = None, uses_checkpoint: bool = True,
                  marks_nothing_done: bool = False, also_finished_document_ids=frozenset()):
@@ -126,9 +112,6 @@ class StepRunner:
         self._write_lock = threading.Lock()
         self._removal_record_by_document_id: dict = {}
         self.stage_directory = stage_directory
-        self.event_log = (
-            event_log if event_log is not None
-            else DocumentEventLog(stage_directory.parent / DOCUMENT_EVENT_LOG_FILE_NAME))
         self.workers = workers
         self.send = send
         self.stage_file_path = stage_directory / step.stage_file_name
@@ -159,8 +142,7 @@ class StepRunner:
         ]
 
     def _answer_one(self, document):
-        """Worker: send (up to the policy's attempts), interpret and record an event per attempt;
-        returns the final outcome. An unusable answer is sent again, the same request, up to
+        """Worker: send (up to the policy's attempts) and interpret; returns the final outcome. An unusable answer is sent again, the same request, up to
         ``maximum_attempts_in_one_run``; a thrown call and any other outcome end the attempts. A
         step that writes as replies arrive has its files written here, under a lock."""
         outcome = self._attempt_loop(document)
@@ -180,10 +162,7 @@ class StepRunner:
         except Exception as error:
             if WhereAnErrorIsAThrownCall.BUILD not in counted_places:
                 raise
-            outcome = failure_for_exception(error)
-            self._append_event(document, None, None, outcome)
-            return outcome
-        request_hash = request.request_hash()
+            return failure_for_exception(error)
         maximum_attempts = step.policy.maximum_attempts_in_one_run
         if maximum_attempts < 1:
             return step.failure_when_no_attempt_is_allowed(document)
@@ -202,7 +181,6 @@ class StepRunner:
                     if WhereAnErrorIsAThrownCall.INTERPRET not in counted_places:
                         raise
                     outcome = failure_for_exception(error)
-            self._append_event(document, request, request_hash, outcome)
             if not (isinstance(outcome, Failed) and outcome.kind is FailureKind.UNUSABLE_ANSWER):
                 break
         return outcome
@@ -231,14 +209,6 @@ class StepRunner:
         elif isinstance(outcome, Accepted):
             utils.append_jsonl(step.stage_file_record(document, outcome.update), self.stage_file_path)
             self._mark_done(document_id)
-
-    def _append_event(self, document, request, request_hash, outcome):
-        step = self.step
-        outcome_name, detail = outcome_name_and_event_detail(
-            outcome, lambda update: step.stage_file_record(document, update))
-        self.event_log.append_outcome_event(
-            document_id=step.document_id_of(document), step_name=step.step_name, outcome=outcome_name,
-            request_hash=request_hash, stage=request.stage if request is not None else None, detail=detail)
 
     def run(self, documents: list) -> StepRunResult:
         step = self.step
@@ -278,26 +248,13 @@ class StepRunner:
         return result
 
 
-def run_corpus_step(step: CorpusStep, documents: list, event_log: DocumentEventLog) -> dict:
-    """Apply a corpus step (no model call) and record its outcomes: {document id: StepOutcome}.
-
-    The step runs every time (it is deterministic and cheap). An event is appended for a document
-    only when its outcome differs from the latest recorded one for this step, so a resume that
-    changes nothing appends nothing and a new threshold appends exactly the changed outcomes.
-    """
+def run_corpus_step(step: CorpusStep, documents: list) -> dict:
+    """Apply a corpus step (no model call): {document id: StepOutcome}. The step runs every time
+    (it is deterministic and cheap); every outcome must be accepted or removed."""
     outcomes = step.apply(documents)
-    folded = fold_document_events(read_document_events(event_log.path))
     for document_id, outcome in outcomes.items():
         if not isinstance(outcome, (Accepted, Removed)):
             raise TypeError(f"{step.step_name}: a corpus step returned {type(outcome).__name__} for {document_id}")
-        outcome_name, detail = outcome_name_and_event_detail(outcome)
-        latest = (outcome_name, detail["update"] if isinstance(outcome, Accepted) else detail)
-        recorded = folded.get(document_id)
-        if recorded is not None and recorded.latest_outcome_by_step.get(step.step_name) == latest:
-            continue
-        event_log.append_outcome_event(
-            document_id=document_id, step_name=step.step_name, outcome=outcome_name,
-            request_hash=None, stage=None, detail=detail)
     return outcomes
 
 
@@ -306,7 +263,7 @@ class BatchStepRunner:
 
     A batch object has ``batch_id`` and ``document_ids``. A batch is pending when the checkpoint
     does not mark its ``batch_id`` done. Workers build the request, send it, interpret the reply
-    and append one event per member as the reply arrives; the main thread then, in batch order,
+    ; the main thread then, in batch order,
     hands each finished batch's outcomes to ``write_batch_outcomes`` (the layer's stage-file
     writes), marks the checkpoint and prints the step's line. A batch whose members came back
     ``Failed`` is not written or checkpointed, so a resume retries exactly it.
@@ -317,10 +274,9 @@ class BatchStepRunner:
     ``step.stop_message_for_failed_batches(failed_batch_count, failed_batches)``.
     """
 
-    def __init__(self, step: BatchStep, event_log: DocumentEventLog, checkpoint: utils.Checkpoint,
+    def __init__(self, step: BatchStep, checkpoint: utils.Checkpoint,
                  write_batch_outcomes, workers: int = 1, send=send_model_request):
         self.step = step
-        self.event_log = event_log
         self.checkpoint = checkpoint
         self.write_batch_outcomes = write_batch_outcomes
         self.workers = workers
@@ -330,15 +286,13 @@ class BatchStepRunner:
         return [batch for batch in batches if not self.checkpoint.is_done(batch.batch_id)]
 
     def _answer_one(self, batch):
-        """Worker: build, send, interpret, record one event per member. Returns (outcomes, seconds)."""
+        """Worker: build, send, interpret. Returns (outcomes, seconds)."""
         step = self.step
         counted_places = step.policy.errors_counted_as_thrown_calls
-        request_hash = None
         seconds = 0.0
         stage_of_failure = WhereAnErrorIsAThrownCall.BUILD
         try:
             request = step.build_request(batch)
-            request_hash = request.request_hash()
             started = time.monotonic()
             stage_of_failure = WhereAnErrorIsAThrownCall.SEND
             reply = self.send(request)
@@ -351,15 +305,7 @@ class BatchStepRunner:
                 raise
             failure = failure_for_exception(error)
             outcomes = {document_id: failure for document_id in batch.document_ids}
-        for document_id, outcome in outcomes.items():
-            self._append_event(document_id, request_hash, outcome)
         return outcomes, seconds
-
-    def _append_event(self, document_id, request_hash, outcome):
-        outcome_name, detail = outcome_name_and_event_detail(outcome)
-        self.event_log.append_outcome_event(
-            document_id=document_id, step_name=self.step.step_name, outcome=outcome_name,
-            request_hash=request_hash, stage=self.step.stage, detail=detail)
 
     def run(self, batches: list) -> None:
         step = self.step

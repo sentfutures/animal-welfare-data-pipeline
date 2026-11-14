@@ -3,7 +3,7 @@ copies ``variables`` and in the final corpus, for runs created with this change;
 
 A run records them when its manifest says so (decided once, when the run is created). A run created before
 that, however often it is resumed, never gains the field. The loader reads the ids from the stage files and
-falls back to a lookup in the run's frozen ``inputs/prompts/variables.txt``; it does not read the event log.
+falls back to a lookup in the run's frozen ``inputs/prompts/variables.txt``; it ignores a ``document_events.jsonl`` left in an older run folder.
 Nothing that builds a prompt reads the ids.
 """
 
@@ -159,21 +159,19 @@ def test_the_main_scenario_resumes_within_one_run_and_every_record_still_has_ids
 
 # ------------------------------------------------------------------ the loader
 
-def test_the_loader_reads_ids_from_the_stage_files_and_never_from_the_event_log(outcome_of):
+def test_the_loader_reads_ids_from_the_stage_files_and_ignores_an_event_log_left_in_an_old_run_folder(outcome_of):
     outcome = outcome_of(SCREEN_ON_SCENARIO)
     run = outcome.run_directory
     event_log = run / "document_events.jsonl"
-    assert event_log.is_file()
-    events = [json.loads(line) for line in event_log.read_text(encoding="utf-8").splitlines()]
-    for event in events:   # doctor the ids the log holds: the loader must not see them
-        if event.get("event") == "round_dealt":
-            event["dealt_value_ids"] = {hand_id: {"tone": "not_a_real_id"} for hand_id in event.get("dealt_value_ids", {})}
-    event_log.write_text("".join(json.dumps(e) + "\n" for e in events), encoding="utf-8")
+    assert not event_log.exists()   # the pipeline no longer writes one
     hands = {h["prompt_id"]: h for h in utils.load_jsonl(support.utils.sdf_stage_dir(run, 1) / "screen_hands.jsonl")}
+    events = [{"event": "round_dealt", "round": 0, "prompt_ids": list(hands), "note": "original deal",
+               "dealt_value_ids": {hand_id: {"tone": "not_a_real_id"} for hand_id in hands}}]
+    event_log.write_text("".join(json.dumps(e) + "\n" for e in events), encoding="utf-8")   # an old run folder's log
     states = load_document_states(run)
     assert states and all(s.dealt_value_ids == hands[s.document_id]["variable_value_ids"] for s in states)
     assert all(s.dealt_value_id_notes == () for s in states)
-    event_log.unlink()   # and it is not needed at all
+    event_log.unlink()   # and its absence changes nothing
     assert [s.dealt_value_ids for s in load_document_states(run)] == [s.dealt_value_ids for s in states]
 
 

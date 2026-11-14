@@ -397,8 +397,7 @@ class ConsiderationAssignmentStep(CorpusStep):
     """The global linear programme over every scored document (no model call). The documents are
     score rows (``prompt_id``, ``scores``); each gets an ``Accepted`` outcome whose update is its
     selection outcomes. The programme is solved again over every document each time it runs, as it
-    always was, so a plan that arrives late changes other documents' outcomes and only those
-    changed outcomes become events. After ``apply``, ``selection_rows``, ``flat_scores`` and
+    always was, so a plan that arrives late changes other documents' outcomes. After ``apply``, ``selection_rows``, ``flat_scores`` and
     ``assigned_labels_by_document_id`` hold what the layer writes and reports."""
 
     step_name = "consideration_assignment"
@@ -528,7 +527,6 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
     step = ConsiderationScoringStep(config, catalog, template)
     # Scoring has no checkpoint file: ``consideration_scores.jsonl`` is the checkpoint.
     runner = StepRunner(step, output_dir, workers=workers, uses_checkpoint=False)
-    event_log = runner.event_log
     documents_in_scoring_order = [plan_by_id[prompt_id] for prompt_id in sorted(plan_by_id)]
     pending = runner.select_pending(documents_in_scoring_order)
     print(f"  Scoring considerations for {len(eligible)} specifications: "
@@ -538,7 +536,7 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
 
     score_rows = {r["prompt_id"]: r for r in utils.load_jsonl(scores_path) if r["prompt_id"] in plan_by_id}
     assignment_step = ConsiderationAssignmentStep(config, catalog, eligible)
-    run_corpus_step(assignment_step, list(score_rows.values()), event_log)
+    run_corpus_step(assignment_step, list(score_rows.values()))
     selection_rows = assignment_step.selection_rows
     (output_dir / SELECTIONS_FILENAME).write_text(
         "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in selection_rows), encoding="utf-8")
