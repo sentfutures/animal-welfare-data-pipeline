@@ -13,7 +13,7 @@ marks nothing done unless the step supplies a record through ``stage_file_record
 
 from dataclasses import dataclass, field
 
-from shared import api, utils
+from shared import api, openai_api, utils
 from sdf_pipeline.document_event_log import DocumentEventLog, fold_document_events, read_document_events
 from sdf_pipeline.update_steps import (
     Accepted, CorpusStep, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, Removed, WhatAFailedDocumentDoes)
@@ -33,6 +33,20 @@ class StepRunResult:
 def send_model_request(request: ModelRequest) -> ModelReply:
     """Send the request through ``shared.api.call_claude`` with exactly the keyword arguments a
     layer passes today: settings left at their default are not passed."""
+    if request.openai_schema_name is not None:
+        # The description rewrite's OpenAI route (a ``gpt-`` model), with the arguments it always passed.
+        text, stop_reason = openai_api.call_openai(
+            request.user_message,
+            system_prompt=request.system_prompt,
+            model=request.model,
+            max_output_tokens=request.max_tokens,
+            reasoning_effort=request.openai_reasoning_effort,
+            stage=request.stage,
+            item_id=request.item_id,
+            json_schema=request.json_schema,
+            schema_name=request.openai_schema_name,
+        )
+        return ModelReply(text=text, stop_reason=stop_reason)
     keyword_arguments = dict(
         system_prompt=request.system_prompt,
         model=request.model,
@@ -79,7 +93,14 @@ class StepRunner:
     def _answer_one(self, document):
         """Worker: build, send, interpret, record the event. Returns (request, outcome)."""
         step = self.step
-        request = step.build_request(document)
+        try:
+            request = step.build_request(document)
+        except Exception as error:
+            if not step.build_request_errors_count_as_thrown_calls:
+                raise
+            outcome = Failed(FailureKind.THROWN_CALL, f"error: {type(error).__name__}: {error}")
+            self._append_event(document, None, None, outcome)
+            return outcome
         request_hash = request.request_hash()
         try:
             reply = self.send(request)
@@ -101,7 +122,7 @@ class StepRunner:
             outcome_name, detail = "failed", {"failure_kind": outcome.kind.value, "reason": outcome.reason}
         self.event_log.append_outcome_event(
             document_id=step.document_id_of(document), step_name=step.step_name, outcome=outcome_name,
-            request_hash=request_hash, stage=request.stage, detail=detail)
+            request_hash=request_hash, stage=request.stage if request is not None else None, detail=detail)
 
     def run(self, documents: list) -> StepRunResult:
         step = self.step
@@ -138,9 +159,9 @@ class StepRunner:
                 print(line)
         if pending and counted_failures == len(pending):
             raise SystemExit(step.systemic_stop_message)
+        step.after_documents_are_processed(result)
         if result.failed_document_ids and policy.failed_document is WhatAFailedDocumentDoes.STOPS_THE_RUN_AFTER_THE_STEP:
-            raise SystemExit(
-                f"{step.step_name}: {len(result.failed_document_ids)} document(s) failed; fix and --resume.")
+            raise SystemExit(step.message_when_failed_documents_stop_the_run(result))
         return result
 
 
