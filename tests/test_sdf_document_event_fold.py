@@ -30,6 +30,8 @@ def main_scenario_after_each_invocation():
                 "draft_records": utils.load_jsonl(utils.sdf_stage_dir(run_directory, 2) / "drafts.jsonl"),
                 "score_records": utils.load_jsonl(utils.sdf_stage_dir(run_directory, 4) / "scores.jsonl"),
                 "final_corpus": utils.load_jsonl(run_directory / "final" / "sdf_corpus.jsonl"),
+                "critique_records": utils.load_jsonl(utils.sdf_stage_dir(run_directory, 3) / "critiques.jsonl"),
+                "rewrite_records": utils.load_jsonl(utils.sdf_stage_dir(run_directory, 3) / "rewrites.jsonl"),
             })
         support.run_scenario_in_isolation(
             scenarios.scenario_named(scenarios.MAIN_SCENARIO_NAME), Path(base_directory) / "run",
@@ -88,6 +90,44 @@ def test_folded_score_events_match_the_scores_file_and_gate_and_cull_match_the_f
                    if "gate" in d.removal_by_step or "near_duplicate_cull" in d.removal_by_step}
         assert removed == set(scored_by_events) - survivors_by_events
         assert removed, "the fixture has a below-threshold score and a near-duplicate"
+
+
+def test_folded_critique_and_revise_events_match_the_stage_files_and_the_loader_after_every_invocation(
+        main_scenario_after_each_invocation, tmp_path):
+    for invocation in main_scenario_after_each_invocation:
+        folded = fold_document_events(_events_of(invocation["events_text"], tmp_path))
+        for step_name, records in (("critique", invocation["critique_records"]), ("revise", invocation["rewrite_records"])):
+            records_by_id = {record["doc_id"]: record for record in records}
+            updates_by_id = {document_id: document.accepted_update_by_step[step_name]
+                             for document_id, document in folded.items() if step_name in document.accepted_update_by_step}
+            assert set(updates_by_id) == set(records_by_id)
+            for document_id, update in updates_by_id.items():
+                assert list(update.items()) == list(records_by_id[document_id].items())
+        revisions_by_loader = {
+            state.document_id: (version.text, version.critique, version.written_from.description,
+                                version.written_from.variables, version.written_from.considerations_spec)
+            for state in invocation["states"] for version in state.text_versions
+            if version.kind.name == "REVISION"}
+        revisions_by_events = {
+            document_id: (u["content"], u["review"], u["description"], u["variables"], u["considerations_spec"])
+            for document_id, document in folded.items()
+            if (u := document.accepted_update_by_step.get("revise")) is not None}
+        assert revisions_by_events == revisions_by_loader
+
+
+def test_the_resume_resolves_the_revise_failure_the_first_invocation_recorded_without_a_second_critique(
+        main_scenario_after_each_invocation, tmp_path):
+    first, second = (_events_of(i["events_text"], tmp_path) for i in main_scenario_after_each_invocation)
+    failed_revise_after_first = {document_id for document_id, d in fold_document_events(first).items()
+                                 if "revise" in d.unresolved_failure_by_step}
+    assert failed_revise_after_first, "the fixture has a failed revise in its first invocation"
+    folded_second = fold_document_events(second)
+    for document_id in failed_revise_after_first:
+        assert "revise" not in folded_second[document_id].unresolved_failure_by_step
+        assert "revise" in folded_second[document_id].accepted_update_by_step
+        critique_events = [e for e in second if e["document_id"] == document_id and e["step"] == "critique"
+                           and e["outcome"] == "accepted"]
+        assert len(critique_events) == 1, "an accepted critique is kept, not paid for again"
 
 
 def test_the_resume_resolves_the_draft_failure_the_first_invocation_recorded(main_scenario_after_each_invocation, tmp_path):
