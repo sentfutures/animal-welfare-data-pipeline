@@ -11,8 +11,8 @@ driver (``run_layer.py``) and one file per step:
   4. ``layer4_draft_critique_and_revise``: draft, critique, revise
   5. ``layer5_score_and_final_selection``: score, score gate, near-duplicate removal, write ``final/``
 
-Steps a document goes through (full table with module detail in CLAUDE.md; the folder of each step's file is its
-layer's, above):
+Steps a document goes through (full table with module detail in sdf_pipeline/CLAUDE.md; the folder of each step's
+file is its layer's, above):
 
    1. Deal (compose_prompts, no model)                      cannot drop
    2. Implausibility screen (screen.py), batches of 10,
