@@ -41,6 +41,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sdf_pipeline import layer1_description_rewrite, layer1_screen, layer1_select_considerations
+from sdf_pipeline.document_state_loader import (
+    load_document_states_or_empty_list_when_not_a_run_folder, plan_records_of_states)
 from shared import api, textstats, utils
 from shared.api_keys import add_api_key_source_flags, apply_api_key_source_flags
 
@@ -243,7 +245,7 @@ def audit_description_rewrite(run_dir: Path, report: dict) -> None:
         print("LAYER-1 DESCRIPTION REWRITE\n  (no description rewrite files in this run — it predates "
               "the stage or had it disabled)")
         return
-    plans = utils.load_jsonl(utils.sdf_stage_file(run_dir, "plan"))
+    plans = plan_records_of_states(load_document_states_or_empty_list_when_not_a_run_folder(run_dir))
     shares = layer1_description_rewrite.rewrite_share_rows(plans, outputs)
     checked = shares["checked"]
     print("LAYER-1 DESCRIPTION REWRITE")

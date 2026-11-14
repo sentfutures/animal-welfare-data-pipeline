@@ -23,7 +23,7 @@ from evals.model_judged_audit_support import (  # noqa: E402
 from evals.shoehorning_audit_sdf import (  # noqa: E402
     ALL_PASS_NAMES, INTEGRATION_VALUES, MOTIVATION_VALUES, load_existing_records, parse_pass_items,
     pass_file_path, read_text)
-from shared import utils  # noqa: E402
+from sdf_pipeline.document_state_loader import load_document_states_or_empty_list_when_not_a_run_folder  # noqa: E402
 
 MOTIVATION_SHOEHORNING_RANK = {"organic": 0, "staged": 1, "unmotivated": 2}
 ORIGIN_STAGES = ["present_in_draft", "added_in_rewrite", "quote_not_verified", "draft_unavailable"]
@@ -194,12 +194,16 @@ def write_per_document_outputs(run_folder, timestamp, documents_by_id, pass_name
     return jsonl_path, csv_path, rows
 
 
-def default_drafts_path(corpus_path):
-    """The draft stage output of the SDF run the corpus came from (<run>/final/sdf_corpus.jsonl), or None."""
+def default_drafts_by_id(corpus_path):
+    """{doc_id: draft record} for the draft of every document of the SDF run the corpus came from
+    (<run>/final/sdf_corpus.jsonl), read through the document state loader. A record holds the draft's
+    ``content``, the only field the postprocess reads. Empty for a corpus that is not in a run's final/
+    folder, or whose folder is not an SDF run folder."""
     corpus_path = Path(corpus_path)
     if corpus_path.parent.name != "final":
-        return None
-    return utils.sdf_stage_file(corpus_path.parent.parent, "draft")
+        return {}
+    states = load_document_states_or_empty_list_when_not_a_run_folder(corpus_path.parent.parent)
+    return {state.document_id: {"content": state.draft_text} for state in states if state.draft_text is not None}
 
 
 def pass_names_of_run(run_folder, records):
@@ -218,12 +222,14 @@ def postprocess_run_folder(run_folder, drafts_path=None):
     corpus_path = configuration["corpus_path"]
     documents_by_id = {d["doc_id"]: d for d in read_jsonl(corpus_path)}
     if drafts_path is None:
-        drafts_path = default_drafts_path(corpus_path)
-    drafts_by_id = ({d["doc_id"]: d for d in read_jsonl(drafts_path)}
-                    if drafts_path is not None and Path(drafts_path).exists() else {})
+        drafts_by_id = default_drafts_by_id(corpus_path)
+        looked_in = f"the draft stage of the run folder around {corpus_path}"
+    else:
+        drafts_by_id = ({d["doc_id"]: d for d in read_jsonl(drafts_path)} if Path(drafts_path).exists() else {})
+        looked_in = str(drafts_path)
     if not drafts_by_id:
         print("No drafts found: every origin_stage will read draft_unavailable "
-              f"(looked for {drafts_path}; pass --drafts-path to point at the draft stage output).")
+              f"(looked in {looked_in}; pass --drafts-path to point at the draft stage output).")
     records = load_existing_records(run_folder)
     pass_names = pass_names_of_run(run_folder, records)
     rows = build_occurrence_rows(records, documents_by_id, drafts_by_id)

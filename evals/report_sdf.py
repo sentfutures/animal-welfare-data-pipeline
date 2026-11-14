@@ -34,7 +34,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from sdf_pipeline import layer1_description_rewrite, layer1_screen, layer1_select_considerations  # noqa: E402
-from shared import utils  # noqa: E402
+from sdf_pipeline.document_state_loader import (  # noqa: E402
+    load_document_states_or_empty_list_when_not_a_run_folder, plan_records_of_states)
 
 RUN = Path(sys.argv[1])
 EXCERPTS = Path(sys.argv[2])
@@ -59,8 +60,8 @@ def maybe_json(path):
 
 
 corpus = jsonl(RUN / "final" / "sdf_corpus.jsonl")
-plans = jsonl(utils.sdf_stage_file(RUN, "plan"))
-drafts = jsonl(utils.sdf_stage_file(RUN, "draft"))
+document_states = load_document_states_or_empty_list_when_not_a_run_folder(RUN)
+plans = plan_records_of_states(document_states)
 manifest = maybe_json(RUN / "run_manifest.json")
 audit = maybe_json(RUN / "audit" / "audit_report.json")
 diversity = maybe_json(RUN / "audit" / "diversity_report.json")
@@ -134,7 +135,7 @@ indep_scores = {d: [r["scores"].get(d) for r in indep if isinstance(r.get("score
 # pipeline yield
 planned = len(plans)
 incoherent = sum(1 for p in plans if not p.get("description"))
-drafted = len(drafts)
+drafted = sum(1 for state in document_states if state.draft_text is not None)
 
 # restraint-praise tic: the fingerprint Opus 5's layer-3 reviews named. English
 # proxy only — a lexical family, so it under-counts other languages.

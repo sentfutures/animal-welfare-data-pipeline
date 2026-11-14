@@ -347,6 +347,13 @@ class DocumentState:
     # record, a record the later stages ignore, an id with no deal record, ...)
     loader_notes: tuple[str, ...] = ()
 
+    # The plan stage file's record for the document, as readers that used to open plans.jsonl need it:
+    # whether the file has a record for the id, and that record's own ``variables`` (None when it has
+    # none). ``dealt_variables`` is the deal's copy; the two are equal on every committed run, and the
+    # loader notes any run where they differ. Never set for the five-layer layout, which has no plans.
+    has_plan_record: bool = False
+    plan_record_variables: dict | None = None
+
     @property
     def current_description(self) -> str | None:
         """The description every later step uses: the rewritten one if the rewrite changed it."""
@@ -384,6 +391,23 @@ class DocumentState:
         run's keys against the variables file the run froze."""
         return {key: value for key, value in self.variables.items()
                 if key not in REVISION_AXES and key not in ASSIGNED_CONSIDERATION_KEYS}
+
+    @property
+    def planned_description(self) -> str | None:
+        """The description exactly as the planner wrote it (before any rewrite), or None when the plan
+        record has no description (a plan declared incoherent) or there is no plan record."""
+        for version in self.description_versions:
+            if version.kind is DescriptionVersionKind.PLANNED:
+                return version.text
+        return None
+
+    @property
+    def draft_text(self) -> str | None:
+        """The text of the draft (text version 1), or None when the document has no draft record."""
+        for version in self.text_versions:
+            if version.kind is TextVersionKind.DRAFT:
+                return version.text
+        return None
 
     @property
     def latest_text_version(self) -> TextVersion | None:
