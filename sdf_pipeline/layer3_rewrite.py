@@ -283,8 +283,18 @@ class CombinedReviewAndReviseStep(DocumentStep):
         return _rewrite_progress_line(draft, outcome)
 
 
+def revision_is_split(config: dict) -> bool:
+    """True when the critique and the revise are two calls (the default); False for the single combined call."""
+    return bool((config["sdf"].get("revision") or {}).get("split", True))
+
+
+def load_critiques_by_document_id(output_dir: Path) -> dict:
+    """{doc_id: the accepted critique} from critiques.jsonl; what the revise step is built with."""
+    return {record["doc_id"]: record["review"] for record in utils.load_jsonl(Path(output_dir) / "critiques.jsonl")}
+
+
 def run(config: dict, prompts_dir: Path, output_dir: Path, drafts: list[dict]) -> list[dict]:
-    split = bool((config["sdf"].get("revision") or {}).get("split", True))
+    split = revision_is_split(config)
     workers = config.get("workers", 1)
     checkpoint = utils.Checkpoint(output_dir / "_checkpoint.json")
     existing_rewrite_ids = {r["doc_id"] for r in utils.load_jsonl(output_dir / "rewrites.jsonl")}
@@ -309,8 +319,7 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, drafts: list[dict]) -
         documents_with_thrown_call.update(critique_runner.run(drafts).thrown_call_document_ids)
         # Critiques are banked separately from rewrites (the critique runner appended each as it
         # was accepted): a revise call that fails must not re-bill the critique that fed it.
-        critique_by_document_id = {r["doc_id"]: r["review"] for r in utils.load_jsonl(output_dir / "critiques.jsonl")}
-        rewrite_step = ReviseStep(config, prompts_dir, critique_by_document_id)
+        rewrite_step = ReviseStep(config, prompts_dir, load_critiques_by_document_id(output_dir))
     else:
         rewrite_step = CombinedReviewAndReviseStep(config, prompts_dir)
     rewrite_runner = StepRunner(

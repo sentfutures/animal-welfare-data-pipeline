@@ -36,7 +36,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from sdf_pipeline import layer1_description_rewrite, layer1_screen, layer1_select_considerations
-from sdf_pipeline import compose_prompts as cp
+from sdf_pipeline import pipeline_steps
 from sdf_pipeline.document_state import RunLayout
 from sdf_pipeline.document_state_loader import UnknownRunLayoutError, detect_run_layout
 from shared import utils
@@ -49,52 +49,29 @@ class SeedingRefused(SystemExit):
     """Seeding was refused; the message says why. Nothing was created."""
 
 
-@dataclass(frozen=True)
-class SeedableStep:
-    name: str
-    start_layer: int   # the run.py layer that runs this step
-    stage_layer: int   # the layer folder that holds the step's own output (the input of the next step)
+# Views of the step catalogue (sdf_pipeline/pipeline_steps.py): the steps that can be seeded, by name, in
+# pipeline order, and the reasons the others cannot.
+SEEDABLE_STEPS = {entry.name: entry for entry in pipeline_steps.PIPELINE_STEPS
+                  if entry.document_file and not entry.reason_not_seedable}
+UNSEEDABLE_STEPS = {entry.name: entry.reason_not_seedable for entry in pipeline_steps.PIPELINE_STEPS
+                    if entry.reason_not_seedable}
 
 
-SEEDABLE_STEPS = {
-    step.name: step for step in (
-        SeedableStep("plan", 1, 1),
-        SeedableStep("description_rewrite", 1, 1),
-        SeedableStep("consideration_scoring", 1, 1),
-        SeedableStep("draft", 2, 2),
-        SeedableStep("critique", 3, 3),
-        SeedableStep("revise", 3, 3),
-        SeedableStep("score", 4, 4),
-    )
-}
+# Every stage file copied when seeding, with the step that writes it, in pipeline order. A file is copied
+# when the chosen step comes after the step that writes it. The single-call step writes the file the revise
+# does, so each file is listed once, under the first step that writes it.
+def _stage_files_in_pipeline_order() -> list:
+    listed, seen = [], set()
+    for entry in pipeline_steps.PIPELINE_STEPS:
+        for stage_file in entry.stage_files:
+            if (stage_file.layer, stage_file.file_name) not in seen:
+                seen.add((stage_file.layer, stage_file.file_name))
+                listed.append((entry.name, stage_file))
+    return listed
 
-# Not seedable, with the reason given to the person who asked for them.
-UNSEEDABLE_STEPS = {
-    "deal": "a run's hands come from its deal; start a normal run",
-    "screen": "the screen judges every hand of a run together; start a normal run",
-    "redeal": "the redeal follows the screen and cannot be started on its own",
-    "consideration_assignment": ("the assignment is solved over every scored document at once, so seeding it for "
-                                 "selected documents would change it; seed at consideration_scoring instead"),
-    "gate": "the gate runs after scoring and makes no calls; resume the scoring run",
-    "near_duplicate_cull": "the cull runs after the gate and makes no calls; resume the scoring run",
-}
 
-# (step whose output the file is, layer folder, file name, the field holding the document id), in pipeline
-# order. A file is copied when the chosen step comes after the step that writes it.
-_STAGE_FILES_IN_PIPELINE_ORDER = (
-    ("screen", 1, layer1_screen.SCREENED_HANDS_FILENAME, "prompt_id"),
-    ("screen", 1, "prompts.jsonl", "prompt_id"),
-    ("plan", 1, "plans.jsonl", "prompt_id"),
-    ("description_rewrite", 1, layer1_description_rewrite.RESULTS_FILENAME, "prompt_id"),
-    ("description_rewrite", 1, layer1_description_rewrite.REJECTIONS_FILENAME, "prompt_id"),
-    ("consideration_scoring", 1, layer1_select_considerations.SCORES_FILENAME, "prompt_id"),
-    ("consideration_assignment", 1, layer1_select_considerations.SELECTIONS_FILENAME, "prompt_id"),
-    ("draft", 2, "drafts.jsonl", "doc_id"),
-    ("critique", 3, "critiques.jsonl", "doc_id"),
-    ("revise", 3, "rewrites.jsonl", "doc_id"),
-)
-_ORDER_OF_STEPS = ("screen", "plan", "description_rewrite", "consideration_scoring", "consideration_assignment",
-                   "draft", "critique", "revise", "score")
+def _position_of(step_name: str) -> int:
+    return pipeline_steps.STEP_NAMES_IN_ORDER.index(step_name)
 
 
 @dataclass(frozen=True)
@@ -158,32 +135,6 @@ def _records_by_id(stage_directory: Path, file_name: str, id_field: str) -> dict
     return {record[id_field]: record for record in utils.load_jsonl(stage_directory / file_name) if id_field in record}
 
 
-def _templates_the_step_needs(step: SeedableStep, config: dict, prompts_dir: Path) -> list:
-    """File names (relative to the snapshot) the step cannot run without, under this configuration."""
-    sdf = config["sdf"]
-    split = bool((sdf.get("revision") or {}).get("split", True))
-    needed = []
-    if step.name in ("plan", "description_rewrite", "consideration_scoring"):
-        needed += [utils.sdf_template_path(prompts_dir, 1).name, "variables.txt", "preamble.txt"]
-    if step.name == "description_rewrite":
-        needed += [layer1_description_rewrite.TEMPLATE_FILENAME, layer1_description_rewrite.SCHEMA_FILENAME]
-    if step.name == "consideration_scoring":
-        needed += [layer1_select_considerations.TEMPLATE_FILENAME, layer1_select_considerations.CONSIDERATIONS_FILENAME]
-    if step.name == "draft":
-        needed.append(utils.sdf_template_path(prompts_dir, 2).name)
-    if step.name == "critique":
-        needed.append("layer3a_critique.txt" if split else utils.sdf_template_path(prompts_dir, 3).name)
-    if step.name == "revise":
-        needed.append("layer3b_revise.txt")
-    if step.name == "score":
-        needed.append(utils.sdf_template_path(prompts_dir, 4).name)
-    return needed
-
-
-def _screen_is_active(config: dict, prompts_dir: Path) -> bool:
-    return bool(config["sdf"].get("screen_enabled", True)) and layer1_screen.load_screen_prompts(prompts_dir) is not None
-
-
 def seed_run_from_chosen_step(
     *, config: dict, source_run: Path, from_step: str, document_ids: list | None, runs_root: Path,
     label: str, repository_root: Path, use_current_prompts: bool = False,
@@ -197,9 +148,8 @@ def seed_run_from_chosen_step(
     if from_step not in SEEDABLE_STEPS:
         _refuse(f"unknown step {from_step!r}. Seedable steps: {', '.join(SEEDABLE_STEPS)}")
     step = SEEDABLE_STEPS[from_step]
-    if from_step == "revise" and not bool((config["sdf"].get("revision") or {}).get("split", True)):
-        _refuse("step 'revise' cannot be seeded under sdf.revision.split: false, because this configuration revises in "
-                "one call together with the critique, so there is no separate revise step; seed from 'critique' instead")
+    if step.seeding_refuses_when_inactive and (reason_inactive := step.reason_inactive(config, None)):
+        _refuse(f"step {from_step!r} cannot be seeded: {reason_inactive}. Seedable steps: {', '.join(SEEDABLE_STEPS)}")
     source_run = Path(source_run)
     try:
         layout = detect_run_layout(source_run)
@@ -219,23 +169,19 @@ def seed_run_from_chosen_step(
                 _refuse(f"source run {source_run.name} has no frozen inputs/{name} snapshot, which {from_step} needs to run "
                         "on that run's own templates; pass --use-current-prompts to run on this checkout's prompts instead")
     prompts_dir = snapshot_sources["prompts"]
-    missing_templates = [name for name in _templates_the_step_needs(step, config, prompts_dir) if not (prompts_dir / name).is_file()]
+    missing_templates = [name for name in step.required_prompt_files(config, prompts_dir) if not (prompts_dir / name).is_file()]
     if missing_templates:
         which = "this checkout's prompts" if use_current_prompts else f"source run {source_run.name}'s frozen prompt snapshot"
         _refuse(f"{which} lacks {', '.join(missing_templates)}, which step {from_step} needs")
 
     stage_directory = {layer: utils.sdf_stage_dir_of_existing_run(source_run, layer) for layer in (1, 2, 3, 4)}
-    step_position = _ORDER_OF_STEPS.index(from_step)
-    files_to_copy = [entry for entry in _STAGE_FILES_IN_PIPELINE_ORDER if _ORDER_OF_STEPS.index(entry[0]) < step_position]
+    step_position = _position_of(from_step)
+    files_to_copy = [(layer_file.layer, layer_file.file_name, layer_file.id_field)
+                     for writer, layer_file in _stage_files_in_pipeline_order() if _position_of(writer) < step_position]
 
     # Which documents: those named, else every document the step has an input record for.
-    input_file = {
-        "plan": (1, layer1_screen.SCREENED_HANDS_FILENAME if _screen_is_active(config, prompts_dir) else "prompts.jsonl", "prompt_id"),
-        "description_rewrite": (1, "plans.jsonl", "prompt_id"), "consideration_scoring": (1, "plans.jsonl", "prompt_id"),
-        "draft": (1, "plans.jsonl", "prompt_id"), "critique": (2, "drafts.jsonl", "doc_id"),
-        "revise": (3, "critiques.jsonl", "doc_id"), "score": (3, "rewrites.jsonl", "doc_id"),
-    }[from_step]
-    input_layer, input_file_name, input_id_field = input_file
+    input_file = step.document_file(config, prompts_dir)
+    input_layer, input_file_name, input_id_field = input_file.layer, input_file.file_name, input_file.id_field
     input_records = _records_by_id(stage_directory[input_layer], input_file_name, input_id_field)
     if not input_records:
         _refuse(f"source run {source_run.name} has no {input_file_name} in layer{input_layer} (or it is empty), "
@@ -248,8 +194,8 @@ def seed_run_from_chosen_step(
 
     # An id the source never mentions is unknown; one it mentions but cannot feed this step is missing a record.
     every_known_id = set()
-    for _, layer, file_name, id_field in _STAGE_FILES_IN_PIPELINE_ORDER:
-        every_known_id |= set(_records_by_id(stage_directory[layer], file_name, id_field))
+    for _, stage_file in _stage_files_in_pipeline_order():
+        every_known_id |= set(_records_by_id(stage_directory[stage_file.layer], stage_file.file_name, stage_file.id_field))
     unknown = [d for d in document_ids if d not in every_known_id]
     if unknown:
         _refuse(f"document ids not found in source run {source_run.name}: {unknown}")
@@ -277,7 +223,7 @@ def seed_run_from_chosen_step(
     run_directory = utils.create_run_dir(runs_root, label=label, config=config, snapshot_dirs=snapshot_sources)
     selected = set(document_ids)
     copied_record_counts = {}
-    for _, layer, file_name, id_field in files_to_copy:
+    for layer, file_name, id_field in files_to_copy:
         records = [r for r in utils.load_jsonl(stage_directory[layer] / file_name) if r.get(id_field) in selected]
         if file_name == "drafts.jsonl" and revision_overrides:
             records = [{**r, "revision": revision_overrides[r["doc_id"]]} if r["doc_id"] in revision_overrides else r
@@ -295,7 +241,7 @@ def seed_run_from_chosen_step(
         "source_run_directory": str(source_run),
         "source_git_commit": source_manifest.get("git_commit"),
         "from_step": from_step,
-        "start_layer": step.start_layer,
+        "start_layer": step.run_py_layer,
         "document_ids": document_ids,
         "prompts_and_constitution": "this checkout's current files" if use_current_prompts else "the source run's frozen inputs",
         "revision_override_document_ids": sorted(revision_overrides),
@@ -306,22 +252,22 @@ def seed_run_from_chosen_step(
             f"solved again over {len(document_ids)} document(s); may differ from the source run's")
         manifest["seeded_from"]["consideration_assignment_solved_again_over_document_count"] = len(document_ids)
     manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
-    return SeededRun(run_directory, step.start_layer, document_ids, copied_record_counts)
+    return SeededRun(run_directory, step.run_py_layer, document_ids, copied_record_counts)
 
 
 def _required_records_for_step(step, config, prompts_dir, stage_directory, document_ids, input_records, input_location) -> list:
     """One message per selected document and missing record. Empty when the source can feed the step."""
     problems = []
-    position = _ORDER_OF_STEPS.index(step.name)
+    position = _position_of(step.name)
     plans = _records_by_id(stage_directory[1], "plans.jsonl", "prompt_id")
 
     def after(step_name):  # the chosen step comes after step_name
-        return position > _ORDER_OF_STEPS.index(step_name)
+        return position > _position_of(step_name)
 
     for document_id in document_ids:
         if document_id not in input_records:
             problems.append(f"{document_id}: no record in {input_location}, which step {step.name} reads its documents from")
-    if step.start_layer == 1 and not _screen_is_active(config, prompts_dir):
+    if step.run_py_layer == 1 and layer1_screen.reason_screen_is_inactive(config, prompts_dir):
         prompt_ids = set(_records_by_id(stage_directory[1], "prompts.jsonl", "prompt_id"))
         problems += [f"{d}: no record in layer1/prompts.jsonl (the screen is off, so planning reads composed prompts)"
                      for d in document_ids if d not in prompt_ids]
@@ -332,17 +278,16 @@ def _required_records_for_step(step, config, prompts_dir, stage_directory, docum
                 problems.append(f"{document_id}: no plan in layer1/plans.jsonl")
             elif not plan.get("description"):
                 problems.append(f"{document_id}: its plan was declared incoherent, so the document is not in the pipeline")
-    if position > _ORDER_OF_STEPS.index("description_rewrite") and layer1_description_rewrite.enabled(config) \
-            and layer1_description_rewrite.load_rewrite_prompts(prompts_dir) is not None:
+    if position > _position_of("description_rewrite") \
+            and not layer1_description_rewrite.reason_description_rewrite_is_inactive(config, prompts_dir):
         results = _records_by_id(stage_directory[1], layer1_description_rewrite.RESULTS_FILENAME, "prompt_id")
         for document_id in document_ids:
             if document_id not in results:
                 problems.append(f"{document_id}: no description rewrite result (seeding here would pay for the rewrite again)")
             elif results[document_id].get("dealt_value_conflict"):
                 problems.append(f"{document_id}: its description rewrite found a dealt-value conflict, so it was dropped")
-    if after("consideration_assignment") and layer1_select_considerations.selection_enabled(config) \
-            and layer1_select_considerations.load_selection_template(prompts_dir) is not None \
-            and (prompts_dir / layer1_select_considerations.CONSIDERATIONS_FILENAME).is_file():
+    if after("consideration_assignment") \
+            and not layer1_select_considerations.reason_consideration_selection_is_inactive(config, prompts_dir):
         catalog = layer1_select_considerations.load_considerations(prompts_dir)
         selections = _records_by_id(stage_directory[1], layer1_select_considerations.SELECTIONS_FILENAME, "prompt_id")
         eligible = layer1_select_considerations.eligible_plans(

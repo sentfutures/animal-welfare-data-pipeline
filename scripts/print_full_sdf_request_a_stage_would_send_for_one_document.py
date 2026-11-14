@@ -48,23 +48,20 @@ REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPOSITORY_ROOT))
 
 from shared import api, utils  # noqa: E402
-from sdf_pipeline import (  # noqa: E402
-    layer1_description_rewrite, layer1_plan, layer1_screen, layer1_select_considerations, layer2_draft,
-    layer3_rewrite, layer4_score)
+from sdf_pipeline import layer1_screen, pipeline_steps  # noqa: E402
 from sdf_pipeline import compose_prompts  # noqa: E402
-from sdf_pipeline.considerations_catalog import load_considerations  # noqa: E402
 from sdf_pipeline.step_runner import resolve_settings_of_model_request  # noqa: E402
 from sdf_pipeline.update_steps import ModelRequest  # noqa: E402
 
 STAGES_THIS_COMMAND_COVERS = ("screen", "description_rewrite", "plan", "select", "draft", "critique", "revise",
                               "combined", "score")
+# The steps the catalogue marks as showing no request, with the reason.
 STAGES_THIS_COMMAND_CANNOT_COVER_YET = {
-    "gate": "makes no model call",
-    "near_duplicate_cull": "makes no model call",
-}
+    entry.print_command_name: "makes no model call"
+    for entry in pipeline_steps.PIPELINE_STEPS if entry.print_command_name and entry.stage_tag is None}
 
 
-class RequestCannotBeBuilt(Exception):
+class RequestCannotBeBuilt(pipeline_steps.StepCannotBeBuilt):
     """The chosen stage and document do not give a request (unknown id, step does not apply, ...)."""
 
 
@@ -116,7 +113,7 @@ def _screen_step_and_batch(run_directory: Path, config: dict, prompts_directory:
     hands_by_id = {hand["prompt_id"]: hand
                    for hand in utils.load_jsonl(layer_one_directory / layer1_screen.HANDS_FILENAME)}
     step = layer1_screen.ScreenStep(
-        prompts, sdf.get("screen_model") or sdf.get("plan_model"),
+        prompts, pipeline_steps.entry_named("screen").model_for(config),
         int(sdf.get("screen_batch_size", layer1_screen.DEFAULT_BATCH_SIZE)),
         compose_prompts.make_variable_line_renderer(
             prompts_directory, sdf.get("entity_pool_seed", compose_prompts.DEFAULT_ENTITY_SEED)))
@@ -131,56 +128,23 @@ def build_full_request(run_directory: Path, config: dict, stage: str, document_i
     run_directory = Path(run_directory)
     prompts_directory = _prompts_directory_of_run(run_directory)
     layer_directory = {number: utils.sdf_stage_dir_of_existing_run(run_directory, number) for number in (1, 2, 3, 4)}
+    entry = pipeline_steps.entry_for_print_command_stage(stage)
     if stage == "screen":
+        # The one stage whose document is a batch of hands (from the saved batch plan), so it is built here.
         step, document = _screen_step_and_batch(run_directory, config, prompts_directory, layer_directory[1],
                                                 document_id, round_number)
-    elif stage == "description_rewrite":
-        prompts = layer1_description_rewrite.load_rewrite_prompts(prompts_directory)
-        if prompts is None or not layer1_description_rewrite.enabled(config):
-            raise RequestCannotBeBuilt("the description rewrite is disabled or has no template in this run")
-        plans = utils.load_jsonl(layer_directory[1] / "plans.jsonl")
-        step = layer1_description_rewrite.DescriptionRewriteStep(
-            config, prompts, prompts_directory, layer_directory[1], plans)
-        document = _record_with_id(plans, "prompt_id", document_id, f"{layer_directory[1] / 'plans.jsonl'}")
-    elif stage == "select":
-        template = layer1_select_considerations.load_selection_template(prompts_directory)
-        if template is None or not layer1_select_considerations.selection_enabled(config):
-            raise RequestCannotBeBuilt("consideration selection is disabled or has no template in this run")
-        step = layer1_select_considerations.ConsiderationScoringStep(
-            config, load_considerations(prompts_directory), template)
-        plans = layer1_description_rewrite.load_rewritten_plans(
-            config, layer_directory[1], utils.load_jsonl(layer_directory[1] / "plans.jsonl"))
-        document = _record_with_id(plans, "prompt_id", document_id, "the plans after the description rewrite")
-    elif stage == "plan":
-        step = layer1_plan.PlanStep(config)
-        document = _record_with_id(utils.load_jsonl(layer_directory[1] / "prompts.jsonl"), "prompt_id",
-                                   document_id, f"{layer_directory[1] / 'prompts.jsonl'}")
-    elif stage == "draft":
-        step = layer2_draft.DraftStep(config, prompts_directory)
-        plans = layer1_description_rewrite.load_rewritten_plans(
-            config, layer_directory[1], utils.load_jsonl(layer_directory[1] / "plans.jsonl"))
-        plans = layer1_select_considerations.attach_selections(config, prompts_directory, layer_directory[1], plans)
-        document = _record_with_id(plans, "prompt_id", document_id, "the plans after the description rewrite")
-    elif stage in ("critique", "revise", "combined"):
-        drafts = utils.load_jsonl(layer_directory[2] / "drafts.jsonl")
-        document = _record_with_id(drafts, "doc_id", document_id, f"{layer_directory[2] / 'drafts.jsonl'}")
-        if stage == "critique":
-            step = layer3_rewrite.CritiqueStep(config, prompts_directory)
-        elif stage == "combined":
-            step = layer3_rewrite.CombinedReviewAndReviseStep(config, prompts_directory)
-        else:
-            critique_by_document_id = {
-                record["doc_id"]: record["review"]
-                for record in utils.load_jsonl(layer_directory[3] / "critiques.jsonl")}
-            if document_id not in critique_by_document_id:
-                raise RequestCannotBeBuilt(
-                    f"the revise request needs the critique of {document_id!r}, and "
-                    f"{layer_directory[3] / 'critiques.jsonl'} has none")
-            step = layer3_rewrite.ReviseStep(config, prompts_directory, critique_by_document_id)
-    elif stage == "score":
-        step = layer4_score.ScoreStep(config, prompts_directory)
-        document = _record_with_id(utils.load_jsonl(layer_directory[3] / "rewrites.jsonl"), "doc_id",
-                                   document_id, f"{layer_directory[3] / 'rewrites.jsonl'}")
+    elif entry is not None and entry.build_step:
+        reading = pipeline_steps.RunReading(config, prompts_directory, layer_directory)
+        reason_inactive = entry.print_refuses_when_inactive and entry.reason_inactive(config, prompts_directory)
+        if reason_inactive:
+            raise RequestCannotBeBuilt(f"the {stage} step does not run in this run: {reason_inactive}")
+        documents = entry.load_documents(reading)
+        document = _record_with_id(documents, entry.document_file(config, prompts_directory).id_field, document_id,
+                                   f"the input documents of the {stage} step")
+        try:
+            step = entry.build_step(reading, documents, document_id)
+        except pipeline_steps.StepCannotBeBuilt as problem:
+            raise RequestCannotBeBuilt(str(problem)) from problem
     elif stage in STAGES_THIS_COMMAND_CANNOT_COVER_YET:
         raise RequestCannotBeBuilt(f"stage {stage!r} cannot be shown yet: {STAGES_THIS_COMMAND_CANNOT_COVER_YET[stage]}")
     else:

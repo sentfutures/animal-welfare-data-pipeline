@@ -521,19 +521,27 @@ def _next_hand_index(hands: list[dict]) -> int:
     return max((int(h["prompt_id"].rsplit("_", 1)[1]) for h in hands), default=-1) + 1
 
 
+def reason_screen_is_inactive(config: dict, prompts_dir: Path) -> str | None:
+    """Why the screen (and the deal and redeal it carries) does not run under this configuration and
+    prompt snapshot, as the line ``run`` prints; None when it runs."""
+    if not config["sdf"].get("screen_enabled", True):
+        return "Screen disabled (sdf.screen_enabled: false)"
+    if load_screen_prompts(prompts_dir) is None:
+        return f"No {TEMPLATE_FILENAME} in this run's prompt snapshot — screen skipped"
+    return None
+
+
 def run(config: dict, prompts_dir: Path, output_dir: Path) -> list[dict] | None:
     """Deal the hands, screen them with redeal rounds, and return the accepted
     hand records ({"prompt_id", "variables"}) for planning. Returns None, making
     no calls, when the screen is disabled or the run's prompt snapshot has no
     screen template (the planner then deals its own hands as before)."""
     sdf = config["sdf"]
-    if not sdf.get("screen_enabled", True):
-        print("  Screen disabled (sdf.screen_enabled: false)")
+    reason_inactive = reason_screen_is_inactive(config, prompts_dir)
+    if reason_inactive is not None:
+        print(f"  {reason_inactive}")
         return None
     prompts = load_screen_prompts(prompts_dir)
-    if prompts is None:
-        print(f"  No {TEMPLATE_FILENAME} in this run's prompt snapshot — screen skipped")
-        return None
 
     accepted_path = output_dir / SCREENED_HANDS_FILENAME
     if accepted_path.exists():

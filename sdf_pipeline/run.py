@@ -50,6 +50,7 @@ from sdf_pipeline import (
     layer2_draft,
     layer3_rewrite,
     layer4_score,
+    pipeline_steps,
     seeding,
 )
 
@@ -106,8 +107,8 @@ def main() -> None:
     if args.layer is None:
         args.layer = 1
 
-    if not 1 <= args.layer <= 4:
-        parser.error(f"--layer must be 1-4, got {args.layer}.")
+    if args.layer not in pipeline_steps.LAYER_NUMBERS:
+        parser.error(f"--layer must be {pipeline_steps.LAYER_NUMBERS[0]}-{pipeline_steps.LAYER_NUMBERS[-1]}, got {args.layer}.")
 
     config = utils.load_config(args.config)
 
@@ -171,10 +172,17 @@ def main() -> None:
     print(f"=== SDF Matrix Pipeline — run {run_dir.name} ===")
     print(f"Outputs: {run_dir}")
 
-    plans = drafts = rewrites = None
+    reading = pipeline_steps.RunReading(
+        config, prompts_dir, {1: plan_dir, **layer_dirs})
 
-    if start_layer <= 1:
+    def refuse_when_snapshot_lacks_templates(layer: int) -> None:
+        for step_name, missing in pipeline_steps.prompt_files_missing_from_snapshot(layer, config, prompts_dir):
+            raise SystemExit(f"Run {run_dir.name}'s frozen prompt snapshot lacks {', '.join(missing)}, which step "
+                             f"{step_name} needs. Stopping before any call.")
+
+    def run_layer_one(unused_documents):
         layer1_description_rewrite.require_openai_key_if_configured(config)
+        refuse_when_snapshot_lacks_templates(1)
         print("[Layer 1] Deal hands and screen them for extreme implausibility (with redeals)")
         hands = layer1_screen.run(config, prompts_dir, plan_dir)
         print("[Layer 1] Compose prompts + plan documents")
@@ -182,33 +190,36 @@ def main() -> None:
         print("[Layer 1] Rewrite descriptions for plausibility and conformance")
         plans = layer1_description_rewrite.run(config, prompts_dir, plan_dir, plans)
         print("[Layer 1] Select considerations for each surviving specification")
-        plans = layer1_select_considerations.run(config, prompts_dir, plan_dir, plans)
-        print(f"  Running cost: ${api.get_total_cost():.4f}\n")
+        return layer1_select_considerations.run(config, prompts_dir, plan_dir, plans)
 
-    if start_layer <= 2:
-        if plans is None:
-            plans = layer1_description_rewrite.load_rewritten_plans(
-                config, plan_dir, utils.load_jsonl(plan_dir / "plans.jsonl"))
-            plans = layer1_select_considerations.attach_selections(
-                config, prompts_dir, plan_dir, plans)
+    def run_layer_two(plans):
+        refuse_when_snapshot_lacks_templates(2)
         print("[Layer 2] Draft documents")
-        drafts = layer2_draft.run(config, prompts_dir, layer_dirs[2], plans)
-        print(f"  Running cost: ${api.get_total_cost():.4f}\n")
+        return layer2_draft.run(config, prompts_dir, layer_dirs[2], plans)
 
-    if start_layer <= 3:
-        if drafts is None:
-            drafts = utils.load_jsonl(layer_dirs[2] / "drafts.jsonl")
+    def run_layer_three(drafts):
+        refuse_when_snapshot_lacks_templates(3)
         print("[Layer 3] Review and rewrite")
-        rewrites = layer3_rewrite.run(config, prompts_dir, layer_dirs[3], drafts)
-        print(f"  Running cost: ${api.get_total_cost():.4f}\n")
+        return layer3_rewrite.run(config, prompts_dir, layer_dirs[3], drafts)
 
-    if start_layer <= 4:
-        if rewrites is None:
-            rewrites = utils.load_jsonl(layer_dirs[3] / "rewrites.jsonl")
+    def run_layer_four(rewrites):
+        refuse_when_snapshot_lacks_templates(4)
         print("[Layer 4] Score and gate")
         final = layer4_score.run(config, prompts_dir, layer_dirs[4], final_dir, rewrites)
         print(f"  Running cost: ${api.get_total_cost():.4f}\n")
         print(f"=== Done. {len(final)} documents in {final_dir / 'sdf_corpus.jsonl'} ===")
+        return final
+
+    layer_runners = {1: run_layer_one, 2: run_layer_two, 3: run_layer_three, 4: run_layer_four}
+    documents_from_the_layer_before = None
+    for layer in pipeline_steps.LAYER_NUMBERS:
+        if start_layer > layer:
+            continue
+        if documents_from_the_layer_before is None and layer > 1:   # restarting here: read the stage files
+            documents_from_the_layer_before = pipeline_steps.documents_read_when_restarting_at_layer(layer, reading)
+        documents_from_the_layer_before = layer_runners[layer](documents_from_the_layer_before)
+        if layer < 4:
+            print(f"  Running cost: ${api.get_total_cost():.4f}\n")
 
     costs.report(run_dir / "cost_log.jsonl", title="Run cost (this invocation)",
                  n_done=config["sdf"]["n_prompts"], since=cost_start,

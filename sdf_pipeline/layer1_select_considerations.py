@@ -477,19 +477,26 @@ def attach_selections(config: dict, prompts_dir: Path, output_dir: Path, plans: 
     return _attach(load_considerations(prompts_dir), rows, plans)
 
 
+def reason_consideration_selection_is_inactive(config: dict, prompts_dir: Path) -> str | None:
+    """Why the consideration scoring and assignment do not run, as the line ``run`` prints; None when they run."""
+    if not selection_enabled(config):
+        return "Consideration selection disabled (sdf.select_enabled: false)"
+    if load_selection_template(prompts_dir) is None or not (Path(prompts_dir) / CONSIDERATIONS_FILENAME).is_file():
+        return (f"No {TEMPLATE_FILENAME} or {CONSIDERATIONS_FILENAME} in this run's prompt snapshot "
+                "— consideration selection skipped")
+    return None
+
+
 def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) -> list[dict]:
     """Score every eligible document, assign considerations in code, and return ``plans``
     with the assigned entries attached. A disabled selector, or a run whose prompt
     snapshot lacks the template or the considerations file, makes no calls and returns
     ``plans`` unchanged."""
-    if not selection_enabled(config):
-        print("  Consideration selection disabled (sdf.select_enabled: false)")
+    reason_inactive = reason_consideration_selection_is_inactive(config, prompts_dir)
+    if reason_inactive is not None:
+        print(f"  {reason_inactive}")
         return plans
     template = load_selection_template(prompts_dir)
-    if template is None or not (Path(prompts_dir) / CONSIDERATIONS_FILENAME).is_file():
-        print(f"  No {TEMPLATE_FILENAME} or {CONSIDERATIONS_FILENAME} in this run's prompt snapshot "
-              "— consideration selection skipped")
-        return plans
 
     catalog = load_considerations(prompts_dir)
     workers = max(1, int(config.get("workers", 1)))
