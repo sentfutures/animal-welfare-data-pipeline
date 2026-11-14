@@ -7,7 +7,8 @@ only build the request, call the model and interpret the reply; every stage file
 checkpoint mark stays on the main thread, in input order, exactly as the layers did before.
 
 A document is pending when it applies to the step, has no record in the stage file and is not
-marked done in the checkpoint. ``Failed`` marks nothing done, so a resume retries it.
+marked done in the checkpoint. ``Failed`` marks nothing done, so a resume retries it. ``Removed``
+marks nothing done unless the step supplies a record through ``stage_file_record_for_removal``.
 """
 
 from dataclasses import dataclass, field
@@ -121,6 +122,11 @@ class StepRunner:
                     counted_failures += 1
             elif isinstance(outcome, Removed):
                 result.removed_document_ids.append(document_id)
+                record = step.stage_file_record_for_removal(document, outcome)
+                if record is not None:
+                    result.records_in_input_order.append(record)
+                    utils.append_jsonl(record, self.stage_file_path)
+                    self.checkpoint.mark_done(document_id)
             elif isinstance(outcome, Accepted):
                 record = step.stage_file_record(document, outcome.update)
                 result.records_in_input_order.append(record)

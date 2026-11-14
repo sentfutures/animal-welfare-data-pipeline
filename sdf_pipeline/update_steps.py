@@ -141,6 +141,12 @@ class DocumentStep(ABC):
         """The line printed once the outcome is written (None prints nothing)."""
         return None
 
+    def stage_file_record_for_removal(self, document, removed: "Removed") -> dict | None:
+        """The record to write to the stage file, and mark done in the checkpoint, when the step
+        removes a document (None writes nothing and marks nothing). The plan step uses it: an
+        INCOHERENT plan is a finished plan whose record says so."""
+        return None
+
 
 class BatchStep(ABC):
     """A step that sees a group of documents and makes one call per group (the screen)."""
