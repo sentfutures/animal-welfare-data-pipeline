@@ -18,6 +18,8 @@ from sdf_pipeline.layer2_description_write_and_description_rewrite import descri
 from sdf_pipeline.layer3_consideration_scoring_and_selection import run_layer as consideration_scoring_and_selection_layer
 from sdf_pipeline.layer4_draft_critique_and_revise import draft, run_layer as draft_critique_and_revise_layer
 from sdf_pipeline.layer5_score_and_final_selection import run_layer as score_and_final_selection_layer
+from sdf_pipeline import pipeline_steps
+from sdf_pipeline.shared_step_machinery.step_record import Run
 
 
 def main() -> None:
@@ -69,27 +71,19 @@ def main() -> None:
         run_in_layout(args, config, layout, run_dir, root)
 
 
-def documents_read_when_starting_at(folder_key: str, config: dict, prompts_dir: Path, folders: dict, layout):
-    """What the layer's first runner is given when the run starts there: the stage files of the layers before it."""
+def documents_read_when_restarting_at(folder_key: str, layout, run: Run, config: dict, prompts_dir: Path, folders: dict):
+    """The documents the runner of ``folder_key`` is given when the run starts there: what the stage files hold from the
+    step before. The description_write step is given the hands the screen accepted (None when the screen is off)."""
     if folder_key == sdf_run_layouts.DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE:
-        if not config["sdf"].get("screen_enabled", True) or deal_variables_and_screen_layer.load_screen_prompts(prompts_dir) is None:
-            return None   # the screen is off: the description write deals its own hands
+        if deal_variables_and_screen_layer.reason_screen_is_inactive(config, prompts_dir):
+            return None
         accepted_path = folders[sdf_run_layouts.DEAL_VARIABLES_AND_SCREEN] / deal_variables_and_screen_layer.SCREENED_HANDS_FILENAME
         if not accepted_path.is_file():
-            raise SystemExit(
-                f"Cannot start at layer {layout.layer_number_of_key[folder_key]}: the screen has not finished, so {accepted_path} "
-                f"does not exist. Run layer {layout.layer_number_of_key[sdf_run_layouts.DEAL_VARIABLES_AND_SCREEN]} first.")
+            raise SystemExit(f"Cannot start at layer {layout.layer_number_of_key[folder_key]}: the screen has not finished, so "
+                             f"{accepted_path} does not exist. Run layer {layout.layer_number_of_key[sdf_run_layouts.DEAL_VARIABLES_AND_SCREEN]} first.")
         return utils.load_jsonl(accepted_path)
-    plan_dir = folders[sdf_run_layouts.DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE]
-    if folder_key in (sdf_run_layouts.CONSIDERATION_SCORING_AND_SELECTION, sdf_run_layouts.DRAFT):
-        plans = description_rewrite.load_rewritten_plans(config, plan_dir, utils.load_jsonl(plan_dir / "plans.jsonl"))
-        if folder_key == sdf_run_layouts.CONSIDERATION_SCORING_AND_SELECTION:
-            return plans
-        return consideration_scoring_and_selection_layer.attach_selections(
-            config, prompts_dir, folders[sdf_run_layouts.CONSIDERATION_SCORING_AND_SELECTION], plans)
-    if folder_key == sdf_run_layouts.CRITIQUE_AND_REVISE:
-        return utils.load_jsonl(folders[sdf_run_layouts.DRAFT] / "drafts.jsonl")
-    return utils.load_jsonl(folders[sdf_run_layouts.CRITIQUE_AND_REVISE] / "rewrites.jsonl")
+    step = next(step for step in pipeline_steps.PIPELINE_STEPS if step.folder_key == folder_key and step.reads)
+    return step.reads(run)
 
 
 def run_in_layout(args, config: dict, layout: sdf_run_layouts.SdfRunLayout, run_dir: Path, root: Path) -> None:
@@ -113,6 +107,13 @@ def run_in_layout(args, config: dict, layout: sdf_run_layouts.SdfRunLayout, run_
 
     print(f"=== SDF Matrix Pipeline — run {run_dir.name} ===")
     print(f"Outputs: {run_dir}")
+
+    run = Run(config, prompts_dir, folders)
+
+    def refuse_when_snapshot_lacks_templates(folder_key: str) -> None:
+        for step_name, missing in pipeline_steps.prompt_files_missing_from_snapshot(folder_key, config, prompts_dir):
+            raise SystemExit(f"Run {run_dir.name}'s frozen prompt snapshot lacks {', '.join(missing)}, which step "
+                             f"{step_name} needs. Stopping before any call.")
 
     def layer_label(folder_key: str) -> str:
         return f"[Layer {layout.layer_number_of_key[folder_key]}]"
@@ -159,6 +160,7 @@ def run_in_layout(args, config: dict, layout: sdf_run_layouts.SdfRunLayout, run_
         sdf_run_layouts.CRITIQUE_AND_REVISE: critique_and_revise,
         sdf_run_layouts.SCORE: score_and_select,
     }
+    four_layer_number_of_key = sdf_run_layouts.FOUR_NUMBERED_LAYERS.layer_number_of_key
     keys_to_run = [key for key in runners if layout.layer_number_of_key[key] >= args.layer]
     if args.layer <= layout.layer_number_of_key[sdf_run_layouts.DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE]:   # before the first paid call of the run
         description_rewrite.require_openai_key_if_configured(config)
@@ -166,10 +168,16 @@ def run_in_layout(args, config: dict, layout: sdf_run_layouts.SdfRunLayout, run_
     last_layer = layout.layer_number_of_key[keys_to_run[-1]]
     last_key_of_layer = {layout.layer_number_of_key[key]: key for key in keys_to_run}
     documents_from_the_step_before = None
+    templates_checked_for_group = set()
     for key in keys_to_run:
         layer = layout.layer_number_of_key[key]
+        group = four_layer_number_of_key[key]   # templates are checked a group at a time, before its first call
+        if group not in templates_checked_for_group:
+            templates_checked_for_group.add(group)
+            for key_in_group in (k for k in keys_to_run if four_layer_number_of_key[k] == group):
+                refuse_when_snapshot_lacks_templates(key_in_group)
         if documents_from_the_step_before is None and key != sdf_run_layouts.DEAL_VARIABLES_AND_SCREEN:   # restarting here: read the stage files
-            documents_from_the_step_before = documents_read_when_starting_at(key, config, prompts_dir, folders, layout)
+            documents_from_the_step_before = documents_read_when_restarting_at(key, layout, run, config, prompts_dir, folders)
         documents_from_the_step_before = runners[key](documents_from_the_step_before)
         if layer != last_layer and last_key_of_layer[layer] == key:
             print(f"  Running cost: ${api.get_total_cost():.4f}\n")

@@ -44,7 +44,7 @@ def test_the_catalogue_lists_every_pipeline_step_in_order_and_the_single_call_st
 def test_stage_tags_and_step_names_equal_the_step_files():
     step_of_name = {"deal_variables": deal_variables, "redeal": redeal, "consideration_selection": consideration_selection,
                     "score_gate": score_gate, "near_duplicate_removal": near_duplicate_removal}
-    step_modules = {"screen": screen, "plan": plan, "description_rewrite": description_rewrite,
+    step_modules = {"screen": screen, "description_write": description_write, "description_rewrite": description_rewrite,
                     "consideration_scoring": consideration_scoring, "draft": draft, "critique": critique,
                     "revise": revise, "critique_and_revise_in_one_call": critique_and_revise_in_one_call,
                     "score": score}
@@ -70,8 +70,8 @@ def test_each_step_is_built_with_the_model_the_catalogue_resolves(tmp_path):
     stage_directories = {key: utils.sdf_stage_folder(run_directory, key) for key in sdf_run_layouts.FOLDER_KEYS}
     models_by_key = {key: f"model-for-{key}" for entry in ENTRIES for key in entry.model_setting_keys}
     for configuration in (config, {**config, "sdf": {**config["sdf"], **models_by_key}},
-                          {**config, "sdf": {**config["sdf"], **{k: None for k in models_by_key if k != "plan_model"},
-                                             "plan_model": "only-the-plan-model"}}):
+                          {**config, "sdf": {**config["sdf"], **{k: None for k in models_by_key if k != "description_write_model"},
+                                             "description_write_model": "only-the-description-write-model"}}):
         run = Run(configuration, prompts_directory, stage_directories)
         for entry in ENTRIES:
             if entry.reads is None:   # the screen's batches are covered by the request equivalence test below
@@ -113,7 +113,7 @@ def test_a_run_whose_snapshot_lacks_a_template_of_an_active_step_is_refused_befo
 SCENARIOS = ["temperature_kept_on_every_stage_with_a_two_call_revision",
              "temperature_kept_on_every_stage_with_a_one_call_revision",
              "minimal_config_with_openai_rewrite_and_adaptive_thinking_models"]
-STAGE_OF_TAG = {"layer1_screen": "screen", "layer2_description_write": "plan", "layer2_description_rewrite": "description_rewrite",
+STAGE_OF_TAG = {"layer1_screen": "screen", "layer2_description_write": "description_write", "layer2_description_rewrite": "description_rewrite",
                 "layer3_consideration_scoring": "consideration_scoring", "layer4_draft": "draft", "layer4_critique": "critique",
                 "layer4_revise": "revise", "layer4_critique_and_revise_in_one_call": "critique_and_revise_in_one_call", "layer5_score": "score"}
 
@@ -163,7 +163,7 @@ def test_the_print_command_builds_the_request_the_pipeline_sent_for_every_stage_
             recorded_schema = ((wire.get("text") or {}).get("format") or {}).get("schema")
         assert request.json_schema == recorded_schema, (stage, document_id)
         compared_stages.add(stage)
-    assert compared_stages >= {"plan", "description_rewrite", "consideration_scoring", "draft", "score"}
+    assert compared_stages >= {"description_write", "description_rewrite", "consideration_scoring", "draft", "score"}
     assert ("critique_and_revise_in_one_call" in compared_stages) != ("critique" in compared_stages)
 
 

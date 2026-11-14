@@ -116,7 +116,7 @@ def test_openai_route_resolution_equals_what_call_claude_hands_to_call_openai(mo
 # ------------------------------------------------------------------ the command against the recordings
 
 STAGE_TAGS = {
-    "description_rewrite": "layer2_description_rewrite", "plan": "layer2_description_write", "consideration_scoring": "layer3_consideration_scoring",
+    "description_rewrite": "layer2_description_rewrite", "description_write": "layer2_description_write", "consideration_scoring": "layer3_consideration_scoring",
     "draft": "layer4_draft", "critique": "layer4_critique", "revise": "layer4_revise", "score": "layer5_score"}
 SCENARIOS_AND_STAGE_TAGS = [
     # Claude-routed description rewrite and a screen that keeps sampling parameters

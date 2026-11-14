@@ -6,20 +6,13 @@ import json
 
 import pytest
 
-from sdf_pipeline.layer1_deal_variables_and_screen import screen
-from sdf_pipeline.layer2_description_write_and_description_rewrite import description_rewrite, description_write
-from sdf_pipeline.layer3_consideration_scoring_and_selection import consideration_scoring
-from sdf_pipeline.layer4_draft_critique_and_revise import (
-    critique, critique_and_revise_in_one_call, draft, revise, run_layer as draft_critique_and_revise_layer)
-from sdf_pipeline.layer5_score_and_final_selection import score
+from sdf_pipeline.layer4_draft_critique_and_revise import draft, run_layer as draft_critique_and_revise_layer
+from sdf_pipeline import pipeline_steps
 from sdf_plan_draft_rewrite_and_score_test_builders import make_plan
 from shared import sdf_run_layouts, utils
 from viewer import loader as viewer_loader
 
 FIVE = sdf_run_layouts.FIVE_NAMED_LAYERS
-STEPS_OF_THE_PIPELINE = [
-    module.STEP for module in (screen, description_write, description_rewrite, consideration_scoring, draft, critique, revise,
-                               critique_and_revise_in_one_call, score)]
 FOUR = sdf_run_layouts.FOUR_NUMBERED_LAYERS
 
 
@@ -84,7 +77,7 @@ def test_every_tag_of_the_decision_table_is_the_five_layer_tag_of_its_step():
                 "critique": "layer4_critique", "revise": "layer4_revise",
                 "critique_and_revise_in_one_call": "layer4_critique_and_revise_in_one_call", "score": "layer5_score"}
     assert {name: FIVE.stage_tag(name) for name in expected} == expected
-    assert {step.name: step.stage_tag_in(FIVE) for step in STEPS_OF_THE_PIPELINE} == expected
+    assert {entry.name: entry.stage_tag_in(FIVE) for entry in pipeline_steps.PIPELINE_STEPS if entry.makes_model_calls} == expected
 
 
 def test_the_four_layer_tags_are_the_old_ones():
@@ -97,7 +90,9 @@ def test_the_four_layer_tags_are_the_old_ones():
 def test_a_tag_of_either_layout_maps_to_the_five_layer_tag_and_other_tags_are_left_alone():
     for old_tag, new_tag in sdf_run_layouts.STAGE_TAGS_BY_STEP.values():
         assert sdf_run_layouts.five_layer_tag_of(old_tag) == new_tag == sdf_run_layouts.five_layer_tag_of(new_tag)
+        assert pipeline_steps.canonical_stage_tag(old_tag) == new_tag == pipeline_steps.canonical_stage_tag(new_tag)
     assert sdf_run_layouts.five_layer_tag_of("sage_eval_judge") == "sage_eval_judge"
+    assert pipeline_steps.canonical_stage_tag("sage_eval_judge") == "sage_eval_judge"
 
 
 def test_a_per_tag_setting_written_with_the_old_tags_applies_to_the_new_tags_and_the_reverse():
@@ -125,10 +120,11 @@ def test_the_shuffle_seeds_stay_the_literal_old_strings_whatever_the_layout():
 
 # ------------------------------------------------------------------ one file per step
 
-def test_every_step_has_one_module_named_after_it_in_its_layers_folder_and_the_run_layer_modules_hold_only_drivers():
-    for step in STEPS_OF_THE_PIPELINE:
+def test_every_catalogue_step_has_one_module_named_after_it_in_its_layers_folder_and_the_run_layer_modules_hold_only_drivers():
+    for step in pipeline_steps.PIPELINE_STEPS:
         module = importlib.import_module(f"sdf_pipeline.{FIVE.folder_name_of_key[step.folder_key]}.{step.name}")
-        assert module.STEP is step
+        if step.makes_model_calls:
+            assert module.STEP is step
     for layer_folder_name in FIVE.folder_names:
         module = importlib.import_module(f"sdf_pipeline.{layer_folder_name}.run_layer")
         classes_defined_here = [value for value in vars(module).values()
