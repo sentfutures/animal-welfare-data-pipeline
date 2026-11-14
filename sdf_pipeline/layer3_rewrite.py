@@ -32,7 +32,8 @@ from sdf_pipeline import compose_prompts as cp
 from sdf_pipeline import revision_style
 from sdf_pipeline.step_runner import StepRunner, send_model_request
 from sdf_pipeline.update_steps import (
-    Accepted, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, StepPolicy)
+    Accepted, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, StepPolicy,
+    line_for_document_left_to_retry)
 
 IMPROVED_TAG_RE = re.compile(r"<improved_document>(.*?)</improved_document>", re.DOTALL)
 REVIEW_TAG_RE = re.compile(r"<review>(.*?)</review>", re.DOTALL)
@@ -137,8 +138,8 @@ def _rewrite_progress_line(draft: dict, outcome) -> str:
     if isinstance(outcome, Accepted):
         return f"  Rewrote {did} ({len(outcome.update.content)} chars)"
     if outcome.kind is FailureKind.THROWN_CALL:
-        return f"  {did}: no rewrite ({outcome.reason}) — will retry on resume"
-    return f"  {did}: {outcome.reason} — will retry on resume"
+        return line_for_document_left_to_retry(did, f"no rewrite ({outcome.reason})")
+    return line_for_document_left_to_retry(did, outcome.reason)
 
 
 def _interpret_rewrite_reply(reply: ModelReply):
@@ -202,7 +203,7 @@ class CritiqueStep(DocumentStep):
 
     def progress_line(self, draft: dict, outcome) -> str | None:
         if isinstance(outcome, Failed):  # an accepted critique prints nothing: the revise prints the result
-            return f"  {draft['doc_id']}: no rewrite ({outcome.reason}) — will retry on resume"
+            return line_for_document_left_to_retry(draft["doc_id"], f"no rewrite ({outcome.reason})")
         return None
 
 

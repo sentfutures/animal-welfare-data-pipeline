@@ -14,6 +14,7 @@ the considerations assignment, the score gate and the near-duplicate cull); all 
 
 import hashlib
 import json
+import time
 from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass, field
 from enum import Enum
@@ -46,6 +47,41 @@ class ModelRequest:
         reader can tell which request a reply answered."""
         canonical = json.dumps(asdict(self), sort_keys=True, ensure_ascii=False)
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+PROGRESS_INTERVAL_SECONDS = 180  # throttled progress lines are printed no more often than this
+
+
+class ThrottledProgressClock:
+    """The clock behind a throttled progress line: ``is_due`` once ``PROGRESS_INTERVAL_SECONDS`` have
+    passed since the last line, ``mark_printed`` (returns the seconds since the start) when one is
+    printed, ``restart`` at the start of each run."""
+
+    def __init__(self):
+        self.restart()
+
+    def restart(self) -> None:
+        self.started_at = self.last_printed_at = time.monotonic()
+
+    def is_due(self) -> bool:
+        return time.monotonic() - self.last_printed_at >= PROGRESS_INTERVAL_SECONDS
+
+    def mark_printed(self) -> float:
+        self.last_printed_at = time.monotonic()
+        return self.last_printed_at - self.started_at
+
+    def seconds_since_start(self) -> float:
+        return time.monotonic() - self.started_at
+
+
+def reason_without_error_prefix(reason: str) -> str:
+    """A thrown call's failure reason without its leading ``error: ``."""
+    return reason.removeprefix("error: ")
+
+
+def line_for_document_left_to_retry(document_id: str, problem: str, ending: str = "will retry on resume") -> str:
+    """The progress line for a document (or batch) whose call failed and which a resume runs again."""
+    return f"  {document_id}: {problem} — {ending}"
 
 
 @dataclass(frozen=True)

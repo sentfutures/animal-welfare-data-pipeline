@@ -64,7 +64,6 @@ Config (``sdf`` section): ``select_enabled`` (default true), ``select_model``
 import json
 import random
 import sys
-import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -74,7 +73,7 @@ from sdf_pipeline import considerations_assignment as assignment
 from sdf_pipeline.step_runner import StepRunner, run_corpus_step
 from sdf_pipeline.update_steps import (
     Accepted, CorpusStep, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, StepPolicy,
-    WhatAFailedDocumentDoes)
+    ThrottledProgressClock, WhatAFailedDocumentDoes, line_for_document_left_to_retry, reason_without_error_prefix)
 from sdf_pipeline.considerations_catalog import (
     CONSIDERATIONS_FILENAME, EPISTEMIC_LIST, LIST_NAMES, MORAL_LIST,
     Consideration, ConsiderationCatalog, load_considerations,
@@ -91,7 +90,6 @@ FAILURES_FILENAME = "consideration_scoring_failures.jsonl"
 SELECTIONS_FILENAME = "consideration_selections.jsonl"
 COVERAGE_FILENAME = "consideration_coverage.json"
 DEFAULT_MAX_SCORING_ATTEMPTS = 3
-PROGRESS_INTERVAL_SECONDS = 180   # progress lines are printed no more often than this
 _BASE_MAX_TOKENS = 400
 _TOKENS_PER_ENTRY = 120           # label, score and one short sentence; bounds api-backend cost
 
@@ -295,6 +293,7 @@ class ConsiderationScoringStep(DocumentStep):
             failed_document=WhatAFailedDocumentDoes.STOPS_THE_RUN_AFTER_THE_STEP)
         self._offered_by_document_id: dict = {}
         self._attempts_by_document_id: dict = {}
+        self._clock = ThrottledProgressClock()
         self.begin_run(0)
 
     def begin_run(self, pending_count: int) -> None:
@@ -302,7 +301,7 @@ class ConsiderationScoringStep(DocumentStep):
         self._pending_count = pending_count
         self._answered = 0
         self._failed = 0
-        self._started = self._last_progress = time.monotonic()
+        self._clock.restart()
 
     def document_id_of(self, plan: dict) -> str:
         return plan["prompt_id"]
@@ -357,7 +356,7 @@ class ConsiderationScoringStep(DocumentStep):
     def _problem_text(failed: Failed) -> str:
         if failed.kind is FailureKind.UNUSABLE_ANSWER:
             return f"unusable answer ({failed.reason})"
-        return f"API call failed ({failed.reason.removeprefix('error: ')})"
+        return f"API call failed ({reason_without_error_prefix(failed.reason)})"
 
     def failure_record(self, plan: dict, failed: Failed) -> dict:
         return {"prompt_id": plan["prompt_id"], "problem": self._problem_text(failed)}
@@ -366,13 +365,14 @@ class ConsiderationScoringStep(DocumentStep):
         lines = []
         if isinstance(outcome, Failed):
             self._failed += 1
-            lines.append(f"  {plan['prompt_id']}: {self._problem_text(outcome)} — will be rescored on resume")
+            lines.append(line_for_document_left_to_retry(
+                plan["prompt_id"], self._problem_text(outcome), ending="will be rescored on resume"))
         else:
             self._answered += 1
-        if time.monotonic() - self._last_progress >= PROGRESS_INTERVAL_SECONDS:
-            self._last_progress = time.monotonic()
+        if self._clock.is_due():
+            elapsed_seconds = self._clock.mark_printed()
             lines.append(f"  Scoring progress: {self._answered} answered, {self._failed} failed of "
-                         f"{self._pending_count} ({self._last_progress - self._started:.1f}s elapsed)")
+                         f"{self._pending_count} ({elapsed_seconds:.1f}s elapsed)")
         return "\n".join(lines) if lines else None
 
     def after_documents_are_processed(self, run_result) -> None:
@@ -380,7 +380,7 @@ class ConsiderationScoringStep(DocumentStep):
         unusable). Nothing is printed for a run with nothing to score."""
         if not run_result.pending_document_ids:
             return
-        print(f"  Scoring: {self._answered} answered, {self._failed} failed ({time.monotonic() - self._started:.1f}s)")
+        print(f"  Scoring: {self._answered} answered, {self._failed} failed ({self._clock.seconds_since_start():.1f}s)")
         if len(run_result.failed_document_ids) == len(run_result.pending_document_ids):
             raise SystemExit(self.systemic_stop_message)
 

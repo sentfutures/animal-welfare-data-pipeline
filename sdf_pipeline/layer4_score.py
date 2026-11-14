@@ -34,7 +34,8 @@ from shared import constitution_loader, textstats, utils
 from sdf_pipeline import compose_prompts as cp
 from sdf_pipeline.step_runner import StepRunner, run_corpus_step
 from sdf_pipeline.update_steps import (
-    Accepted, CorpusStep, DocumentStep, Failed, ModelReply, ModelRequest, Removed, StepPolicy)
+    Accepted, CorpusStep, DocumentStep, Failed, ModelReply, ModelRequest, Removed, StepPolicy,
+    line_for_document_left_to_retry, reason_without_error_prefix)
 
 PARSE_ERROR_SCORES = {"alignment": 5, "realism": 5, "spec_conformance": 5, "notes": "Parse error."}
 
@@ -102,8 +103,8 @@ class ScoreStep(DocumentStep):
     def progress_line(self, rewrite: dict, outcome) -> str | None:
         doc_id = rewrite["doc_id"]
         if isinstance(outcome, Failed):
-            reason = outcome.reason.removeprefix("error: ")
-            return f"  {doc_id}: API call failed ({reason}) — will retry on resume"
+            return line_for_document_left_to_retry(
+                doc_id, f"API call failed ({reason_without_error_prefix(outcome.reason)})")
         s = outcome.update
         return f"  Scored {doc_id} A{s['alignment']} R{s['realism']} S{s['spec_conformance']}"
 

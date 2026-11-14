@@ -21,7 +21,8 @@ from shared import constitution_loader, deal_constraints, utils
 from sdf_pipeline import compose_prompts as cp
 from sdf_pipeline.step_runner import StepRunner
 from sdf_pipeline.update_steps import (
-    Accepted, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, StepPolicy)
+    Accepted, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, StepPolicy,
+    line_for_document_left_to_retry)
 
 DOC_TAG_RE = re.compile(r"<document>(.*?)</document>", re.DOTALL)
 
@@ -117,8 +118,8 @@ class DraftStep(DocumentStep):
         if isinstance(outcome, Accepted):
             return f"  Drafted {pid} ({len(outcome.update)} chars)"
         if outcome.kind is FailureKind.THROWN_CALL:
-            return f"  {pid}: API call failed ({outcome.reason}) — will retry on resume"
-        return f"  {pid}: {outcome.reason} — will retry on resume"
+            return line_for_document_left_to_retry(pid, f"API call failed ({outcome.reason})")
+        return line_for_document_left_to_retry(pid, outcome.reason)
 
 
 def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) -> list[dict]:

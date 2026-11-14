@@ -78,7 +78,7 @@ from sdf_pipeline.document_event_log import DOCUMENT_EVENT_LOG_FILE_NAME, Docume
 from sdf_pipeline.step_runner import BatchStepRunner, send_model_request
 from sdf_pipeline.update_steps import (
     Accepted, BatchStep, CorpusStep, Created, Failed, FailureKind, ModelReply, ModelRequest, Removed,
-    StepPolicy, WhatAFailedDocumentDoes)
+    StepPolicy, WhatAFailedDocumentDoes, line_for_document_left_to_retry, reason_without_error_prefix)
 
 STAGE_TAG = "layer1_screen"
 TEMPLATE_FILENAME = "layer1_screen.txt"
@@ -489,10 +489,10 @@ class ScreenStep(BatchStep):
 
     def failed_batch_line(self, batch: ScreenBatch, failure: Failed) -> str:
         if failure.kind is FailureKind.THROWN_CALL:
-            problem = f"API call failed ({failure.reason.removeprefix('error: ')})"
+            problem = f"API call failed ({reason_without_error_prefix(failure.reason)})"
         else:
             problem = failure.reason
-        return f"  {batch.batch_id}: {problem} — will retry on resume"
+        return line_for_document_left_to_retry(batch.batch_id, problem)
 
     def stop_message_for_failed_batches(self, failed_batch_count: int, failed_batches: list) -> str:
         return (f"layer1_screen: {failed_batch_count} batch(es) of round {failed_batches[0].round_number} failed; the next "

@@ -28,7 +28,8 @@ from shared import utils
 from sdf_pipeline import compose_prompts as cp
 from sdf_pipeline.step_runner import StepRunner
 from sdf_pipeline.update_steps import (
-    Accepted, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, Removed, StepPolicy)
+    Accepted, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, Removed, StepPolicy,
+    line_for_document_left_to_retry)
 
 
 class PlanStep(DocumentStep):
@@ -97,8 +98,8 @@ class PlanStep(DocumentStep):
         if isinstance(outcome, Removed):
             return f"  Planned {prompt_id} (INCOHERENT)"
         if outcome.kind is FailureKind.THROWN_CALL:
-            return f"  {prompt_id}: API call failed ({outcome.reason}) — will retry on resume"
-        return f"  {prompt_id}: {outcome.reason} — will retry on resume"
+            return line_for_document_left_to_retry(prompt_id, f"API call failed ({outcome.reason})")
+        return line_for_document_left_to_retry(prompt_id, outcome.reason)
 
 
 def run(
