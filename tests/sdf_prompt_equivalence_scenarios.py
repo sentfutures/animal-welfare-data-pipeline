@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 
 from shared import sdf_run_layouts, textstats, utils
-from sdf_pipeline import compose_prompts
+from sdf_pipeline.shared_step_machinery import compose_prompts
 from sdf_prompt_equivalence_fixture_support import (
     Invocation, ReplyBehaviour, ReplyOverride, Scenario, stable_pseudo_text)
 

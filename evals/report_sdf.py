@@ -33,9 +33,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from sdf_pipeline import layer1_deal_and_screen, layer3_consideration_scoring_and_selection, pipeline_steps  # noqa: E402
-from sdf_pipeline.steps import description_rewrite  # noqa: E402
-from sdf_pipeline.document_state_loader import (  # noqa: E402
+from sdf_pipeline.layer1_deal_and_screen import run_layer as deal_and_screen_layer  # noqa: E402
+from sdf_pipeline.layer3_consideration_scoring_and_selection import run_layer as consideration_scoring_and_selection_layer  # noqa: E402
+from sdf_pipeline import pipeline_steps  # noqa: E402
+from sdf_pipeline.layer2_plan_and_description_rewrite import description_rewrite  # noqa: E402
+from sdf_pipeline.shared_step_machinery.document_state_loader import (  # noqa: E402
     load_document_states_or_empty_list_when_not_a_run_folder, plan_records_of_states)
 
 RUN = Path(sys.argv[1])
@@ -325,11 +327,11 @@ A(stat(f"{clean_frac:.0%}" if clean_frac is not None else "—",
 A("</div></section>")
 
 # ---- layer-1 implausibility screen (absent on runs made before it existed)
-screen = layer1_deal_and_screen.load_screen_outputs(RUN)
+screen = deal_and_screen_layer.load_screen_outputs(RUN)
 if screen is not None:
-    screen_rows = layer1_deal_and_screen.removal_rate_rows(screen)
-    screen_round_rows = layer1_deal_and_screen.round_rows(screen)
-    shift_rows = layer1_deal_and_screen.share_shift_rows(screen)
+    screen_rows = deal_and_screen_layer.removal_rate_rows(screen)
+    screen_round_rows = deal_and_screen_layer.round_rows(screen)
+    shift_rows = deal_and_screen_layer.share_shift_rows(screen)
     screened_n, removed_n = len(screen["screened_ids"]), len(screen["removed"])
     leftover_n = len(screen["leftover_ids"])
     corpus_rate = removed_n / screened_n if screened_n else 0.0
@@ -396,9 +398,9 @@ if rewrite_outputs is not None:
     A("</section>")
 
 # ---- layer-1 considerations selector (absent on runs made before it existed)
-considerations_outputs = layer3_consideration_scoring_and_selection.load_considerations_outputs(RUN)
+considerations_outputs = consideration_scoring_and_selection_layer.load_considerations_outputs(RUN)
 if considerations_outputs is not None:
-    coverage = layer3_consideration_scoring_and_selection.corpus_coverage_report(considerations_outputs, corpus)
+    coverage = consideration_scoring_and_selection_layer.corpus_coverage_report(considerations_outputs, corpus)
     coverage_total = coverage["eligible_documents"]
     A("<section id='considerations'><h2>Considerations</h2>")
     A("<p>After the description rewrite, a selector scored every consideration on an ordered moral list and "

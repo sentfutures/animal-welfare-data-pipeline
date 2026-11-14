@@ -23,8 +23,8 @@ from evals.model_judged_audit_support import (  # noqa: E402
 from evals.shoehorning_audit_sdf import (  # noqa: E402
     ALL_PASS_NAMES, INTEGRATION_VALUES, MOTIVATION_VALUES, load_existing_records, parse_pass_items,
     pass_file_path, read_text)
-from sdf_pipeline.document_state_final_corpus import run_directory_of_corpus_file  # noqa: E402
-from sdf_pipeline.document_state_loader import load_document_states_or_empty_list_when_not_a_run_folder  # noqa: E402
+from sdf_pipeline.shared_step_machinery.document_state_final_corpus import run_directory_of_corpus_file  # noqa: E402
+from sdf_pipeline.shared_step_machinery.document_state_loader import load_document_states_or_empty_list_when_not_a_run_folder  # noqa: E402
 
 MOTIVATION_SHOEHORNING_RANK = {"organic": 0, "staged": 1, "unmotivated": 2}
 ORIGIN_STAGES = ["present_in_draft", "added_in_rewrite", "quote_not_verified", "draft_unavailable"]

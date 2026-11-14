@@ -148,7 +148,7 @@ def _document_id_for(run_directory: Path, stage: str, recorded: dict) -> str:
     if stage != "screen":
         return recorded["item_id"]
     batches = command.utils.load_jsonl(
-        command.utils.sdf_stage_dir(run_directory, 1) / command.layer1_deal_and_screen.BATCHES_FILENAME)
+        command.utils.sdf_stage_dir(run_directory, 1) / command.deal_and_screen_layer.BATCHES_FILENAME)
     return next(batch["prompt_ids"][0] for batch in batches if batch["batch_id"] == recorded["item_id"])
 
 

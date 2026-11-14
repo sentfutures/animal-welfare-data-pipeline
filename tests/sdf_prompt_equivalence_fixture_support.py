@@ -86,7 +86,7 @@ import pytest
 import yaml
 
 from shared import sdf_run_layouts, api, api_keys, entity_pools, openai_api, utils
-from sdf_pipeline import considerations_catalog
+from sdf_pipeline.shared_step_machinery import considerations_catalog
 import sdf_pipeline.run as sdf_run
 
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent

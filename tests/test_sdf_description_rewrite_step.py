@@ -9,10 +9,10 @@ import json
 
 import pytest
 
-from sdf_pipeline import layer1_description_rewrite as rewrite
-from sdf_pipeline.layer1_description_rewrite import DescriptionRewriteStep
-from sdf_pipeline.step_runner import send_model_request
-from sdf_pipeline.update_steps import Accepted, Failed, FailureKind, Removed, StepProgress, WhatAFailedDocumentDoes
+from sdf_pipeline.layer2_plan_and_description_rewrite import description_rewrite as rewrite
+from sdf_pipeline.layer2_plan_and_description_rewrite.description_rewrite import DescriptionRewriteStep
+from sdf_pipeline.shared_step_machinery.step_runner import send_model_request
+from sdf_pipeline.shared_step_machinery.update_steps import Accepted, Failed, FailureKind, Removed, StepProgress, WhatAFailedDocumentDoes
 from sdf_step_and_command_line_test_helpers import reply
 from shared import api, openai_api, utils
 from sdf_description_rewrite_test_builders import answer, make_plans

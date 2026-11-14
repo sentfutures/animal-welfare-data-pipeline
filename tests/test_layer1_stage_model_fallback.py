@@ -7,9 +7,9 @@ off the call that reached the stubbed shared.api.call_claude.
 
 import pytest
 
-from sdf_pipeline import layer1_description_rewrite as rewrite
-from sdf_pipeline import layer1_screen as screen
-from sdf_pipeline import layer1_select_considerations as select
+from sdf_pipeline.layer2_plan_and_description_rewrite import description_rewrite as rewrite
+from sdf_pipeline.layer1_deal_and_screen import run_layer as screen
+from sdf_pipeline.layer3_consideration_scoring_and_selection import run_layer as select
 from sdf_consideration_selection_test_builders import make_plans as make_select_plans
 from sdf_consideration_selection_test_builders import score_everything_five
 from sdf_description_rewrite_test_builders import answer as rewrite_answer

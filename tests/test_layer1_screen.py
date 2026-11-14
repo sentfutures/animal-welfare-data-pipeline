@@ -17,9 +17,9 @@ from pathlib import Path
 import pytest
 
 from evals import audit_sdf
-from sdf_pipeline import compose_prompts as cp
-from sdf_pipeline import layer1_screen as screen
-from sdf_pipeline.steps import redeal as redeal_step
+from sdf_pipeline.shared_step_machinery import compose_prompts as cp
+from sdf_pipeline.layer1_deal_and_screen import run_layer as screen
+from sdf_pipeline.layer1_deal_and_screen import redeal as redeal_step
 from shared import utils
 from sdf_screen_test_builders import (
     numbers_in, screen_answer, no_removals, remove_first_hand_of_round_zero_batches, remove_the_first_hand_of_every_batch, remove_the_first_three_hands_of_every_batch, screen_config,
@@ -106,7 +106,7 @@ def test_screen_hands_maps_numbers_to_judgments_through_the_public_function(stub
 
 
 def test_no_model_facing_prose_lives_in_the_python_module():
-    source = (REPO_ROOT / "sdf_pipeline" / "layer1_screen.py").read_text(encoding="utf-8")
+    source = (REPO_ROOT / "sdf_pipeline" / "layer1_deal_and_screen" / "screen.py").read_text(encoding="utf-8")
     for phrase in ("Judge against how the world actually is", "These are not reasons", "competent planner"):
         assert phrase not in source
 

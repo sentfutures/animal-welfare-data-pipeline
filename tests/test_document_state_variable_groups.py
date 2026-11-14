@@ -14,9 +14,9 @@ import pytest
 
 import sdf_prompt_equivalence_fixture_support as support
 import sdf_prompt_equivalence_scenarios as scenarios
-from sdf_pipeline import compose_prompts
-from sdf_pipeline.document_state import ASSIGNED_CONSIDERATION_KEYS
-from sdf_pipeline.document_state_loader import load_document_states
+from sdf_pipeline.shared_step_machinery import compose_prompts
+from sdf_pipeline.shared_step_machinery.document_state import ASSIGNED_CONSIDERATION_KEYS
+from sdf_pipeline.shared_step_machinery.document_state_loader import load_document_states
 from shared import utils
 
 RUNS_ROOT = Path(__file__).resolve().parent.parent / "outputs" / "sdf" / "runs"

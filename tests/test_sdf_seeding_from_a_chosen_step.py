@@ -21,7 +21,7 @@ import pytest
 import yaml
 
 import sdf_pipeline.run as sdf_run
-from sdf_pipeline import seeding
+from sdf_pipeline import start_a_run_from_an_earlier_runs_step as seeding
 from shared import sdf_run_layouts, utils
 from sdf_step_and_command_line_test_helpers import run_main as run_pipeline_main
 

@@ -6,8 +6,9 @@ import json
 
 import pytest
 
-from sdf_pipeline import layer4_draft_critique_and_revise, pipeline_steps
-from sdf_pipeline.document_state_loader import RunLayout, detect_run_layout
+from sdf_pipeline.layer4_draft_critique_and_revise import run_layer as draft_critique_and_revise_layer
+from sdf_pipeline import pipeline_steps
+from sdf_pipeline.shared_step_machinery.document_state_loader import RunLayout, detect_run_layout
 from sdf_plan_draft_rewrite_and_score_test_builders import make_plan
 from shared import sdf_run_layouts, utils
 from viewer import loader as viewer_loader
@@ -97,7 +98,7 @@ def test_a_per_tag_setting_written_with_the_old_tags_applies_to_the_new_tags_and
 
 
 def test_the_active_layout_decides_the_tag_a_step_class_sends():
-    from sdf_pipeline.steps.plan import PlanStep
+    from sdf_pipeline.layer2_plan_and_description_rewrite.plan import PlanStep
     assert PlanStep.stage_tag == "layer2_plan"
     with sdf_run_layouts.using_layout(FOUR):
         assert PlanStep.stage_tag == "layer1_plan"
@@ -105,60 +106,24 @@ def test_the_active_layout_decides_the_tag_a_step_class_sends():
 
 
 def test_the_shuffle_seeds_stay_the_literal_old_strings_whatever_the_layout():
-    from sdf_pipeline import layer1_deal_and_screen_shared
-    from sdf_pipeline.steps import consideration_scoring
-    assert layer1_deal_and_screen_shared.SHUFFLE_SEED_NAME == "layer1_screen"
+    from sdf_pipeline.layer1_deal_and_screen import shared_by_this_layers_steps as deal_and_screen_shared_names
+    from sdf_pipeline.layer3_consideration_scoring_and_selection import consideration_scoring
+    assert deal_and_screen_shared_names.SHUFFLE_SEED_NAME == "layer1_screen"
     assert consideration_scoring.SHUFFLE_SEED_NAME == "layer1_select"
-
-
-# ------------------------------------------------------------------ the old module names
-
-@pytest.mark.parametrize("old_module_name, names", [
-    ("layer1_screen", ("DealStep", "RedealStep", "ScreenStep", "run", "screen_hands", "redeal_removed_hands",
-                       "load_screen_prompts", "build_screen_prompt", "build_answer_schema", "removal_rate_rows",
-                       "BATCHES_FILENAME", "_MAX_TOKENS")),
-    ("layer1_plan", ("PlanStep", "run")),
-    ("layer1_description_rewrite", ("DescriptionRewriteStep", "run", "rewrite_description", "load_rewrite_prompts",
-                                    "load_rewritten_plans", "build_rewrite_prompt", "_MAX_TOKENS")),
-    ("layer1_select_considerations", ("ConsiderationScoringStep", "ConsiderationSelectionStep", "run", "SCORES_FILENAME",
-                                      "COVERAGE_FILENAME")),
-    ("layer2_draft", ("DraftStep", "run", "_MAX_TOKENS")),
-    ("layer3_rewrite", ("CritiqueStep", "ReviseStep", "CritiqueAndReviseInOneCallStep", "run", "_MAX_TOKENS",
-                        "_CRITIQUE_MAX_TOKENS")),
-    ("layer4_score", ("ScoreStep", "ScoreGateStep", "NearDuplicateRemovalStep", "run")),
-])
-def test_an_old_module_name_still_imports_and_exposes_the_names_it_had(old_module_name, names):
-    old_module = importlib.import_module(f"sdf_pipeline.{old_module_name}")
-    for name in names:
-        assert hasattr(old_module, name), f"{old_module_name}.{name}"
-
-
-def test_the_old_run_functions_are_the_new_ones():
-    from sdf_pipeline import (
-        layer1_plan, layer1_screen, layer2_draft, layer2_plan_and_description_rewrite, layer3_rewrite, layer4_score,
-        layer5_score_and_final_selection)
-    from sdf_pipeline.steps import plan
-    assert layer1_plan.run is plan.run
-    assert layer1_screen.run is importlib.import_module("sdf_pipeline.layer1_deal_and_screen").run
-    assert layer4_score.run is layer5_score_and_final_selection.run
-    assert layer3_rewrite.run is layer4_draft_critique_and_revise.run_critique_and_revise
-    assert layer2_draft.run is importlib.import_module("sdf_pipeline.steps.draft").run
-    assert layer2_plan_and_description_rewrite.run is not None
 
 
 # ------------------------------------------------------------------ one file per step
 
-def test_every_catalogue_step_has_one_module_named_after_it_and_the_layer_modules_hold_only_drivers():
+def test_every_catalogue_step_has_one_module_named_after_it_in_its_layers_folder_and_the_run_layer_modules_hold_only_drivers():
     for entry in pipeline_steps.PIPELINE_STEPS:
         module = importlib.import_module(f"sdf_pipeline.{entry.module_name}")
-        assert entry.module_name == f"steps.{entry.name}" and module.__name__.endswith(entry.name)
-    for layer_module_name in ("layer1_deal_and_screen", "layer2_plan_and_description_rewrite",
-                              "layer3_consideration_scoring_and_selection", "layer4_draft_critique_and_revise",
-                              "layer5_score_and_final_selection"):
-        module = importlib.import_module(f"sdf_pipeline.{layer_module_name}")
+        layer_folder_name = FIVE.folder_name_of_key[entry.folder_key]
+        assert entry.module_name == f"{layer_folder_name}.{entry.name}" and module.__name__.endswith(entry.name)
+    for layer_folder_name in FIVE.folder_names:
+        module = importlib.import_module(f"sdf_pipeline.{layer_folder_name}.run_layer")
         classes_defined_here = [value for value in vars(module).values()
                                 if isinstance(value, type) and value.__module__ == module.__name__]
-        assert classes_defined_here == [], layer_module_name
+        assert classes_defined_here == [], layer_folder_name
 
 
 # ------------------------------------------------------------------ the layer 4 driver
@@ -173,13 +138,13 @@ def test_the_layer_four_driver_drafts_then_critiques_and_revises_in_the_one_fold
             return "reasoning\n<improved_document>Better.</improved_document>"
         return "<document>Doc.</document>"
     calls = stub_claude(dispatch)
-    rewrites = layer4_draft_critique_and_revise.run(tiny_config, prompts_sdf, stage_folder, [make_plan()])
+    rewrites = draft_critique_and_revise_layer.run(tiny_config, prompts_sdf, stage_folder, [make_plan()])
     assert len(rewrites) == 1
     assert {call["stage"] for call in calls} >= {"layer4_draft"}
     assert (stage_folder / "drafts.jsonl").is_file() and (stage_folder / "rewrites.jsonl").is_file()
     assert (stage_folder / FIVE.draft_checkpoint_file_name).is_file() and (stage_folder / "_checkpoint.json").is_file()
     calls_before_resume = len(calls)
-    resumed = layer4_draft_critique_and_revise.run(tiny_config, prompts_sdf, stage_folder, [make_plan()])
+    resumed = draft_critique_and_revise_layer.run(tiny_config, prompts_sdf, stage_folder, [make_plan()])
     assert [record["doc_id"] for record in resumed] == [record["doc_id"] for record in rewrites]
     assert len(calls) == calls_before_resume
 

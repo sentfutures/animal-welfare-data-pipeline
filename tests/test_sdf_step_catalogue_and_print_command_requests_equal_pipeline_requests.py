@@ -11,11 +11,15 @@ import pytest
 
 import sdf_prompt_equivalence_fixture_support as support   # imported first: captures the real network seams
 import sdf_prompt_equivalence_scenarios as scenarios
-from sdf_pipeline import layer1_deal_and_screen_shared, pipeline_steps, seeding
-from sdf_pipeline.document_state import PipelineStep
-from sdf_pipeline.steps import (
-    consideration_scoring, consideration_selection, critique, critique_and_revise_in_one_call, deal, description_rewrite,
-    draft, near_duplicate_removal, plan, redeal, revise, score, score_gate, screen)
+from sdf_pipeline.layer1_deal_and_screen import shared_by_this_layers_steps as deal_and_screen_shared_names
+from sdf_pipeline import pipeline_steps
+from sdf_pipeline import start_a_run_from_an_earlier_runs_step as seeding
+from sdf_pipeline.shared_step_machinery.document_state import PipelineStep
+from sdf_pipeline.layer3_consideration_scoring_and_selection import consideration_scoring, consideration_selection
+from sdf_pipeline.layer4_draft_critique_and_revise import critique, critique_and_revise_in_one_call, draft, revise
+from sdf_pipeline.layer1_deal_and_screen import deal, redeal, screen
+from sdf_pipeline.layer2_plan_and_description_rewrite import description_rewrite, plan
+from sdf_pipeline.layer5_score_and_final_selection import near_duplicate_removal, score, score_gate
 from shared import sdf_run_layouts, utils
 
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
@@ -59,11 +63,11 @@ def test_stage_tags_and_step_names_equal_the_step_classes():
         recorded_tag = getattr(step_class, "stage_tag", None) or getattr(step_class, "stage", None)
         assert recorded_tag == entry.stage_tag, entry.name
         assert step_class.__module__ == f"sdf_pipeline.{entry.module_name}", entry.name
-        assert entry.module_name == f"steps.{entry.name}", entry.name   # one file per step, named after the step
+        assert entry.module_name == f"{sdf_run_layouts.FIVE_NAMED_LAYERS.folder_name_of_key[entry.folder_key]}.{entry.name}", entry.name   # one file per step, named after the step, in its layer's folder
 
 
 def test_the_shuffle_seeds_stay_the_literal_old_stage_tags_the_layers_derive_their_seeds_from():
-    assert pipeline_steps.entry_named("screen").shuffle_seed == "layer1_screen" == layer1_deal_and_screen_shared.SHUFFLE_SEED_NAME
+    assert pipeline_steps.entry_named("screen").shuffle_seed == "layer1_screen" == deal_and_screen_shared_names.SHUFFLE_SEED_NAME
     assert pipeline_steps.entry_named("consideration_scoring").shuffle_seed == "layer1_select" \
         == consideration_scoring.SHUFFLE_SEED_NAME
     assert {entry.name for entry in ENTRIES if entry.shuffle_seed} == {"screen", "consideration_scoring"}
@@ -156,7 +160,7 @@ def test_the_print_command_builds_the_request_the_pipeline_sent_for_every_stage_
     outcome = scenario_outcome
     config = outcome.configs_used[-1]
     run_directory = outcome.run_directory
-    batches = utils.load_jsonl(utils.sdf_stage_dir(run_directory, 1) / layer1_deal_and_screen_shared.BATCHES_FILENAME)
+    batches = utils.load_jsonl(utils.sdf_stage_dir(run_directory, 1) / deal_and_screen_shared_names.BATCHES_FILENAME)
     compared_stages = set()
     for record in outcome.recorder.records:
         if record["attempt"] != 1 or record["stage"] not in STAGE_OF_TAG:

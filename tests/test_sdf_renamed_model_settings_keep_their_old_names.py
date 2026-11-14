@@ -2,9 +2,10 @@
 
 import pytest
 
-from sdf_pipeline import pipeline_steps, renamed_model_settings
-from sdf_pipeline.layer3_rewrite import CritiqueStep, ReviseStep
-from sdf_pipeline.layer1_select_considerations import ConsiderationScoringStep
+from sdf_pipeline import pipeline_steps
+from sdf_pipeline.shared_step_machinery import renamed_model_settings
+from sdf_pipeline.layer4_draft_critique_and_revise.run_layer import CritiqueStep, ReviseStep
+from sdf_pipeline.layer3_consideration_scoring_and_selection.run_layer import ConsiderationScoringStep
 
 
 @pytest.fixture(autouse=True)

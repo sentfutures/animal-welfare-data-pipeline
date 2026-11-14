@@ -2,8 +2,8 @@
 """SDF matrix pipeline orchestrator: deal and screen, plan and rewrite descriptions, score considerations, draft, critique and
 revise, score.
 
-Five layers, each named for what it does (decision 17); a layer's driver lives in ``sdf_pipeline/layer<N>_<name>.py``
-and each step in ``sdf_pipeline/steps/<step name>.py``:
+Five layers, each named for what it does (decision 17); each layer has a folder in ``sdf_pipeline/`` holding its
+driver (``run_layer.py``) and one file per step:
 
   1. ``layer1_deal_and_screen``: deal and screen the hands for extreme implausibility, with redeals (offline deal)
   2. ``layer2_plan_and_description_rewrite``: compose the planning prompts, plan, rewrite descriptions
@@ -11,23 +11,24 @@ and each step in ``sdf_pipeline/steps/<step name>.py``:
   4. ``layer4_draft_critique_and_revise``: draft, critique, revise
   5. ``layer5_score_and_final_selection``: score, score gate, near-duplicate removal, write ``final/``
 
-Steps a document goes through (full table with module detail in CLAUDE.md):
+Steps a document goes through (full table with module detail in CLAUDE.md; the folder of each step's file is its
+layer's, above):
 
    1. Deal (compose_prompts, no model)                      cannot drop
-   2. Implausibility screen (steps/screen.py), batches of 10,
+   2. Implausibility screen (screen.py), batches of 10,
       up to 3 redeal rounds                                 can drop: extremely implausible
    3. Compose planning prompt (compose_prompts, no model)   cannot drop
-   4. Plan (steps/plan.py)                                  can drop: declared incoherent
-   5. Description rewrite (steps/description_rewrite.py)    can drop: dealt-value conflict
-   6. Consideration scoring (steps/consideration_scoring.py) cannot drop
-   7. Consideration selection (steps/consideration_selection.py,
+   4. Plan (plan.py)                                        can drop: declared incoherent
+   5. Description rewrite (description_rewrite.py)          can drop: dealt-value conflict
+   6. Consideration scoring (consideration_scoring.py)      cannot drop
+   7. Consideration selection (consideration_selection.py,
       considerations_assignment.py, no model)               cannot drop
-   8. Draft (steps/draft.py)                                cannot drop
-   9. Critique (steps/critique.py)                          cannot drop
-  10. Revise (steps/revise.py)                              cannot drop
-  11. Score (steps/score.py)                                cannot drop
-  12. Score gate and near-duplicate removal (steps/score_gate.py,
-      steps/near_duplicate_removal.py, no model):
+   8. Draft (draft.py)                                      cannot drop
+   9. Critique (critique.py)                                cannot drop
+  10. Revise (revise.py)                                    cannot drop
+  11. Score (score.py)                                      cannot drop
+  12. Score gate and near-duplicate removal (score_gate.py,
+      near_duplicate_removal.py, no model):
       alignment and realism must each reach 7, near-duplicates
       above 0.90 are dropped                                can drop: below threshold,
                                                             near-duplicate
@@ -48,19 +49,18 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from shared import api, costs, utils
 from shared.api_keys import add_api_key_source_flags, apply_api_key_source_flags
-from sdf_pipeline.dealt_value_identifiers import RECORDS_VALUE_IDS_MANIFEST_KEY
-from sdf_pipeline.document_state import RunLayout
-from sdf_pipeline.document_state_loader import UnknownRunLayoutError, detect_run_layout
+from sdf_pipeline.shared_step_machinery.dealt_value_identifiers import RECORDS_VALUE_IDS_MANIFEST_KEY
+from sdf_pipeline.shared_step_machinery.document_state import RunLayout
+from sdf_pipeline.shared_step_machinery.document_state_loader import UnknownRunLayoutError, detect_run_layout
 from shared import sdf_run_layouts
-from sdf_pipeline import (
-    layer1_deal_and_screen,
-    layer3_consideration_scoring_and_selection,
-    layer4_draft_critique_and_revise,
-    layer5_score_and_final_selection,
-    pipeline_steps,
-    seeding,
-)
-from sdf_pipeline.steps import description_rewrite, draft, plan
+from sdf_pipeline.layer1_deal_and_screen import run_layer as deal_and_screen_layer
+from sdf_pipeline.layer3_consideration_scoring_and_selection import run_layer as consideration_scoring_and_selection_layer
+from sdf_pipeline.layer4_draft_critique_and_revise import run_layer as draft_critique_and_revise_layer
+from sdf_pipeline.layer5_score_and_final_selection import run_layer as score_and_final_selection_layer
+from sdf_pipeline import pipeline_steps
+from sdf_pipeline import start_a_run_from_an_earlier_runs_step as seeding
+from sdf_pipeline.layer2_plan_and_description_rewrite import description_rewrite, plan
+from sdf_pipeline.layer4_draft_critique_and_revise import draft
 
 
 def refuse_to_resume_run_in_older_layout(run_dir: Path) -> sdf_run_layouts.SdfRunLayout:
@@ -184,9 +184,9 @@ def documents_read_when_restarting_at(folder_key: str, layout, reading, config: 
     """The documents the runner of ``folder_key`` is given when the run starts there: what the stage files hold from the
     step before. The plan step is given the hands the screen accepted (None when the screen is off)."""
     if folder_key == sdf_run_layouts.PLAN_AND_DESCRIPTION_REWRITE:
-        if layer1_deal_and_screen.reason_screen_is_inactive(config, prompts_dir):
+        if deal_and_screen_layer.reason_screen_is_inactive(config, prompts_dir):
             return None
-        accepted_path = folders[sdf_run_layouts.DEAL_AND_SCREEN] / layer1_deal_and_screen.SCREENED_HANDS_FILENAME
+        accepted_path = folders[sdf_run_layouts.DEAL_AND_SCREEN] / deal_and_screen_layer.SCREENED_HANDS_FILENAME
         if not accepted_path.is_file():
             raise SystemExit(f"Cannot start at layer {layout.layer_number_of_key[folder_key]}: the screen has not finished, so "
                              f"{accepted_path} does not exist. Run layer {layout.layer_number_of_key[sdf_run_layouts.DEAL_AND_SCREEN]} first.")
@@ -228,7 +228,7 @@ def run_in_layout(args, config: dict, layout: sdf_run_layouts.SdfRunLayout, run_
 
     def deal_and_screen(unused_documents):
         print(f"{layer_label(sdf_run_layouts.DEAL_AND_SCREEN)} Deal hands and screen them for extreme implausibility (with redeals)")
-        return layer1_deal_and_screen.run(config, prompts_dir, folders[sdf_run_layouts.DEAL_AND_SCREEN])
+        return deal_and_screen_layer.run(config, prompts_dir, folders[sdf_run_layouts.DEAL_AND_SCREEN])
 
     def plan_and_rewrite_descriptions(hands):
         label = layer_label(sdf_run_layouts.PLAN_AND_DESCRIPTION_REWRITE)
@@ -240,7 +240,7 @@ def run_in_layout(args, config: dict, layout: sdf_run_layouts.SdfRunLayout, run_
 
     def select_considerations(plans):
         print(f"{layer_label(sdf_run_layouts.CONSIDERATION_SCORING_AND_SELECTION)} Select considerations for each surviving specification")
-        return layer3_consideration_scoring_and_selection.run(
+        return consideration_scoring_and_selection_layer.run(
             config, prompts_dir, folders[sdf_run_layouts.CONSIDERATION_SCORING_AND_SELECTION], plans)
 
     def draft_documents(plans):
@@ -249,12 +249,12 @@ def run_in_layout(args, config: dict, layout: sdf_run_layouts.SdfRunLayout, run_
 
     def critique_and_revise(drafts):
         print(f"{layer_label(sdf_run_layouts.CRITIQUE_AND_REVISE)} Review and rewrite")
-        return layer4_draft_critique_and_revise.run_critique_and_revise(
+        return draft_critique_and_revise_layer.run_critique_and_revise(
             config, prompts_dir, folders[sdf_run_layouts.CRITIQUE_AND_REVISE], drafts)
 
     def score_and_select(rewrites):
         print(f"{layer_label(sdf_run_layouts.SCORE)} Score and gate")
-        final = layer5_score_and_final_selection.run(config, prompts_dir, folders[sdf_run_layouts.SCORE], final_dir, rewrites)
+        final = score_and_final_selection_layer.run(config, prompts_dir, folders[sdf_run_layouts.SCORE], final_dir, rewrites)
         print(f"  Running cost: ${api.get_total_cost():.4f}\n")
         print(f"=== Done. {len(final)} documents in {final_dir / 'sdf_corpus.jsonl'} ===")
         return final
