@@ -5,6 +5,9 @@ section (rendered from the run's constitution snapshot) and the per-document
 spec in its USER section. The draft must come back inside <document> tags;
 anything else — missing tags, truncation — is not checkpointed, so --resume
 retries exactly the failed calls (temperature 1.0 makes retries productive).
+
+The layer is a ``DocumentStep`` (``DraftStep``) run by ``sdf_pipeline.step_runner.StepRunner``;
+``run`` keeps its signature and behaviour as a thin wrapper, because scripts import it.
 """
 
 import re
@@ -13,52 +16,65 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from shared import api, constitution_loader, deal_constraints, utils
+from shared import constitution_loader, deal_constraints, utils
 from sdf_pipeline import compose_prompts as cp
+from sdf_pipeline.document_event_log import DOCUMENT_EVENT_LOG_FILE_NAME, DocumentEventLog
+from sdf_pipeline.step_runner import StepRunner
+from sdf_pipeline.update_steps import (
+    Accepted, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, StepPolicy)
 
 DOC_TAG_RE = re.compile(r"<document>(.*?)</document>", re.DOTALL)
 
 _MAX_TOKENS = 6000  # real documents are often long; the cap bounds api-backend cost
 
 
-def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) -> list[dict]:
-    output_path = output_dir / "drafts.jsonl"
-    checkpoint = utils.Checkpoint(output_dir / "_checkpoint.json")
-    sdf = config["sdf"]
+class DraftStep(DocumentStep):
+    """Draft one document from a plan record. The document is the plan dict (``prompt_id``,
+    ``description``, ``variables``, ``considerations_spec``)."""
 
-    constitution_dir = utils.resolve_constitution_dir(prompts_dir)
-    constitution_claude = constitution_loader.load_constitution_claude(constitution_dir)
-    principles = constitution_loader.format_principles(
-        constitution_loader.load_principles(constitution_dir)
+    step_name = "draft"
+    stage_file_name = "drafts.jsonl"
+    # Only a thrown call counts towards the systemic stop; an unusable answer is left behind.
+    policy = StepPolicy()
+    systemic_stop_message = (
+        "layer2_draft: every pending API call failed — this is systemic "
+        "(auth, backend, or network), not per-document; fix and --resume."
     )
-    preamble = (prompts_dir / "preamble.txt").read_text(encoding="utf-8").strip()
 
-    # A document with no considerations leaves no trace in its prompt: the template
-    # line that carries {considerations_spec} is dropped when the block is empty.
-    template_text = utils.sdf_template_path(prompts_dir, 2).read_text(encoding="utf-8")
-    render_variable_lines = cp.render_variable_lines_for_template(template_text, prompts_dir, config)
-    template_without_considerations = deal_constraints.drop_template_lines(
-        template_text, ["considerations_spec"])
+    def __init__(self, config: dict, prompts_dir: Path):
+        self.draft_model = config["sdf"].get("draft_model")
+        constitution_dir = utils.resolve_constitution_dir(prompts_dir)
+        self.constitution_claude = constitution_loader.load_constitution_claude(constitution_dir)
+        self.principles = constitution_loader.format_principles(
+            constitution_loader.load_principles(constitution_dir)
+        )
+        self.preamble = (prompts_dir / "preamble.txt").read_text(encoding="utf-8").strip()
 
-    planned = [p for p in plans if p.get("description")]
-    existing = {r["doc_id"]: r for r in utils.load_jsonl(output_path)}
-    results = [existing[p["prompt_id"]] for p in planned if p["prompt_id"] in existing]
-    pending = [
-        p for p in planned
-        if p["prompt_id"] not in existing and not checkpoint.is_done(p["prompt_id"])
-    ]
+        # A document with no considerations leaves no trace in its prompt: the template
+        # line that carries {considerations_spec} is dropped when the block is empty.
+        self.template_text = utils.sdf_template_path(prompts_dir, 2).read_text(encoding="utf-8")
+        self.render_variable_lines = cp.render_variable_lines_for_template(
+            self.template_text, prompts_dir, config)
+        self.template_without_considerations = deal_constraints.drop_template_lines(
+            self.template_text, ["considerations_spec"])
 
-    def draft_one(plan: dict):
+    def document_id_of(self, plan: dict) -> str:
+        return plan["prompt_id"]
+
+    def applies_to(self, plan: dict) -> bool:
+        return bool(plan.get("description"))
+
+    def build_request(self, plan: dict) -> ModelRequest:
         considerations_spec = plan.get("considerations_spec", "")
         system, user = cp.split_sections((
-            template_text if considerations_spec else template_without_considerations
+            self.template_text if considerations_spec else self.template_without_considerations
         ).format(
-            preamble=preamble,
-            constitution_claude=constitution_claude,
-            constitution_principles=principles,
+            preamble=self.preamble,
+            constitution_claude=self.constitution_claude,
+            constitution_principles=self.principles,
             document_description=plan["description"],
             considerations_spec=considerations_spec,
-            variable_lines=render_variable_lines({"prompt_id": plan["prompt_id"], "variables": plan["variables"]}),
+            variable_lines=self.render_variable_lines({"prompt_id": plan["prompt_id"], "variables": plan["variables"]}),
             # Downstream-only matrix axis (sampled in layer 1, recorded in
             # variables). Default to the neutral value for plans composed
             # before this axis existed, so --resume on an old run never crashes.
@@ -68,55 +84,46 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
                 "reasoning_featured", "any relevant principles from the constitution"
             ),
         ))
-        try:
-            return api.call_claude(
-                user,
-                system_prompt=system or "",
-                model=sdf.get("draft_model"),
-                max_tokens=_MAX_TOKENS,
-                stage="layer2_draft",
-                item_id=plan["prompt_id"],
-                return_stop_reason=True,
-                cache_system=True,  # constitution-laden system prompt is identical across drafts
-            )
-        except Exception as e:
-            # One poison document (e.g. a usage-policy false positive on the
-            # claude_code backend) must not kill the layer and discard its
-            # siblings' in-flight work. Failed work is not checkpointed, so
-            # --resume retries exactly this call.
-            return None, f"error: {type(e).__name__}: {e}"
+        return ModelRequest(
+            user_message=user,
+            system_prompt=system or "",
+            model=self.draft_model,
+            max_tokens=_MAX_TOKENS,
+            stage="layer2_draft",
+            item_id=plan["prompt_id"],
+            cache_system=True,  # constitution-laden system prompt is identical across drafts
+        )
 
-    workers = config.get("workers", 1)
-    failed_calls = 0
-    for plan, (raw, stop) in zip(pending, utils.parallel_map(draft_one, pending, workers)):
-        pid = plan["prompt_id"]
-        if raw is None:
-            failed_calls += 1
-            print(f"  {pid}: API call failed ({stop}) — will retry on resume")
-            continue
-        if stop != "end_turn":
-            print(f"  {pid}: truncated draft (stop_reason={stop}) — will retry on resume")
-            continue
-        m = DOC_TAG_RE.search(raw)
+    def interpret(self, plan: dict, reply: ModelReply):
+        if reply.stop_reason != "end_turn":
+            return Failed(FailureKind.UNUSABLE_ANSWER, f"truncated draft (stop_reason={reply.stop_reason})")
+        m = DOC_TAG_RE.search(reply.text)
         content = m.group(1).strip() if m else ""
         if not content:
-            print(f"  {pid}: no <document> tags — will retry on resume")
-            continue
-        record = {
-            "doc_id": pid,
+            return Failed(FailureKind.UNUSABLE_ANSWER, "no <document> tags")
+        return Accepted(content)
+
+    def stage_file_record(self, plan: dict, update: str) -> dict:
+        return {
+            "doc_id": plan["prompt_id"],
             "variables": plan["variables"],
             "description": plan["description"],
             "considerations_spec": plan.get("considerations_spec", ""),
-            "content": content,
+            "content": update,
         }
-        results.append(record)
-        utils.append_jsonl(record, output_path)
-        checkpoint.mark_done(pid)
-        print(f"  Drafted {pid} ({len(content)} chars)")
 
-    if pending and failed_calls == len(pending):
-        raise SystemExit(
-            "layer2_draft: every pending API call failed — this is systemic "
-            "(auth, backend, or network), not per-document; fix and --resume."
-        )
-    return results
+    def progress_line(self, plan: dict, outcome) -> str | None:
+        pid = plan["prompt_id"]
+        if isinstance(outcome, Accepted):
+            return f"  Drafted {pid} ({len(outcome.update)} chars)"
+        if outcome.kind is FailureKind.THROWN_CALL:
+            return f"  {pid}: API call failed ({outcome.reason}) — will retry on resume"
+        return f"  {pid}: {outcome.reason} — will retry on resume"
+
+
+def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) -> list[dict]:
+    step = DraftStep(config, prompts_dir)
+    # The event log sits in the run folder, beside the layer folders.
+    event_log = DocumentEventLog(output_dir.parent / DOCUMENT_EVENT_LOG_FILE_NAME)
+    runner = StepRunner(step, output_dir, event_log, workers=config.get("workers", 1))
+    return runner.run(plans).records_in_input_order
