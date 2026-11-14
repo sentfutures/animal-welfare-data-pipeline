@@ -23,8 +23,8 @@ from evals.model_judged_audit_support import (  # noqa: E402
 from evals.shoehorning_audit_sdf import (  # noqa: E402
     ALL_PASS_NAMES, INTEGRATION_VALUES, MOTIVATION_VALUES, load_existing_records, parse_pass_items,
     pass_file_path, read_text)
-from evals.plans_and_drafts_of_an_sdf_run import draft_texts_by_document_id  # noqa: E402
 from evals.sdf_eval_input_resolution import run_directory_of_corpus_file  # noqa: E402
+from shared import utils  # noqa: E402
 
 MOTIVATION_SHOEHORNING_RANK = {"organic": 0, "staged": 1, "unmotivated": 2}
 ORIGIN_STAGES = ["present_in_draft", "added_in_rewrite", "quote_not_verified", "draft_unavailable"]
@@ -197,12 +197,12 @@ def write_per_document_outputs(run_folder, timestamp, documents_by_id, pass_name
 
 def default_drafts_by_id(corpus_path):
     """{doc_id: draft record} for the draft of every document of the SDF run the corpus came from
-    (<run>/final/sdf_corpus.jsonl). A record holds the draft's ``content``, the only field the postprocess
-    reads. Empty for a corpus that is not in a run's final/ folder, or whose folder is not an SDF run folder."""
+    (<run>/final/sdf_corpus.jsonl). A record is the draft stage's record; the postprocess reads only its
+    ``content``. Empty for a corpus that is not in a run's final/ folder, or whose folder is not an SDF run folder."""
     run_directory = run_directory_of_corpus_file(corpus_path)
     if run_directory is None:
         return {}
-    return {document_id: {"content": text} for document_id, text in draft_texts_by_document_id(run_directory).items()}
+    return {record["doc_id"]: record for record in utils.load_jsonl(utils.sdf_stage_file(run_directory, "draft"))}
 
 
 def pass_names_of_run(run_folder, records):
