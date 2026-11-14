@@ -30,6 +30,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from shared import constitution_loader, deal_constraints, utils
 from sdf_pipeline import compose_prompts as cp
 from sdf_pipeline import revision_style
+from sdf_pipeline.dealt_value_identifiers import value_ids_field_of
 from sdf_pipeline.step_runner import StepRunner
 from sdf_pipeline.update_steps import (
     Accepted, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, StepPolicy,
@@ -123,6 +124,7 @@ def _rewrite_record(draft: dict, update: RewrittenText) -> dict:
     record = {
         "doc_id": draft["doc_id"],
         "variables": draft["variables"],
+        **value_ids_field_of(draft),
         "description": draft["description"],
         "considerations_spec": draft.get("considerations_spec", ""),
         "review": update.review,

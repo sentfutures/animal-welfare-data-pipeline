@@ -47,8 +47,8 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-from sdf_pipeline.dealt_value_identifiers import load_frozen_value_ids, value_ids_of_dealt_hand_from_snapshot
-from sdf_pipeline.document_event_log import DOCUMENT_EVENT_LOG_FILE_NAME, fold_dealt_value_ids, read_document_events
+from sdf_pipeline.dealt_value_identifiers import (
+    NON_DEALT_PLAN_VARIABLES, VALUE_IDS_FIELD, load_frozen_value_ids, value_ids_of_dealt_hand_from_snapshot)
 from sdf_pipeline.document_state import (
     AssignedConsideration, ConsiderationScoringRecord, DescriptionRewriteDecision,
     DescriptionRewriteVerdict, DescriptionVersion, DescriptionVersionKind, DocumentOutcome,
@@ -207,7 +207,8 @@ def _hand_index(document_id: str):
 def _written_from(record: dict) -> TextWrittenFrom:
     return TextWrittenFrom(
         description=record.get("description"), variables=record.get("variables"),
-        considerations_spec=record.get("considerations_spec"))
+        considerations_spec=record.get("considerations_spec"),
+        variable_value_ids=record.get(VALUE_IDS_FIELD))
 
 
 def _label_pairs_of_assignment(assignment) -> frozenset:
@@ -299,15 +300,18 @@ def _build_matrix_states(files: _RunFiles, run: Path, layout: RunLayout, thresho
     # --- the deal
     recorded_round_ids = {pid for r in screen_rounds for pid in r.get("prompt_ids", [])}
     deal = {}
+    value_ids_in_deal_record = {}   # {hand id: its ``variable_value_ids``, or None when the record has none}
     if screen_hands:
         for hand in screen_hands:
             if hand.get("prompt_id") in recorded_round_ids:
                 deal[hand["prompt_id"]] = (hand.get("round", 0), hand.get("variables"))
+                value_ids_in_deal_record[hand["prompt_id"]] = hand.get(VALUE_IDS_FIELD)
         deal_order = sorted(deal, key=lambda pid: (deal[pid][0], _hand_index(pid) if _hand_index(pid) is not None else -1))
         screen_ran = True
     else:
         for record in prompt_records:
             deal.setdefault(record["prompt_id"], (0, record.get("variables")))
+            value_ids_in_deal_record.setdefault(record["prompt_id"], record.get(VALUE_IDS_FIELD))
         deal_order = list(deal)
         screen_ran = False
     prompt_by_id = _last_record_per_id(prompt_records, "prompt_id")
@@ -320,12 +324,9 @@ def _build_matrix_states(files: _RunFiles, run: Path, layout: RunLayout, thresho
     run_has_rewrite_results = bool(rewrite_results)
     run_has_selection_rows = bool(selection_rows)
 
-    # Dealt value ids: the deal's own record where the run's event log has one, else a lookup of each dealt
-    # text in the run's frozen variables.txt (both read-only; neither touches a stage file).
-    try:
-        recorded_value_ids = fold_dealt_value_ids(read_document_events(run / DOCUMENT_EVENT_LOG_FILE_NAME))
-    except ValueError:
-        recorded_value_ids = {}   # a damaged event log is reported by the event-log readers, not here
+    # Dealt value ids: the deal record's own ``variable_value_ids`` (runs that write them into their stage
+    # files), else a lookup of each dealt text in the run's frozen variables.txt. Read-only; the event log
+    # is not read.
     frozen_value_ids, why_no_snapshot = load_frozen_value_ids(run)
 
     states = []
@@ -477,11 +478,12 @@ def _build_matrix_states(files: _RunFiles, run: Path, layout: RunLayout, thresho
 
         latest = text_versions[-1] if text_versions else None
         current_description = description_versions[-1].text if description_versions else None
-        if document_id in recorded_value_ids:
-            dealt_value_ids, dealt_value_id_notes = dict(recorded_value_ids[document_id]), []
+        recorded_value_ids = value_ids_in_deal_record.get(document_id)
+        if recorded_value_ids is not None:
+            dealt_value_ids, dealt_value_id_notes = dict(recorded_value_ids), []
             for axis in dealt_variables or {}:
-                if axis not in dealt_value_ids:
-                    dealt_value_id_notes.append(f"dealt value of {{{axis}}} has no id: the deal event recorded none")
+                if axis not in dealt_value_ids and axis not in NON_DEALT_PLAN_VARIABLES:
+                    dealt_value_id_notes.append(f"dealt value of {{{axis}}} has no id: the stage file recorded none")
         else:
             dealt_value_ids, dealt_value_id_notes = value_ids_of_dealt_hand_from_snapshot(
                 dealt_variables, frozen_value_ids, why_no_snapshot)

@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from shared import constitution_loader, deal_constraints, utils
 from sdf_pipeline import compose_prompts as cp
+from sdf_pipeline.dealt_value_identifiers import value_ids_field_of
 from sdf_pipeline.step_runner import StepRunner
 from sdf_pipeline.update_steps import (
     Accepted, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, StepPolicy,
@@ -108,6 +109,7 @@ class DraftStep(DocumentStep):
         return {
             "doc_id": plan["prompt_id"],
             "variables": plan["variables"],
+            **value_ids_field_of(plan),
             "description": plan["description"],
             "considerations_spec": plan.get("considerations_spec", ""),
             "content": update,

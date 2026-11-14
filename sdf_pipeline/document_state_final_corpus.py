@@ -9,7 +9,7 @@ Each record is built from the document's latest text version and what that versi
 never from the latest plan, exactly as ``layer4_score`` reads the rewrite record.
 
 Layouts:
-* current and matrix layouts: ``doc_id, type_id, type_name, language, register, variables, description,
+* current and matrix layouts: ``doc_id, type_id, type_name, language, register, variables, [variable_value_ids,] description,
   considerations_spec, content, scores``; ``considerations_spec`` is written as "" when the record
   lacked it in the current layout, and left out in the matrix layout before the renumbering, whose
   corpus never had the field.
@@ -25,11 +25,13 @@ _FIVE_LAYER_FIELDS_WRITTEN_AFTER_SCORES = ("latent_beat_ok",)
 
 def final_corpus_record(
         document_id: str, variables: dict, description: str, considerations_spec: str | None, content: str,
-        scores: dict) -> dict:
+        scores: dict, variable_value_ids: dict | None = None) -> dict:
     """The one definition of a record of ``final/sdf_corpus.jsonl`` (current and matrix layouts), with
     its field order. Both ``layer4_score`` (from the rewrite and score records) and
     ``final_corpus_record_for_state`` (from a ``DocumentState``) build the record here.
-    ``considerations_spec`` None leaves the field out (the matrix layout before the renumbering)."""
+    ``considerations_spec`` None leaves the field out (the matrix layout before the renumbering).
+    ``variable_value_ids`` (the dealt value ids, ``variable_value_ids`` of the stage files) is written
+    right after ``variables`` when given, and left out when None (a run that does not record them)."""
     record = {
         "doc_id": document_id,
         "type_id": variables.get("document_type", ""),
@@ -37,8 +39,10 @@ def final_corpus_record(
         "language": compose_prompts.derive_language(variables.get("culture", "")),
         "register": variables.get("tone", ""),
         "variables": variables,
-        "description": description,
     }
+    if variable_value_ids is not None:
+        record["variable_value_ids"] = variable_value_ids
+    record["description"] = description
     if considerations_spec is not None:
         record["considerations_spec"] = considerations_spec
     record["content"] = content
@@ -58,7 +62,7 @@ def final_corpus_record_for_state(state: DocumentState) -> dict:
         considerations_spec = considerations_spec or ""
     return final_corpus_record(
         state.document_id, latest.written_from.variables, latest.written_from.description,
-        considerations_spec, latest.text, scores)
+        considerations_spec, latest.text, scores, latest.written_from.variable_value_ids)
 
 
 def derive_final_corpus_records(states) -> list:

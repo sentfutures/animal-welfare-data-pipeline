@@ -517,6 +517,8 @@ class TestReorderSdfCorpus:
         "register": "clinical, dispassionate",
         "variables": {"document_type": "policy_memo",
                       "tone": "clinical, dispassionate"},
+        "variable_value_ids": {"document_type": "policy_memo",
+                               "tone": "clinical_dispassionate"},
         "description": "A policy memo weighing procurement options.",
         "content": "This memo evaluates the welfare implications of...",
         "scores": {"alignment": 8, "realism": 7, "spec_conformance": 9,
@@ -533,7 +535,15 @@ class TestReorderSdfCorpus:
         assert n == 1
         published = json.loads(dst.read_text(encoding="utf-8").splitlines()[0])
         assert list(published) == publish_hf.SDF_COLUMN_ORDER
+        assert publish_hf.SDF_COLUMN_ORDER[-3:] == ["variables", "variable_value_ids", "doc_id"]
         assert published == self.FULL_RECORD  # same values, only key order moved
+
+    def test_a_record_without_the_ids_column_publishes_without_it(self, tmp_path):
+        record = {k: v for k, v in self.FULL_RECORD.items() if k != "variable_value_ids"}
+        src, dst = tmp_path / "final.jsonl", tmp_path / "published.jsonl"
+        src.write_text(json.dumps(record) + "\n", encoding="utf-8")
+        publish_hf.reorder_sdf_corpus(src, dst)
+        assert "variable_value_ids" not in json.loads(dst.read_text(encoding="utf-8").splitlines()[0])
 
     def test_legacy_fields_are_kept_and_appended_after_known_columns(self, tmp_path):
         """Four committed SDF runs predate variables/description/type_name and

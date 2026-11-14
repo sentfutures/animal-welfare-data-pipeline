@@ -39,6 +39,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from shared import api, costs, utils
 from shared.api_keys import add_api_key_source_flags, apply_api_key_source_flags
+from sdf_pipeline.dealt_value_identifiers import RECORDS_VALUE_IDS_MANIFEST_KEY
 from sdf_pipeline.document_state import RunLayout
 from sdf_pipeline.document_state_loader import UnknownRunLayoutError, detect_run_layout
 from sdf_pipeline import (
@@ -145,6 +146,9 @@ def main() -> None:
                 "prompts": root / "prompts" / "sdf",
                 "constitution": root / "constitution",
             },
+            # Decided once, here: this run writes dealt value ids into its stage files. A run created
+            # before this key existed lacks it and is resumed without ever gaining the field.
+            extra_manifest_fields={RECORDS_VALUE_IDS_MANIFEST_KEY: True},
         )
 
     # Read templates from the run's frozen snapshot so prompts stay reproducible
