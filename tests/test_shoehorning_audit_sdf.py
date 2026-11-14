@@ -544,10 +544,13 @@ def test_the_default_runs_directory_is_the_audit_folder_of_the_run(tmp_path):
     assert classifier.default_runs_directory(loose_corpus) == tmp_path / "audit" / "shoehorning_audit_runs"
 
 
-def test_drafts_are_found_next_to_the_corpus_of_an_sdf_run(tmp_path):
-    corpus = tmp_path / "some_run" / "final" / "sdf_corpus.jsonl"
-    assert postprocess.default_drafts_path(corpus) == utils.sdf_stage_file(tmp_path / "some_run", "draft")
-    assert postprocess.default_drafts_path(tmp_path / "loose_corpus.jsonl") is None
+def test_drafts_are_found_through_the_loader_for_the_corpus_of_an_sdf_run(tmp_path):
+    run = tmp_path / "some_run"
+    (run / "layer2").mkdir(parents=True)
+    utils.save_jsonl([{"doc_id": "matrix_000000", "content": "the draft text"}], run / "layer2" / "drafts.jsonl")
+    corpus = run / "final" / "sdf_corpus.jsonl"
+    assert postprocess.default_drafts_by_id(corpus) == {"matrix_000000": {"content": "the draft text"}}
+    assert postprocess.default_drafts_by_id(tmp_path / "loose_corpus.jsonl") == {}
 
 
 def test_item_summary_sorts_items_numerically_not_as_strings():

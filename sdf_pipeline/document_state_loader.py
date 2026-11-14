@@ -118,6 +118,29 @@ def load_document_states_with_run_notes(run_directory, *, gate_score_threshold=N
     return LoadedDocumentStates(run, layout, states, files.run_notes)
 
 
+def load_document_states_or_empty_list_when_not_a_run_folder(run_directory, *, gate_score_threshold=None) -> list:
+    """``load_document_states``, except that a folder with none of the stage folders of an SDF run (or no
+    folder at all) gives an empty list instead of ``UnknownRunLayoutError``.
+
+    For readers that used to open stage files one by one and treated a missing file as empty (the report and
+    the audits, which accept a bare corpus file that has no run folder around it). A damaged stage file still
+    raises ``StageFileCorruptError``."""
+    try:
+        return load_document_states(run_directory, gate_score_threshold=gate_score_threshold)
+    except UnknownRunLayoutError:
+        return []
+
+
+def plan_records_of_states(states) -> list:
+    """The plan stage's records in the shape the description rewrite's share rows and the report read them
+    (``prompt_id``, ``variables``, ``description``), one per state that has a plan record, in state order.
+    ``description`` is the planner's own text, never the rewritten one, and is None for a plan declared
+    incoherent (the plan file stores such a plan with no description)."""
+    return [{"prompt_id": state.document_id, "variables": state.plan_record_variables,
+             "description": state.planned_description}
+            for state in states if state.has_plan_record]
+
+
 # ------------------------------------------------------------------------------ reading files
 
 class _RunFiles:
@@ -461,7 +484,8 @@ def _build_matrix_states(files: _RunFiles, run: Path, layout: RunLayout, thresho
             outcome=outcome, removal=removal,
             latest_text_was_written_from_a_different_assignment=different_assignment,
             latest_text_was_written_from_a_different_description=different_description,
-            legacy_fields={}, loader_notes=tuple(notes)))
+            legacy_fields={}, loader_notes=tuple(notes),
+            has_plan_record=plan is not None, plan_record_variables=plan.get("variables") if plan else None))
     return states
 
 
