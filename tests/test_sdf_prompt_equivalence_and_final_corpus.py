@@ -9,8 +9,9 @@ failures, stops, interrupted runs and resumes). The stage files, checkpoints and
 keep their recorded fields, field order and values.
 
 A failing comparison means a request or a record changed. If that is deliberate, regenerate the
-recorded files with ``scripts/regenerate_sdf_prompt_equivalence_recorded_requests.py`` in a pull
-request that changes nothing else. This test never rewrites them. See
+recorded files with ``scripts/regenerate_sdf_prompt_equivalence_recorded_requests.py`` in the same
+pull request as the change, and commit them with it. A pull request that only refactors never
+rewrites them. This test never rewrites them. See
 ``tests/sdf_prompt_equivalence_fixture_support.py`` for how requests are recorded and
 ``tests/sdf_prompt_equivalence_scenarios.py`` for the scenarios.
 """

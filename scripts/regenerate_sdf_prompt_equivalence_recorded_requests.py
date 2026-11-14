@@ -2,8 +2,10 @@
 """Regenerate the files that tests/test_sdf_prompt_equivalence_and_final_corpus.py compares against.
 
 This is the ONLY code that rewrites tests/fixtures/sdf_prompt_equivalence/*.json (one file per
-scenario); the test never does. Run it deliberately, in a pull request that changes nothing else,
-when a request change is intended (a prompt edit, a config change, a model change). The recorded
+scenario); the test never does. Run it in the same pull request as an intended request change (a
+prompt edit, a config change, a model change), and commit the new recorded files with that change
+so their diff shows reviewers which requests changed. A pull request that only refactors never runs
+it: there, a failing test means the refactor changed a request. The recorded
 files are meant to be recorded on origin/main.
 
 Guard: each recorded file stores the commit it was recorded from and the Python files under

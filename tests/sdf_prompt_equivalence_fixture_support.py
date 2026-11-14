@@ -62,8 +62,8 @@ FIXTURE_DIRECTORY = REPOSITORY_ROOT / "tests" / "fixtures" / "sdf_prompt_equival
 RECORDED_FILE_FORMAT_VERSION = 2
 REGENERATION_COMMAND = "python scripts/regenerate_sdf_prompt_equivalence_recorded_requests.py"
 REGENERATION_RULE = (
-    f"The recorded files are rewritten only by `{REGENERATION_COMMAND}`, in a pull request that "
-    "changes nothing else.")
+    f"The recorded files are rewritten only by `{REGENERATION_COMMAND}`, in the same pull request "
+    "as the intended request change; a pull request that only refactors never rewrites them.")
 LONG_STRING_CHARACTER_LIMIT = 1500
 
 
