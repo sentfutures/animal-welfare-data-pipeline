@@ -31,6 +31,7 @@ after scoring and make no calls).
 """
 
 import json
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -109,14 +110,25 @@ def _refuse(message: str):
 
 
 def resolve_source_run(seed_from: str, runs_root: Path) -> Path:
-    """The source run folder: an existing path, or a run id under this checkout's runs folder."""
+    """The source run folder. A value with a path separator is a path. A bare name is a run id under this
+    checkout's runs folder; a same-named folder in the working directory is used only when no such run
+    exists, and when both exist the request is refused so the wrong one is never seeded from silently."""
     candidate = Path(seed_from)
-    if candidate.is_dir():
-        return candidate.resolve()
+    is_a_path = any(separator and separator in seed_from for separator in ("/", os.sep, os.altsep))
+    if is_a_path:
+        if candidate.is_dir():
+            return candidate.resolve()
+        _refuse(f"no run folder at {candidate}")
     by_id = Path(runs_root) / seed_from
+    if by_id.is_dir() and candidate.is_dir():
+        _refuse(f"{seed_from!r} is ambiguous: it names both a folder in the working directory ({candidate.resolve()}) "
+                f"and a run under the runs folder ({by_id}). Pass the path of the one you mean "
+                "(for example ./" + seed_from + " or the full path of the run)")
     if by_id.is_dir():
         return by_id
-    _refuse(f"no run folder at {candidate} and no run named {seed_from!r} under {runs_root}")
+    if candidate.is_dir():
+        return candidate.resolve()
+    _refuse(f"no run named {seed_from!r} under {runs_root} and no folder of that name in the working directory")
 
 
 def load_revision_overrides(path: Path, document_ids: list) -> dict:
@@ -185,6 +197,9 @@ def seed_run_from_chosen_step(
     if from_step not in SEEDABLE_STEPS:
         _refuse(f"unknown step {from_step!r}. Seedable steps: {', '.join(SEEDABLE_STEPS)}")
     step = SEEDABLE_STEPS[from_step]
+    if from_step == "revise" and not bool((config["sdf"].get("revision") or {}).get("split", True)):
+        _refuse("step 'revise' cannot be seeded under sdf.revision.split: false, because this configuration revises in "
+                "one call together with the critique, so there is no separate revise step; seed from 'critique' instead")
     source_run = Path(source_run)
     try:
         layout = detect_run_layout(source_run)
@@ -252,6 +267,12 @@ def seed_run_from_chosen_step(
                     f"when seeding at critique or revise, not {from_step}")
         revision_overrides = load_revision_overrides(revision_override_path, document_ids)
 
+    assignment_is_solved_again = from_step == "consideration_scoring" and layer1_select_considerations.selection_enabled(config)
+    if assignment_is_solved_again:
+        print(f"Notice: the consideration assignment will be solved again over the {len(document_ids)} selected "
+              "document(s), from freshly scored considerations, and may differ from the source run's. "
+              "Rule of thumb: seed at consideration_scoring for a fresh assignment, at draft to keep the source's.")
+
     # Everything checked: create the run with the pipeline's own function, then copy the records.
     run_directory = utils.create_run_dir(runs_root, label=label, config=config, snapshot_dirs=snapshot_sources)
     selected = set(document_ids)
@@ -280,6 +301,10 @@ def seed_run_from_chosen_step(
         "revision_override_document_ids": sorted(revision_overrides),
         "copied_record_counts": copied_record_counts,
     }
+    if assignment_is_solved_again:
+        manifest["seeded_from"]["consideration_assignment"] = (
+            f"solved again over {len(document_ids)} document(s); may differ from the source run's")
+        manifest["seeded_from"]["consideration_assignment_solved_again_over_document_count"] = len(document_ids)
     manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     return SeededRun(run_directory, step.start_layer, document_ids, copied_record_counts)
 
