@@ -54,7 +54,7 @@ def test_interpret_unusable_answers_are_failures_left_behind(plan_step):
 def test_the_request_is_the_composed_prompt_with_no_other_settings(plan_step, tiny_config):
     request = plan_step.build_request(PROMPT_RECORD)
     assert (request.user_message, request.system_prompt, request.stage, request.item_id) == (
-        "PROMPT", "SYS", "layer1_plan", "matrix_000007")
+        "PROMPT", "SYS", "layer2_plan", "matrix_000007")
     assert request.model == tiny_config["sdf"].get("plan_model")
     assert request.max_tokens is None and request.cache_system is False
     assert request.temperature is None and request.json_schema is None
@@ -65,7 +65,7 @@ def test_a_thrown_call_prints_the_api_failure_line_and_counts_towards_the_system
     def always_throws(user_message, **kw):
         raise RuntimeError("boom")
     stub_claude(always_throws)
-    with pytest.raises(SystemExit, match="layer1_plan: every pending API call failed"):
+    with pytest.raises(SystemExit, match="layer2_plan: every pending API call failed"):
         layer1_plan.run(tiny_config, prompts_sdf, stage_dir)
     assert "API call failed (error: RuntimeError: boom) — will retry on resume" in capsys.readouterr().out
     assert not (stage_dir / "plans.jsonl").exists() or utils.load_jsonl(stage_dir / "plans.jsonl") == []

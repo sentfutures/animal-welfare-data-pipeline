@@ -47,6 +47,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
+from shared import sdf_run_layouts
 from sdf_pipeline.dealt_value_identifiers import (
     NON_DEALT_PLAN_VARIABLES, VALUE_IDS_FIELD, load_frozen_value_ids, value_ids_of_dealt_hand_from_snapshot)
 from sdf_pipeline.document_state import (
@@ -61,10 +62,12 @@ FINAL_CORPUS_RELATIVE_PATH = "final/sdf_corpus.jsonl"
 MANIFEST_FILE_NAME = "run_manifest.json"
 NEAR_DUPLICATE_FILE_NAME = "near_dup_dropped.jsonl"
 
-# stage folder names per layout: (plan, draft, rewrite, score); the five-layer layout is read separately
-_MATRIX_STAGE_FOLDERS = {
-    RunLayout.CURRENT: ("layer1", "layer2", "layer3", "layer4"),
-    RunLayout.MATRIX_BEFORE_LAYER_RENUMBERING: ("layer12", "layer3", "layer4", "layer5"),
+# The folder naming of the layouts that hold the variables matrix (the five-layer layout before the matrix is
+# read separately); the folder of each kind of stage file is looked up by folder key.
+_MATRIX_LAYOUTS = {
+    RunLayout.FIVE_NAMED_LAYERS: sdf_run_layouts.FIVE_NAMED_LAYERS,
+    RunLayout.FOUR_NUMBERED_LAYERS: sdf_run_layouts.FOUR_NUMBERED_LAYERS,
+    RunLayout.MATRIX_BEFORE_LAYER_RENUMBERING: sdf_run_layouts.MATRIX_BEFORE_LAYER_RENUMBERING,
 }
 
 
@@ -88,16 +91,18 @@ def detect_run_layout(run_directory) -> RunLayout:
     run = Path(run_directory)
     if not run.is_dir():
         raise UnknownRunLayoutError(f"{run} is not a folder, so it is not an SDF run folder")
+    if any((run / name).is_dir() for name in sdf_run_layouts.FIVE_NAMED_LAYERS.folder_names):
+        return RunLayout.FIVE_NAMED_LAYERS
     if (run / "layer12").is_dir():
         return RunLayout.MATRIX_BEFORE_LAYER_RENUMBERING
     if ((run / "layer5").is_dir() or (run / "layer1" / "document_types.jsonl").is_file()
             or (run / "layer2" / "subtypes.jsonl").is_file()):
         return RunLayout.FIVE_LAYER_BEFORE_VARIABLES_MATRIX
     if any((run / f"layer{number}").is_dir() for number in (1, 2, 3, 4)):
-        return RunLayout.CURRENT
+        return RunLayout.FOUR_NUMBERED_LAYERS
     raise UnknownRunLayoutError(
-        f"{run} has none of the stage folders of an SDF run (layer1 to layer4, layer12, or layer1 to layer5), "
-        "so its layout is unknown and it was not read")
+        f"{run} has none of the stage folders of an SDF run (layer1_deal_and_screen to layer5_score_and_final_selection, "
+        "layer1 to layer4, layer12, or layer1 to layer5), so its layout is unknown and it was not read")
 
 
 def load_document_states(run_directory, *, gate_score_threshold=None) -> list:
@@ -262,24 +267,27 @@ def _gate_and_cull_outcome(document_id, scores, threshold, near_duplicate_record
 # ------------------------------------------------------------------------------ current and matrix layouts
 
 def _build_matrix_states(files: _RunFiles, run: Path, layout: RunLayout, threshold) -> list:
-    plan_name, draft_name, rewrite_name, score_name = _MATRIX_STAGE_FOLDERS[layout]
-    plan_dir, draft_dir, rewrite_dir, score_dir = (run / name for name in _MATRIX_STAGE_FOLDERS[layout])
+    folder_names = _MATRIX_LAYOUTS[layout].folder_name_of_key
+    screen_name, plan_name, scoring_name, draft_name, rewrite_name, score_name = (
+        folder_names[key] for key in sdf_run_layouts.FOLDER_KEYS)
+    screen_dir, plan_dir, scoring_dir, draft_dir, rewrite_dir, score_dir = (
+        run / name for name in (screen_name, plan_name, scoring_name, draft_name, rewrite_name, score_name))
     rel = files.relative
 
-    screen_hands = files.records(plan_dir / "screen_hands.jsonl")
-    screen_rounds = files.records(plan_dir / "screen_rounds.jsonl")
-    judgments = _last_record_per_id(files.records(plan_dir / "screen_judgments.jsonl"), "prompt_id")
-    rejections = _last_record_per_id(files.records(plan_dir / "screen_rejections.jsonl"), "prompt_id")
-    screened_hands_path = plan_dir / "screened_hands.jsonl"
+    screen_hands = files.records(screen_dir / "screen_hands.jsonl")
+    screen_rounds = files.records(screen_dir / "screen_rounds.jsonl")
+    judgments = _last_record_per_id(files.records(screen_dir / "screen_judgments.jsonl"), "prompt_id")
+    rejections = _last_record_per_id(files.records(screen_dir / "screen_rejections.jsonl"), "prompt_id")
+    screened_hands_path = screen_dir / "screened_hands.jsonl"
     accepted_by_screen = {r.get("prompt_id") for r in files.records(screened_hands_path)}
-    screen_summary = files.json_object(plan_dir / "screen_summary.json")
+    screen_summary = files.json_object(screen_dir / "screen_summary.json")
     leftover_ids = set(screen_summary.get("leftover_prompt_ids") or [])
     prompt_records = files.records(plan_dir / "prompts.jsonl")
     plans = _last_record_per_id(files.records(plan_dir / "plans.jsonl"), "prompt_id")
     rewrite_results = _last_record_per_id(files.records(plan_dir / "description_rewrites.jsonl"), "prompt_id")
-    scoring_rows = _last_record_per_id(files.records(plan_dir / "consideration_scores.jsonl"), "prompt_id")
-    selection_rows = _last_record_per_id(files.records(plan_dir / "consideration_selections.jsonl"), "prompt_id")
-    scoring_failures = files.records(plan_dir / "consideration_scoring_failures.jsonl")
+    scoring_rows = _last_record_per_id(files.records(scoring_dir / "consideration_scores.jsonl"), "prompt_id")
+    selection_rows = _last_record_per_id(files.records(scoring_dir / "consideration_selections.jsonl"), "prompt_id")
+    scoring_failures = files.records(scoring_dir / "consideration_scoring_failures.jsonl")
     drafts = _last_record_per_id(files.records(draft_dir / "drafts.jsonl"), "doc_id")
     critiques = _last_record_per_id(files.records(rewrite_dir / "critiques.jsonl"), "doc_id")
     rewrites = _last_record_per_id(files.records(rewrite_dir / "rewrites.jsonl"), "doc_id")
@@ -292,7 +300,7 @@ def _build_matrix_states(files: _RunFiles, run: Path, layout: RunLayout, thresho
         "plan": (files.checkpoint_ids(plan_dir / "_checkpoint.json"), plans, f"{plan_name}/plans.jsonl"),
         "description rewrite": (files.checkpoint_ids(plan_dir / "_description_rewrite_checkpoint.json"),
                                 rewrite_results, f"{plan_name}/description_rewrites.jsonl"),
-        "draft": (files.checkpoint_ids(draft_dir / "_checkpoint.json"), drafts, f"{draft_name}/drafts.jsonl"),
+        "draft": (files.checkpoint_ids(draft_dir / _MATRIX_LAYOUTS[layout].draft_checkpoint_file_name), drafts, f"{draft_name}/drafts.jsonl"),
         "rewrite": (files.checkpoint_ids(rewrite_dir / "_checkpoint.json"), rewrites, f"{rewrite_name}/rewrites.jsonl"),
         "score": (files.checkpoint_ids(score_dir / "_checkpoint.json"), score_records, f"{score_name}/scores.jsonl"),
     }
@@ -381,7 +389,7 @@ def _build_matrix_states(files: _RunFiles, run: Path, layout: RunLayout, thresho
             for o in selection_row.get("outcomes", []) if o.get("status") == "accepted")
         failures = tuple(
             RecordedFailure(PipelineStep.CONSIDERATION_SCORING, f.get("problem", ""),
-                            f"{plan_name}/consideration_scoring_failures.jsonl", scoring_row is not None)
+                            f"{scoring_name}/consideration_scoring_failures.jsonl", scoring_row is not None)
             for f in scoring_failures if f.get("prompt_id") == document_id)
 
         # text and scores
@@ -451,7 +459,7 @@ def _build_matrix_states(files: _RunFiles, run: Path, layout: RunLayout, thresho
             next_round = (rejection.get("round") or 0) + 1
             removal = DocumentRemoval(
                 RemovalReasonCode.EXTREMELY_IMPLAUSIBLE_AT_SCREEN, PipelineStep.SCREEN, rejection.get("reason", ""),
-                f"{plan_name}/screen_rejections.jsonl",
+                f"{screen_name}/screen_rejections.jsonl",
                 {"round": rejection.get("round"), "batch_id": rejection.get("batch_id"),
                  "local_number": rejection.get("number"),
                  "cards_were_redealt_into_round": next_round if next_round in rounds_with_hands else None,

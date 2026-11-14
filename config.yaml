@@ -35,30 +35,30 @@ sdf:
   n_prompts: 100                 # documents planned per run, deck-sampled from the variables matrix
   seed: 0                        # deck-sampling seed (same seed + same variables = same sample)
   entity_pool_seed: 137          # seeds the locale-matched fictional people/org name pools
-  min_score_threshold: 7         # layer-4 gate: alignment AND realism must reach this
-  near_dup_threshold: 0.90       # cull near-duplicate final documents at layer 4 (word-shingle cosine; null disables)
-  # Implausibility screen (layer 1, before any planning): shows the model batches of
+  min_score_threshold: 7         # layer 5 gate: alignment AND realism must reach this
+  near_dup_threshold: 0.90       # cull near-duplicate final documents at layer 5 (word-shingle cosine; null disables)
+  # Implausibility screen (layer 1 deal and screen, before any planning): shows the model batches of
   # numbered hands (the dealt variable lines the planner will see) and removes the ones
   # that are extremely implausible. Removed hands are redealt from their own cards, so
-  # dealt shares stay at the weights; removals go to layer1/screen_rejections.jsonl.
+  # dealt shares stay at the weights; removals go to layer1_deal_and_screen/screen_rejections.jsonl.
   screen_enabled: true           # false = no screen calls, every dealt hand goes to planning
   screen_batch_size: 10          # hands per screen call
   screen_redeal_rounds: 3        # redeal rounds for removed hands; cards still removed after the last are dropped
   # screen_model: claude-sonnet-5   # falls back to plan_model, then the global `model`
-  # Description rewrite (layer 1, after planning): one call per description checks it for
+  # Description rewrite (layer 2, after planning): one call per description checks it for
   # plausibility, conformance to the dealt values and organisation naming, and may decline.
   description_rewrite_enabled: true
-  # The rewrite runs on a GPT model, not Claude; the evidence is in the layer1_description_rewrite.py docstring.
+  # The rewrite runs on a GPT model, not Claude; the evidence is in the steps/description_rewrite.py docstring.
   # Do not switch this to a Claude model for plausibility judgment without re-validating.
   # A model name starting with `gpt-` routes to OpenAI and needs OPENAI_API_KEY (repo-root .env,
   # or the environment with --find-dotenv, via shared/api_keys.py); any other name goes to Claude.
   description_rewrite_model: gpt-6.1-sol
   description_rewrite_reasoning_effort: medium   # OpenAI models only
-  # Considerations selector (layer 1, after the description rewrite, before drafting): one call per
+  # Considerations scoring and selection (layer 3, after the description rewrite, before drafting): one call per
   # surviving specification (reading its rewritten description) scores every eligible entry of the moral and
   # epistemic lists (prompts/sdf/considerations.txt) from 1 to 5; code then assigns entries to documents
-  # (linear programme: entry target counts, per-document caps, weighted scores less a per-list penalty). Scores go to layer1/consideration_scores.jsonl,
-  # assignments to layer1/consideration_selections.jsonl and the coverage report to layer1/consideration_coverage.json.
+  # (linear programme: entry target counts, per-document caps, weighted scores less a per-list penalty). Scores go to layer3_consideration_scoring_and_selection/consideration_scores.jsonl,
+  # assignments to layer3_consideration_scoring_and_selection/consideration_selections.jsonl and the coverage report to layer3_consideration_scoring_and_selection/consideration_coverage.json.
   select_enabled: true           # false = no selector calls, drafts carry no considerations
   # consideration_scoring_model: claude-sonnet-5   # (old name select_model still works, with a notice) falls back to plan_model, then the global `model`
   max_scoring_attempts: 3        # tries per document when the model's scoring answer is unusable
@@ -77,9 +77,9 @@ sdf:
   # plan_model: claude-sonnet-5
   # draft_model: claude-sonnet-5
   # revise_model: claude-opus-4-8   # (old name rewrite_model still works, with a notice; the new name wins when both are set) NOT claude-fable-5: it 400s on the api backend (requires adaptive thinking, which conflicts with the pipeline's thinking=disabled — see shared/api.py)
-  # critique_model: claude-opus-4-8  # layer 3's critique half; falls back to revise_model
+  # critique_model: claude-opus-4-8  # layer 4's critique half; falls back to revise_model
   # score_model: claude-sonnet-5
-  # How layer 3 revises. The voice and length cards are dealt from the matrix
+  # How layer 4 revises. The voice and length cards are dealt from the matrix
   # (prompts/sdf/variables.txt, REVISION VARIABLES section) and steer only the
   # rewrite, never what the document is about.
   revision:

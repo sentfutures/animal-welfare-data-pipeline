@@ -48,7 +48,7 @@ def test_draft_step_with_a_template_broken_for_every_document_stops_with_no_mode
     with pytest.raises(SystemExit) as stop:
         layer2_draft.run(tiny_config, prompts_sdf, stage_dir, [make_plan("matrix_000000"), make_plan(BROKEN_DOCUMENT_ID)])
     assert str(stop.value) == (
-        "layer2_draft: every pending API call failed — this is systemic "
+        "layer4_draft: every pending API call failed — this is systemic "
         "(auth, backend, network, or an error building the prompt), not per-document; fix and --resume.")
     assert calls == []
 
@@ -70,7 +70,7 @@ def test_layer_3_revise_prompt_building_error_is_a_failure_that_a_resume_retries
     drafts = [make_draft(), make_draft("matrix_000001")]
 
     def replies(user_message, **kw):
-        if kw.get("stage") == "layer3_critique":
+        if kw.get("stage") == "layer4_critique":
             return "<review>Problem.</review>"
         return "<improved_document>Better.</improved_document>"
 
@@ -81,7 +81,7 @@ def test_layer_3_revise_prompt_building_error_is_a_failure_that_a_resume_retries
     monkeypatch.setattr(layer3_rewrite.ReviseStep, "build_request", real_build_request)
     calls = stub_claude(replies)
     records = layer3_rewrite.run(split_config(tiny_config), prompts_sdf, stage_dir, drafts)
-    assert [(c["stage"], c["item_id"]) for c in calls] == [("layer3_revise", "matrix_000001")]
+    assert [(c["stage"], c["item_id"]) for c in calls] == [("layer4_revise", "matrix_000001")]
     assert sorted(r["doc_id"] for r in records) == ["matrix_000000", "matrix_000001"]
 
 

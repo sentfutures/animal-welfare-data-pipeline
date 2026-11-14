@@ -75,7 +75,7 @@ def test_request_sent_has_exactly_the_arguments_the_layer_always_passed(
     calls = stub_claude(lambda user_message, **kw: SCORE_OK)
     layer4_score.run(tiny_config, prompts_sdf, stage_dir, final_dir, [make_rewrite()])
     (call,) = calls
-    assert call["max_tokens"] is None and call["stage"] == "layer4_score" and call["item_id"] == "matrix_000000"
+    assert call["max_tokens"] is None and call["stage"] == "layer5_score" and call["item_id"] == "matrix_000000"
     assert call["cache_system"] is True and call["temperature"] is None and call["json_schema"] is None
     assert call["model"] == tiny_config["sdf"].get("score_model")
     assert call["system_prompt"] and call["user_message"]
@@ -209,7 +209,7 @@ def test_every_call_failing_stops_the_run_with_todays_message(tiny_config, promp
         raise RuntimeError("down")
 
     stub_claude(always_throws)
-    with pytest.raises(SystemExit, match="layer4_score: every pending API call failed"):
+    with pytest.raises(SystemExit, match="layer5_score: every pending API call failed"):
         layer4_score.run(tiny_config, prompts_sdf, stage_dir, final_dir, [make_rewrite()])
     assert not (final_dir / "sdf_corpus.jsonl").exists()
 

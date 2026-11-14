@@ -52,14 +52,14 @@ class InvocationSnapshot:
         assert _bytes_of_every_file(run_directory) == before, "the loader changed a file in the run folder"
         self.states = self.loaded.states
         self.by_id = {state.document_id: state for state in self.states}
-        self.raw = {name: support.stage_rows(run_directory, layer, name) for layer, name in (
-            (1, "screen_hands.jsonl"), (1, "screen_rounds.jsonl"), (1, "screen_rejections.jsonl"),
-            (1, "screen_judgments.jsonl"), (1, "prompts.jsonl"), (1, "plans.jsonl"),
-            (1, "description_rewrites.jsonl"), (1, "description_rewrite_rejections.jsonl"),
-            (1, "consideration_scores.jsonl"), (1, "consideration_selections.jsonl"),
-            (1, "consideration_scoring_failures.jsonl"),
-            (2, "drafts.jsonl"), (3, "critiques.jsonl"), (3, "rewrites.jsonl"), (4, "scores.jsonl"),
-            (4, "near_dup_dropped.jsonl"))}
+        self.raw = {name: support.stage_rows(run_directory, name) for name in (
+            "screen_hands.jsonl", "screen_rounds.jsonl", "screen_rejections.jsonl",
+            "screen_judgments.jsonl", "prompts.jsonl", "plans.jsonl",
+            "description_rewrites.jsonl", "description_rewrite_rejections.jsonl",
+            "consideration_scores.jsonl", "consideration_selections.jsonl",
+            "consideration_scoring_failures.jsonl",
+            "drafts.jsonl", "critiques.jsonl", "rewrites.jsonl", "scores.jsonl",
+            "near_dup_dropped.jsonl")}
         final_path = run_directory / "final" / "sdf_corpus.jsonl"
         self.final_exists = final_path.is_file()
         self.final_records = utils.load_jsonl(final_path)
@@ -96,7 +96,7 @@ def test_states_match_the_stage_files_after_every_invocation(name, snapshots_of)
     for snapshot in snapshots_of(name):
         where = f"{name}, after invocation {snapshot.invocation_number}"
         raw = snapshot.raw
-        assert snapshot.loaded.layout is RunLayout.CURRENT
+        assert snapshot.loaded.layout is RunLayout.FIVE_NAMED_LAYERS
         assert snapshot.loaded.run_notes == [], where
         ids = [s.document_id for s in snapshot.states]
         assert len(ids) == len(set(ids)), f"{where}: a document appears twice"

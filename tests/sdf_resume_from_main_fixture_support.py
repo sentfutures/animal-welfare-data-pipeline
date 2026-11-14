@@ -123,7 +123,9 @@ def fixture_scenario(invocations: tuple, sdf_config_overrides_for_workers: dict 
         main_scenario, name="resume_of_run_started_on_origin_main", invocations=invocations,
         description="A run interrupted by a simulated crash, then resumed.",
         reply_behaviour=replace(main_scenario.reply_behaviour, overrides={}),
-        top_level_config_overrides=dict(sdf_config_overrides_for_workers or {}))
+        # The runs started on main have the four-layer tags, so the efforts are keyed by them, as the recordings hold them.
+        top_level_config_overrides={"effort": dict(support.REASONING_EFFORT_BY_FOUR_LAYER_STAGE_TAG),
+                                    **(sdf_config_overrides_for_workers or {})})
 
 
 # ---------------------------------------------------------------------------------- zip storage

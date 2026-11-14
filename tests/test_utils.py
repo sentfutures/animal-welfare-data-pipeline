@@ -484,8 +484,8 @@ class TestSdfStageFile:
         assert utils.sdf_stage_file(run, "rewrite") == run / "layer3" / "rewrites.jsonl"
         assert utils.sdf_stage_file(run, "score") == run / "layer4" / "scores.jsonl"
 
-    def test_an_empty_run_reports_through_the_current_layout(self, tmp_path):
-        assert utils.sdf_stage_file(tmp_path, "score") == tmp_path / "layer4" / "scores.jsonl"
+    def test_an_empty_run_reports_through_the_five_named_layers_layout(self, tmp_path):
+        assert utils.sdf_stage_file(tmp_path, "score") == tmp_path / "layer5_score_and_final_selection" / "scores.jsonl"
 
     def test_the_reader_resolves_an_old_runs_stage_directories(self, tmp_path):
         run = self._old_run(tmp_path)
@@ -496,14 +496,34 @@ class TestSdfStageFile:
         run = self._new_run(tmp_path)
         assert utils.sdf_stage_dir_of_existing_run(run, 2) == run / "layer2"
 
-    def test_stage_dir_for_writing_names_the_current_layout_even_beside_an_old_runs_folders(self, tmp_path):
+    def test_stage_dir_follows_the_layout_of_the_run_it_is_asked_about(self, tmp_path):
         run = self._old_run(tmp_path)
+        assert utils.sdf_stage_dir(run, 1) == run / "layer12"
+        assert utils.sdf_stage_dir(run, 4) == run / "layer5"
+
+    def test_stage_dir_of_a_four_numbered_layers_run_keeps_its_folders(self, tmp_path):
+        run = self._new_run(tmp_path)
         assert utils.sdf_stage_dir(run, 1) == run / "layer1"
         assert utils.sdf_stage_dir(run, 4) == run / "layer4"
 
-    def test_stage_dir_gives_a_fresh_run_the_new_names(self, tmp_path):
-        assert utils.sdf_stage_dir(tmp_path, 1) == tmp_path / "layer1"
-        assert utils.sdf_stage_dir(tmp_path, 4) == tmp_path / "layer4"
+    def test_stage_dir_gives_a_fresh_run_the_five_named_layers_folders(self, tmp_path):
+        assert utils.sdf_stage_dir(tmp_path, 1) == tmp_path / "layer1_deal_and_screen"
+        assert utils.sdf_stage_dir(tmp_path, 2) == tmp_path / "layer2_plan_and_description_rewrite"
+        assert utils.sdf_stage_dir(tmp_path, 3) == tmp_path / "layer3_consideration_scoring_and_selection"
+        assert utils.sdf_stage_dir(tmp_path, 4) == tmp_path / "layer4_draft_critique_and_revise"
+        assert utils.sdf_stage_dir(tmp_path, 5) == tmp_path / "layer5_score_and_final_selection"
+
+    def test_a_five_named_layers_run_resolves_every_stage_file(self, tmp_path):
+        for folder, file_name in (("layer2_plan_and_description_rewrite", "plans.jsonl"),
+                                  ("layer4_draft_critique_and_revise", "drafts.jsonl"),
+                                  ("layer4_draft_critique_and_revise", "rewrites.jsonl"),
+                                  ("layer5_score_and_final_selection", "scores.jsonl")):
+            (tmp_path / folder).mkdir(exist_ok=True)
+            (tmp_path / folder / file_name).write_text('{"a": 1}\n', encoding="utf-8")
+        assert utils.sdf_stage_file(tmp_path, "plan") == tmp_path / "layer2_plan_and_description_rewrite" / "plans.jsonl"
+        assert utils.sdf_stage_file(tmp_path, "draft") == tmp_path / "layer4_draft_critique_and_revise" / "drafts.jsonl"
+        assert utils.sdf_stage_file(tmp_path, "rewrite") == tmp_path / "layer4_draft_critique_and_revise" / "rewrites.jsonl"
+        assert utils.sdf_stage_file(tmp_path, "score") == tmp_path / "layer5_score_and_final_selection" / "scores.jsonl"
 
 
 class TestSdfTemplatePath:

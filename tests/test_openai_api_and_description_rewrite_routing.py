@@ -7,6 +7,7 @@ import json
 import pytest
 
 from sdf_pipeline import layer1_description_rewrite as rewrite
+from sdf_pipeline.steps import description_rewrite as description_rewrite_step
 from shared import api, openai_api, utils
 
 ANSWER = json.dumps({
@@ -48,7 +49,7 @@ def test_request_shape_matches_the_working_client(stub_openai_responses, openai_
 def test_cost_record_has_the_claude_shape_and_the_gpt_6_1_sol_price(stub_openai_responses, openai_response, cost_log):
     stub_openai_responses([openai_response(input_tokens=10_000, cached_tokens=4_000, output_tokens=2_000,
                                            reasoning_tokens=1_500)])
-    openai_api.call_openai("u", "s", model="gpt-6.1-sol", max_output_tokens=8000, stage="layer1_description_rewrite",
+    openai_api.call_openai("u", "s", model="gpt-6.1-sol", max_output_tokens=8000, stage="layer2_description_rewrite",
                            item_id="p7", json_schema=SCHEMA)
     (record,) = logged_records(cost_log)
     expected_cost = (6_000 * 2.00 + 4_000 * 0.10 + 2_000 * 10.00) / 1_000_000
@@ -56,7 +57,7 @@ def test_cost_record_has_the_claude_shape_and_the_gpt_6_1_sol_price(stub_openai_
     assert record["model"] == "gpt-6.1-sol" and record["backend"] == "openai"
     assert (record["input_tokens"], record["output_tokens"]) == (10_000, 2_000)
     assert record["cache_read_tokens"] == 4_000 and record["reasoning_tokens"] == 1_500
-    assert record["stage"] == "layer1_description_rewrite" and record["item_id"] == "p7"
+    assert record["stage"] == "layer2_description_rewrite" and record["item_id"] == "p7"
     assert record["attempts"] == 1 and "duration_s" in record and "timestamp" in record
 
 
@@ -99,7 +100,7 @@ def test_rewrite_description_routes_by_model_name(stub_openai_responses, openai_
                                 reasoning_effort="low", item_id="p1")
     assert len(openai_calls) == 1 and claude_calls == []
     request = openai_calls[0]
-    assert request["reasoning"] == {"effort": "low"} and request["max_output_tokens"] == rewrite._MAX_TOKENS >= 8000
+    assert request["reasoning"] == {"effort": "low"} and request["max_output_tokens"] == description_rewrite_step._MAX_TOKENS >= 8000
     assert request["text"]["format"]["schema"] == prompts.answer_schema  # the existing schema, passed through
     assert request["text"]["format"]["strict"] is True and request["instructions"]
     rewrite.rewrite_description("l", "d", prompts=prompts, model="claude-sonnet-5")

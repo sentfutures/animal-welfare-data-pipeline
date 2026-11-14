@@ -91,8 +91,8 @@ def test_a_new_run_writes_ids_beside_variables_in_every_stage_file_and_the_final
     assert manifest[RECORDS_VALUE_IDS_MANIFEST_KEY] is True
     records = records_carrying_variables(outcome)
     files = {file_name for file_name, _ in records}
-    expected = {"layer1/plans.jsonl", "layer2/drafts.jsonl", "layer3/rewrites.jsonl", "layer4/scores.jsonl",
-                "final/sdf_corpus.jsonl", "layer1/screen_hands.jsonl" if name != SCREEN_OFF_SCENARIO else "layer1/prompts.jsonl"}
+    expected = {"layer2_plan_and_description_rewrite/plans.jsonl", "layer4_draft_critique_and_revise/drafts.jsonl", "layer4_draft_critique_and_revise/rewrites.jsonl", "layer5_score_and_final_selection/scores.jsonl",
+                "final/sdf_corpus.jsonl", "layer1_deal_and_screen/screen_hands.jsonl" if name != SCREEN_OFF_SCENARIO else "layer2_plan_and_description_rewrite/prompts.jsonl"}
     assert expected <= files, expected - files
     for file_name, record in records:
         keys = list(record)
@@ -195,11 +195,13 @@ def test_a_document_with_no_deal_record_gets_no_notes_about_its_consideration_li
     copy = tmp_path / "run_without_deal_records"
     shutil.copytree(outcome.run_directory, copy)
     layer1_directory = utils.sdf_stage_dir(copy, 1)
+    plan_directory = utils.sdf_stage_dir(copy, 2)
     for name in ("screen_hands.jsonl", "screened_hands.jsonl", "screen_rounds.jsonl", "prompts.jsonl"):
         (layer1_directory / name).unlink(missing_ok=True)
-    plans = utils.load_jsonl(layer1_directory / "plans.jsonl")
+        (plan_directory / name).unlink(missing_ok=True)
+    plans = utils.load_jsonl(plan_directory / "plans.jsonl")
     plans[0]["variables"] = {**plans[0]["variables"], "moral_considerations": ["a label"], "epistemic_considerations": []}
-    utils.save_jsonl(plans, layer1_directory / "plans.jsonl")
+    utils.save_jsonl(plans, plan_directory / "plans.jsonl")
     states = [s for s in load_document_states(copy) if s.document_id == plans[0]["prompt_id"]]
     assert states and states[0].dealt_variables is not None and "moral_considerations" in states[0].dealt_variables
     assert states[0].dealt_value_id_notes == ()

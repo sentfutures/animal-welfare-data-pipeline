@@ -80,12 +80,13 @@ Generates pretraining-style documents (encyclopedia entries, news articles, podc
 
 Diversity is engineered **by construction**: instead of asking a model to invent document types, a weighted matrix of pre-written variables (`prompts/sdf/variables.txt`: document type, culture and language, tone, how the tension resolves, the value competing with welfare, how central the welfare thread is, the speaker's AI literacy, the kinds of minds affected, whether Claude is named, the domain, the scale of the decision, and a featured moral desideratum) is deck-sampled into exactly-proportioned prompt specs, at zero API cost. Deck-sampled means each variable's values are laid out in exact proportion to their weights, shuffled, and dealt one per document, so the corpus composition matches the weights exactly rather than by sampling luck.
 
-| Layers | Script | What it does |
+| Layer | Code | What it does |
 |---|---|---|
-| 1 | `compose_prompts.py` + `layer1_plan.py` | Deck-samples `sdf.n_prompts` variable combinations (locale-matched fictional name and organization pools injected per prompt), then one plan call per document produces a self-contained DOCUMENT DESCRIPTION spec, or declares the combination INCOHERENT (no sensible document exists for it; recorded as a deliberate rejection) |
-| 2 | `layer2_draft.py` | Drafts each document from its spec, with the constitution and distilled principles in the system prompt |
-| 3 | `layer3_rewrite.py` | The alignment-critical pass: reviews and rewrites each draft against eleven checks (teach-why, calibration, proportionality, cooperative posture, factual restraint, quoted-AI behavior, quiet failure modes, genre and locale fidelity, house style, plausibility, forced content), anchored to the generating spec so tone, centrality, and resolution cannot drift (supports a stronger `sdf.rewrite_model`) |
-| 4 | `layer4_score.py` | Judges each document on alignment, realism, and spec-conformance (does the document match the spec that generated it; advisory only); gates on alignment plus realism, culls near-duplicates, and writes the final corpus with each document's full variable combination attached |
+| 1 to 2 | `compose_prompts.py`, `layer1_deal_and_screen.py`, `layer2_plan_and_description_rewrite.py` (steps in `steps/`: `deal`, `screen`, `redeal`, `plan`, `description_rewrite`) | Deck-samples `sdf.n_prompts` variable combinations (locale-matched fictional name and organization pools injected per prompt), then one plan call per document produces a self-contained DOCUMENT DESCRIPTION spec, or declares the combination INCOHERENT (no sensible document exists for it; recorded as a deliberate rejection) |
+| 3 | `layer3_consideration_scoring_and_selection.py` (steps `consideration_scoring`, `consideration_selection`) | Scores each consideration entry for each document and assigns entries by a linear programme |
+| 4a | `layer4_draft_critique_and_revise.py`, step `steps/draft.py` | Drafts each document from its spec, with the constitution and distilled principles in the system prompt |
+| 4b | `layer4_draft_critique_and_revise.py`, steps `steps/critique.py` and `steps/revise.py` (or `steps/critique_and_revise_in_one_call.py`) | The alignment-critical pass: reviews and rewrites each draft against eleven checks (teach-why, calibration, proportionality, cooperative posture, factual restraint, quoted-AI behavior, quiet failure modes, genre and locale fidelity, house style, plausibility, forced content), anchored to the generating spec so tone, centrality, and resolution cannot drift (supports a stronger `sdf.rewrite_model`) |
+| 5 | `layer5_score_and_final_selection.py`, steps `steps/score.py`, `steps/score_gate.py`, `steps/near_duplicate_removal.py` | Judges each document on alignment, realism, and spec-conformance (does the document match the spec that generated it; advisory only); gates on alignment plus realism, culls near-duplicates, and writes the final corpus with each document's full variable combination attached |
 
 Documents where the welfare thread is "a minor detail mentioned only in passing" (a weighted value of the centrality variable) carry the welfare world-knowledge as background rather than as a headline topic.
 
@@ -292,7 +293,7 @@ The run ID is `<YYYY-MM-DD_HH-MM>_<label>`; the label defaults to `dev`. Use `--
 Every stage checkpoints after each API call, so an interrupted run resumes without re-billing completed work. Resume with `--resume` (defaults to the most recent run, or target one with `--run-id`; add `--layer N` / `--step N` to restart from a specific stage):
 
 ```bash
-python sdf_pipeline/run.py --config config.yaml --resume --layer 3
+python sdf_pipeline/run.py --config config.yaml --resume --layer 4   # 1 deal and screen, 2 plan and description rewrite, 3 consideration scoring and selection, 4 draft/critique/revise, 5 score and final selection
 python dad_pipeline/run.py --config config.yaml --resume --run-id 2026-07-01_14-30_dev
 ```
 

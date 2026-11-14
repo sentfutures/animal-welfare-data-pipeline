@@ -20,7 +20,7 @@ drafted, and they have no deal, plan or screen.
 
 Where each field comes from, per layout
 ---------------------------------------
-Layouts (``RunLayout``): ``CURRENT`` (stage folders layer1 to layer4), ``MATRIX_BEFORE_LAYER_RENUMBERING``
+Layouts (``RunLayout``): ``FIVE_NAMED_LAYERS`` (decision 17: layer1_deal_and_screen to layer5_score_and_final_selection), ``FOUR_NUMBERED_LAYERS`` (stage folders layer1 to layer4), ``MATRIX_BEFORE_LAYER_RENUMBERING``
 (layer12, layer3, layer4, layer5; the website's pinned run) and ``FIVE_LAYER_BEFORE_VARIABLES_MATRIX``
 (layer1 document types, layer2 subtypes, layer3 drafts, layer4 rewrites, layer5 scores). In the
 table "plan folder" is layer1 (current) or layer12 (matrix before renumbering), "draft folder" is
@@ -85,10 +85,11 @@ ASSIGNED_CONSIDERATION_KEYS = (SECTION_MORAL, SECTION_EPISTEMIC)
 
 
 class RunLayout(Enum):
-    """The three on-disk layouts of an SDF run folder."""
+    """The four on-disk layouts of an SDF run folder (``shared/sdf_run_layouts.py`` names the last three)."""
     FIVE_LAYER_BEFORE_VARIABLES_MATRIX = "five_layer_before_variables_matrix"
     MATRIX_BEFORE_LAYER_RENUMBERING = "matrix_before_layer_renumbering"
-    CURRENT = "current"
+    FOUR_NUMBERED_LAYERS = "four_numbered_layers"
+    FIVE_NAMED_LAYERS = "five_named_layers"
 
 
 class PipelineStep(Enum):

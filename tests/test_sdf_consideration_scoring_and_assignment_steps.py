@@ -80,7 +80,7 @@ def test_the_failure_record_and_line_for_unusable_and_thrown(scoring_step):
 
 def test_the_request_carries_the_schema_token_limit_and_stage(scoring_step, tiny_config):
     request = scoring_step.build_request(PLAN)
-    assert request.stage == "layer1_select" and request.item_id == PLAN["prompt_id"]
+    assert request.stage == "layer3_consideration_scoring" and request.item_id == PLAN["prompt_id"]
     assert request.json_schema is not None and request.cache_system is False
     entry_count = sum(len(v) for v in offered_in(request.user_message).values())
     assert request.max_tokens == 400 + 120 * entry_count

@@ -19,6 +19,8 @@ from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass, field
 from enum import Enum, Flag, auto
 
+from shared import sdf_run_layouts
+
 
 @dataclass(frozen=True)
 class ModelRequest:
@@ -216,6 +218,23 @@ def systemic_stop_message_for(stage_tag: str, call_noun: str, unit_noun: str) ->
         f"(auth, backend, network, or an error building the prompt), not per-{unit_noun}; fix and --resume.")
 
 
+class _TagOfStepInTheActiveLayout:
+    """The stage tag of a step: the tag its step name has in the layout of the run being written
+    (``shared/sdf_run_layouts.py``), read when asked so that a four-layer run keeps its old tags."""
+
+    def __get__(self, instance, owner):
+        return sdf_run_layouts.active_layout().stage_tag(owner.step_name)
+
+
+class _SystemicStopMessageOfStep:
+    """The exit message when every pending call of a step failed, built from its tag and nouns unless
+    the class declares its own."""
+
+    def __get__(self, instance, owner):
+        tag = owner.stage_tag if hasattr(owner, "stage_tag") else owner.stage
+        return systemic_stop_message_for(tag, owner.call_noun, owner.unit_noun)
+
+
 class DocumentStep(ABC):
     """A step that sees one document and makes one model call per attempt.
 
@@ -235,22 +254,18 @@ class DocumentStep(ABC):
     stage_file_id_field: str = "doc_id"
     # The field of the documents the step is given that holds their id; the stage file's when None.
     document_id_field: str | None = None
-    # The stage tag of the step's calls (cost log, requests, and the start of the systemic stop message).
-    stage_tag: str
+    # The stage tag of the step's calls (cost log, requests, and the start of the systemic stop message):
+    # the one the step name has in the run's layout.
+    stage_tag = _TagOfStepInTheActiveLayout()
     call_noun: str = "API call"
     unit_noun: str = "document"
     policy: StepPolicy = StepPolicy()
-    systemic_stop_message: str   # built from the tag and nouns unless the class declares it
+    systemic_stop_message = _SystemicStopMessageOfStep()   # built from the tag and nouns unless the class declares it
     # When True, the runner writes each outcome's records, checkpoint mark
     # and progress line from the worker, under a lock, the moment its answer arrives (completion
     # order), instead of on the calling thread in input order. For a step whose stage file is its
     # only checkpoint (consideration scoring): a crash must not lose finished paid answers.
     writes_stage_file_as_replies_arrive: bool = False
-
-    def __init_subclass__(cls, **keyword_arguments):
-        super().__init_subclass__(**keyword_arguments)
-        if "stage_tag" in cls.__dict__ and "systemic_stop_message" not in cls.__dict__:
-            cls.systemic_stop_message = systemic_stop_message_for(cls.stage_tag, cls.call_noun, cls.unit_noun)
 
     def document_id_of(self, document) -> str:
         return document[self.document_id_field or self.stage_file_id_field]
@@ -305,16 +320,11 @@ class BatchStep(ABC):
     """A step that sees a group of documents and makes one call per group (the screen)."""
 
     step_name: str
-    stage: str  # the stage tag of its calls
+    stage = _TagOfStepInTheActiveLayout()  # the stage tag of its calls
     call_noun: str = "API call"
     unit_noun: str = "batch"
     policy: StepPolicy = StepPolicy()
-    systemic_stop_message: str   # built from the tag and nouns unless the class declares it
-
-    def __init_subclass__(cls, **keyword_arguments):
-        super().__init_subclass__(**keyword_arguments)
-        if "stage" in cls.__dict__ and "systemic_stop_message" not in cls.__dict__:
-            cls.systemic_stop_message = systemic_stop_message_for(cls.stage, cls.call_noun, cls.unit_noun)
+    systemic_stop_message = _SystemicStopMessageOfStep()   # built from the tag and nouns unless the class declares it
 
     @abstractmethod
     def group(self, states: list, seed: int, round_number: int) -> list: ...

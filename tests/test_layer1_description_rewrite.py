@@ -80,7 +80,7 @@ def test_rewrite_description_is_schema_constrained_and_shows_variables_and_descr
     result = rewrite.rewrite_description("Type: LINES-X", "A description.", prompts=prompts, model="m", item_id="p1")
     assert not result.rewrite_needed
     call = calls[0]
-    assert call["stage"] == "layer1_description_rewrite" and call["model"] == "m" and call["item_id"] == "p1"
+    assert call["stage"] == "layer2_description_rewrite" and call["model"] == "m" and call["item_id"] == "p1"
     assert "Type: LINES-X" in call["user_message"] and description_in(call["user_message"]) == "A description."
     assert call["json_schema"]["required"][:2] == ["reasoning", "rewrite_needed"]
     assert call["temperature"] is None and call["system_prompt"]

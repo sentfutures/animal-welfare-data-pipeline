@@ -50,7 +50,7 @@ caching rewards.
 
 ## SDF Prompts
 
-Run in sequence. Each layer feeds into the next.
+Run in sequence. Each layer feeds into the next. (The template file names `layer1.txt` to `layer4.txt` and the `layer1_*` files keep their names: they number the templates, not the pipeline's five layers, which are named in `CLAUDE.md`.)
 
 ### `sdf/preamble.txt`
 

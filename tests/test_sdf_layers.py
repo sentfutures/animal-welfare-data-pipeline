@@ -180,7 +180,7 @@ def test_derive_language():
 
 def revise_call(calls: list[dict]) -> dict:
     """The call the directives ride on, under either layer-3 shape."""
-    return next(c for c in calls if c["stage"] in ("layer3_revise", "layer3_rewrite"))
+    return next(c for c in calls if c["stage"] in ("layer4_revise", "layer3_rewrite"))
 
 
 class TestLayer3SplitRewrite:
@@ -195,14 +195,14 @@ class TestLayer3SplitRewrite:
     def _dispatch(revise="<improved_document>Better.</improved_document>",
                   critique="<review>Problem: the voice is flat.</review>"):
         def fake(user_message, **kw):
-            return critique if kw.get("stage") == "layer3_critique" else revise
+            return critique if kw.get("stage") == "layer4_critique" else revise
         return fake
 
     def test_two_calls_with_distinct_stage_tags(self, tiny_config, prompts_sdf, stage_dir, stub_claude):
         calls = stub_claude(self._dispatch())
         records = layer3_rewrite.run(split_config(tiny_config), prompts_sdf, stage_dir, [make_draft()])
 
-        assert [c["stage"] for c in calls] == ["layer3_critique", "layer3_revise"]
+        assert [c["stage"] for c in calls] == ["layer4_critique", "layer4_revise"]
         assert records[0]["content"] == "Better."
         # the critique becomes the review record, and reaches the revise prompt
         assert records[0]["review"] == "Problem: the voice is flat."
@@ -263,7 +263,7 @@ class TestLayer3RevisionDirectives:
                             "r\n<improved_document>B.</improved_document>")
         layer3_rewrite.run(config, prompts_sdf, stage_dir, [french, chinese])
 
-        revises = [c for c in calls if c["stage"] in ("layer3_revise", "layer3_rewrite")]
+        revises = [c for c in calls if c["stage"] in ("layer4_revise", "layer3_rewrite")]
         sent = {m: c["user_message"] for c in revises
                 for m in ("MARKER-FR", "MARKER-ZH") if m in c["user_message"]}
         for marker in ("MARKER-FR", "MARKER-ZH"):
@@ -298,7 +298,7 @@ class TestLayer3RevisionDirectives:
         assert "about 900 words" in user
         # the critique is held fixed, so no directive may reach it
         for call in calls:
-            if call["stage"] == "layer3_critique":
+            if call["stage"] == "layer4_critique":
                 assert "more clipped" not in call["user_message"]
         # the deal is recorded on the output, so an arm's rewrites are self-describing
         assert records[0]["revision"]["cards"]["voice_pace"] == "clipped"

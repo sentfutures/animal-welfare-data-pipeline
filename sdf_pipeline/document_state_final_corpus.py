@@ -104,7 +104,7 @@ def final_corpus_record_for_state(state: DocumentState) -> dict:
         after = {k: v for k, v in state.legacy_fields.items() if k in _FIVE_LAYER_FIELDS_WRITTEN_AFTER_SCORES}
         return {"doc_id": state.document_id, **before, "content": latest.text, "scores": scores, **after}
     considerations_spec = latest.written_from.considerations_spec
-    if state.layout is RunLayout.CURRENT:
+    if state.layout is not RunLayout.MATRIX_BEFORE_LAYER_RENUMBERING:
         considerations_spec = considerations_spec or ""
     return final_corpus_record(
         state.document_id, latest.written_from.variables, latest.written_from.description,

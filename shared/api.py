@@ -38,6 +38,7 @@ from tenacity import (
     retry_if_exception_type,
 )
 
+from shared import sdf_run_layouts
 from shared.api_keys import hide_environment_value_unless_environment_is_allowed, load_api_key, load_optional_api_key
 
 _config: dict = {}
@@ -778,7 +779,7 @@ def resolve_request_settings(
     requested_temperature = temperature if temperature is not None else active_config.get("temperature", 1.0)
     configured_effort = active_config.get("effort")
     if isinstance(configured_effort, dict):
-        configured_effort = configured_effort.get(stage_tag)
+        configured_effort = sdf_run_layouts.value_for_tag(configured_effort, stage_tag)
 
     headroom_added = 0
     if (_requires_adaptive_thinking(resolved_model) or openai_api.is_openai_model(resolved_model)

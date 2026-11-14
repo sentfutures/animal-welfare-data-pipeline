@@ -47,8 +47,8 @@ from pathlib import Path
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPOSITORY_ROOT))
 
-from shared import api, utils  # noqa: E402
-from sdf_pipeline import layer1_screen, pipeline_steps  # noqa: E402
+from shared import api, sdf_run_layouts, utils  # noqa: E402
+from sdf_pipeline import layer1_deal_and_screen, pipeline_steps  # noqa: E402
 from sdf_pipeline import compose_prompts  # noqa: E402
 from sdf_pipeline.step_runner import resolve_settings_of_model_request  # noqa: E402
 from sdf_pipeline.update_steps import ModelRequest  # noqa: E402
@@ -97,24 +97,24 @@ def _screen_step_and_batch(run_directory: Path, config: dict, prompts_directory:
                            hand_id: str, round_number: int | None):
     """The screen step and the batch (as the run planned it, from screen_batches.jsonl) holding the hand."""
     sdf = config["sdf"]
-    prompts = layer1_screen.load_screen_prompts(prompts_directory)
+    prompts = layer1_deal_and_screen.load_screen_prompts(prompts_directory)
     if prompts is None:
         raise RequestCannotBeBuilt("this run's prompt snapshot has no screen template")
-    batch_records = [record for record in utils.load_jsonl(layer_one_directory / layer1_screen.BATCHES_FILENAME)
+    batch_records = [record for record in utils.load_jsonl(layer_one_directory / layer1_deal_and_screen.BATCHES_FILENAME)
                      if hand_id in record["prompt_ids"] and (round_number is None or record["round"] == round_number)]
     if not batch_records:
         raise RequestCannotBeBuilt(
             f"no planned screen batch holds hand {hand_id!r}"
             + (f" in round {round_number}" if round_number is not None else "")
-            + f" in {layer_one_directory / layer1_screen.BATCHES_FILENAME}")
+            + f" in {layer_one_directory / layer1_deal_and_screen.BATCHES_FILENAME}")
     if len(batch_records) > 1:
         raise RequestCannotBeBuilt(
             f"hand {hand_id!r} is in batches of rounds {[r['round'] for r in batch_records]}; pass --round")
     hands_by_id = {hand["prompt_id"]: hand
-                   for hand in utils.load_jsonl(layer_one_directory / layer1_screen.HANDS_FILENAME)}
-    step = layer1_screen.ScreenStep(
+                   for hand in utils.load_jsonl(layer_one_directory / layer1_deal_and_screen.HANDS_FILENAME)}
+    step = layer1_deal_and_screen.ScreenStep(
         prompts, pipeline_steps.entry_named("screen").model_for(config),
-        int(sdf.get("screen_batch_size", layer1_screen.DEFAULT_BATCH_SIZE)),
+        int(sdf.get("screen_batch_size", layer1_deal_and_screen.DEFAULT_BATCH_SIZE)),
         compose_prompts.make_variable_line_renderer(
             prompts_directory, sdf.get("entity_pool_seed", compose_prompts.DEFAULT_ENTITY_SEED)))
     return step, step.batch_from_record(batch_records[0], hands_by_id)
@@ -127,14 +127,22 @@ def build_full_request(run_directory: Path, config: dict, stage: str, document_i
     batch the hand belongs to in ``round_number`` (any round holding it, when None and only one does)."""
     run_directory = Path(run_directory)
     prompts_directory = _prompts_directory_of_run(run_directory)
-    layer_directory = {number: utils.sdf_stage_dir_of_existing_run(run_directory, number) for number in (1, 2, 3, 4)}
+    # The run's own folders and, while the request is built, its own stage tags (a pre-renumber run has the four-layer tags).
+    layout = utils.sdf_layout_of_run(run_directory)
+    folders = {key: utils.sdf_stage_folder(run_directory, key) for key in sdf_run_layouts.FOLDER_KEYS}
+    with sdf_run_layouts.using_layout(layout if layout.tag_index is not None else sdf_run_layouts.FOUR_NUMBERED_LAYERS):
+        return _build_full_request_in_layout(run_directory, config, stage, document_id, round_number,
+                                             prompts_directory, folders)
+
+
+def _build_full_request_in_layout(run_directory, config, stage, document_id, round_number, prompts_directory, folders):
     entry = pipeline_steps.entry_for_print_command_stage(stage)
     if stage == "screen":
         # The one stage whose document is a batch of hands (from the saved batch plan), so it is built here.
-        step, document = _screen_step_and_batch(run_directory, config, prompts_directory, layer_directory[1],
+        step, document = _screen_step_and_batch(run_directory, config, prompts_directory, folders[sdf_run_layouts.DEAL_AND_SCREEN],
                                                 document_id, round_number)
     elif entry is not None and entry.build_step:
-        reading = pipeline_steps.RunReading(config, prompts_directory, layer_directory)
+        reading = pipeline_steps.RunReading(config, prompts_directory, folders)
         reason_inactive = entry.print_refuses_when_inactive and entry.reason_inactive(config, prompts_directory)
         if reason_inactive:
             raise RequestCannotBeBuilt(f"the {stage} step does not run in this run: {reason_inactive}")

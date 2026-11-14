@@ -162,7 +162,7 @@ def test_every_eligible_document_gets_one_call_and_skipped_ones_get_none(tiny_co
     for call in calls:
         digital = call["item_id"] == "matrix_000000"
         assert ("Delta digital" in call["user_message"]) == digital
-        assert call["stage"] == "layer1_select" and call["json_schema"] is not None
+        assert call["stage"] == "layer3_consideration_scoring" and call["json_schema"] is not None
 
 
 def test_the_entry_order_differs_between_documents_and_matches_the_schema(tiny_config, prompts_sdf, stage_dir, stub_claude):

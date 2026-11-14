@@ -27,9 +27,9 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from shared import api, costs, matrix, utils
+from shared import api, costs, matrix, sdf_run_layouts, utils
 from sdf_pipeline import compose_prompts as cp
-from sdf_pipeline import layer3_rewrite, layer4_score
+from sdf_pipeline import layer4_draft_critique_and_revise, layer5_score_and_final_selection
 
 DEFAULT_ARMS_FILE = "experiments/arms.example.yaml"
 
@@ -133,7 +133,7 @@ def merge_arm_config(base: dict, arm: dict) -> dict:
     return merged
 
 
-def import_rewrites(donor_dir: Path, doc_ids: set[str], layer3_dir: Path) -> int:
+def import_rewrites(donor_dir: Path, doc_ids: set[str], revisions_dir: Path) -> int:
     """Copy the donor's own rewrites for the sampled ids — a free reference arm.
 
     Nothing is generated and nothing is billed: this arm is the corpus as it
@@ -143,8 +143,8 @@ def import_rewrites(donor_dir: Path, doc_ids: set[str], layer3_dir: Path) -> int
     if not src.exists():
         raise SystemExit(f"import_rewrites: donor has no rewrites at {src}")
     kept = [r for r in utils.load_jsonl(src) if r["doc_id"] in doc_ids]
-    utils.save_jsonl(kept, layer3_dir / "rewrites.jsonl")
-    checkpoint = utils.Checkpoint(layer3_dir / "_checkpoint.json")
+    utils.save_jsonl(kept, revisions_dir / "rewrites.jsonl")
+    checkpoint = utils.Checkpoint(revisions_dir / "_checkpoint.json")
     for r in kept:
         checkpoint.mark_done(r["doc_id"])
     return len(kept)
@@ -180,32 +180,33 @@ def run_arm(
                 "prompts": repo_root / "prompts" / "sdf",
                 "constitution": repo_root / "constitution",
             },
+            extra_manifest_fields={sdf_run_layouts.LAYOUT_RECORDED_IN_MANIFEST_KEY: sdf_run_layouts.FIVE_NAMED_LAYERS.name},
         )
         print(f"  arm '{name}' -> {run_dir.name}")
 
     prompts_dir = run_dir / "inputs" / "prompts"
-    layer2_dir = utils.ensure_dir(utils.sdf_stage_dir(run_dir, 2))
-    layer3_dir = utils.ensure_dir(utils.sdf_stage_dir(run_dir, 3))
-    layer4_dir = utils.ensure_dir(utils.sdf_stage_dir(run_dir, 4))
+    drafts_dir = utils.ensure_dir(utils.sdf_stage_folder(run_dir, sdf_run_layouts.DRAFT))
+    revisions_dir = utils.ensure_dir(utils.sdf_stage_folder(run_dir, sdf_run_layouts.CRITIQUE_AND_REVISE))
+    scores_dir = utils.ensure_dir(utils.sdf_stage_folder(run_dir, sdf_run_layouts.SCORE))
     final_dir = utils.ensure_dir(run_dir / "final")
 
     drafts = sample if max_docs is None else sample[:max_docs]
     # The deal rides on the draft record, so layer 3 needs no experiment
     # vocabulary of its own and an arm's drafts.jsonl is self-describing.
     drafts = [{**d, "revision": deal[d["doc_id"]]} for d in drafts]
-    utils.save_jsonl(drafts, layer2_dir / "drafts.jsonl")
+    utils.save_jsonl(drafts, drafts_dir / "drafts.jsonl")
 
     api.init(config_path, cost_log_path=run_dir / "cost_log.jsonl")
     cost_start = costs.mark(run_dir / "cost_log.jsonl")
 
     if arm.get("import_rewrites"):
-        n = import_rewrites(donor_dir, {d["doc_id"] for d in drafts}, layer3_dir)
+        n = import_rewrites(donor_dir, {d["doc_id"] for d in drafts}, revisions_dir)
         print(f"    imported {n} donor rewrite(s) — no API calls")
-        rewrites = utils.load_jsonl(layer3_dir / "rewrites.jsonl")
+        rewrites = utils.load_jsonl(revisions_dir / "rewrites.jsonl")
     else:
-        rewrites = layer3_rewrite.run(merged, prompts_dir, layer3_dir, drafts)
+        rewrites = layer4_draft_critique_and_revise.run_critique_and_revise(merged, prompts_dir, revisions_dir, drafts)
 
-    final = layer4_score.run(merged, prompts_dir, layer4_dir, final_dir, rewrites)
+    final = layer5_score_and_final_selection.run(merged, prompts_dir, scores_dir, final_dir, rewrites)
     print(f"    {len(final)} document(s) in {final_dir / 'sdf_corpus.jsonl'}")
     costs.report(run_dir / "cost_log.jsonl", title=f"Arm '{name}' cost",
                  n_done=len(drafts), project_to=project_to, since=cost_start)

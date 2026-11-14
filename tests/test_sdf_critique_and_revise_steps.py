@@ -36,7 +36,7 @@ def combined_step(tiny_config, prompts_sdf):
 
 
 def dispatch(revise=GOOD_REVISE, critique=GOOD_CRITIQUE):
-    return lambda user_message, **kw: critique if kw.get("stage") == "layer3_critique" else revise
+    return lambda user_message, **kw: critique if kw.get("stage") == "layer4_critique" else revise
 
 
 # ---------------------------------------------------------------- interpret: critique
@@ -93,7 +93,7 @@ def test_combined_takes_the_text_before_the_tags_as_the_review(combined_step):
 
 def test_revise_and_combined_thrown_call_is_recorded_as_thrown(tiny_config, prompts_sdf, stub_claude, tmp_path, capsys):
     def raise_on_revise(user_message, **kw):
-        if kw.get("stage") == "layer3_critique":
+        if kw.get("stage") == "layer4_critique":
             return GOOD_CRITIQUE
         raise RuntimeError("down")
     stub_claude(raise_on_revise)
@@ -131,10 +131,10 @@ def test_each_step_sends_its_stage_tag_model_and_token_budget(tiny_config, promp
     revise = ReviseStep(config, prompts_sdf, {"matrix_000000": "P"}).build_request(draft)
     combined = CritiqueAndReviseInOneCallStep(single_call_config(tiny_config), prompts_sdf).build_request(draft)
     assert (critique.stage, critique.model, critique.max_tokens, critique.cache_system) == (
-        "layer3_critique", "critique-model", 8000, True)
+        "layer4_critique", "critique-model", 8000, True)
     assert (revise.stage, revise.model, revise.max_tokens, revise.cache_system) == (
-        "layer3_revise", "rewrite-model", 8000, True)
-    assert (combined.stage, combined.max_tokens, combined.cache_system) == ("layer3_rewrite", 8000, True)
+        "layer4_revise", "rewrite-model", 8000, True)
+    assert (combined.stage, combined.max_tokens, combined.cache_system) == ("layer4_critique_and_revise_in_one_call", 8000, True)
     assert "{review}" not in revise.user_message and "P" in revise.user_message
 
 
@@ -194,7 +194,7 @@ def test_a_failed_revise_after_an_accepted_critique_resumes_without_a_new_critiq
     calls = stub_claude(dispatch())
     records = layer3_rewrite.run(config, prompts_sdf, stage_dir, drafts)
     assert sorted((c["stage"], c["item_id"]) for c in calls) == [
-        ("layer3_revise", "matrix_000000"), ("layer3_revise", "matrix_000001")]
+        ("layer4_revise", "matrix_000000"), ("layer4_revise", "matrix_000001")]
     assert [r["review"] for r in records] == ["Problem: the voice is flat."] * 2
     assert len(utils.load_jsonl(stage_dir / "critiques.jsonl")) == 2
 

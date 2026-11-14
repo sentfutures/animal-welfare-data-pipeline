@@ -19,7 +19,7 @@ def test_request_sent_has_exactly_the_arguments_the_layer_always_passed(tiny_con
     calls = stub_claude(lambda user_message, **kw: "<document>D.</document>")
     layer2_draft.run(tiny_config, prompts_sdf, stage_dir, [make_plan()])
     (call,) = calls
-    assert call["max_tokens"] == 6000 and call["stage"] == "layer2_draft" and call["item_id"] == "matrix_000000"
+    assert call["max_tokens"] == 6000 and call["stage"] == "layer4_draft" and call["item_id"] == "matrix_000000"
     assert call["cache_system"] is True and call["temperature"] is None and call["json_schema"] is None
     assert call["model"] == tiny_config["sdf"].get("draft_model")
     assert call["injection"] == "" and call["system_prompt"] and call["user_message"]
