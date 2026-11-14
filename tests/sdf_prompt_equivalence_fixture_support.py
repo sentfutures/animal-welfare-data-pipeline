@@ -712,6 +712,16 @@ def _distinct(constructions: list[dict]) -> list[dict]:
     return sorted(distinct, key=lambda c: json.dumps(c, sort_keys=True))
 
 
+TOP_LEVEL_CONFIG_KEYS_THE_SDF_PIPELINE_READS = (
+    "backend", "model", "max_tokens", "temperature", "workers", "effort", "thinking_headroom", "language_distribution")
+
+
+def config_read_by_the_sdf_pipeline(config: dict) -> dict:
+    """The part of a configuration the SDF pipeline reads: the ``sdf`` section and the top-level keys it uses."""
+    return {key: value for key, value in config.items()
+            if key == "sdf" or key in TOP_LEVEL_CONFIG_KEYS_THE_SDF_PIPELINE_READS}
+
+
 def record_for_outcome(outcome: ScenarioOutcome) -> dict:
     """Everything recorded for one scenario, as JSON-able data (what is committed and compared)."""
     records = outcome.recorder.sorted_records()
@@ -721,7 +731,8 @@ def record_for_outcome(outcome: ScenarioOutcome) -> dict:
         per_stage[record["stage"]] = per_stage.get(record["stage"], 0) + 1
     return {
         "description": outcome.scenario.description,
-        "configs_used_by_invocation": {str(n): _json_copy(config) for n, config in enumerate(outcome.configs_used, 1)},
+        "configs_used_by_invocation": {str(n): _json_copy(config_read_by_the_sdf_pipeline(config))
+                                        for n, config in enumerate(outcome.configs_used, 1)},
         "exit_messages_by_invocation": {str(n): message for n, message in
                                         enumerate(outcome.exit_messages_by_invocation, 1)},
         "client_constructions": _distinct(outcome.recorder.client_constructions),
@@ -1049,7 +1060,7 @@ def differences_in_configuration_and_stops(scenario_name: str, recorded: dict, c
             recorded["configs_used_by_invocation"], current["configs_used_by_invocation"], "config"):
         messages.append(
             f"[{scenario_name}] THE CONFIGURATION USED CHANGED ({difference}). For the real-config scenario "
-            f"this means config.yaml changed. {REGENERATION_RULE}")
+            f"this means a part of config.yaml the SDF pipeline reads changed. {REGENERATION_RULE}")
     for difference in differences_between_values(
             recorded["exit_messages_by_invocation"], current["exit_messages_by_invocation"], "exit_message"):
         messages.append(f"[{scenario_name}] how an invocation ended (stop message): {difference}")

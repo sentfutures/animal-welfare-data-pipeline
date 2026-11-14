@@ -1,6 +1,6 @@
 {
  "format_version": 4,
- "recorded_from": "commit cc64a74519a0ef7b5bad1fff1b13a097ae28c0ad on branch william/sdf-redo-01-prompt-equivalence-test (clean)",
+ "recorded_from": "commit 83f9c8a73a4f3e8707bd063428a13b43211c8349 on branch william/sdf-redo-01-prompt-equivalence-test (with uncommitted changes)",
  "regeneration_rule": "The recorded files are rewritten only by `python scripts/regenerate_sdf_prompt_equivalence_recorded_requests.py`, and only when the pull request is meant to change requests: never to make a failing test pass. Regenerate and commit the files in that pull request, and say in its description that requests change and why. A pull request not meant to change them leaves the files alone, so a difference is a bug.",
  "description": "Only sdf.n_prompts (12), sdf.min_score_threshold and sdf.plan_model: every fallback chain (screen, select, description rewrite to the plan model; draft, rewrite, score to the global model) and every code default (screen batch size and redeal rounds, scoring attempts, seed, entity seed, revision style) is used. The screen removes two hands in each of rounds 0, 1 and 2; one document's scoring answer is unusable twice.",
  "configs_used_by_invocation": {

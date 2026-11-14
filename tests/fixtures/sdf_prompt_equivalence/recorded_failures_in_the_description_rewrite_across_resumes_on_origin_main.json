@@ -1,6 +1,6 @@
 {
  "format_version": 4,
- "recorded_from": "commit cc64a74519a0ef7b5bad1fff1b13a097ae28c0ad on branch william/sdf-redo-01-prompt-equivalence-test (clean)",
+ "recorded_from": "commit 83f9c8a73a4f3e8707bd063428a13b43211c8349 on branch william/sdf-redo-01-prompt-equivalence-test (with uncommitted changes)",
  "regeneration_rule": "The recorded files are rewritten only by `python scripts/regenerate_sdf_prompt_equivalence_recorded_requests.py`, and only when the pull request is meant to change requests: never to make a failing test pass. Regenerate and commit the files in that pull request, and say in its description that requests change and why. A pull request not meant to change them leaves the files alone, so a difference is a bug.",
  "description": "A thrown rewrite call and a truncated answer hold two descriptions out and stop the run after the step; the resume gets an unusable answer for one; the third completes.",
  "configs_used_by_invocation": {"1": "repeated_value:configs_used_by_invocation.1", "2": "repeated_value:configs_used_by_invocation.1", "3": "repeated_value:configs_used_by_invocation.1"},
@@ -1081,8 +1081,7 @@
     "rewrite_model": "claude-opus-5-5",
     "score_model": "claude-haiku-4-5"
    },
-   "language_distribution": {"en": 1.0},
-   "outputs": {"cost_log": "unused_cost_log.jsonl"}
+   "language_distribution": {"en": 1.0}
   },
   "requests.0.wire": {
    "model": "gpt-6.1-sol",
