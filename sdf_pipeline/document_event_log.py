@@ -7,7 +7,8 @@ the checkpoint; the log is written alongside them.
 
 ``read_document_events`` ignores an unparseable last line (what an interrupted write leaves) and
 raises for an unparseable line anywhere else. ``fold_document_events`` folds the events into the
-latest accepted update, the latest failure and the removal per document and step.
+latest accepted update, the latest failure and the removal per document and step. A later accepted
+event lifts an earlier removal of the same step (a corpus step run again with a new threshold).
 """
 
 import json
@@ -72,6 +73,7 @@ class FoldedDocumentSteps:
     unresolved_failure_by_step: dict = field(default_factory=dict)
     removal_by_step: dict = field(default_factory=dict)
     request_hash_by_step: dict = field(default_factory=dict)
+    latest_outcome_by_step: dict = field(default_factory=dict)  # step -> (outcome, accepted update or removal)
 
 
 def fold_document_events(events: list[dict]) -> dict:
@@ -86,9 +88,12 @@ def fold_document_events(events: list[dict]) -> dict:
         if outcome == "accepted":
             document.accepted_update_by_step[step] = event["update"]
             document.unresolved_failure_by_step.pop(step, None)
+            document.removal_by_step.pop(step, None)  # a later acceptance (a new threshold) lifts an earlier removal
+            document.latest_outcome_by_step[step] = ("accepted", event["update"])
             document.request_hash_by_step[step] = event.get("request_hash")
         elif outcome == "failed":
             document.unresolved_failure_by_step[step] = {"kind": event["failure_kind"], "reason": event["reason"]}
         elif outcome == "removed":
             document.removal_by_step[step] = {"reason_code": event["reason_code"], "detail": event["detail"]}
+            document.latest_outcome_by_step[step] = ("removed", document.removal_by_step[step])
     return folded
