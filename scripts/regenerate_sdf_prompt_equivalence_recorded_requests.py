@@ -22,7 +22,6 @@ returns canned replies (tests/sdf_prompt_equivalence_fixture_support.py), with f
 """
 
 import argparse
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -31,17 +30,13 @@ REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPOSITORY_ROOT))
 sys.path.insert(0, str(REPOSITORY_ROOT / "tests"))
 
+from recorded_fixture_regeneration_git import git_output_or_refuse_to_regenerate  # noqa: E402
+
 import sdf_prompt_equivalence_fixture_support as support  # noqa: E402
 import sdf_prompt_equivalence_scenarios as scenarios  # noqa: E402
 
 def git(*arguments: str) -> str:
-    """The output of a git command; stops the script when the command fails, so that the recorded
-    commit is never an empty string."""
-    completed = subprocess.run(["git", *arguments], cwd=REPOSITORY_ROOT, capture_output=True, text=True)
-    if completed.returncode != 0:
-        sys.exit(f"Refusing to regenerate: `git {' '.join(arguments)}` failed with exit code "
-                 f"{completed.returncode}: {completed.stderr.strip() or 'no error message'}")
-    return completed.stdout.strip()
+    return git_output_or_refuse_to_regenerate(REPOSITORY_ROOT, *arguments)
 
 
 def main() -> None:

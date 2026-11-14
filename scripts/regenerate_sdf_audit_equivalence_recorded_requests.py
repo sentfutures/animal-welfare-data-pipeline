@@ -15,7 +15,6 @@ returns canned replies (tests/sdf_audit_equivalence_fixture_support.py), with fa
 """
 
 import argparse
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -24,11 +23,13 @@ REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPOSITORY_ROOT))
 sys.path.insert(0, str(REPOSITORY_ROOT / "tests"))
 
+from recorded_fixture_regeneration_git import git_output_or_refuse_to_regenerate  # noqa: E402
+
 import sdf_audit_equivalence_fixture_support as support  # noqa: E402
 
 
 def git(*arguments: str) -> str:
-    return subprocess.run(["git", *arguments], cwd=REPOSITORY_ROOT, capture_output=True, text=True).stdout.strip()
+    return git_output_or_refuse_to_regenerate(REPOSITORY_ROOT, *arguments)
 
 
 def main() -> None:
