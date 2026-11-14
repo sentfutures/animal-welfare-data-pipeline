@@ -77,6 +77,13 @@ import re
 from dataclasses import dataclass, field
 from enum import Enum
 
+from sdf_pipeline.compose_prompts import REVISION_AXES
+from sdf_pipeline.considerations_catalog import SECTION_EPISTEMIC, SECTION_MORAL
+
+# The two keys the consideration assignment adds to a plan's ``variables``
+# (``layer1_select_considerations`` writes them: lists of the assigned labels).
+ASSIGNED_CONSIDERATION_KEYS = (SECTION_MORAL, SECTION_EPISTEMIC)
+
 
 class RunLayout(Enum):
     """The three on-disk layouts of an SDF run folder."""
@@ -344,6 +351,39 @@ class DocumentState:
     def current_description(self) -> str | None:
         """The description every later step uses: the rewritten one if the rewrite changed it."""
         return self.description_versions[-1].text if self.description_versions else None
+
+    @property
+    def variables(self) -> dict:
+        """The ``variables`` dict exactly as stored: the one the latest text version was written from,
+        or the dealt hand when no text exists yet (``{}`` when there is neither, as in the five-layer
+        layout). Never copied or edited here. It holds three groups, which the three properties below
+        return; ``dealt_cards`` takes every key the other two do not claim, so the three always
+        add up to this dict."""
+        latest = self.latest_text_version
+        if latest is not None and latest.written_from.variables is not None:
+            return latest.written_from.variables
+        return self.dealt_variables or {}
+
+    @property
+    def revision_cards(self) -> dict:
+        """The keys of ``variables`` that are revision axes (``compose_prompts.REVISION_AXES``), the cards
+        only layer 3 uses."""
+        return {key: value for key, value in self.variables.items() if key in REVISION_AXES}
+
+    @property
+    def assigned_considerations(self) -> dict:
+        """The ``moral_considerations`` and ``epistemic_considerations`` lists the consideration assignment
+        added to ``variables`` (absent before the assignment ran, or when it was disabled)."""
+        return {key: value for key, value in self.variables.items() if key in ASSIGNED_CONSIDERATION_KEYS}
+
+    @property
+    def dealt_cards(self) -> dict:
+        """The dealt composition cards: every key of ``variables`` that is neither a revision card nor an
+        assigned-considerations list. Defined by exclusion so that a key from a run's older or newer variables
+        file (an axis since renamed or removed) is still returned here and never dropped; the tests check each
+        run's keys against the variables file the run froze."""
+        return {key: value for key, value in self.variables.items()
+                if key not in REVISION_AXES and key not in ASSIGNED_CONSIDERATION_KEYS}
 
     @property
     def latest_text_version(self) -> TextVersion | None:
