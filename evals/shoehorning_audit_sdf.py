@@ -30,7 +30,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from evals.model_judged_audit_support import (  # noqa: E402
-    DEFAULT_INPUT, MAXIMUM_OUTPUT_TOKENS, AppendOnlyJsonlWriter, RunningUsageTotals,
+    DEFAULT_INPUT, AppendOnlyJsonlWriter, RunningUsageTotals,
     StructuredOutputParseFailure, TimedProgressReporter, build_array_schema, build_strict_object_schema,
     check_resume_is_compatible, choose_run_folder, choose_runs_parent_directory, choose_stratified_sample,
     compute_cost_in_dollars, corpus_path_of, find_completed_keys, format_duration, read_all_records,
@@ -153,16 +153,6 @@ class PassDefinition:
         self.schema_name = f"shoehorning_audit_{pass_name}"
 
 
-def build_request_arguments(pass_definition, document_content, reasoning_effort):
-    """The complete payload sent to client.responses.create by shared.openai_api.call_openai.
-    Only instructions and content go in."""
-    return openai_api.build_request_arguments(
-        MODEL_NAME, pass_definition.instructions_text, document_content,
-        max_output_tokens=MAXIMUM_OUTPUT_TOKENS, reasoning_effort=reasoning_effort,
-        json_schema=pass_definition.schema, schema_name=pass_definition.schema_name,
-        prompt_cache_key=pass_definition.schema_name)
-
-
 def validate_parsed_result(parsed_result, pass_definition):
     """Raise ValueError if the parsed JSON does not have the expected item keys."""
     if not isinstance(parsed_result, dict) or not isinstance(parsed_result.get("items"), dict):
@@ -210,10 +200,6 @@ def classify_one_document(pass_definition, document, reasoning_effort):
 # ----------------------------------------------------------------------------
 # Run folder, resume, configuration
 # ----------------------------------------------------------------------------
-
-def load_corpus(corpus_path):
-    return read_jsonl(corpus_path)
-
 
 def find_completed_pairs(run_folder):
     """Set of (doc_id, pass) already classified in this run folder."""

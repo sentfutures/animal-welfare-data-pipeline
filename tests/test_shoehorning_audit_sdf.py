@@ -14,8 +14,8 @@ import pytest
 from evals import shoehorning_audit_postprocess_sdf as postprocess
 from evals import shoehorning_audit_sdf as classifier
 from evals.model_judged_audit_support import assert_schema_is_strict_valid as assert_strict_valid
-from evals.model_judged_audit_support import check_resume_is_compatible
-from shared import utils
+from evals.model_judged_audit_support import MAXIMUM_OUTPUT_TOKENS, check_resume_is_compatible
+from shared import openai_api, utils
 
 FIXTURE_DIRECTORY = Path(__file__).resolve().parent / "fixtures"
 
@@ -318,7 +318,11 @@ def cost_log(tmp_path, monkeypatch):
 def test_request_contains_only_instructions_and_content():
     definition = classifier.PassDefinition("moral_considerations")
     for document in synthetic_corpus():
-        arguments = classifier.build_request_arguments(definition, document["content"], "medium")
+        arguments = openai_api.build_request_arguments(
+            classifier.MODEL_NAME, definition.instructions_text, document["content"],
+            max_output_tokens=MAXIMUM_OUTPUT_TOKENS, reasoning_effort="medium",
+            json_schema=definition.schema, schema_name=definition.schema_name,
+            prompt_cache_key=definition.schema_name)
         assert arguments["input"] == document["content"]
         assert arguments["instructions"] == definition.instructions_text
         assert arguments["temperature"] == 1 and "top_p" not in arguments

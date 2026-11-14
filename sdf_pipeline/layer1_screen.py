@@ -64,6 +64,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from shared import api, deal_constraints, utils
 from shared.matrix import split_sections
 from sdf_pipeline import compose_prompts as cp
+from sdf_pipeline import structured_answers
 
 STAGE_TAG = "layer1_screen"
 TEMPLATE_FILENAME = "layer1_screen.txt"
@@ -118,14 +119,14 @@ class ScreenPrompts:
 
 def load_screen_prompts(prompts_dir: Path) -> ScreenPrompts | None:
     """The screen's prompt files, or None for a run whose snapshot predates the screen."""
-    directory = Path(prompts_dir)
-    if not (directory / TEMPLATE_FILENAME).is_file():
+    loaded = structured_answers.load_template_and_answer_schema(prompts_dir, TEMPLATE_FILENAME, SCHEMA_FILENAME)
+    if loaded is None:
         return None
-    read = lambda name: (directory / name).read_text(encoding="utf-8")  # noqa: E731
+    template, answer_schema = loaded
     return ScreenPrompts(
-        template=read(TEMPLATE_FILENAME),
-        hand_block=read(HAND_BLOCK_FILENAME),
-        answer_schema=json.loads(read(SCHEMA_FILENAME)),
+        template=template,
+        hand_block=(Path(prompts_dir) / HAND_BLOCK_FILENAME).read_text(encoding="utf-8"),
+        answer_schema=answer_schema,
     )
 
 
@@ -154,11 +155,7 @@ def parse_screen_answer(raw: str, hand_count: int) -> list[ScreenJudgment]:
     the answer is JSON of the schema's shape with exactly hand_count entries,
     numbers 1..N each exactly once, and a non-empty reason on every entry marked
     for removal."""
-    try:
-        data = json.loads(raw or "")
-        entries = data["specifications"]
-    except (ValueError, KeyError, TypeError) as e:
-        raise ScreenAnswerError(f"answer is not the expected JSON ({type(e).__name__}: {e})") from e
+    entries = structured_answers.parse_json_answer(raw, ScreenAnswerError, extract=lambda data: data["specifications"])
     if not isinstance(entries, list) or len(entries) != hand_count:
         raise ScreenAnswerError(
             f"expected {hand_count} entries, got "
@@ -210,8 +207,7 @@ def screen_hands(
         return_stop_reason=True,
         json_schema=build_answer_schema(prompts, len(rendered_hands)),
     )
-    if stop_reason != "end_turn":
-        raise ScreenAnswerError(f"truncated answer (stop_reason={stop_reason})")
+    structured_answers.raise_if_answer_was_truncated(stop_reason, ScreenAnswerError)
     return parse_screen_answer(raw, len(rendered_hands))
 
 

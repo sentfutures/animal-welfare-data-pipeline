@@ -22,15 +22,17 @@ result is stored in description_rewrites.jsonl and re-applied on resume.
 Config (``sdf`` section): ``description_rewrite_enabled`` (default true),
 ``description_rewrite_model`` (falls back to ``plan_model``, then the global model),
 ``description_rewrite_reasoning_effort`` (OpenAI models only). A model name starting
-with ``gpt-`` routes to OpenAI (shared/openai_api.py, key from the OPENAI_API_KEY
-environment variable); anything else goes to Claude.
+with ``gpt-`` routes to OpenAI (shared/openai_api.py, key OPENAI_API_KEY read from the
+repo-root .env via shared/api_keys.py); anything else goes to Claude.
 
 Why GPT, not Claude (2026-10-22): Claude is far too lenient on plausibility. Given GPT 6.1
 Sol's own one-description plausibility prompt on 97 descriptions, Claude Sonnet 5 flagged
 1 of 92 and Claude Opus 5 flagged 0 of 95, catching none of the 14 implausible premises
 GPT 6.1 Sol flagged; its reasoning notices the problem, then accepts it as "not clearly
-impossible" or allowed "within the fictional world". Do not use Claude for plausibility
-judgment without re-validating (see config.yaml for the run folder).
+impossible" or allowed "within the fictional world". Among the premises it caught were a
+cleaner-wrasse tradition in Kakinada grouper cages, miniature camels as French pets and
+macaque whole-brain emulation as working technology. Do not use Claude for plausibility
+judgment without re-validating.
 
 Checkpoint semantics (protects paid work): one result per plan, appended to
 description_rewrites.jsonl before the plan is checkpointed; a malformed,
@@ -42,7 +44,6 @@ later stages assign over the whole plan set and a resume retries them.
 """
 
 import copy
-import json
 import sys
 import time
 from dataclasses import dataclass
@@ -53,6 +54,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from shared import api, openai_api, utils
 from shared.api_keys import FIND_DOTENV_FLAG, load_optional_api_key
 from sdf_pipeline import compose_prompts as cp
+from sdf_pipeline import structured_answers
 
 STAGE_TAG = "layer1_description_rewrite"
 TEMPLATE_FILENAME = "layer1_description_rewrite.txt"
@@ -86,13 +88,11 @@ class RewritePrompts:
 
 def load_rewrite_prompts(prompts_dir: Path) -> RewritePrompts | None:
     """The stage's prompt files, or None for a run whose snapshot predates the stage."""
-    directory = Path(prompts_dir)
-    if not (directory / TEMPLATE_FILENAME).is_file():
+    loaded = structured_answers.load_template_and_answer_schema(prompts_dir, TEMPLATE_FILENAME, SCHEMA_FILENAME)
+    if loaded is None:
         return None
-    return RewritePrompts(
-        template=(directory / TEMPLATE_FILENAME).read_text(encoding="utf-8"),
-        answer_schema=json.loads((directory / SCHEMA_FILENAME).read_text(encoding="utf-8")),
-    )
+    template, answer_schema = loaded
+    return RewritePrompts(template=template, answer_schema=answer_schema)
 
 
 def build_rewrite_prompt(
@@ -110,13 +110,11 @@ def parse_rewrite_answer(raw: str, allowed_checks: list[str]) -> RewriteResult:
     neither; a dealt-value conflict carries a conflict reason and no rewritten
     description, and its ``rewrite_needed`` is ignored (stored as false) because
     there is no rewrite to need."""
-    try:
-        data = json.loads(raw or "")
-        reasoning, needed, rewritten, changes, conflict, conflict_reason = (
+    reasoning, needed, rewritten, changes, conflict, conflict_reason = structured_answers.parse_json_answer(
+        raw, RewriteAnswerError,
+        extract=lambda data: (
             data["reasoning"], data["rewrite_needed"], data["rewritten_description"],
-            data["changes"], data["dealt_value_conflict"], data["conflict_reason"])
-    except (ValueError, KeyError, TypeError) as e:
-        raise RewriteAnswerError(f"answer is not the expected JSON ({type(e).__name__}: {e})") from e
+            data["changes"], data["dealt_value_conflict"], data["conflict_reason"]))
     if (not isinstance(reasoning, str) or not isinstance(needed, bool) or not isinstance(rewritten, str)
             or not isinstance(changes, list) or not isinstance(conflict, bool)
             or not isinstance(conflict_reason, str)):
@@ -187,8 +185,7 @@ def rewrite_description(
             return_stop_reason=True,
             json_schema=copy.deepcopy(prompts.answer_schema),
         )
-    if stop_reason != "end_turn":
-        raise RewriteAnswerError(f"truncated answer (stop_reason={stop_reason})")
+    structured_answers.raise_if_answer_was_truncated(stop_reason, RewriteAnswerError)
     return parse_rewrite_answer(raw, check_names(prompts))
 
 

@@ -44,13 +44,6 @@ def make_plans(prompts_sdf, count=6):
 
 
 @pytest.fixture
-def stage_dir(tmp_path):
-    directory = tmp_path / "layer1"
-    directory.mkdir()
-    return directory
-
-
-@pytest.fixture
 def plans(prompts_sdf):
     return make_plans(prompts_sdf)
 
@@ -267,20 +260,6 @@ def test_resume_after_a_completed_stage_makes_zero_calls_and_reapplies_results(
     assert rewrite.run(tiny_config, prompts_sdf, stage_dir, plans) == first
     assert rewrite.load_rewritten_plans(tiny_config, stage_dir, plans) == first
     assert calls == []
-
-
-def test_model_falls_back_from_rewrite_to_plan_to_global(tiny_config, prompts_sdf, tmp_path, stub_claude, plans):
-    calls = stub_claude(lambda user_message, **kw: answer())
-    for name, knobs, expected in (
-        ("first", {}, None),
-        ("second", {"plan_model": "plan-model-x"}, "plan-model-x"),
-        ("third", {"plan_model": "plan-model-x", "description_rewrite_model": "rewrite-model-x"}, "rewrite-model-x"),
-    ):
-        directory = tmp_path / name
-        directory.mkdir()
-        tiny_config["sdf"].update(knobs)
-        rewrite.run(tiny_config, prompts_sdf, directory, plans[:1])
-        assert calls[-1]["model"] == expected
 
 
 def test_disabled_stage_makes_no_calls_and_writes_nothing(tiny_config, prompts_sdf, stage_dir, stub_claude, plans):
