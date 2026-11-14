@@ -26,11 +26,8 @@ Steps a document goes through (full table with module detail in CLAUDE.md):
       above 0.90 are dropped                                can drop: below threshold,
                                                             near-duplicate
 
-The layers were renumbered from the old 1-2/3/4/5 scheme (in which composition
-and planning were counted as two layers) to today's 1/2/3/4. --layer takes the
-new numbers; 5 is rejected rather than remapped, because every old number from
-3 up now names a DIFFERENT stage and a silent remap would resume a paid run at
-the wrong one.
+Runs made in the five-layer layout or before the layer renumbering can be read
+(report, audits, viewer) but not resumed: --resume refuses them.
 """
 
 import argparse
@@ -42,6 +39,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from shared import api, costs, utils
 from shared.api_keys import add_api_key_source_flags, apply_api_key_source_flags
+from sdf_pipeline.document_state import RunLayout
+from sdf_pipeline.document_state_loader import UnknownRunLayoutError, detect_run_layout
 from sdf_pipeline import (
     layer1_description_rewrite,
     layer1_plan,
@@ -52,6 +51,22 @@ from sdf_pipeline import (
     layer4_score,
     seeding,
 )
+
+
+def refuse_to_resume_run_in_older_layout(run_dir: Path) -> None:
+    """Exit before any folder is created or call made when ``run_dir`` is not in the current layout.
+
+    Older layouts can be read but not resumed: a resume would create a second set of ``layer1`` to
+    ``layer4`` folders beside the run's own, and the layer numbers name different stages.
+    """
+    try:
+        layout = detect_run_layout(run_dir)
+    except UnknownRunLayoutError as error:
+        raise SystemExit(f"Cannot resume {run_dir.name}: {error}")
+    if layout is not RunLayout.CURRENT:
+        raise SystemExit(
+            f"Cannot resume {run_dir.name}: it is in the {layout.name} layout. Runs in that layout can be read "
+            "(report, audits, viewer) but not resumed; only runs in the current layout (layer1 to layer4) can be.")
 
 
 def main() -> None:
@@ -91,11 +106,7 @@ def main() -> None:
         args.layer = 1
 
     if not 1 <= args.layer <= 4:
-        parser.error(
-            f"--layer must be 1-4, got {args.layer}. The layers were renumbered: the old "
-            "1-2/3/4/5 (compose+plan / draft / rewrite / score) are now 1/2/3/4. Old 3 "
-            "(draft) is now 2, old 4 (rewrite) is now 3, old 5 (score) is now 4."
-        )
+        parser.error(f"--layer must be 1-4, got {args.layer}.")
 
     config = utils.load_config(args.config)
 
@@ -123,6 +134,7 @@ def main() -> None:
               f"with {len(seeded_run.document_ids)} document(s); starting at layer {start_layer}")
     elif args.resume:
         run_dir = utils.resolve_run_dir(runs_root, args.run_id)
+        refuse_to_resume_run_in_older_layout(run_dir)
         utils.warn_if_backend_changed(run_dir, config)
     else:
         run_dir = utils.create_run_dir(
@@ -139,16 +151,13 @@ def main() -> None:
     # (and --resume replays the run's own templates, not the repo's current ones).
     prompts_dir = run_dir / "inputs" / "prompts"
     if not prompts_dir.is_dir():
-        prompts_dir = root / "prompts" / "sdf"
-        print("WARNING: run has no inputs/ snapshot (pre-snapshot run); using live prompts/.")
+        raise SystemExit(f"Run {run_dir.name} has no inputs/prompts snapshot, so it cannot be resumed on its own templates.")
 
     api.init(args.config, cost_log_path=run_dir / "cost_log.jsonl")
     # On --resume the run's log already holds the earlier attempt's calls;
     # mark here so the closing report is what THIS invocation spent.
     cost_start = costs.mark(run_dir / "cost_log.jsonl")
 
-    # Resuming a run made before the renumber has to write beside that run's own
-    # stage dirs, not create a second set under the new names.
     plan_dir = utils.sdf_stage_dir(run_dir, 1)
     layer_dirs = {n: utils.sdf_stage_dir(run_dir, n) for n in (2, 3, 4)}
     final_dir = run_dir / "final"

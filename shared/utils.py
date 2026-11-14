@@ -59,14 +59,16 @@ def ensure_dir(path: str | Path) -> Path:
 # planning had been counted as two layers when only one call is made). Runs
 # made before the renumber keep the old directory names, and they are read by
 # the viewer, evals/report_sdf.py and the handoff page, so both layouts have to
-# resolve.
+# resolve FOR READING. The pipeline only WRITES the current layout:
+# ``sdf_stage_dir`` and ``sdf_template_path`` name current folders and files
+# only, and ``sdf_pipeline/run.py`` refuses to resume a run in an older layout.
 #
 # The two layouts OVERLAP rather than merely differ: old "layer3" holds drafts
 # while new "layer3" holds rewrites, and old "layer4" holds rewrites while new
 # "layer4" holds scores. A resolver that tried the new directory name first and
 # fell back to the old one would therefore read an old run's drafts as its
-# rewrites. So resolution keys off the OUTPUT FILE, whose basename is unique per
-# stage, and a stage directory alone is only ever resolved for writing.
+# rewrites. So reading resolves off the OUTPUT FILE, whose basename is unique per
+# stage (``sdf_stage_file``), or off the run's layout (``sdf_stage_dir_of_existing_run``).
 _SDF_STAGE_DIRS = {1: ("layer1", "layer12"), 2: ("layer2", "layer3"),
                    3: ("layer3", "layer4"), 4: ("layer4", "layer5")}
 
@@ -77,42 +79,41 @@ _SDF_STAGE_FILES = {"dealt": (1, "prompts.jsonl"), "plan": (1, "plans.jsonl"),
 
 
 def sdf_stage_dir(run_dir: str | Path, layer: int) -> Path:
-    """The directory for one SDF layer, honouring a pre-renumber run's layout.
+    """The directory the pipeline writes one SDF layer to: ``<run>/layer<N>``, the current layout only.
+
+    To find a layer of a run that may predate the layer renumbering, use
+    ``sdf_stage_dir_of_existing_run``.
+    """
+    if layer not in _SDF_STAGE_DIRS:
+        raise KeyError(layer)
+    return Path(run_dir) / _SDF_STAGE_DIRS[layer][0]
+
+
+def sdf_stage_dir_of_existing_run(run_dir: str | Path, layer: int) -> Path:
+    """The directory of one SDF layer of an existing run, in either layout (read-only; never for writing).
 
     The layout is decided ONCE for the whole run, not per layer, because the two
     naming schemes overlap: a pre-renumber run already contains a "layer4" (its
     rewrites), so asking "does layer4 exist?" when resolving layer 4 — the score
     stage, which such a run keeps in "layer5" — answers yes for the wrong
-    directory and a resume would write scores over rewrites. Only "layer12"
-    appears in the old scheme and never in the new one, so it is the marker.
+    directory. Only "layer12" appears in the old scheme and never in the new
+    one, so it is the marker.
     """
     run = Path(run_dir)
     new, old = _SDF_STAGE_DIRS[layer]
     return run / (old if (run / "layer12").is_dir() else new)
 
 
-# Layer number -> (current template name, pre-renumber template name).
-_SDF_TEMPLATES = {1: ("layer1.txt", "layers1-2.txt"), 2: ("layer2.txt", "layer3.txt"),
-                  3: ("layer3.txt", "layer4.txt"), 4: ("layer4.txt", "layer5.txt")}
+_SDF_TEMPLATES = {1: "layer1.txt", 2: "layer2.txt", 3: "layer3.txt", 4: "layer4.txt"}
 
 
 def sdf_template_path(prompts_dir: str | Path, layer: int) -> Path:
-    """One layer's prompt template, honouring a pre-renumber snapshot.
-
-    Each run freezes its templates into inputs/prompts/, so --resume on a run
-    started before the renumber must read that run's own OLD filenames. The old
-    names overlap the new ones (old layer3.txt is the draft template, new
-    layer3.txt is the rewrite template), so the layout is decided once for the
-    whole directory rather than per file: only a pre-renumber snapshot contains
-    ``layers1-2.txt``, and that file is the marker.
-    """
-    d = Path(prompts_dir)
-    new, old = _SDF_TEMPLATES[layer]
-    return d / (old if (d / "layers1-2.txt").exists() else new)
+    """One layer's prompt template under the current names (a run's frozen snapshot or ``prompts/sdf``)."""
+    return Path(prompts_dir) / _SDF_TEMPLATES[layer]
 
 
 def sdf_stage_file(run_dir: str | Path, stage: str) -> Path:
-    """Path to one SDF stage's output jsonl, honouring a pre-renumber layout.
+    """Path to one SDF stage's output jsonl, honouring a pre-renumber layout (read-only).
 
     ``stage`` is one of dealt/plan/draft/rewrite/score — named, not numbered,
     because the numbers moved and the names did not. Falls back to the old

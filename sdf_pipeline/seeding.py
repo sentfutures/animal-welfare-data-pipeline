@@ -209,7 +209,7 @@ def seed_run_from_chosen_step(
         which = "this checkout's prompts" if use_current_prompts else f"source run {source_run.name}'s frozen prompt snapshot"
         _refuse(f"{which} lacks {', '.join(missing_templates)}, which step {from_step} needs")
 
-    stage_directory = {layer: utils.sdf_stage_dir(source_run, layer) for layer in (1, 2, 3, 4)}
+    stage_directory = {layer: utils.sdf_stage_dir_of_existing_run(source_run, layer) for layer in (1, 2, 3, 4)}
     step_position = _ORDER_OF_STEPS.index(from_step)
     files_to_copy = [entry for entry in _STAGE_FILES_IN_PIPELINE_ORDER if _ORDER_OF_STEPS.index(entry[0]) < step_position]
 
