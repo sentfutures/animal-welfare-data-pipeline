@@ -180,6 +180,9 @@ class BatchStep(ABC):
     """A step that sees a group of documents and makes one call per group (the screen)."""
 
     step_name: str
+    stage: str  # the stage tag of its calls, recorded in each event
+    policy: StepPolicy = StepPolicy()
+    systemic_stop_message: str
 
     @abstractmethod
     def group(self, states: list, seed: int, round_number: int) -> list: ...
