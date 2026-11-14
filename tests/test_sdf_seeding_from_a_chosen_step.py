@@ -2,10 +2,9 @@
 
 Offline, with canned replies. The core claims:
 
-* seeding at the critique step with selected drafts sends exactly the requests that today's layer 3
-  rerun setup script (``scripts/generation_from_one_objective_considerations/set_up_layer_3_rerun_on_selected_drafts.py``
-  in the experiments project) followed by ``--resume --layer 3`` sends, reproduced here from that
-  script's code;
+* seeding at the critique step with selected drafts sends exactly the requests that the layer 3 rerun
+  setup script (retired; it set up a run folder from selected drafts) followed by ``--resume --layer 3``
+  sent, reproduced here from what that script's code did;
 * for every seedable step, the seeded run's requests for the selected documents equal the source run's
   own requests for those documents from that step on, so seeding changes no request;
 * a request that cannot be met is refused with a message, before a run folder is created and before
@@ -132,7 +131,7 @@ def tree_fingerprint(root: Path) -> dict:
 
 def write_run_the_way_the_layer_3_rerun_setup_script_does(
         config: dict, source_run_dir: Path, runs_root: Path, label: str, document_ids: list, repository_root: Path) -> Path:
-    """What set_up_layer_3_rerun_on_selected_drafts.py does, from its code: a run folder with the checkout's
+    """What the retired layer 3 rerun setup script did, reproduced from its code: a run folder with the checkout's
     current prompts and constitution, the source run's layer 1 folder copied whole, and layer2/drafts.jsonl
     holding only the selected documents' draft records."""
     run_dir = utils.create_run_dir(runs_root, label=label, config=config,
@@ -152,7 +151,7 @@ def write_run_the_way_the_layer_3_rerun_setup_script_does(
 REPOSITORY_ROOT = Path(__file__).parent.parent
 
 
-# ------------------------------------------------------------------ equivalence with the hand-written setup
+# ------------------------------------------------------------------ equivalence with the retired hand-written setup
 
 def test_seeding_at_the_critique_step_sends_the_requests_of_the_layer_3_rerun_setup_script(
         source_run, config_file, outputs_root, stub_claude, monkeypatch):
