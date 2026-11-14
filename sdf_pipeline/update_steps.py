@@ -120,6 +120,9 @@ class DocumentStep(ABC):
 
     step_name: str
     stage_file_name: str
+    # The field of a stage file record that holds the document's id (what ``document_id_of`` returns),
+    # so the runner can find the documents already in the stage file.
+    stage_file_id_field: str = "doc_id"
     policy: StepPolicy = StepPolicy()
     systemic_stop_message: str
     # When True, an error raised while building the request is a thrown call (a ``Failed``

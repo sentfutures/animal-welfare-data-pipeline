@@ -71,7 +71,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sdf_pipeline import considerations_assignment as assignment
-from sdf_pipeline.document_event_log import DOCUMENT_EVENT_LOG_FILE_NAME, DocumentEventLog
 from sdf_pipeline.step_runner import StepRunner, run_corpus_step
 from sdf_pipeline.update_steps import (
     Accepted, CorpusStep, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, StepPolicy,
@@ -263,16 +262,6 @@ def assemble_considerations_spec(picks: list) -> str:
 
 # ---------------------------------------------------------------- steps
 
-class _NoCheckpoint:
-    """Scoring has no checkpoint file: ``consideration_scores.jsonl`` is the checkpoint."""
-
-    def is_done(self, document_id) -> bool:
-        return False
-
-    def mark_done(self, document_id) -> None:
-        pass
-
-
 class ConsiderationScoringStep(DocumentStep):
     """Score one plan's offered entries. The document is the plan record (``prompt_id``,
     ``description``, ``variables``). One call per attempt: an unusable answer (truncated,
@@ -283,6 +272,7 @@ class ConsiderationScoringStep(DocumentStep):
 
     step_name = "consideration_scoring"
     stage_file_name = SCORES_FILENAME
+    stage_file_id_field = "prompt_id"
     failure_file_name = FAILURES_FILENAME
     writes_stage_file_as_replies_arrive = True   # the scores file is the checkpoint: write each row the moment it arrives
     systemic_stop_message = (
@@ -533,17 +523,14 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
 
     eligible = eligible_plans(config, catalog, plans)
     plan_by_id = {p["prompt_id"]: p for p in eligible}
-    score_rows = {r["prompt_id"]: r for r in utils.load_jsonl(scores_path) if r["prompt_id"] in plan_by_id}
     step = ConsiderationScoringStep(config, catalog, template)
-    # The event log sits in the run folder, beside the layer folders.
-    event_log = DocumentEventLog(output_dir.parent / DOCUMENT_EVENT_LOG_FILE_NAME)
-    runner = StepRunner(
-        step, output_dir, event_log, workers=workers, checkpoint=_NoCheckpoint(),
-        existing_records_by_document_id=score_rows)
+    # Scoring has no checkpoint file: ``consideration_scores.jsonl`` is the checkpoint.
+    runner = StepRunner(step, output_dir, workers=workers, uses_checkpoint=False)
+    event_log = runner.event_log
     documents_in_scoring_order = [plan_by_id[prompt_id] for prompt_id in sorted(plan_by_id)]
     pending = runner.select_pending(documents_in_scoring_order)
     print(f"  Scoring considerations for {len(eligible)} specifications: "
-          f"{len(score_rows)} already scored, {len(pending)} to score")
+          f"{len(eligible) - len(pending)} already scored, {len(pending)} to score")
     step.begin_run(len(pending))
     runner.run(documents_in_scoring_order)  # stops the run before the assignment if any document failed
 

@@ -32,7 +32,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from shared import constitution_loader, textstats, utils
 from sdf_pipeline import compose_prompts as cp
-from sdf_pipeline.document_event_log import DOCUMENT_EVENT_LOG_FILE_NAME, DocumentEventLog
 from sdf_pipeline.step_runner import StepRunner, run_corpus_step
 from sdf_pipeline.update_steps import (
     Accepted, CorpusStep, DocumentStep, Failed, ModelReply, ModelRequest, Removed, StepPolicy)
@@ -165,9 +164,8 @@ def run(
     threshold = sdf["min_score_threshold"]
 
     step = ScoreStep(config, prompts_dir)
-    # The event log sits in the run folder, beside the layer folders.
-    event_log = DocumentEventLog(output_dir.parent / DOCUMENT_EVENT_LOG_FILE_NAME)
-    runner = StepRunner(step, output_dir, event_log, workers=config.get("workers", 1))
+    runner = StepRunner(step, output_dir, workers=config.get("workers", 1))
+    event_log = runner.event_log
     results = runner.run(rewrites).records_in_input_order
     rewrites_by_id = {rw["doc_id"]: rw for rw in rewrites}
 

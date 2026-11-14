@@ -59,7 +59,6 @@ from shared import api, openai_api, utils
 from shared.api_keys import FIND_DOTENV_FLAG, load_optional_api_key
 from sdf_pipeline import compose_prompts as cp
 from sdf_pipeline import structured_answers
-from sdf_pipeline.document_event_log import DOCUMENT_EVENT_LOG_FILE_NAME, DocumentEventLog
 from sdf_pipeline.step_runner import StepRunner
 from sdf_pipeline.update_steps import (
     Accepted, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, Removed, StepPolicy,
@@ -290,6 +289,7 @@ class DescriptionRewriteStep(DocumentStep):
 
     step_name = "description_rewrite"
     stage_file_name = RESULTS_FILENAME
+    stage_file_id_field = "prompt_id"
     policy = StepPolicy(
         failure_kinds_counting_towards_the_systemic_stop=frozenset(FailureKind),
         failed_document=WhatAFailedDocumentDoes.STOPS_THE_RUN_AFTER_THE_STEP)
@@ -420,11 +420,8 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
         return plans
 
     step = DescriptionRewriteStep(config, prompts, prompts_dir, output_dir, plans)
-    # The event log sits in the run folder, beside the layer folders.
-    event_log = DocumentEventLog(output_dir.parent / DOCUMENT_EVENT_LOG_FILE_NAME)
     runner = StepRunner(
-        step, output_dir, event_log, workers=config.get("workers", 1),
-        existing_records_by_document_id=load_results(output_dir),
+        step, output_dir, workers=config.get("workers", 1),
         checkpoint=utils.Checkpoint(output_dir / CHECKPOINT_FILENAME))
     described = [p for p in plans if p.get("description")]
     pending = runner.select_pending(plans)

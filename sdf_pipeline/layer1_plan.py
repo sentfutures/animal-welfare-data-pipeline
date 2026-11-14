@@ -26,7 +26,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from shared import utils
 from sdf_pipeline import compose_prompts as cp
-from sdf_pipeline.document_event_log import DOCUMENT_EVENT_LOG_FILE_NAME, DocumentEventLog
 from sdf_pipeline.step_runner import StepRunner
 from sdf_pipeline.update_steps import (
     Accepted, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, Removed, StepPolicy)
@@ -40,6 +39,7 @@ class PlanStep(DocumentStep):
 
     step_name = "plan"
     stage_file_name = "plans.jsonl"
+    stage_file_id_field = "prompt_id"
     # Only a thrown call counts towards the systemic stop; an unusable answer is left behind.
     policy = StepPolicy()
     systemic_stop_message = (
@@ -108,8 +108,6 @@ def run(
     accepted ({"prompt_id", "variables"}); without them (screen disabled) the
     composer deals its own hands."""
     prompts_path = output_dir / "prompts.jsonl"
-    plans_path = output_dir / "plans.jsonl"
-    checkpoint = utils.Checkpoint(output_dir / "_checkpoint.json")
     sdf = config["sdf"]
 
     if prompts_path.exists():
@@ -133,13 +131,7 @@ def run(
             utils.append_jsonl(rec, prompts_path)
         print(f"  Composed {len(prompts)} prompts (offline, $0.00)")
 
-    existing_plans = {r["prompt_id"]: r for r in utils.load_jsonl(plans_path)}
-    step = PlanStep(config)
-    # The event log sits in the run folder, beside the layer folders.
-    event_log = DocumentEventLog(output_dir.parent / DOCUMENT_EVENT_LOG_FILE_NAME)
-    runner = StepRunner(
-        step, output_dir, event_log, workers=config.get("workers", 1),
-        existing_records_by_document_id=existing_plans, checkpoint=checkpoint)
+    runner = StepRunner(PlanStep(config), output_dir, workers=config.get("workers", 1))
     results = runner.run(prompts).records_in_input_order
     incoherent_n = sum(1 for r in results if r.get("incoherent"))
     if incoherent_n:
