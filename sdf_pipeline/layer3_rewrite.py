@@ -210,28 +210,26 @@ class CritiqueStep(DocumentStep):
 class ReviseStep(DocumentStep):
     """The second of the two calls: the rewritten text, with the voice and length directives. It
     applies to the drafts that have a critique (``critique_by_document_id``, banked on disk by the
-    critique step) and to the drafts whose rewrite is already on disk (``already_rewritten_document_ids``,
-    so their records stay in the results), so a failed revise leaves its critique in
-    ``critiques.jsonl`` and a resume pays for the revise alone."""
+    critique step), so a failed revise leaves its critique in ``critiques.jsonl`` and a resume pays for
+    the revise alone. A draft whose rewrite is already on disk needs no critique and is not pending;
+    the runner still returns its record."""
 
     step_name = "revise"
     stage_file_name = "rewrites.jsonl"
     policy = StepPolicy(failure_kinds_counting_towards_the_systemic_stop=frozenset())
     systemic_stop_message = SYSTEMIC_STOP_MESSAGE
 
-    def __init__(self, config: dict, prompts_dir: Path, critique_by_document_id: dict,
-                 already_rewritten_document_ids: frozenset | set = frozenset()):
+    def __init__(self, config: dict, prompts_dir: Path, critique_by_document_id: dict):
         require_two_call_templates(prompts_dir)
         self.rewrite_model = config["sdf"].get("rewrite_model")
         self.critique_by_document_id = critique_by_document_id
-        self.already_rewritten_document_ids = already_rewritten_document_ids
         self.renderer = _ReviewPromptRenderer(config, prompts_dir, prompts_dir / REVISE_TEMPLATE)
 
     def document_id_of(self, draft: dict) -> str:
         return draft["doc_id"]
 
     def applies_to(self, draft: dict) -> bool:
-        return draft["doc_id"] in self.critique_by_document_id or draft["doc_id"] in self.already_rewritten_document_ids
+        return draft["doc_id"] in self.critique_by_document_id
 
     def build_request(self, draft: dict) -> ModelRequest:
         style, length = self.renderer.directives(draft)
@@ -342,7 +340,7 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, drafts: list[dict]) -
         # Critiques are banked separately from rewrites (the critique runner appended each as it
         # was accepted): a revise call that fails must not re-bill the critique that fed it.
         critique_by_document_id = {r["doc_id"]: r["review"] for r in utils.load_jsonl(output_dir / "critiques.jsonl")}
-        rewrite_step = ReviseStep(config, prompts_dir, critique_by_document_id, existing_rewrite_ids)
+        rewrite_step = ReviseStep(config, prompts_dir, critique_by_document_id)
     else:
         rewrite_step = CombinedReviewAndReviseStep(config, prompts_dir)
     rewrite_runner = StepRunner(

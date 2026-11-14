@@ -25,8 +25,9 @@ from sdf_pipeline.update_steps import (
 
 @dataclass
 class StepRunResult:
-    """``records_in_input_order``: the stage-file records of documents finished before this run
-    (in input order) followed by the ones written in this run (in input order)."""
+    """``records_in_input_order``: the stage-file records of every input document finished before this
+    run, whether or not the step applies to it now (in input order), followed by the ones written in
+    this run (in input order)."""
     records_in_input_order: list = field(default_factory=list)
     failed_document_ids: list = field(default_factory=list)
     pending_document_ids: list = field(default_factory=list)
@@ -228,11 +229,10 @@ class StepRunner:
     def run(self, documents: list) -> StepRunResult:
         step = self.step
         policy = step.policy
-        considered = [d for d in documents if step.applies_to(d)]
         pending = self.select_pending(documents)
         result = StepRunResult(
             records_in_input_order=[
-                self.existing_records_by_document_id[step.document_id_of(d)] for d in considered
+                self.existing_records_by_document_id[step.document_id_of(d)] for d in documents
                 if step.document_id_of(d) in self.existing_records_by_document_id],
             pending_document_ids=[step.document_id_of(d) for d in pending])
         counted_failures = 0
