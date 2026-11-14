@@ -152,7 +152,7 @@ def test_the_resume_resolves_the_revise_failure_the_first_invocation_recorded_wi
     for document_id in failed_revise_after_first:
         assert "revise" not in folded_second[document_id].unresolved_failure_by_step
         assert "revise" in folded_second[document_id].accepted_update_by_step
-        critique_events = [e for e in second if e["document_id"] == document_id and e["step"] == "critique"
+        critique_events = [e for e in second if e.get("document_id") == document_id and e["step"] == "critique"
                            and e["outcome"] == "accepted"]
         assert len(critique_events) == 1, "an accepted critique is kept, not paid for again"
 

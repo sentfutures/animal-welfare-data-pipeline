@@ -41,11 +41,37 @@ class DocumentEventLog:
             "stage": stage,
             **detail,
         }
+        self._append(event)
+        return event
+
+    def _append(self, event: dict) -> None:
         line = json.dumps(event, ensure_ascii=False) + "\n"
         with self._lock:
             self.path.parent.mkdir(parents=True, exist_ok=True)
             with open(self.path, "a", encoding="utf-8") as handle:
                 handle.write(line)
+
+    # The three events that are not about one document.
+
+    def append_round_dealt_event(self, *, round_number: int, prompt_ids: list, note: str) -> dict:
+        """A screen round was dealt: its hand ids (empty when the removed cards could not be redealt)."""
+        event = {"event": "round_dealt", "recorded_at": datetime.now(UTC).isoformat(),
+                 "round": round_number, "prompt_ids": list(prompt_ids), "note": note}
+        self._append(event)
+        return event
+
+    def append_screen_batches_planned_event(self, *, round_number: int, batches: list) -> dict:
+        """A round's screen batches were planned, with their members, before the round's first call."""
+        event = {"event": "screen_batches_planned", "recorded_at": datetime.now(UTC).isoformat(),
+                 "round": round_number, "batches": [dict(batch) for batch in batches]}
+        self._append(event)
+        return event
+
+    def append_corpus_step_finished_event(self, *, step_name: str, summary: dict) -> dict:
+        """A corpus step (the deal, a redeal) finished; ``summary`` holds its JSON-safe facts."""
+        event = {"event": "corpus_step_finished", "recorded_at": datetime.now(UTC).isoformat(),
+                 "step": step_name, **summary}
+        self._append(event)
         return event
 
 
@@ -97,3 +123,21 @@ def fold_document_events(events: list[dict]) -> dict:
             document.removal_by_step[step] = {"reason_code": event["reason_code"], "detail": event["detail"]}
             document.latest_outcome_by_step[step] = ("removed", document.removal_by_step[step])
     return folded
+
+
+def fold_round_and_batch_plan_events(events: list[dict]) -> dict:
+    """What the non-per-document events say about the screen: ``rounds`` ({round: {prompt_ids, note}}),
+    ``batches_by_round`` ({round: batches}, the latest plan of each round winning, as a re-planned
+    round replaces its earlier batches) and ``corpus_steps_finished`` (each step's summary, in order)."""
+    rounds: dict = {}
+    batches_by_round: dict = {}
+    corpus_steps_finished: list = []
+    for event in events:
+        kind = event.get("event")
+        if kind == "round_dealt":
+            rounds[event["round"]] = {"prompt_ids": event["prompt_ids"], "note": event["note"]}
+        elif kind == "screen_batches_planned":
+            batches_by_round[event["round"]] = event["batches"]
+        elif kind == "corpus_step_finished":
+            corpus_steps_finished.append({key: value for key, value in event.items() if key not in ("event", "recorded_at")})
+    return {"rounds": rounds, "batches_by_round": batches_by_round, "corpus_steps_finished": corpus_steps_finished}

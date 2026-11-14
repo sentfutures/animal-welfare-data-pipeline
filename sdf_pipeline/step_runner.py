@@ -12,12 +12,14 @@ marks nothing done unless the step supplies a record through ``stage_file_record
 """
 
 import threading
+import time
 from dataclasses import dataclass, field
 
 from shared import api, openai_api, utils
 from sdf_pipeline.document_event_log import DocumentEventLog, fold_document_events, read_document_events
 from sdf_pipeline.update_steps import (
-    Accepted, CorpusStep, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, Removed, WhatAFailedDocumentDoes)
+    Accepted, BatchStep, CorpusStep, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, Removed,
+    WhatAFailedDocumentDoes)
 
 
 @dataclass
@@ -235,3 +237,98 @@ def run_corpus_step(step: CorpusStep, documents: list, event_log: DocumentEventL
             document_id=document_id, step_name=step.step_name, outcome=outcome_name,
             request_hash=None, stage=None, detail=detail)
     return outcomes
+
+
+@dataclass
+class BatchRunResult:
+    """``finished_batch_ids``: batches whose outcomes were written and checkpointed in this run, in
+    order; ``failed_batch_ids``: batches left for a resume (not checkpointed)."""
+    pending_batch_ids: list = field(default_factory=list)
+    finished_batch_ids: list = field(default_factory=list)
+    failed_batch_ids: list = field(default_factory=list)
+
+
+class BatchStepRunner:
+    """Run a ``BatchStep``: one model call per batch, fanned out over the thread pool.
+
+    A batch object has ``batch_id`` and ``document_ids``. A batch is pending when the checkpoint
+    does not mark its ``batch_id`` done. Workers build the request, send it, interpret the reply
+    and append one event per member as the reply arrives; the main thread then, in batch order,
+    hands each finished batch's outcomes to ``write_batch_outcomes`` (the layer's stage-file
+    writes), marks the checkpoint and prints the step's line. A batch whose members came back
+    ``Failed`` is not written or checkpointed, so a resume retries exactly it.
+
+    Stop rules, from the step's policy: when every pending batch failed with a kind the policy
+    counts, the run stops with ``step.systemic_stop_message``; otherwise, when the policy says a
+    failed batch stops the run after the step, it stops with
+    ``step.stop_message_for_failed_batches(failed_batch_count, failed_batches)``.
+    """
+
+    def __init__(self, step: BatchStep, event_log: DocumentEventLog, checkpoint: utils.Checkpoint,
+                 write_batch_outcomes, workers: int = 1, send=send_model_request):
+        self.step = step
+        self.event_log = event_log
+        self.checkpoint = checkpoint
+        self.write_batch_outcomes = write_batch_outcomes
+        self.workers = workers
+        self.send = send
+
+    def select_pending(self, batches: list) -> list:
+        return [batch for batch in batches if not self.checkpoint.is_done(batch.batch_id)]
+
+    def _answer_one(self, batch):
+        """Worker: build, send, interpret, record one event per member. Returns (outcomes, seconds)."""
+        step = self.step
+        request_hash = None
+        seconds = 0.0
+        try:
+            request = step.build_request(batch)
+            request_hash = request.request_hash()
+            started = time.monotonic()
+            reply = self.send(request)
+            outcomes = step.interpret(batch, reply)
+            seconds = time.monotonic() - started
+        except Exception as error:
+            # One failing call must not discard its siblings' in-flight work.
+            reason = f"error: {type(error).__name__}: {error}"
+            outcomes = {document_id: Failed(FailureKind.THROWN_CALL, reason) for document_id in batch.document_ids}
+        for document_id, outcome in outcomes.items():
+            self._append_event(document_id, request_hash, outcome)
+        return outcomes, seconds
+
+    def _append_event(self, document_id, request_hash, outcome):
+        if isinstance(outcome, Accepted):
+            outcome_name, detail = "accepted", {"update": outcome.update}
+        elif isinstance(outcome, Removed):
+            outcome_name, detail = "removed", {"reason_code": outcome.reason_code, "detail": outcome.detail}
+        else:
+            outcome_name, detail = "failed", {"failure_kind": outcome.kind.value, "reason": outcome.reason}
+        self.event_log.append_outcome_event(
+            document_id=document_id, step_name=self.step.step_name, outcome=outcome_name,
+            request_hash=request_hash, stage=self.step.stage, detail=detail)
+
+    def run(self, batches: list) -> BatchRunResult:
+        step = self.step
+        pending = self.select_pending(batches)
+        result = BatchRunResult(pending_batch_ids=[batch.batch_id for batch in pending])
+        counted_failures = 0
+        failed_batches = []
+        for done, (batch, (outcomes, seconds)) in enumerate(
+                zip(pending, utils.parallel_map(self._answer_one, pending, self.workers)), 1):
+            failures = [outcome for outcome in outcomes.values() if isinstance(outcome, Failed)]
+            if failures:
+                result.failed_batch_ids.append(batch.batch_id)
+                failed_batches.append(batch)
+                if failures[0].kind in step.policy.failure_kinds_counting_towards_the_systemic_stop:
+                    counted_failures += 1
+                print(step.failed_batch_line(batch, failures[0]))
+                continue
+            self.write_batch_outcomes(batch, outcomes)
+            self.checkpoint.mark_done(batch.batch_id)
+            result.finished_batch_ids.append(batch.batch_id)
+            print(step.progress_line(batch, outcomes, done, len(pending), seconds))
+        if pending and counted_failures == len(pending):
+            raise SystemExit(step.systemic_stop_message)
+        if failed_batches and step.policy.failed_document is WhatAFailedDocumentDoes.STOPS_THE_RUN_AFTER_THE_STEP:
+            raise SystemExit(step.stop_message_for_failed_batches(len(failed_batches), failed_batches))
+        return result

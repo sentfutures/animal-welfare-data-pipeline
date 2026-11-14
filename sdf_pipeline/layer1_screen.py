@@ -24,6 +24,14 @@ the matching prompt builder. The model's answer is schema-constrained JSON, one
 entry per hand (reasoning first, then the decision); every entry is kept in
 screen_judgments.jsonl so keeps are auditable.
 
+The stage is three update steps (``sdf_pipeline/update_steps.py``): ``DealStep`` (corpus step,
+``Created`` for each hand of round 0), ``ScreenStep`` (batch step, run by ``BatchStepRunner``) and
+``RedealStep`` (corpus step, ``Removed`` for the screened-out hands and ``Created`` for the new ones).
+``run`` keeps its signature, files, printed lines and exit messages as the thin driver of the
+screen and redeal loop. Besides the stage files it appends events to the run's
+``document_events.jsonl``: one per hand per screen batch, a round-was-dealt event, a
+batches-were-planned event and a corpus-step-finished event.
+
 Config (``sdf`` section): ``screen_enabled`` (default true), ``screen_model``
 (falls back to ``plan_model``, then the global model), ``screen_batch_size``
 (default 10), ``screen_redeal_rounds`` (default 3).
@@ -65,6 +73,11 @@ from shared import api, deal_constraints, utils
 from shared.matrix import split_sections
 from sdf_pipeline import compose_prompts as cp
 from sdf_pipeline import structured_answers
+from sdf_pipeline.document_event_log import DOCUMENT_EVENT_LOG_FILE_NAME, DocumentEventLog
+from sdf_pipeline.step_runner import BatchStepRunner, send_model_request
+from sdf_pipeline.update_steps import (
+    Accepted, BatchStep, CorpusStep, Created, Failed, FailureKind, ModelReply, ModelRequest, Removed,
+    StepPolicy, WhatAFailedDocumentDoes)
 
 STAGE_TAG = "layer1_screen"
 TEMPLATE_FILENAME = "layer1_screen.txt"
@@ -182,6 +195,23 @@ def parse_screen_answer(raw: str, hand_count: int) -> list[ScreenJudgment]:
     return [judgments[n] for n in range(1, hand_count + 1)]
 
 
+def build_screen_request(
+    prompts: ScreenPrompts, rendered_hands: list[str], model: str | None, item_id: str | None
+) -> ModelRequest:
+    """The request for one batch: schema-constrained (number enum 1..N), the global temperature,
+    tagged ``layer1_screen`` for the cost log."""
+    system, user = build_screen_prompt(prompts, rendered_hands)
+    return ModelRequest(
+        user_message=user,
+        system_prompt=system or "",
+        model=model,
+        stage=STAGE_TAG,
+        item_id=item_id,
+        max_tokens=_MAX_TOKENS,
+        json_schema=build_answer_schema(prompts, len(rendered_hands)),
+    )
+
+
 def screen_hands(
     rendered_hands: list[str],
     *,
@@ -196,31 +226,39 @@ def screen_hands(
     The call is schema-constrained (number enum 1..N). Raises ScreenAnswerError
     for a truncated or invalid answer; API errors propagate. Uses the global
     temperature and tags the call ``layer1_screen`` for the cost log."""
-    system, user = build_screen_prompt(prompts, rendered_hands)
-    raw, stop_reason = api.call_claude(
-        user,
-        system_prompt=system or "",
-        model=model,
-        max_tokens=_MAX_TOKENS,
-        stage=STAGE_TAG,
-        item_id=item_id,
-        return_stop_reason=True,
-        json_schema=build_answer_schema(prompts, len(rendered_hands)),
-    )
-    structured_answers.raise_if_answer_was_truncated(stop_reason, ScreenAnswerError)
-    return parse_screen_answer(raw, len(rendered_hands))
+    reply = send_model_request(build_screen_request(prompts, rendered_hands, model, item_id))
+    structured_answers.raise_if_answer_was_truncated(reply.stop_reason, ScreenAnswerError)
+    return parse_screen_answer(reply.text, len(rendered_hands))
 
 
 # ---------------------------------------------------------------- batching and redealing
 
+def shuffled_batch_records(prompt_ids: list[str], batch_size: int, seed: int, round_number: int) -> list[dict]:
+    """The batches of one round: a seeded shuffle of the sorted ids (so input order is irrelevant),
+    cut into batch_size chunks. The seed string is built from the run seed, the stage tag and the
+    round number, exactly as it always was."""
+    shuffled = sorted(prompt_ids)
+    random.Random(f"{seed}:{STAGE_TAG}:round{round_number}").shuffle(shuffled)
+    return [
+        {
+            "batch_id": f"screen_round{round_number}_batch{index:04d}",
+            "round": round_number,
+            "prompt_ids": shuffled[start:start + batch_size],
+        }
+        for index, start in enumerate(range(0, len(shuffled), batch_size))
+    ]
+
+
 def plan_round_batches(
-    output_dir: Path, round_number: int, prompt_ids: list[str], batch_size: int, seed: int
+    output_dir: Path, round_number: int, prompt_ids: list[str], batch_size: int, seed: int,
+    event_log: DocumentEventLog | None = None,
 ) -> list[dict]:
     """The batches of one round, persisted before any call of that round.
 
     A seeded shuffle (of the sorted ids, so input order is irrelevant) cut into
     batch_size chunks. On resume the round's saved batches are reused verbatim when
-    together they hold exactly the round's hands; a partial set is planned again."""
+    together they hold exactly the round's hands; a partial set is planned again.
+    A round planned anew is recorded in ``event_log`` (when given); a reused plan is not."""
     path = output_dir / BATCHES_FILENAME
     every_batch = utils.load_jsonl(path)
     saved = [b for b in every_batch if b["round"] == round_number]
@@ -229,17 +267,11 @@ def plan_round_batches(
         return saved
     if saved:  # an interrupted write left only some of the round's batches; plan the round again
         utils.save_jsonl([b for b in every_batch if b["round"] != round_number], path)
-    shuffled = sorted(prompt_ids)
-    random.Random(f"{seed}:{STAGE_TAG}:round{round_number}").shuffle(shuffled)
-    batches = []
-    for start in range(0, len(shuffled), batch_size):
-        batch = {
-            "batch_id": f"screen_round{round_number}_batch{len(batches):04d}",
-            "round": round_number,
-            "prompt_ids": shuffled[start:start + batch_size],
-        }
-        batches.append(batch)
+    batches = shuffled_batch_records(prompt_ids, batch_size, seed, round_number)
+    for batch in batches:
         utils.append_jsonl(batch, path)
+    if event_log is not None:
+        event_log.append_screen_batches_planned_event(round_number=round_number, batches=batches)
     return batches
 
 
@@ -276,6 +308,181 @@ def redeal_removed_hands(
             continue  # the same hands again would only be removed again
         return new_hands
     return None
+
+
+# ---------------------------------------------------------------- steps
+
+def _hand_record(prompt_id: str, round_number: int, variables: dict) -> dict:
+    return {"prompt_id": prompt_id, "round": round_number, "variables": variables}
+
+
+class DealStep(CorpusStep):
+    """The deal: the original hands of round 0, deck-sampled and repaired by the deal rules (no model).
+    ``Created`` for each hand, keyed by its hand id; the hand record is
+    ``{"prompt_id", "round", "variables"}``, as screen_hands.jsonl holds it."""
+
+    step_name = "deal"
+
+    def __init__(self, template: str, values: dict, weights: dict, hand_count: int, seed: int,
+                 deal_rules: list[deal_constraints.DealRule]):
+        self.template = template
+        self.values = values
+        self.weights = weights
+        self.hand_count = hand_count
+        self.seed = seed
+        self.deal_rules = deal_rules
+
+    def apply(self, states: list) -> dict:
+        dealt = cp.hand_records(
+            cp.deal_hands(self.template, self.values, self.weights, self.hand_count, self.seed, self.deal_rules))
+        return {hand["prompt_id"]: Created(_hand_record(hand["prompt_id"], 0, hand["variables"])) for hand in dealt}
+
+
+class RedealStep(CorpusStep):
+    """The redeal of one finished round (no model). ``states`` are every hand dealt so far.
+
+    Returns ``Removed`` for each screened-out hand of the round (in the round's order) and, when the
+    removed hands' cards can be dealt into different hands that satisfy the rules, ``Created`` for each
+    new hand (keyed by its new hand id, numbered on from the highest hand id so far). When they cannot,
+    the cards are dropped: the removals carry the reason code ``screened_out_cards_dropped`` and nothing
+    is created, which ends the screen loop."""
+
+    step_name = "redeal"
+
+    def __init__(self, finished_round_number: int, removed_prompt_ids: list[str],
+                 reason_by_prompt_id: dict[str, str], seed: int, deal_rules: list[deal_constraints.DealRule]):
+        self.new_round_number = finished_round_number + 1
+        self.removed_prompt_ids = list(removed_prompt_ids)
+        self.reason_by_prompt_id = reason_by_prompt_id
+        self.seed = seed
+        self.deal_rules = deal_rules
+
+    def apply(self, states: list) -> dict:
+        hands_by_id = {hand["prompt_id"]: hand for hand in states}
+        new_hands = redeal_removed_hands(
+            [hands_by_id[prompt_id] for prompt_id in self.removed_prompt_ids],
+            self.new_round_number, self.seed, self.deal_rules)
+        reason_code = "screened_out" if new_hands is not None else "screened_out_cards_dropped"
+        outcomes: dict = {
+            prompt_id: Removed(reason_code, self.reason_by_prompt_id[prompt_id])
+            for prompt_id in self.removed_prompt_ids}
+        if new_hands is not None:
+            for record in cp.hand_records(new_hands, _next_hand_index(states)):
+                outcomes[record["prompt_id"]] = Created(
+                    _hand_record(record["prompt_id"], self.new_round_number, record["variables"]))
+        return outcomes
+
+
+@dataclass(frozen=True)
+class ScreenBatch:
+    """One batch of a round: its hand records (``members``) and the variable lines the model is shown
+    for each, in the same order. ``as_record`` is the line screen_batches.jsonl holds."""
+    batch_id: str
+    round_number: int
+    members: tuple
+    shown_lines: tuple
+
+    @property
+    def document_ids(self) -> list[str]:
+        return [member["prompt_id"] for member in self.members]
+
+    def as_record(self) -> dict:
+        return {"batch_id": self.batch_id, "round": self.round_number, "prompt_ids": self.document_ids}
+
+
+class ScreenStep(BatchStep):
+    """The implausibility screen: one call per batch of hands, answered with local numbers 1..N.
+
+    ``interpret`` gives each member ``Accepted`` (kept; the update is its judgment) or ``Removed``
+    (extremely implausible; the detail is its judgment), or every member ``Failed`` when the answer is
+    truncated, malformed, miscounted, duplicated or out of range (``UNUSABLE_ANSWER``). A thrown call
+    is made ``Failed`` (``THROWN_CALL``) by the runner. Both kinds count towards the systemic stop, and
+    a failed batch stops the run before the redeal."""
+
+    step_name = "screen"
+    stage = STAGE_TAG
+    policy = StepPolicy(
+        failure_kinds_counting_towards_the_systemic_stop=frozenset({FailureKind.THROWN_CALL, FailureKind.UNUSABLE_ANSWER}),
+        failed_document=WhatAFailedDocumentDoes.STOPS_THE_RUN_AFTER_THE_STEP)
+    systemic_stop_message = (
+        "layer1_screen: every pending screen call failed — this is systemic "
+        "(auth, backend, or network), not per-batch; fix and --resume."
+    )
+
+    def __init__(self, prompts: ScreenPrompts, model: str | None, batch_size: int, render_variable_lines):
+        self.prompts = prompts
+        self.model = model
+        self.batch_size = batch_size
+        self.render_variable_lines = render_variable_lines
+
+    def batch_from_record(self, record: dict, hands_by_id: dict) -> ScreenBatch:
+        members = tuple(hands_by_id[prompt_id] for prompt_id in record["prompt_ids"])
+        return ScreenBatch(
+            batch_id=record["batch_id"], round_number=record["round"], members=members,
+            shown_lines=tuple(self.render_variable_lines(member) for member in members))
+
+    def group(self, states: list, seed: int, round_number: int) -> list[ScreenBatch]:
+        """Batches of ``batch_size``: a seeded shuffle of the sorted hand ids, seeded from the run
+        seed, the stage tag and the round number. Saving and reusing the plan is the driver's job
+        (``plan_round_batches``)."""
+        records = shuffled_batch_records([state["prompt_id"] for state in states], self.batch_size, seed, round_number)
+        hands_by_id = {state["prompt_id"]: state for state in states}
+        return [self.batch_from_record(record, hands_by_id) for record in records]
+
+    def build_request(self, batch: ScreenBatch) -> ModelRequest:
+        return build_screen_request(self.prompts, list(batch.shown_lines), self.model, batch.batch_id)
+
+    def interpret(self, batch: ScreenBatch, reply: ModelReply) -> dict:
+        try:
+            structured_answers.raise_if_answer_was_truncated(reply.stop_reason, ScreenAnswerError)
+            judgments = parse_screen_answer(reply.text, len(batch.members))
+        except ScreenAnswerError as error:
+            failure = Failed(FailureKind.UNUSABLE_ANSWER, f"unusable answer ({error})")
+            return {document_id: failure for document_id in batch.document_ids}
+        outcomes: dict = {}
+        for member, judgment in zip(batch.members, judgments):
+            facts = {"number": judgment.number, "reasoning": judgment.reasoning, "reason": judgment.reason}
+            outcomes[member["prompt_id"]] = Removed("extremely_implausible", facts) if judgment.remove else Accepted(facts)
+        return outcomes
+
+    def stage_file_records(self, batch: ScreenBatch, outcomes: dict) -> tuple[list[dict], list[dict]]:
+        """(the batch's lines of screen_judgments.jsonl, the batch's lines of screen_rejections.jsonl),
+        in member order."""
+        judgment_records, rejection_records = [], []
+        for member, lines in zip(batch.members, batch.shown_lines):
+            outcome = outcomes[member["prompt_id"]]
+            removed = isinstance(outcome, Removed)
+            facts = outcome.detail if removed else outcome.update
+            judgment_records.append({
+                "prompt_id": member["prompt_id"], "round": batch.round_number,
+                "batch_id": batch.batch_id, "number": facts["number"],
+                "reasoning": facts["reasoning"], "remove": removed,
+                "reason": facts["reason"],
+            })
+            if removed:
+                rejection_records.append({
+                    "prompt_id": member["prompt_id"], "round": batch.round_number,
+                    "batch_id": batch.batch_id, "number": facts["number"],
+                    "reason": facts["reason"], "variables": member["variables"],
+                    "variable_lines": lines,
+                })
+        return judgment_records, rejection_records
+
+    def progress_line(self, batch: ScreenBatch, outcomes: dict, done: int, total: int, seconds: float) -> str:
+        removed = sum(isinstance(outcome, Removed) for outcome in outcomes.values())
+        return (f"  Screened {batch.batch_id} ({done}/{total}): {len(batch.members)} hands, "
+                f"{removed} extremely implausible, {seconds:.1f}s")
+
+    def failed_batch_line(self, batch: ScreenBatch, failure: Failed) -> str:
+        if failure.kind is FailureKind.THROWN_CALL:
+            problem = f"API call failed ({failure.reason.removeprefix('error: ')})"
+        else:
+            problem = failure.reason
+        return f"  {batch.batch_id}: {problem} — will retry on resume"
+
+    def stop_message_for_failed_batches(self, failed_batch_count: int, failed_batches: list) -> str:
+        return (f"layer1_screen: {failed_batch_count} batch(es) of round {failed_batches[0].round_number} failed; the next "
+                "round cannot be dealt until the round is complete — --resume retries them.")
 
 
 # ---------------------------------------------------------------- stage
@@ -331,85 +538,52 @@ def run(config: dict, prompts_dir: Path, output_dir: Path) -> list[dict] | None:
     rounds_path = output_dir / ROUNDS_FILENAME
     judgments_path = output_dir / JUDGMENTS_FILENAME
     rejections_path = output_dir / REJECTIONS_FILENAME
+    # The event log sits in the run folder, beside the layer folders.
+    event_log = DocumentEventLog(output_dir.parent / DOCUMENT_EVENT_LOG_FILE_NAME)
+    screen_step = ScreenStep(prompts, model, batch_size, render_variable_lines)
 
     hands = utils.load_jsonl(hands_path)
     rounds = utils.load_jsonl(rounds_path)
     if not rounds:  # round 0: the original deal, saved before anything is screened
         template = utils.sdf_template_path(prompts_dir, 1).read_text(encoding="utf-8")
         values, weights, _ = cp.load_variables(prompts_dir / cp.DEFAULT_VARIABLES.name)
-        dealt = cp.hand_records(
-            cp.deal_hands(template, values, weights, sdf["n_prompts"], seed, deal_rules))
-        hands = [{"prompt_id": h["prompt_id"], "round": 0, "variables": h["variables"]} for h in dealt]
+        deal_outcomes = DealStep(template, values, weights, sdf["n_prompts"], seed, deal_rules).apply([])
+        hands = [outcome.new_state for outcome in deal_outcomes.values()]
         utils.save_jsonl(hands, hands_path)   # replaces any partial write from an interrupted deal
         rounds = [{"round": 0, "prompt_ids": [h["prompt_id"] for h in hands], "note": "original deal"}]
         utils.append_jsonl(rounds[0], rounds_path)
+        event_log.append_round_dealt_event(
+            round_number=0, prompt_ids=rounds[0]["prompt_ids"], note=rounds[0]["note"])
+        event_log.append_corpus_step_finished_event(
+            step_name="deal", summary={"round": 0, "created_prompt_ids": rounds[0]["prompt_ids"]})
     recorded_ids = {pid for r in rounds for pid in r["prompt_ids"]}
     hands = [h for h in hands if h["prompt_id"] in recorded_ids]   # hands saved before their round record are dealt again
     hands_by_id = {h["prompt_id"]: h for h in hands}
 
+    def write_batch_outcomes(batch: ScreenBatch, outcomes: dict) -> None:
+        judgment_records, rejection_records = screen_step.stage_file_records(batch, outcomes)
+        _drop_batch_records(judgments_path, batch.batch_id)
+        _drop_batch_records(rejections_path, batch.batch_id)
+        for record in judgment_records:
+            utils.append_jsonl(record, judgments_path)
+        for record in rejection_records:
+            utils.append_jsonl(record, rejections_path)
+
+    runner = BatchStepRunner(
+        screen_step, event_log, checkpoint, write_batch_outcomes, workers=config.get("workers", 1))
+
     started_all = time.monotonic()
-    workers = config.get("workers", 1)
     round_number = 0
     while True:
         round_record = rounds[round_number]
         round_ids = round_record["prompt_ids"]
-        batches = plan_round_batches(output_dir, round_number, round_ids, batch_size, seed)
-        pending = [b for b in batches if not checkpoint.is_done(b["batch_id"])]
-        print(f"  Screen round {round_number}: {len(round_ids)} hands in {len(batches)} batches of up to "
-              f"{batch_size} ({len(batches) - len(pending)} already done)")
+        batch_records = plan_round_batches(output_dir, round_number, round_ids, batch_size, seed, event_log)
+        pending_records = [b for b in batch_records if not checkpoint.is_done(b["batch_id"])]
+        print(f"  Screen round {round_number}: {len(round_ids)} hands in {len(batch_records)} batches of up to "
+              f"{batch_size} ({len(batch_records) - len(pending_records)} already done)")
 
-        def screen_one(batch: dict):
-            members = [hands_by_id[pid] for pid in batch["prompt_ids"]]
-            shown = [render_variable_lines(m) for m in members]
-            try:
-                started = time.monotonic()
-                judgments = screen_hands(shown, prompts=prompts, model=model, item_id=batch["batch_id"])
-                return members, shown, judgments, time.monotonic() - started, None
-            except ScreenAnswerError as e:
-                return members, shown, None, 0.0, f"unusable answer ({e})"
-            except Exception as e:  # one failing call must not discard its siblings' work
-                return members, shown, None, 0.0, f"API call failed ({type(e).__name__}: {e})"
-
-        failed = 0
         round_started = time.monotonic()
-        for done, (batch, (members, shown, judgments, seconds, problem)) in enumerate(
-            zip(pending, utils.parallel_map(screen_one, pending, workers)), 1
-        ):
-            if problem:
-                failed += 1
-                print(f"  {batch['batch_id']}: {problem} — will retry on resume")
-                continue
-            _drop_batch_records(judgments_path, batch["batch_id"])
-            _drop_batch_records(rejections_path, batch["batch_id"])
-            for judgment in judgments:
-                member, lines = members[judgment.index], shown[judgment.index]
-                utils.append_jsonl({
-                    "prompt_id": member["prompt_id"], "round": round_number,
-                    "batch_id": batch["batch_id"], "number": judgment.number,
-                    "reasoning": judgment.reasoning, "remove": judgment.remove,
-                    "reason": judgment.reason,
-                }, judgments_path)
-                if judgment.remove:
-                    utils.append_jsonl({
-                        "prompt_id": member["prompt_id"], "round": round_number,
-                        "batch_id": batch["batch_id"], "number": judgment.number,
-                        "reason": judgment.reason, "variables": member["variables"],
-                        "variable_lines": lines,
-                    }, rejections_path)
-            checkpoint.mark_done(batch["batch_id"])
-            print(f"  Screened {batch['batch_id']} ({done}/{len(pending)}): {len(members)} hands, "
-                  f"{sum(j.remove for j in judgments)} extremely implausible, {seconds:.1f}s")
-
-        if pending and failed == len(pending):
-            raise SystemExit(
-                "layer1_screen: every pending screen call failed — this is systemic "
-                "(auth, backend, or network), not per-batch; fix and --resume."
-            )
-        if failed:
-            raise SystemExit(
-                f"layer1_screen: {failed} batch(es) of round {round_number} failed; the next "
-                "round cannot be dealt until the round is complete — --resume retries them."
-            )
+        runner.run([screen_step.batch_from_record(record, hands_by_id) for record in pending_records])
 
         rejected = load_rejections(output_dir)
         removed_ids = [pid for pid in round_ids if pid in rejected]
@@ -420,20 +594,29 @@ def run(config: dict, prompts_dir: Path, output_dir: Path) -> list[dict] | None:
         if round_number + 1 < len(rounds):  # the next round was dealt before an interruption
             round_number += 1
             continue
-        new_hands = redeal_removed_hands(
-            [hands_by_id[pid] for pid in removed_ids], round_number + 1, seed, deal_rules)
-        if new_hands is None:
+        redeal_outcomes = RedealStep(
+            round_number, removed_ids, {pid: rejected[pid]["reason"] for pid in removed_ids}, seed, deal_rules
+        ).apply(hands)
+        for outcome_document_id, outcome in redeal_outcomes.items():
+            if isinstance(outcome, Removed):
+                event_log.append_outcome_event(
+                    document_id=outcome_document_id, step_name=RedealStep.step_name, outcome="removed",
+                    request_hash=None, stage=None,
+                    detail={"reason_code": outcome.reason_code, "detail": outcome.detail})
+        new_records = [outcome.new_state for outcome in redeal_outcomes.values() if isinstance(outcome, Created)]
+        if not new_records:
             note = (f"{len(removed_ids)} removed hands could not be redealt into different, "
                     "rule-satisfying hands")
             print(f"  {note}; their cards are dropped")
             rounds.append({"round": round_number + 1, "prompt_ids": [], "note": note})
             utils.append_jsonl(rounds[-1], rounds_path)
+            event_log.append_round_dealt_event(
+                round_number=round_number + 1, prompt_ids=[], note=note)
+            event_log.append_corpus_step_finished_event(
+                step_name=RedealStep.step_name,
+                summary={"round": round_number + 1, "removed_prompt_ids": removed_ids,
+                         "created_prompt_ids": [], "cards_dropped": True})
             break
-        first_index = _next_hand_index(hands)
-        new_records = [
-            {"prompt_id": record["prompt_id"], "round": round_number + 1, "variables": record["variables"]}
-            for record in cp.hand_records(new_hands, first_index)
-        ]
         for record in new_records:
             hands_by_id[record["prompt_id"]] = record
         hands.extend(new_records)
@@ -441,6 +624,12 @@ def run(config: dict, prompts_dir: Path, output_dir: Path) -> list[dict] | None:
         rounds.append({"round": round_number + 1, "prompt_ids": [r["prompt_id"] for r in new_records],
                        "note": f"redeal of {len(removed_ids)} removed hands"})
         utils.append_jsonl(rounds[-1], rounds_path)
+        event_log.append_round_dealt_event(
+            round_number=round_number + 1, prompt_ids=rounds[-1]["prompt_ids"], note=rounds[-1]["note"])
+        event_log.append_corpus_step_finished_event(
+            step_name=RedealStep.step_name,
+            summary={"round": round_number + 1, "removed_prompt_ids": removed_ids,
+                     "created_prompt_ids": rounds[-1]["prompt_ids"], "cards_dropped": False})
         round_number += 1
 
     return _finish(output_dir, sdf, hands, rounds, started_all)
