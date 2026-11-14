@@ -68,8 +68,10 @@ FIXTURE_DIRECTORY = REPOSITORY_ROOT / "tests" / "fixtures" / "sdf_audit_equivale
 RECORDED_FILE_FORMAT_VERSION = 1
 REGENERATION_COMMAND = "python scripts/regenerate_sdf_audit_equivalence_recorded_requests.py"
 REGENERATION_RULE = (
-    f"The recorded files are rewritten only by `{REGENERATION_COMMAND}`, in the same pull request "
-    "as the intended change to a judge request; a pull request that only refactors never rewrites them.")
+    f"The recorded files are rewritten only by `{REGENERATION_COMMAND}`, and only when the pull request is "
+    "meant to change judge requests: never to make a failing test pass. Regenerate and commit the files in that pull "
+    "request, and say in its description that requests change and why. A pull request not meant to change "
+    "them leaves the files alone, so a difference is a bug.")
 
 # The real network-seam functions, captured when this module is first imported (at test collection),
 # before tests/conftest.py's autouse guards replace them with functions that raise.

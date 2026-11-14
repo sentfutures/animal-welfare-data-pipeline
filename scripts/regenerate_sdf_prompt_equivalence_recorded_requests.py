@@ -8,12 +8,14 @@ so their diff shows reviewers which requests changed. A pull request that only r
 it: there, a failing test means the refactor changed a request. The recorded
 files are meant to be recorded on origin/main.
 
-Guard: each recorded file stores the commit it was recorded from and the Python files under
-sdf_pipeline/, shared/ and dad_pipeline/ that differed from origin/main when it was recorded. The
-test fails if that list is not empty, so a refactor branch cannot quietly regenerate the files to
-match its own changes: this script refuses to run when such files differ unless
---allow-python-changes is given, and the test then fails until a human edits it, in plain view in
-review. Prompt, config and constitution changes are not Python files and do not trip it.
+Rule: whether to regenerate depends only on intent. A pull request meant to change requests
+regenerates and commits the files in that pull request, whether or not it also touches Python; a
+pull request not meant to change requests never regenerates, so any difference fails. This script
+therefore does not refuse because Python differs from origin/main. Each recorded file still stores
+the commit it was recorded from and the Python files under sdf_pipeline/, shared/ and dad_pipeline/
+that differed from origin/main, as information for reviewers only; no test checks that list. The
+script still stops when a git command fails or `origin/main` cannot be resolved, because the list
+would then be wrong.
 
 No model API is called and no key is read: every provider client is replaced by a recorder that
 returns canned replies (tests/sdf_prompt_equivalence_fixture_support.py), with fake keys.
@@ -50,8 +52,8 @@ def git(*arguments: str) -> str:
 def python_files_differing_from_origin_main() -> list[str]:
     if subprocess.run(["git", "rev-parse", "--verify", "--quiet", "origin/main^{commit}"], cwd=REPOSITORY_ROOT,
                       capture_output=True, text=True).returncode != 0:
-        sys.exit("Refusing to regenerate: `origin/main` cannot be resolved in this repository, so the guard "
-                 "cannot tell which Python files differ from it. Fetch it (`git fetch origin main`) and run again.")
+        sys.exit("Refusing to regenerate: `origin/main` cannot be resolved in this repository, so the "
+                 "list of differing Python files cannot be recorded. Fetch it (`git fetch origin main`) and run again.")
     committed = git("diff", "--name-only", "origin/main", "--", *PYTHON_DIRECTORIES_THE_REQUESTS_DEPEND_ON).splitlines()
     untracked = git("ls-files", "--others", "--exclude-standard", "--", *PYTHON_DIRECTORIES_THE_REQUESTS_DEPEND_ON).splitlines()
     return sorted(name for name in {*committed, *untracked} if name.endswith(".py"))
@@ -59,16 +61,9 @@ def python_files_differing_from_origin_main() -> list[str]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--allow-python-changes", action="store_true",
-                        help="record even though Python files differ from origin/main (see the guard above)")
-    arguments = parser.parse_args()
+    parser.parse_args()
 
     differing = python_files_differing_from_origin_main()
-    if differing and not arguments.allow_python_changes:
-        sys.exit("Refusing to regenerate: these Python files differ from origin/main, so the recorded requests "
-                 f"would no longer be the ones origin/main sends: {differing}. Regenerate from origin/main, or "
-                 "pass --allow-python-changes if the request change is deliberate (the test will then fail "
-                 "until the recorded list is reviewed).")
     dirty = "with uncommitted changes" if git("status", "--porcelain", "--untracked-files=no") else "clean"
     metadata = {
         "recorded_from": f"commit {git('rev-parse', 'HEAD')} on branch {git('rev-parse', '--abbrev-ref', 'HEAD')} ({dirty})",
