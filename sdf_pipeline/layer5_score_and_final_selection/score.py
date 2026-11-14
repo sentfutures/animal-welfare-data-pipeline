@@ -1,6 +1,5 @@
-"""Layer 5 step: score each rewrite. The judge scores alignment, realism and spec_conformance (1-10 each; the gate and the near-duplicate removal are in
-``score_gate.py`` and ``near_duplicate_removal.py``). A response that fails to parse is recorded as 5/5/5 "Parse error." and kept (a re-run would re-bill without
-new information); the score report flags these for review."""
+"""Layer 5 step: the judge scores alignment, realism and spec_conformance (1-10 each). A response that fails to parse is recorded as 5/5/5 "Parse error." and kept
+(a re-run would re-bill without new information); the score report flags these for review."""
 
 import json
 import sys
@@ -11,6 +10,7 @@ from typing import Callable
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from shared import constitution_loader, utils
+from shared.sdf_run_layouts import SCORE
 from sdf_pipeline.layer4_draft_critique_and_revise.shared_by_this_layers_steps import REWRITES
 from sdf_pipeline.shared_step_machinery import compose_prompts as cp
 from sdf_pipeline.shared_step_machinery.dealt_value_identifiers import value_ids_field_of
@@ -19,9 +19,9 @@ from sdf_pipeline.shared_step_machinery.step_record import (
 from sdf_pipeline.shared_step_machinery.update_steps import (
     Accepted, Failed, ModelReply, ModelRequest, StepProgress, line_for_document_left_to_retry,
     reason_without_error_prefix)
-from shared.sdf_run_layouts import SCORE
 
 PARSE_ERROR_SCORES = {"alignment": 5, "realism": 5, "spec_conformance": 5, "notes": "Parse error."}
+
 
 SCORES = StageFile(SCORE, "scores.jsonl", "doc_id")
 
@@ -97,5 +97,4 @@ STEP = Step(
     required_prompt_files=lambda config, prompts_directory: [utils.sdf_template_path(prompts_directory, 4).name],
     reads=lambda run: run.records(REWRITES), seeds_from=lambda run: REWRITES,
     build_request=build_request, read_reply=read_reply,
-    records=one_record_per_accepted_document(SCORES, record_of), writes=(SCORES,),
-    checkpoint_file_name="_checkpoint.json", progress_line=progress_line)
+    records=one_record_per_accepted_document(SCORES, record_of), writes=(SCORES,), progress_line=progress_line)

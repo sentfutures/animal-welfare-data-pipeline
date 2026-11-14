@@ -1,20 +1,5 @@
-"""The considerations catalog: parsing prompts/sdf/considerations.txt.
-
-Pure code, no API calls. The file has the same format as variables.txt (and is
-parsed by the same ``parse_variables``), with one difference: the ``<weight> ::``
-prefix on an entry is its TARGET SHARE of the eligible documents, so the shares
-of a list need not sum to 1.
-
-Sections (see the header of considerations.txt for the full contract):
-``moral_considerations`` and ``epistemic_considerations`` are the two ordered
-lists; ``epistemic_considerations_digital_minds_only`` entries are placed first
-on the epistemic list and are eligible only on documents whose sentient_category
-is one of ``digital_mind_categories``; ``skipped_resolutions`` names the
-resolution values whose documents get no considerations. The category and
-resolution values are named by their stable [id] in variables.txt (the same IDs
-deal_constraints.txt uses), so rewording a value's text there changes nothing here
-and an unknown ID makes loading fail instead of silently making an entry unreachable.
-"""
+"""Parse ``prompts/sdf/considerations.txt`` (variables.txt format; an entry's weight is its target share, not a probability).
+Categories and resolutions are named by their ``[id]`` in variables.txt; an unknown id fails loading."""
 
 import math
 import sys
@@ -129,10 +114,7 @@ def _parse_entries(
 
 
 def load_considerations(prompts_dir: Path) -> ConsiderationCatalog:
-    """Parse considerations.txt, resolving its category and resolution names
-    against the variables.txt beside it. Raises ValueError on any malformed
-    entry, duplicate label, missing section, or name that does not match exactly
-    one variables.txt value."""
+    """Parse considerations.txt against the variables.txt beside it; raises ValueError on a malformed entry, duplicate, missing section or unmatched name."""
     prompts_dir = Path(prompts_dir)
     path = prompts_dir / CONSIDERATIONS_FILENAME
     parsed = cp.parse_variables(path)

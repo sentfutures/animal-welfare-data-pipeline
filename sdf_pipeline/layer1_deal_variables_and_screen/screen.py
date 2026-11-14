@@ -14,8 +14,8 @@ from sdf_pipeline.shared_step_machinery import compose_prompts as cp
 from sdf_pipeline.shared_step_machinery import structured_answers
 from sdf_pipeline.shared_step_machinery.dealt_value_identifiers import value_ids_field_of
 from sdf_pipeline.layer1_deal_variables_and_screen.shared_by_this_layers_steps import (
-    BATCHES_FILENAME, CHECKPOINT_FILENAME, DEFAULT_BATCH_SIZE, HAND_BLOCK_FILENAME, JUDGMENTS_FILENAME,
-    PROMPTS, REJECTIONS_FILENAME, SCHEMA_FILENAME, SCREENED_HANDS, SHUFFLE_SEED_NAME, TEMPLATE_FILENAME)
+    BATCHES_FILENAME, DEFAULT_BATCH_SIZE, HAND_BLOCK_FILENAME, JUDGMENTS_FILENAME, PROMPTS,
+    REJECTIONS_FILENAME, SCHEMA_FILENAME, SCREENED_HANDS, SHUFFLE_SEED_NAME, TEMPLATE_FILENAME, finished_screen_batch_ids)
 from sdf_pipeline.shared_step_machinery.step_record import Run, Step, loaded_once_per_run
 from sdf_pipeline.shared_step_machinery.step_runner import StepRunResult, send_model_request
 from sdf_pipeline.shared_step_machinery.update_steps import (
@@ -117,7 +117,8 @@ def parse_screen_answer(raw: str, hand_count: int) -> list[ScreenJudgment]:
 def build_screen_request(
     prompts: ScreenPrompts, rendered_hands: list[str], model: str | None, item_id: str | None
 ) -> ModelRequest:
-    """The request for one batch: schema-constrained (number enum 1..N), the global temperature, tagged for the cost log."""
+    """The request for one batch: schema-constrained (number enum 1..N), the global temperature,
+    tagged with the screen's stage tag for the cost log."""
     system, user = build_screen_prompt(prompts, rendered_hands)
     return ModelRequest(
         user_message=user,
@@ -144,16 +145,26 @@ def screen_hands(
     return parse_screen_answer(reply.text, len(rendered_hands))
 
 
-# ---------------------------------------------------------------- batching
+# ---------------------------------------------------------------- batching and redealing
+
+def shuffled_batch_records(prompt_ids: list[str], batch_size: int, seed: int, round_number: int) -> list[dict]:
+    """The batches of one round: a seeded shuffle of the sorted ids (seed from run seed, stage tag, round), cut into batch_size chunks."""
+    shuffled = sorted(prompt_ids)
+    random.Random(f"{seed}:{SHUFFLE_SEED_NAME}:round{round_number}").shuffle(shuffled)
+    return [
+        {
+            "batch_id": f"screen_round{round_number}_batch{index:04d}",
+            "round": round_number,
+            "prompt_ids": shuffled[start:start + batch_size],
+        }
+        for index, start in enumerate(range(0, len(shuffled), batch_size))
+    ]
+
 
 def plan_round_batches(
-    output_dir: Path, round_number: int, prompt_ids: list[str], batch_size: int, seed: int
+    output_dir: Path, round_number: int, prompt_ids: list[str], batch_size: int, seed: int,
 ) -> list[dict]:
-    """The batches of one round, persisted before any call of that round.
-
-    A seeded shuffle (of the sorted ids, so input order is irrelevant) cut into
-    batch_size chunks. On resume the round's saved batches are reused verbatim when
-    together they hold exactly the round's hands; a partial set is planned again."""
+    """The round's batches, saved before any call; on resume they are reused when together they hold exactly the round's hands."""
     path = output_dir / BATCHES_FILENAME
     every_batch = utils.load_jsonl(path)
     saved = [b for b in every_batch if b["round"] == round_number]
@@ -162,21 +173,11 @@ def plan_round_batches(
         return saved
     if saved:  # an interrupted write left only some of the round's batches; plan the round again
         utils.save_jsonl([b for b in every_batch if b["round"] != round_number], path)
-    shuffled = sorted(prompt_ids)
-    random.Random(f"{seed}:{SHUFFLE_SEED_NAME}:round{round_number}").shuffle(shuffled)
-    batches = []
-    for start in range(0, len(shuffled), batch_size):
-        batch = {
-            "batch_id": f"screen_round{round_number}_batch{len(batches):04d}",
-            "round": round_number,
-            "prompt_ids": shuffled[start:start + batch_size],
-        }
-        batches.append(batch)
+    batches = shuffled_batch_records(prompt_ids, batch_size, seed, round_number)
+    for batch in batches:
         utils.append_jsonl(batch, path)
     return batches
 
-
-# ---------------------------------------------------------------- the step
 
 @loaded_once_per_run
 def _prompts(run: Run) -> ScreenPrompts:
@@ -224,26 +225,27 @@ def read_reply(hands: list, reply: ModelReply, run: Run) -> dict:
 
 
 def records(hands: list, outcomes: dict, run: Run) -> OutcomeRecords:
-    """The batch's lines of screen_judgments.jsonl and screen_rejections.jsonl in hand order, replacing the batch's
-    earlier lines; nothing for a failed batch."""
+    """The batch's lines of screen_rejections.jsonl then of screen_judgments.jsonl (the judgments finish the batch), in
+    hand order, replacing the batch's earlier lines; nothing for a failed batch."""
     if any(isinstance(outcome, Failed) for outcome in outcomes.values()):
         return OutcomeRecords()
     batch_id, round_number = hands[0]["batch_id"], hands[0]["round"]
-    new_records = []
+    judgment_records, rejection_records = [], []
     for hand in hands:
         outcome = outcomes[hand["prompt_id"]]
         removed = isinstance(outcome, Removed)
         facts = outcome.detail if removed else outcome.update
-        new_records.append((JUDGMENTS_FILENAME, {
+        judgment_records.append({
             "prompt_id": hand["prompt_id"], "round": round_number, "batch_id": batch_id, "number": facts["number"],
-            "reasoning": facts["reasoning"], "remove": removed, "reason": facts["reason"]}))
+            "reasoning": facts["reasoning"], "remove": removed, "reason": facts["reason"]})
         if removed:
-            new_records.append((REJECTIONS_FILENAME, {
+            rejection_records.append({
                 "prompt_id": hand["prompt_id"], "round": round_number, "batch_id": batch_id, "number": facts["number"],
                 "reason": facts["reason"], "variables": hand["variables"], **value_ids_field_of(hand),
-                "variable_lines": _render_variable_lines(run)(hand)}))
+                "variable_lines": _render_variable_lines(run)(hand)})
     return OutcomeRecords(
-        records=tuple(new_records),
+        records=(*((REJECTIONS_FILENAME, record) for record in rejection_records),
+                 *((JUDGMENTS_FILENAME, record) for record in judgment_records)),
         replacing=((JUDGMENTS_FILENAME, "batch_id", batch_id), (REJECTIONS_FILENAME, "batch_id", batch_id)))
 
 
@@ -267,12 +269,13 @@ def stop_message(hands: list, result: StepRunResult, run: Run) -> str:
 
 
 STEP = Step(
-    name="screen", folder_key=DEAL_VARIABLES_AND_SCREEN, model_setting_keys=("screen_model", "description_write_model"),
+    name="screen", folder_key=DEAL_VARIABLES_AND_SCREEN,
+    model_setting_keys=("screen_model", "description_write_model"),
     required_prompt_files=lambda config, prompts_directory: [TEMPLATE_FILENAME, HAND_BLOCK_FILENAME, SCHEMA_FILENAME],
     reason_inactive=lambda config, prompts_directory: reason_screen_is_inactive(config, prompts_directory),
     group=group_hands_into_seeded_batches,
     build_request=build_request, read_reply=read_reply, records=records, writes=(SCREENED_HANDS, PROMPTS),
-    checkpoint_file_name=CHECKPOINT_FILENAME,
+    finished_group_keys=lambda run: finished_screen_batch_ids(run.stage_directories[DEAL_VARIABLES_AND_SCREEN]),
     policy=StepPolicy(
         failure_kinds_counting_towards_the_systemic_stop=frozenset({FailureKind.THROWN_CALL, FailureKind.UNUSABLE_ANSWER}),
         failed_document=WhatAFailedDocumentDoes.STOPS_THE_RUN_AFTER_THE_STEP,

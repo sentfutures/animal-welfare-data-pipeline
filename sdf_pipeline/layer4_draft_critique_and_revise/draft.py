@@ -1,4 +1,4 @@
-"""Layer 4 step: draft one document per plan from its DOCUMENT DESCRIPTION spec; the draft must come back inside <document> tags.
+"""Layer 4 step: draft one document per plan, from its DOCUMENT DESCRIPTION spec; the draft must come back inside <document> tags.
 Anything else (missing tags, truncation) is not recorded, so ``--resume`` retries it."""
 
 import re
@@ -9,7 +9,8 @@ from typing import Callable
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from shared import constitution_loader, deal_constraints, sdf_run_layouts, utils
+from shared import constitution_loader, deal_constraints, utils
+from shared.sdf_run_layouts import DRAFT
 from sdf_pipeline.layer2_description_write_and_description_rewrite.description_write import PLANS
 from sdf_pipeline.layer3_consideration_scoring_and_selection.consideration_selection import plans_with_selections
 from sdf_pipeline.shared_step_machinery import compose_prompts as cp
@@ -24,7 +25,8 @@ DOC_TAG_RE = re.compile(r"<document>(.*?)</document>", re.DOTALL)
 
 _MAX_TOKENS = 6000  # real documents are often long; the cap bounds api-backend cost
 
-DRAFTS = StageFile(sdf_run_layouts.DRAFT, "drafts.jsonl", "doc_id")
+
+DRAFTS = StageFile(DRAFT, "drafts.jsonl", "doc_id")
 
 
 @dataclass(frozen=True)
@@ -65,8 +67,8 @@ def build_request(documents: list, run: Run) -> ModelRequest:
         document_description=plan["description"],
         considerations_spec=considerations_spec,
         variable_lines=inputs.render_variable_lines({"prompt_id": plan["prompt_id"], "variables": plan["variables"]}),
-        # Downstream-only matrix axis recorded in variables; plans without it get the neutral value, so
-        # --resume of a run that lacks it never crashes.
+        # Downstream-only matrix axis recorded in variables; plans without it get the neutral
+        # value, so --resume of a run that lacks it never crashes.
         reasoning_featured=plan.get("variables", {}).get(
             "reasoning_featured", "any relevant principles from the constitution"
         ),
@@ -112,15 +114,14 @@ def progress_line(documents: list, outcomes: dict, progress: StepProgress, run: 
 
 # Only a thrown call counts towards the systemic stop; an unusable answer is left behind.
 STEP = Step(
-    name="draft", folder_key=sdf_run_layouts.DRAFT, model_setting_keys=("draft_model",),
+    name="draft", folder_key=DRAFT, model_setting_keys=("draft_model",),
     required_prompt_files=lambda config, prompts_directory: [utils.sdf_template_path(prompts_directory, 2).name, "preamble.txt"],
     reads=plans_with_selections, seeds_from=lambda run: PLANS,
     applies=lambda plan, run: bool(plan.get("description")),
-    build_request=build_request, read_reply=read_reply,
-    records=one_record_per_accepted_document(DRAFTS, record_of), writes=(DRAFTS,),
-    checkpoint_file_name=lambda: sdf_run_layouts.active_layout().draft_checkpoint_file_name, progress_line=progress_line)
+    build_request=build_request, read_reply=read_reply, records=one_record_per_accepted_document(DRAFTS, record_of), writes=(DRAFTS,),
+    progress_line=progress_line)
 
 
 def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) -> list[dict]:
     """Draft every plan and return the draft records in input order."""
-    return run_step(STEP, Run(config, prompts_dir, {sdf_run_layouts.DRAFT: output_dir}), plans).records_in_input_order
+    return run_step(STEP, Run(config, prompts_dir, {DRAFT: output_dir}), plans).records_in_input_order

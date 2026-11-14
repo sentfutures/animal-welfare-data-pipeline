@@ -106,12 +106,12 @@ class Step:
     read_reply: Callable | None = None
     records: Callable | None = None               # (documents, outcomes, run) -> every record the outcomes write
     writes: tuple = ()                            # stage files (seeding copies them)
-    checkpoint_file_name: str | Callable | None = None   # the checkpoint file in the folder (or a function of the active layout giving it): a group's key is marked after its records
+    finished_group_keys: Callable | None = None   # run -> keys of the groups the stage files show finished
     writes_as_replies_arrive: bool = False        # write each outcome the moment it arrives
     policy: StepPolicy = StepPolicy()
     call_noun: str = "API call"
     unit_noun: str = "document"
-    name_in_messages: Callable | None = None      # () -> what stop messages start with instead of the stage tag
+    name_in_messages: Callable | None = None      # stop messages start with this instead of the stage tag
     progress_line: Callable | None = None
     after_run: Callable | None = None
     stop_message: Callable | None = None          # (documents, result, run) -> the exit message when a failed group stops the run
@@ -134,7 +134,7 @@ class Step:
         return layout.layer_number_of_key[self.folder_key]
 
     def model_for(self, config: dict):
-        """The model the step is configured with (the first setting key that is set; a renamed key also under its old name)."""
+        """The model the step is configured with (the first setting key that is set)."""
         return next((model_setting(config["sdf"], key) for key in self.model_setting_keys
                      if model_setting(config["sdf"], key)), None)
 

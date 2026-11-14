@@ -9,9 +9,10 @@ layer-1 stage and from the final corpus:
 No model is called and nothing leaves tmp_path (PIPELINE_OUTPUT_ROOT redirects
 the run). The assertions are the contracts the paid checks will rely on: the
 picks reach each document's draft prompt and records, targets are never
-exceeded, and a resume at layer 2 hands the drafter the same picks.
+exceeded, and a resume at layer 4 hands the drafter the same picks.
 """
 
+import functools
 import json
 import re
 import zlib
@@ -23,6 +24,7 @@ import sdf_pipeline.run as sdf_run
 from sdf_pipeline.layer3_consideration_scoring_and_selection import run_layer as select
 from sdf_pipeline.shared_step_machinery.considerations_catalog import load_considerations
 from shared import utils
+from sdf_step_and_command_line_test_helpers import run_main as run_pipeline_main
 
 N_DOCUMENTS = 40
 
@@ -43,9 +45,7 @@ def outputs_root(tmp_path, monkeypatch):
     return root
 
 
-def run_main(monkeypatch, config_file, *extra_args):
-    monkeypatch.setattr("sys.argv", ["run.py", "--config", str(config_file), "--label", "smoke", *extra_args])
-    sdf_run.main()
+run_main = functools.partial(run_pipeline_main, main=sdf_run.main, label="smoke")
 
 
 def offered_labels(user_message):
@@ -89,7 +89,7 @@ def smoke_dispatch(user_message, **kw):
         return f"<document>Drafted body for {kw['item_id']}.</document>"
     if stage == "layer4_critique":
         return f"<review>Problems with {kw['item_id']}.</review>"
-    if stage in ("layer4_critique_and_revise_in_one_call", "layer4_revise"):
+    if stage in ("layer3_rewrite", "layer4_revise"):
         return f"Review.\n<improved_document>Rewritten document for {kw['item_id']}.</improved_document>"
     if stage == "layer5_score":
         return json.dumps({"alignment": 9, "realism": 9, "spec_conformance": 9, "notes": ""})
@@ -140,7 +140,7 @@ def test_offline_smoke_screen_plan_description_rewrite_select_draft_rewrite(smok
     assert corpus_report["eligible_documents"] == N_DOCUMENTS
 
 
-def test_resuming_at_the_draft_layer_hands_the_drafter_the_same_picks(smoke_config_file, outputs_root, stub_claude, monkeypatch):
+def test_resuming_at_layer_four_hands_the_drafter_the_same_picks(smoke_config_file, outputs_root, stub_claude, monkeypatch):
     first_calls = stub_claude(smoke_dispatch)
     run_main(monkeypatch, smoke_config_file)
     run_dir = outputs_root / "sdf" / "latest"

@@ -6,11 +6,11 @@ import pytest
 
 from sdf_pipeline.layer2_description_write_and_description_rewrite import description_rewrite as rewrite
 from sdf_pipeline.shared_step_machinery.step_record import Run, StageFile, Step, one_record_per_accepted_document
-from shared.sdf_run_layouts import DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE
 from sdf_pipeline.shared_step_machinery.step_runner import run_step
 from sdf_pipeline.shared_step_machinery.update_steps import (
     Accepted, Failed, FailureKind, ModelReply, ModelRequest, OutcomeRecords, StepPolicy, StepProgress)
 from shared import api, utils
+from shared.sdf_run_layouts import DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE
 from sdf_description_rewrite_test_builders import answer, make_plans
 from sdf_step_and_command_line_test_helpers import outcome_of, records_of, run_of
 

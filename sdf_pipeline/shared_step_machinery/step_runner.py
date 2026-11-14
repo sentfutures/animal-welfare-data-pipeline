@@ -7,6 +7,7 @@ import time
 from dataclasses import dataclass, field, replace
 
 from shared import api, openai_api, utils
+from sdf_pipeline.compatibility_with_runs_made_by_earlier_code.checkpoint_marks import marked_as_finished
 from sdf_pipeline.shared_step_machinery.step_record import Run, Step, document_id_of
 from sdf_pipeline.shared_step_machinery.update_steps import (
     Failed, FailureKind, ModelReply, ModelRequest, OutcomeRecords, StepProgress, WhatAFailedDocumentDoes,
@@ -79,6 +80,9 @@ def failure_for_exception(error: Exception) -> Failed:
     return Failed(FailureKind.THROWN_CALL, f"error: {type(error).__name__}: {error}")
 
 
+
+
+
 def maximum_attempts(step: Step, run: Run) -> int:
     """How many times the step may send the same request in one run (the policy's, or the configured setting)."""
     policy = step.policy
@@ -97,25 +101,18 @@ def _records_of_finished_documents(step: Step, run: Run) -> dict:
     return {document_id_of(record): record for record in run.records(step.writes[0])}
 
 
-def checkpoint_of(step: Step, run: Run) -> utils.Checkpoint | None:
-    """The step's checkpoint file in its folder (written by earlier and current code alike), or None for a step without one."""
-    if not step.checkpoint_file_name:
-        return None
-    file_name = step.checkpoint_file_name() if callable(step.checkpoint_file_name) else step.checkpoint_file_name
-    return utils.Checkpoint(run.stage_directories[step.folder_key] / file_name)
-
-
 def find_pending(step: Step, run: Run, documents: list) -> tuple[dict, dict]:
     """({group key: group} for every group the step would run on ``documents``, the same for the groups still
-    pending). A group is one document that applies to the step, unless the step groups; a group is finished when
-    its record is in the stage file or its key is marked in the checkpoint file."""
+    pending). A group is one document that applies to the step, unless the step groups."""
     groups = step.group(documents, run) if step.group else {
         document_id_of(document): [document] for document in documents
         if step.applies(document, run) and not step.finished_elsewhere(document, run)}
-    checkpoint = checkpoint_of(step, run)
-    finished = set(_records_of_finished_documents(step, run))
-    pending = {key: group for key, group in groups.items()
-               if key not in finished and not (checkpoint and checkpoint.is_done(key))}
+    marks = marked_as_finished(step.name, run.stage_directories[step.folder_key])
+    if step.finished_group_keys:
+        finished = step.finished_group_keys(run) if marks is None else marks
+    else:
+        finished = set(_records_of_finished_documents(step, run)) | (marks or set())
+    pending = {key: group for key, group in groups.items() if key not in finished}
     return groups, pending
 
 
@@ -155,9 +152,9 @@ def _read_group(step: Step, run: Run, send, documents: list) -> tuple[dict, floa
 
 
 def _write_outcomes_and_print_line(
-        step, run, stage_directory, checkpoint, progress, key, documents, outcomes, seconds) -> OutcomeRecords:
-    """Write the group's records (dropping the earlier ones it replaces) and mark the group in the checkpoint file, count
-    the group in the run's progress and print the step's line."""
+        step, run, stage_directory, progress, documents, outcomes, seconds) -> OutcomeRecords:
+    """Write the group's records (dropping the earlier ones it replaces), count the group in the run's progress and
+    print the step's line."""
     outcome_records = step.records(documents, outcomes, run)
     for file_name, field_name, value in outcome_records.replacing:
         earlier = utils.load_jsonl(stage_directory / file_name)
@@ -166,8 +163,6 @@ def _write_outcomes_and_print_line(
             utils.save_jsonl(kept, stage_directory / file_name)
     for file_name, record in outcome_records.records:
         utils.append_jsonl(record, stage_directory / file_name)
-    if checkpoint and outcome_records.records:
-        checkpoint.mark_done(key)
     progress.record(outcomes.values(), seconds)
     line = step.progress_line(documents, outcomes, progress, run) if step.progress_line else None
     if line is not None:
@@ -179,7 +174,6 @@ def run_step(step: Step, run: Run, documents: list, send=send_model_request) -> 
     """Run a model-calling step over ``documents`` (see the module docstring)."""
     maximum_attempts(step, run)   # refuses a step that may send no request, before any call
     stage_directory = run.stage_directories[step.folder_key]
-    checkpoint = checkpoint_of(step, run)
     finished = _records_of_finished_documents(step, run)
     _, pending = find_pending(step, run, documents)
     progress = StepProgress(pending_count=len(pending))
@@ -190,21 +184,21 @@ def run_step(step: Step, run: Run, documents: list, send=send_model_request) -> 
     write_lock = threading.Lock()
 
     def answer(keyed_group):
-        key, group = keyed_group
+        group = keyed_group[1]
         outcomes, seconds = _read_group(step, run, send, group)
         if step.writes_as_replies_arrive:
             with write_lock:
                 return outcomes, seconds, _write_outcomes_and_print_line(
-                    step, run, stage_directory, checkpoint, progress, key, group, outcomes, seconds)
+                    step, run, stage_directory, progress, group, outcomes, seconds)
         return outcomes, seconds, None
 
     counted_failures = 0
     pending_groups = list(pending.items())
-    for (key, group), (outcomes, seconds, outcome_records) in zip(
+    for (_, group), (outcomes, seconds, outcome_records) in zip(
             pending_groups, utils.parallel_map(answer, pending_groups, run.workers)):
         if outcome_records is None:   # otherwise the worker wrote its files and printed its line
             outcome_records = _write_outcomes_and_print_line(
-                step, run, stage_directory, checkpoint, progress, key, group, outcomes, seconds)
+                step, run, stage_directory, progress, group, outcomes, seconds)
         failures = {document_id: outcome for document_id, outcome in outcomes.items() if isinstance(outcome, Failed)}
         if failures:
             result.failed_groups.append(group)

@@ -3,7 +3,7 @@
 Step unit tests call ``group``, ``read_reply`` and ``records`` with no stubbed API and no files. The
 runner and layer tests pin the requests, the stage files, the stop messages, resume (identical rounds,
 zero calls for finished batches).
-``run_layer.run`` is the layer's entry point (scripts and tests import it).
+``layer1_screen.run`` is the layer's entry point (scripts and tests import it).
 """
 
 import dataclasses
@@ -14,11 +14,11 @@ import pytest
 
 from sdf_pipeline.layer1_deal_variables_and_screen import run_layer as screen_layer
 from sdf_pipeline.layer1_deal_variables_and_screen import screen
-from shared.sdf_run_layouts import DEAL_VARIABLES_AND_SCREEN
 from sdf_pipeline.shared_step_machinery.step_runner import run_step
 from sdf_pipeline.shared_step_machinery.update_steps import Accepted, Failed, FailureKind, ModelReply, Removed, StepProgress
 from sdf_step_and_command_line_test_helpers import run_of
 from shared import utils
+from shared.sdf_run_layouts import DEAL_VARIABLES_AND_SCREEN
 from sdf_screen_test_builders import (
     no_removals, remove_the_first_three_hands_of_every_batch,
     screen_answer, screen_config)  # noqa: F401  (screen_config is a fixture)
@@ -198,7 +198,7 @@ def test_finished_batches_are_not_called_again(screen_run):
 
     run_step(screen.STEP, screen_run, round_zero_hands(), send=send)
     run_step(screen.STEP, screen_run, round_zero_hands(), send=send)   # a resume: every batch is finished
-    assert sorted(calls) == ["screen_round0_batch0000", "screen_round0_batch0001"]   # workers answer in any order
+    assert calls == ["screen_round0_batch0000", "screen_round0_batch0001"]
 
 
 # ---------------------------------------------------------------- the layer: loop, rounds
@@ -258,5 +258,5 @@ def test_a_template_broken_for_every_batch_stops_the_run_with_no_model_call(scre
     with pytest.raises(SystemExit) as stop:
         run_step(dataclasses.replace(screen.STEP, build_request=broken_build_request), screen_run, round_zero_hands(),
                  send=lambda request: sent.append(request))
-    assert "systemic" in str(stop.value)
+    assert "an error building the prompt" in str(stop.value) and "systemic" in str(stop.value)
     assert sent == []

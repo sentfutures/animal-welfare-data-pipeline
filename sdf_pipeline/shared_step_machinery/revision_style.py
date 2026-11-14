@@ -1,14 +1,5 @@
-"""Voice and length directives rendered into layer 3's revise prompt.
-
-Each renderer returns a self-contained paragraph or the empty string, so a
-document dealt `unchanged` on every axis gets exactly the prompt layer 3 sent
-before these axes existed. That empty-clause convention matches the DAD step-1
-templates.
-
-Voice directives are COMPARATIVE ("more X than a typical podcast transcript")
-because the genre sets the baseline: an absolute "be casual" fights the
-document type instead of varying within it.
-"""
+"""Voice and length directives rendered into the revise prompt; each renderer returns a paragraph or "" (a document dealt
+``unchanged`` on every axis gets no clause). Voice directives are comparative, since an absolute "be casual" fights the genre."""
 
 from __future__ import annotations
 
@@ -81,11 +72,7 @@ _RATIO_RE = re.compile(r"(\d+(?:\.\d+)?)\s*[x×]", re.IGNORECASE)
 
 
 def length_ratio(target: str | None) -> float | None:
-    """The multiple a length card asks for ("0.5x its current length" -> 0.5).
-
-    None when the card names none, which is not an error: the directive still
-    renders, and compliance is then reported by level rather than by number.
-    """
+    """The multiple a length card asks for ("0.5x its current length" -> 0.5), or None when it names none."""
     t = (target or "").strip()
     if not t or t == NEUTRAL:
         return None
@@ -118,10 +105,7 @@ def directives_for(
     length_key: str = "length",
     document_type: str = "",
 ) -> tuple[str, str]:
-    """(style_directives, length_directive) for one document's dealt cards.
-
-    `revision` is {"cards": {...}}. A missing deal renders both slots empty.
-    """
+    """``(style_directives, length_directive)`` for one document's ``revision`` ({"cards": {...}}); a missing deal gives empty slots."""
     cards = dict((revision or {}).get("cards") or {})
     length_card = cards.pop(length_key, None)
     style = style_block(mode, cards=cards, document_type=document_type)

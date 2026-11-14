@@ -1,5 +1,5 @@
 """Layer 4: what the critique, revise and one-call steps share: the prompt renderer (every value about the document comes from the draft record),
-the rewrite record and progress line, reading a rewrite reply, ``revision_is_split``, whether a draft is already rewritten, and the layer's name in exit messages."""
+the rewrite record and progress line, reading a rewrite reply, ``revision_is_split`` and the layer's name in exit messages."""
 
 import re
 from dataclasses import dataclass
@@ -9,7 +9,7 @@ from shared import constitution_loader, deal_constraints, sdf_run_layouts, utils
 from sdf_pipeline.shared_step_machinery import compose_prompts as cp
 from sdf_pipeline.shared_step_machinery import revision_style
 from sdf_pipeline.shared_step_machinery.dealt_value_identifiers import value_ids_field_of
-from sdf_pipeline.shared_step_machinery.step_record import Run, StageFile, loaded_once_per_run
+from sdf_pipeline.shared_step_machinery.step_record import StageFile
 from sdf_pipeline.shared_step_machinery.update_steps import (
     Accepted, Failed, FailureKind, ModelReply, line_for_document_left_to_retry)
 
@@ -19,12 +19,11 @@ REVIEW_TAG_RE = re.compile(r"<review>(.*?)</review>", re.DOTALL)
 MAX_TOKENS = 8000  # review record + a full rewritten document
 CRITIQUE_MAX_TOKENS = 8000  # a problem list, but one written with no document to budget for
 
-CRITIQUE_TEMPLATE = "layer3a_critique.txt"
-REVISE_TEMPLATE = "layer3b_revise.txt"
-CHECKPOINT_FILENAME = "_checkpoint.json"
-
 CRITIQUES = StageFile(sdf_run_layouts.CRITIQUE_AND_REVISE, "critiques.jsonl", "doc_id")
 REWRITES = StageFile(sdf_run_layouts.CRITIQUE_AND_REVISE, "rewrites.jsonl", "doc_id")
+
+CRITIQUE_TEMPLATE = "layer3a_critique.txt"
+REVISE_TEMPLATE = "layer3b_revise.txt"
 
 
 def layer_name_in_messages() -> str:
@@ -42,11 +41,6 @@ def require_two_call_templates(prompts_dir: Path) -> None:
                 "the two-call layer 3 existed must be resumed with "
                 "sdf.revision.split: false."
             )
-
-
-def revision_is_split(config: dict) -> bool:
-    """True when the critique and the revise are two calls (the default); False for the single combined call."""
-    return bool((config["sdf"].get("revision") or {}).get("split", True))
 
 
 @dataclass(frozen=True)
@@ -77,8 +71,9 @@ class ReviewPromptRenderer:
             self.template_text, prompts_dir, config)
 
     def directives(self, draft: dict) -> tuple[str, str]:
-        # The cards ride on the dealt hand like every other axis. An explicit `revision` record overrides it,
-        # which is how a sweep hands one set of cards to several arms over drafts that were dealt something else.
+        # The cards ride on the dealt hand like every other axis. An explicit
+        # `revision` record overrides it, which is how a sweep hands one set of
+        # cards to several arms over drafts that were dealt something else.
         deal = draft.get("revision") or {"cards": cp.revision_cards(draft.get("variables"))}
         return revision_style.directives_for(
             deal,
@@ -139,22 +134,11 @@ def interpret_rewrite_reply(reply: ModelReply):
     return content, reply.text[:m.start()].strip()
 
 
-@loaded_once_per_run
-def _rewrite_ids_on_disk(run: Run) -> set:
-    return {record["doc_id"] for record in run.records(REWRITES)}
+def revision_is_split(config: dict) -> bool:
+    """True when the critique and the revise are two calls (the default); False for the single combined call."""
+    return bool((config["sdf"].get("revision") or {}).get("split", True))
 
 
-@loaded_once_per_run
-def _checkpoint(run: Run) -> utils.Checkpoint:
-    return utils.Checkpoint(run.stage_directories[sdf_run_layouts.CRITIQUE_AND_REVISE] / CHECKPOINT_FILENAME)
-
-
-def is_rewritten(document_id: str, run: Run) -> bool:
-    """Whether the draft's rewrite is on disk or marked done in the checkpoint file."""
-    return document_id in _rewrite_ids_on_disk(run) or _checkpoint(run).is_done(document_id)
-
-
-@loaded_once_per_run
-def critique_by_document_id(run: Run) -> dict:
-    """{doc_id: critique} of the critiques banked in the run's critique and revise folder."""
-    return {record["doc_id"]: record["review"] for record in run.records(CRITIQUES)}
+def load_critiques_by_document_id(output_dir: Path) -> dict:
+    """{doc_id: the accepted critique} from critiques.jsonl; what the revise step reads."""
+    return {record["doc_id"]: record["review"] for record in utils.load_jsonl(Path(output_dir) / CRITIQUES.file_name)}

@@ -3,9 +3,10 @@ The text before the ``<improved_document>`` tags is the review."""
 
 from sdf_pipeline.layer4_draft_critique_and_revise.draft import DRAFTS
 from sdf_pipeline.layer4_draft_critique_and_revise.shared_by_this_layers_steps import (
-    CHECKPOINT_FILENAME, MAX_TOKENS, REWRITES, ReviewPromptRenderer, RewrittenText, interpret_rewrite_reply,
-    layer_name_in_messages, revision_is_split, rewrite_progress_line, rewrite_record)
-from sdf_pipeline.shared_step_machinery.step_record import Run, Step, loaded_once_per_run, one_record_per_accepted_document
+    MAX_TOKENS, REWRITES, ReviewPromptRenderer, RewrittenText, interpret_rewrite_reply, layer_name_in_messages,
+    revision_is_split, rewrite_progress_line, rewrite_record)
+from sdf_pipeline.shared_step_machinery.step_record import (
+    Run, Step, loaded_once_per_run, one_record_per_accepted_document)
 from sdf_pipeline.shared_step_machinery.update_steps import Accepted, Failed, ModelReply, ModelRequest, StepProgress
 from shared import utils
 from shared.sdf_run_layouts import CRITIQUE_AND_REVISE
@@ -46,8 +47,7 @@ STEP = Step(
     required_prompt_files=lambda config, prompts_directory: [utils.sdf_template_path(prompts_directory, 3).name],
     reason_inactive=lambda config, prompts_directory: ("sdf.revision.split is true, so the critique and the revise are two calls"
                                                       if revision_is_split(config) else None),
-    reads=lambda run: run.records(DRAFTS),
-    build_request=build_request, read_reply=read_reply,
+    reads=lambda run: run.records(DRAFTS), build_request=build_request, read_reply=read_reply,
     records=one_record_per_accepted_document(REWRITES, lambda draft, update, run: rewrite_record(draft, update)),
-    writes=(REWRITES,), checkpoint_file_name=CHECKPOINT_FILENAME,
+    writes=(REWRITES,),
     name_in_messages=layer_name_in_messages, progress_line=progress_line)

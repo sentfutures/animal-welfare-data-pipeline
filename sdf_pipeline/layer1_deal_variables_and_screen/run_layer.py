@@ -30,7 +30,6 @@ def run(config: dict, prompts_dir: Path, output_dir: Path) -> list[dict] | None:
     if reason_inactive is not None:
         print(f"  {reason_inactive}")
         return None
-
     accepted_path = output_dir / SCREENED_HANDS_FILENAME
     if accepted_path.exists():
         accepted = utils.load_jsonl(accepted_path)

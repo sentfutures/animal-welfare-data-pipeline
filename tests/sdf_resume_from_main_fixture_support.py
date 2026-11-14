@@ -1,6 +1,6 @@
 """Engine for the test that a run started on origin/main and interrupted partway is finished by the current pipeline exactly as origin/main would finish it
 (the same interruption resumed on origin/main is the reference). It adds only the crash, the zip storage of a run folder and the resume driver; the fakes, comparison and recording format come from
-``sdf_prompt_equivalence_fixture_support``."""
+``sdf_prompt_equivalence_fixture_support``. Stored folders and recording: ``tests/CLAUDE.md``."""
 
 import contextlib
 import hashlib
@@ -263,10 +263,23 @@ def label_of(point: InterruptionPoint) -> str:
     return f"resume of a run interrupted {point.description}; resumed with {point.resume_command_description}"
 
 
+def _without_checkpoint_files(record: dict) -> dict:
+    """``record`` without its checkpoint files (the stage files and the names of the run folder's files): the
+    current code writes none, and reads those a run from origin/main holds."""
+    def is_checkpoint(file_name: str) -> bool:
+        return "checkpoint" in Path(file_name).name
+    return {**record,
+            "stage_files_by_invocation": {
+                invocation: {name: content for name, content in files.items() if not is_checkpoint(name)}
+                for invocation, files in record["stage_files_by_invocation"].items()},
+            "run_folder_file_names": [name for name in record["run_folder_file_names"] if not is_checkpoint(name)]}
+
+
 def differences_between_recorded_and_current_resume(point: InterruptionPoint, recorded: dict,
                                                     current: dict) -> dict:
-    """``{"requests", "stage files", "final corpus", "files in the run folder"}``, each a list of difference messages."""
+    """``{"requests", "stage files", "final corpus", "files in the run folder"}``, each a list of difference messages; checkpoint files are left out on both sides."""
     name = label_of(point)
+    recorded, current = _without_checkpoint_files(recorded), _without_checkpoint_files(current)
     run_folder_differences = []
     recorded_names, current_names = set(recorded["run_folder_file_names"]), set(current["run_folder_file_names"])
     for missing in sorted(recorded_names - current_names):

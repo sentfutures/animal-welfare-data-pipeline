@@ -2,15 +2,17 @@
 
 Unit tests call ``read_reply``, the gate and the cull with no stubbed API and no files. The layer tests
 pin the request, the document order before the cull and resume.
-``score.run`` is the layer's entry point (scripts import it).
+``score_and_final_selection_layer.run`` is the layer's entry point (scripts import it).
 """
 
 import json
 
 import pytest
 
-from sdf_pipeline.layer5_score_and_final_selection import run_layer as score
-from sdf_pipeline.layer5_score_and_final_selection.run_layer import keep_documents_at_or_above_threshold, remove_near_duplicates
+from sdf_pipeline.layer5_score_and_final_selection import run_layer as score_and_final_selection_layer
+from sdf_pipeline.layer5_score_and_final_selection import score
+from sdf_pipeline.layer5_score_and_final_selection.near_duplicate_removal import remove_near_duplicates
+from sdf_pipeline.layer5_score_and_final_selection.score_gate import keep_documents_at_or_above_threshold
 from sdf_pipeline.shared_step_machinery.update_steps import Accepted, FailureKind, Failed, ModelReply, StepProgress
 from sdf_step_and_command_line_test_helpers import outcome_of, records_of, run_of
 from shared import utils
@@ -120,7 +122,7 @@ def test_document_order_before_the_cull_is_input_order_uninterrupted_and_scored_
     rewrites = [make_rewrite(i, LONG_TEXT) for i in ids]
 
     stub_claude(lambda user_message, **kw: SCORE_OK)
-    corpus = score.run(config, prompts_sdf, stage_dir, final_dir, rewrites)
+    corpus = score_and_final_selection_layer.run(config, prompts_sdf, stage_dir, final_dir, rewrites)
     assert [r["doc_id"] for r in corpus] == ["matrix_000000"]  # uninterrupted: rewrites order, first kept
 
     # resumed: the first document's call throws, so the later ones are scored before it
@@ -134,9 +136,9 @@ def test_document_order_before_the_cull_is_input_order_uninterrupted_and_scored_
         return SCORE_OK
 
     stub_claude(first_attempt)
-    score.run(config, prompts_sdf, stage_dir_2, final_dir_2, rewrites)
+    score_and_final_selection_layer.run(config, prompts_sdf, stage_dir_2, final_dir_2, rewrites)
     stub_claude(lambda user_message, **kw: SCORE_OK)
-    corpus = score.run(config, prompts_sdf, stage_dir_2, final_dir_2, rewrites)
+    corpus = score_and_final_selection_layer.run(config, prompts_sdf, stage_dir_2, final_dir_2, rewrites)
     assert [r["doc_id"] for r in utils.load_jsonl(stage_dir_2 / "scores.jsonl")] == [
         "matrix_000001", "matrix_000002", "matrix_000000"]
     assert [r["doc_id"] for r in corpus] == ["matrix_000001"]  # the resumed run keeps a different twin (risk 11)
@@ -147,14 +149,14 @@ def test_resume_makes_zero_calls_and_changes_no_file(tiny_config, prompts_sdf, s
     rewrites = [make_rewrite("matrix_000000", LONG_TEXT), make_rewrite("matrix_000001", LONG_TEXT),
                 make_rewrite("matrix_000002", "Un autre texte tout à fait différent des deux premiers.")]
     stub_claude(lambda user_message, **kw: SCORE_OK)
-    score.run(config, prompts_sdf, stage_dir, final_dir, rewrites)
+    score_and_final_selection_layer.run(config, prompts_sdf, stage_dir, final_dir, rewrites)
 
     def snapshot():
         return {str(p.relative_to(stage_dir.parent)): p.read_bytes() for p in stage_dir.parent.rglob("*") if p.is_file()}
 
     before = snapshot()
     calls = stub_claude([])
-    corpus = score.run(config, prompts_sdf, stage_dir, final_dir, rewrites)
+    corpus = score_and_final_selection_layer.run(config, prompts_sdf, stage_dir, final_dir, rewrites)
     assert calls == [] and [r["doc_id"] for r in corpus] == ["matrix_000000", "matrix_000002"]
     assert snapshot() == before  # no stage file changes
 
@@ -164,7 +166,7 @@ def test_printed_lines_are_todays(tiny_config, prompts_sdf, stage_dir, final_dir
     stub_claude(lambda user_message, **kw: scores_reply(4, 9, 3) if kw["item_id"] == "matrix_000002" else scores_reply(9, 8, 3))
     rewrites = [make_rewrite("matrix_000000", LONG_TEXT), make_rewrite("matrix_000001", LONG_TEXT),
                 make_rewrite("matrix_000002", "Texte à part.")]
-    score.run(config, prompts_sdf, stage_dir, final_dir, rewrites)
+    score_and_final_selection_layer.run(config, prompts_sdf, stage_dir, final_dir, rewrites)
     assert capsys.readouterr().out.splitlines() == [
         "  Scored matrix_000000 A9 R8 S3", "  Scored matrix_000001 A9 R8 S3", "  Scored matrix_000002 A4 R9 S3",
         "  1 document(s) below threshold 7 — dropped", "  1 near-duplicate(s) culled",

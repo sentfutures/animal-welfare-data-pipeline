@@ -1,33 +1,29 @@
-"""Layer 3 step: the consideration scoring, where the model scores and code assigns (``consideration_selection.py``). One scoring call per eligible document scores every offered entry 1-5 (entries shuffled per
-document with a seeded RNG; the model never sees targets and never reproduces ids); a linear programme in ``considerations_assignment.py`` then assigns over all scores.
-Rows are appended to consideration_scores.jsonl (that finishes a document); an unusable answer is retried up to ``sdf.max_scoring_attempts``, then recorded in consideration_scoring_failures.jsonl."""
+"""Layer 3 step: one scoring call per eligible document scores every offered entry 1-5 (``consideration_selection.py`` assigns in code).
+Entries are shuffled per document with a seeded RNG; the model never sees targets and never reproduces ids. Rows are appended to consideration_scores.jsonl
+(that finishes a document); an unusable answer is retried up to ``sdf.max_scoring_attempts``, then recorded in consideration_scoring_failures.jsonl."""
 
 import random
-import sys
 from dataclasses import dataclass
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
 from sdf_pipeline.shared_step_machinery import considerations_assignment as assignment
-from sdf_pipeline.shared_step_machinery.considerations_catalog import (
-    CONSIDERATIONS_FILENAME, EPISTEMIC_LIST, LIST_NAMES, MORAL_LIST, Consideration, ConsiderationCatalog, load_considerations)
-from sdf_pipeline.shared_step_machinery import structured_answers
-from sdf_pipeline.layer3_consideration_scoring_and_selection.shared_by_this_layers_steps import (
-    FAILURES_FILENAME, SCORES_FILENAME, TEMPLATE_FILENAME, load_selection_template,
-    reason_consideration_selection_is_inactive)
-from sdf_pipeline.layer2_description_write_and_description_rewrite.description_rewrite import plans_after_description_rewrite
-from sdf_pipeline.layer2_description_write_and_description_rewrite.description_write import PLANS
-from sdf_pipeline.shared_step_machinery.step_record import Run, StageFile, Step, loaded_once_per_run, description_write_prompt_files
-from sdf_pipeline.shared_step_machinery.step_runner import maximum_attempts
 from sdf_pipeline.shared_step_machinery.update_steps import (
     Accepted, Failed, FailureKind, ModelReply, ModelRequest, OutcomeRecords, StepPolicy, StepProgress,
     WhatAFailedDocumentDoes, WhereAnErrorIsAThrownCall, line_for_document_left_to_retry, reason_without_error_prefix)
+from sdf_pipeline.shared_step_machinery.considerations_catalog import (
+    CONSIDERATIONS_FILENAME, EPISTEMIC_LIST, LIST_NAMES, MORAL_LIST, Consideration, ConsiderationCatalog,
+    load_considerations)
+from sdf_pipeline.shared_step_machinery import structured_answers
+from sdf_pipeline.shared_step_machinery.step_record import Run, StageFile, Step, loaded_once_per_run, description_write_prompt_files
+from sdf_pipeline.shared_step_machinery.step_runner import maximum_attempts
+from sdf_pipeline.layer2_description_write_and_description_rewrite.description_rewrite import plans_after_description_rewrite
+from sdf_pipeline.layer2_description_write_and_description_rewrite.description_write import PLANS
+from sdf_pipeline.layer3_consideration_scoring_and_selection.shared_by_this_layers_steps import (
+    FAILURES_FILENAME, SCORES_FILENAME, TEMPLATE_FILENAME, load_selection_template,
+    reason_consideration_selection_is_inactive)
 from shared.matrix import split_sections
 from shared.sdf_run_layouts import CONSIDERATION_SCORING_AND_SELECTION
 
-# The shuffle of each document's offered entries is seeded with this text (with the run seed, document and list). Kept
-# literal: deriving it from a layout's tag would change every document's order.
+# The shuffle of the entries offered to a document is seeded with this text (with the run seed, the document and
+# the list). Kept literal: deriving it from a layout's tag would change every request.
 SHUFFLE_SEED_NAME = "layer1_select"
 DEFAULT_MAX_SCORING_ATTEMPTS = 3
 _BASE_MAX_TOKENS = 400
@@ -59,7 +55,8 @@ class DocumentFacts:
             sentient_category=variables.get("sentient_category", ""))
 
 
-# ---------------------------------------------------------------- eligibility, prompt and schema
+
+
 
 def eligible_entries_for_document(catalog: ConsiderationCatalog, variables: dict) -> dict[str, list[Consideration]]:
     """The entries this document may be scored on, per list, in catalog order."""
@@ -100,10 +97,8 @@ def build_scoring_prompt(
 
 
 def build_scoring_schema(offered: dict[str, list[Consideration]]) -> dict:
-    """The answer schema for one call: for each list that has entries, an array of
-    {label, score, where_it_arises} items whose ``label`` enum is the offered labels
-    in the shuffled order and whose ``score`` is an integer enum 1-5. A list with no
-    entries is left out of the schema."""
+    """The answer schema for one call: per list with entries, {label, score, where_it_arises} items with ``label`` an enum of the offered labels.
+    Labels are never property names (typographic quotes are not safely supported)."""
     def list_schema(entries: list[Consideration]) -> dict:
         return {
             "type": "array",
@@ -128,12 +123,8 @@ def build_scoring_schema(offered: dict[str, list[Consideration]]) -> dict:
 
 
 def parse_scoring_answer(raw: str, offered: dict[str, list[Consideration]]) -> dict[str, dict[str, dict]]:
-    """{list_name: {label: {"score", "where_it_arises"}}} in the order the model answered.
-
-    Raises ScoringAnswerError unless the answer is one JSON object holding, for every
-    offered list, items that name each offered label exactly once with an integer score
-    1-5 (and, for a score of 3 or more, a non-empty ``where_it_arises``), and nothing
-    for a list that was not offered. ``where_it_arises`` is blanked for scores below 3."""
+    """``{list: {label: {"score", "where_it_arises"}}}``; raises ScoringAnswerError unless every offered label appears once with a score 1-5
+    (a non-empty ``where_it_arises`` from 3 up, blanked below 3). Structured outputs cannot fix array length, hence this check."""
     answer = structured_answers.parse_json_answer(
         raw, ScoringAnswerError, caught_exceptions=(ValueError,), failure_message="no usable JSON object ({error})")
     if not isinstance(answer, dict):
@@ -178,6 +169,8 @@ def scoring_max_tokens(offered: dict[str, list[Consideration]]) -> int:
     """The token limit of one scoring call: a base plus an allowance per offered entry."""
     return _BASE_MAX_TOKENS + _TOKENS_PER_ENTRY * sum(len(entries) for entries in offered.values())
 
+
+# ---------------------------------------------------------------- the step
 
 SCORES = StageFile(CONSIDERATION_SCORING_AND_SELECTION, SCORES_FILENAME, "prompt_id")
 
@@ -282,8 +275,8 @@ STEP = Step(
     required_prompt_files=lambda config, prompts_directory: [
         *description_write_prompt_files(config, prompts_directory), TEMPLATE_FILENAME, CONSIDERATIONS_FILENAME],
     reason_inactive=lambda config, prompts_directory: reason_consideration_selection_is_inactive(config, prompts_directory),
-    reads=plans_after_description_rewrite, seeds_from=lambda run: PLANS,
-    applies=applies, build_request=build_request, read_reply=read_reply, records=records, writes=(SCORES,),
+    reads=plans_after_description_rewrite, seeds_from=lambda run: PLANS, applies=applies,
+    build_request=build_request, read_reply=read_reply, records=records, writes=(SCORES,),
     writes_as_replies_arrive=True,
     policy=StepPolicy(
         maximum_attempts_in_one_run=DEFAULT_MAX_SCORING_ATTEMPTS, maximum_attempts_setting="max_scoring_attempts",
