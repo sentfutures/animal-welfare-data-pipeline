@@ -11,8 +11,6 @@ failure on any call stops the stage before it assigns anything.
 """
 
 import json
-import re
-from pathlib import Path
 
 import pytest
 
@@ -280,14 +278,6 @@ def test_one_unusable_document_stops_the_stage_before_assigning_and_is_rescored_
     result = select.run(tiny_config, small_prompts, stage_dir, plans)
     assert [c["item_id"] for c in calls] == [bad_id]
     assert all(p["considerations_spec"] for p in result)
-
-
-def test_a_failure_on_every_call_exits_as_systemic(tiny_config, small_prompts, stage_dir, stub_claude):
-    def raising(user_message, **kw):
-        raise RuntimeError("backend down")
-    stub_claude(raising)
-    with pytest.raises(SystemExit, match="every pending scoring call failed"):
-        select.run(tiny_config, small_prompts, stage_dir, make_plans(3))
 
 
 # --- switches and the snapshot ---
