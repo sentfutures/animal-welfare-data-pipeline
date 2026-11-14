@@ -7,7 +7,8 @@ anything else — missing tags, truncation — is not checkpointed, so --resume
 retries exactly the failed calls (temperature 1.0 makes retries productive).
 
 The layer is a ``DocumentStep`` (``DraftStep``) run by ``sdf_pipeline.step_runner.StepRunner``;
-``run`` keeps its signature and behaviour as a thin wrapper, because scripts import it.
+``run`` is the layer's entry point, called by ``sdf_pipeline/run.py`` and ``experiments/experiment.py``:
+it builds the step and the runner and returns the draft records in input order.
 """
 
 import re

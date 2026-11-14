@@ -13,8 +13,9 @@ report flags these for manual review instead.
 
 Scoring is a ``DocumentStep`` (``ScoreStep``) run by ``sdf_pipeline.step_runner.StepRunner``;
 the gate (``ScoreGateStep``) and the near-duplicate cull (``NearDuplicateCullStep``) are
-``CorpusStep``s run after it by ``run_corpus_step``. ``run`` keeps its signature and behaviour as a
-thin wrapper, because scripts import it.
+``CorpusStep``s run after it by ``run_corpus_step``. ``run`` is the layer's
+entry point, called by ``sdf_pipeline/run.py`` and ``experiments/experiment.py``: it runs the three steps
+and writes the final corpus.
 
 Document order before the cull is the order of ``results`` in ``run``: scores finished in earlier
 runs (in ``rewrites`` order) followed by the scores written in this run (in ``rewrites`` order).

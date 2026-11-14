@@ -16,7 +16,8 @@ The layer is three ``DocumentStep`` classes run by ``sdf_pipeline.step_runner.St
 ``CritiqueStep`` and ``ReviseStep`` (the two-call path) and ``CombinedReviewAndReviseStep``
 (the legacy single call, ``sdf.revision.split: false``). Each reads the description, variables
 and considerations from the draft record, that is, from what the text was written from.
-``run`` keeps its signature and behaviour as a thin wrapper, because scripts import it.
+``run`` is the layer's entry point, called by ``sdf_pipeline/run.py`` and ``experiments/experiment.py``:
+it picks the steps for the config, runs them in order and returns the rewrite records in input order.
 """
 
 import re

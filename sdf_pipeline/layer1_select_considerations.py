@@ -49,8 +49,8 @@ plan's ``variables`` also gains ``moral_considerations`` and
 Scoring is a ``DocumentStep`` (``ConsiderationScoringStep``) run by
 ``sdf_pipeline.step_runner.StepRunner`` with ``sdf.max_scoring_attempts`` attempts per run, and the
 assignment is a ``CorpusStep`` (``ConsiderationAssignmentStep``) run by ``run_corpus_step`` after it;
-``run`` keeps its signature and behaviour as a thin wrapper, because scripts import it.
-``score_document`` stays as the standalone one-document function the scripts use.
+``run`` is the layer's entry point, called by ``sdf_pipeline/run.py``: it runs the scoring step, then the
+assignment, and returns the plans with their selections attached.
 
 Config (``sdf`` section): ``select_enabled`` (default true), ``select_model``
 (falls back to ``plan_model``, then the global model), ``select_skip_no_stake``

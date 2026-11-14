@@ -35,8 +35,8 @@ macaque whole-brain emulation as working technology. Do not use Claude for plaus
 judgment without re-validating.
 
 The stage is a ``DocumentStep`` (``DescriptionRewriteStep``) run by
-``sdf_pipeline.step_runner.StepRunner``; ``run`` keeps its signature and behaviour as a thin
-wrapper, and ``rewrite_description`` stays for scripts that call it directly.
+``sdf_pipeline.step_runner.StepRunner``; ``run`` is the layer's entry point, called by
+``sdf_pipeline/run.py``, and ``rewrite_description`` stays for scripts that call it directly.
 
 Checkpoint semantics (protects paid work): one result per plan, appended to
 description_rewrites.jsonl before the plan is checkpointed; a malformed,

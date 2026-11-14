@@ -6,9 +6,10 @@ output: ``sdf_pipeline/step_runner.py`` does the calling, the event log and the 
 ``ModelRequest`` carries everything a layer passes to ``shared.api.call_claude``. A step outcome
 is one of ``Accepted``, ``Removed``, ``Failed`` or ``Created``. The three step kinds are
 ``DocumentStep`` (one document, one model call per attempt), ``BatchStep`` (a group of documents,
-one call per group) and ``CorpusStep`` (every document, no call). Only ``DocumentStep`` is run by
-``StepRunner`` so far; ``BatchStep`` and ``CorpusStep`` are the interfaces the later work items
-move the screen, the redeal, the assignment, the gate and the cull onto.
+one call per group) and ``CorpusStep`` (every document, no call). ``StepRunner`` runs a ``DocumentStep``, ``BatchStepRunner``
+runs a ``BatchStep`` (the screen) and ``run_corpus_step`` runs a ``CorpusStep`` (the deal, the redeal,
+the considerations assignment, the score gate and the near-duplicate cull); all are in
+``sdf_pipeline/step_runner.py``.
 """
 
 import hashlib
@@ -113,7 +114,7 @@ class DocumentStep(ABC):
     """A step that sees one document and makes one model call per attempt.
 
     The "document" is whatever object the step's layer works with (a plan record for the draft
-    step, a ``DocumentState`` once the later work items move the other layers over); the step
+    step, a draft record for the critique step); the step
     names its id with ``document_id_of``.
     """
 
