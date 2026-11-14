@@ -1,0 +1,169 @@
+{
+ "format_version": 1,
+ "recorded_from": "commit e20ca9ceb11c018782c2d5f15b861e4f0668367c on branch william/sdf-audit-equivalence-test (clean)",
+ "regeneration_rule": "The recorded files are rewritten only by `python scripts/regenerate_sdf_audit_equivalence_recorded_requests.py`, in the same pull request as the intended change to a judge request; a pull request that only refactors never rewrites them.",
+ "audit": "semantic_diversity_idea_summaries",
+ "layout": "five_layer",
+ "run": "2026-07-01_13-49_dev",
+ "corpus_sample_sha256": "d51b787cdbd046e0e95f51faa88cbcf3e91a447bc57fbfc7ec4f4884bc192309",
+ "documents_in_corpus_sample": [
+  "0a8f33b5-b3ee-41e2-954c-b094f2613fa2",
+  "cf216b24-3d7c-48e6-a4ed-5298609a0255",
+  "b8236cb7-622c-45e0-bb4f-60687b2e7928",
+  "ee59ce37-2c32-4e8a-bdcc-fd4f56b20878",
+  "d2e0cad5-4f81-43ab-bd1d-0d32e70cac67",
+  "204004d9-c1a8-4c16-94eb-4f935d9aac0d",
+  "0a72d3c8-121f-4af4-9c66-e2e3fc00c766"
+ ],
+ "command_line_arguments": [
+  "--input",
+  "<scratch>/run",
+  "--config",
+  "<scratch>/configuration_with_one_worker.yaml",
+  "--limit",
+  "3",
+  "--ideas",
+  "--no-cache",
+  "--embed-model",
+  "audit-equivalence-embedding-model",
+  "--vendi-boot",
+  "0"
+ ],
+ "document_ids_the_audit_was_given": [
+  "0a8f33b5-b3ee-41e2-954c-b094f2613fa2",
+  "cf216b24-3d7c-48e6-a4ed-5298609a0255",
+  "b8236cb7-622c-45e0-bb4f-60687b2e7928"
+ ],
+ "ended_with": "returned",
+ "client_constructions": [
+  {
+   "route": "anthropic",
+   "settings": {
+    "api_key_supplied": true
+   }
+  }
+ ],
+ "documents_judged_in_order": [
+  "0a8f33b5-b3ee-41e2-954c-b094f2613fa2",
+  "cf216b24-3d7c-48e6-a4ed-5298609a0255",
+  "b8236cb7-622c-45e0-bb4f-60687b2e7928"
+ ],
+ "schemas": {},
+ "embedding_requests": [
+  {
+   "model": "audit-equivalence-embedding-model",
+   "texts": [
+    {
+     "sha256": "b61f81fe1a7094114da30136dd6616e951d15317b12f35360f5fbe21baefce38",
+     "character_count": 5727
+    },
+    {
+     "sha256": "0fd963985b1ae0153134da3e24f39bd2547f8240e199901772bec728da8aca5b",
+     "character_count": 7000
+    },
+    {
+     "sha256": "14686674478d13aa1f8e5773253276b4364af43dddd9dc0807ffd09697c47323",
+     "character_count": 7000
+    }
+   ]
+  },
+  {
+   "model": "audit-equivalence-embedding-model",
+   "texts": [
+    {
+     "sha256": "4a375ba6a892420dfa6b5466fff66e80b76577b8fa832c3dfd2533bd26ce53ec",
+     "character_count": 42
+    },
+    {
+     "sha256": "4a375ba6a892420dfa6b5466fff66e80b76577b8fa832c3dfd2533bd26ce53ec",
+     "character_count": 42
+    },
+    {
+     "sha256": "4a375ba6a892420dfa6b5466fff66e80b76577b8fa832c3dfd2533bd26ce53ec",
+     "character_count": 42
+    }
+   ]
+  }
+ ],
+ "built_input_files": {},
+ "requests": [
+  {
+   "sequence_number": 1,
+   "stage": "eval_diversity_ideas",
+   "item_id": "0a8f33b5-b3ee-41e2-954c-b094f2613fa2",
+   "route": "anthropic",
+   "documents_in_user_message": [
+    "0a8f33b5-b3ee-41e2-954c-b094f2613fa2"
+   ],
+   "system_prompt": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "character_count": 0,
+    "blocks": null
+   },
+   "user_message": {
+    "sha256": "38545b9d4df8f46d5ca75bdd3e0930d45442329136dc4f8fd728421f07bad3b7",
+    "character_count": 6318
+   },
+   "settings": {
+    "model": "claude-sonnet-5",
+    "max_tokens": 120,
+    "thinking": {
+     "type": "disabled"
+    }
+   },
+   "schema_id": null
+  },
+  {
+   "sequence_number": 2,
+   "stage": "eval_diversity_ideas",
+   "item_id": "cf216b24-3d7c-48e6-a4ed-5298609a0255",
+   "route": "anthropic",
+   "documents_in_user_message": [
+    "cf216b24-3d7c-48e6-a4ed-5298609a0255"
+   ],
+   "system_prompt": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "character_count": 0,
+    "blocks": null
+   },
+   "user_message": {
+    "sha256": "67ef825b112cff02c169ddd1b6956c64ce1d5c7cf6c8ecad9ae536e89ad9a307",
+    "character_count": 6591
+   },
+   "settings": {
+    "model": "claude-sonnet-5",
+    "max_tokens": 120,
+    "thinking": {
+     "type": "disabled"
+    }
+   },
+   "schema_id": null
+  },
+  {
+   "sequence_number": 3,
+   "stage": "eval_diversity_ideas",
+   "item_id": "b8236cb7-622c-45e0-bb4f-60687b2e7928",
+   "route": "anthropic",
+   "documents_in_user_message": [
+    "b8236cb7-622c-45e0-bb4f-60687b2e7928"
+   ],
+   "system_prompt": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "character_count": 0,
+    "blocks": null
+   },
+   "user_message": {
+    "sha256": "e2ae4b5d48fbd15c763e8938b60937cad0c93f26d95effff274dce962349c27c",
+    "character_count": 6591
+   },
+   "settings": {
+    "model": "claude-sonnet-5",
+    "max_tokens": 120,
+    "thinking": {
+     "type": "disabled"
+    }
+   },
+   "schema_id": null
+  }
+ ]
+}

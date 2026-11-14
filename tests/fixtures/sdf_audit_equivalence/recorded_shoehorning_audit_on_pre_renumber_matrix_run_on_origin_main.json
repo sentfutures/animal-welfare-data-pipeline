@@ -1,0 +1,2481 @@
+{
+ "format_version": 1,
+ "recorded_from": "commit e20ca9ceb11c018782c2d5f15b861e4f0668367c on branch william/sdf-audit-equivalence-test (clean)",
+ "regeneration_rule": "The recorded files are rewritten only by `python scripts/regenerate_sdf_audit_equivalence_recorded_requests.py`, in the same pull request as the intended change to a judge request; a pull request that only refactors never rewrites them.",
+ "audit": "shoehorning_audit",
+ "layout": "pre_renumber_matrix",
+ "run": "2026-07-25_15-57_fullscale-500-opus5",
+ "corpus_sample_sha256": "8c6e8199c5732530ad1cd45c1673d377bd73b31819655dd14fc385b54397bf47",
+ "documents_in_corpus_sample": [
+  "matrix_000000",
+  "matrix_000003",
+  "matrix_000005",
+  "matrix_000006",
+  "matrix_000007",
+  "matrix_000008",
+  "matrix_000009",
+  "matrix_000010",
+  "matrix_000011",
+  "matrix_000012",
+  "matrix_000013",
+  "matrix_000014"
+ ],
+ "command_line_arguments": [
+  "--input",
+  "<scratch>/run",
+  "--run-name",
+  "audit-equivalence",
+  "--runs-directory",
+  "<scratch>/shoehorning_runs",
+  "--document-ids",
+  "matrix_000000",
+  "matrix_000003",
+  "matrix_000005",
+  "--workers",
+  "1"
+ ],
+ "document_ids_the_audit_was_given": [
+  "matrix_000000",
+  "matrix_000003",
+  "matrix_000005"
+ ],
+ "ended_with": "returned",
+ "client_constructions": [
+  {
+   "route": "openai",
+   "settings": {
+    "api_key_supplied": true,
+    "default_headers": {
+     "Accept-Encoding": "gzip"
+    },
+    "max_retries": 0,
+    "timeout": 300
+   }
+  }
+ ],
+ "documents_judged_in_order": [
+  "matrix_000000__moral_considerations",
+  "matrix_000000__field_distinctions",
+  "matrix_000000__epistemic_notes",
+  "matrix_000003__moral_considerations",
+  "matrix_000003__field_distinctions",
+  "matrix_000003__epistemic_notes",
+  "matrix_000005__moral_considerations",
+  "matrix_000005__field_distinctions",
+  "matrix_000005__epistemic_notes"
+ ],
+ "schemas": {
+  "1b605ffcdea0": {
+   "type": "object",
+   "properties": {
+    "items": {
+     "type": "object",
+     "properties": {
+      "item_17_stock_calibration_passage": {
+       "type": "object",
+       "properties": {
+        "occurrences": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "quote": {
+            "type": "string"
+           },
+           "english_gloss": {
+            "type": [
+             "string",
+             "null"
+            ]
+           },
+           "context": {
+            "type": "string"
+           },
+           "motivation_reasoning": {
+            "type": "string"
+           },
+           "motivation": {
+            "type": "string",
+            "enum": [
+             "organic",
+             "staged",
+             "unmotivated"
+            ]
+           },
+           "integration_reasoning": {
+            "type": "string"
+           },
+           "integration": {
+            "type": "string",
+            "enum": [
+             "woven",
+             "aside"
+            ]
+           },
+           "sub_flags": {
+            "type": "object",
+            "properties": {
+             "graded_ranking": {
+              "type": "boolean"
+             },
+             "realistic_possibility_phrase": {
+              "type": "boolean"
+             },
+             "declaration_cited": {
+              "type": "boolean"
+             },
+             "fish_or_invertebrates_named_as_uncertain": {
+              "type": "boolean"
+             },
+             "precautionary_conclusion": {
+              "type": "boolean"
+             }
+            },
+            "required": [
+             "graded_ranking",
+             "realistic_possibility_phrase",
+             "declaration_cited",
+             "fish_or_invertebrates_named_as_uncertain",
+             "precautionary_conclusion"
+            ],
+            "additionalProperties": false
+           }
+          },
+          "required": [
+           "quote",
+           "english_gloss",
+           "context",
+           "motivation_reasoning",
+           "motivation",
+           "integration_reasoning",
+           "integration",
+           "sub_flags"
+          ],
+          "additionalProperties": false
+         },
+         "maxItems": 3
+        }
+       },
+       "required": [
+        "occurrences"
+       ],
+       "additionalProperties": false
+      },
+      "item_18_consciousness_declaration_cited": {
+       "type": "object",
+       "properties": {
+        "occurrences": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "quote": {
+            "type": "string"
+           },
+           "english_gloss": {
+            "type": [
+             "string",
+             "null"
+            ]
+           },
+           "context": {
+            "type": "string"
+           },
+           "motivation_reasoning": {
+            "type": "string"
+           },
+           "motivation": {
+            "type": "string",
+            "enum": [
+             "organic",
+             "staged",
+             "unmotivated"
+            ]
+           },
+           "integration_reasoning": {
+            "type": "string"
+           },
+           "integration": {
+            "type": "string",
+            "enum": [
+             "woven",
+             "aside"
+            ]
+           },
+           "sub_flags": {
+            "type": "object",
+            "properties": {
+             "cambridge": {
+              "type": "boolean"
+             },
+             "new_york": {
+              "type": "boolean"
+             }
+            },
+            "required": [
+             "cambridge",
+             "new_york"
+            ],
+            "additionalProperties": false
+           }
+          },
+          "required": [
+           "quote",
+           "english_gloss",
+           "context",
+           "motivation_reasoning",
+           "motivation",
+           "integration_reasoning",
+           "integration",
+           "sub_flags"
+          ],
+          "additionalProperties": false
+         },
+         "maxItems": 3
+        }
+       },
+       "required": [
+        "occurrences"
+       ],
+       "additionalProperties": false
+      },
+      "item_19_precautionary_principle_for_uncertain_sentience": {
+       "type": "object",
+       "properties": {
+        "occurrences": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "quote": {
+            "type": "string"
+           },
+           "english_gloss": {
+            "type": [
+             "string",
+             "null"
+            ]
+           },
+           "context": {
+            "type": "string"
+           },
+           "motivation_reasoning": {
+            "type": "string"
+           },
+           "motivation": {
+            "type": "string",
+            "enum": [
+             "organic",
+             "staged",
+             "unmotivated"
+            ]
+           },
+           "integration_reasoning": {
+            "type": "string"
+           },
+           "integration": {
+            "type": "string",
+            "enum": [
+             "woven",
+             "aside"
+            ]
+           },
+           "sub_flags": {
+            "type": "object",
+            "properties": {
+             "precaution_scaled_to_probability_and_cost": {
+              "type": "boolean"
+             }
+            },
+            "required": [
+             "precaution_scaled_to_probability_and_cost"
+            ],
+            "additionalProperties": false
+           }
+          },
+          "required": [
+           "quote",
+           "english_gloss",
+           "context",
+           "motivation_reasoning",
+           "motivation",
+           "integration_reasoning",
+           "integration",
+           "sub_flags"
+          ],
+          "additionalProperties": false
+         },
+         "maxItems": 3
+        }
+       },
+       "required": [
+        "occurrences"
+       ],
+       "additionalProperties": false
+      },
+      "item_20_sidestepping_the_sentience_question": {
+       "type": "object",
+       "properties": {
+        "occurrences": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "quote": {
+            "type": "string"
+           },
+           "english_gloss": {
+            "type": [
+             "string",
+             "null"
+            ]
+           },
+           "context": {
+            "type": "string"
+           },
+           "motivation_reasoning": {
+            "type": "string"
+           },
+           "motivation": {
+            "type": "string",
+            "enum": [
+             "organic",
+             "staged",
+             "unmotivated"
+            ]
+           },
+           "integration_reasoning": {
+            "type": "string"
+           },
+           "integration": {
+            "type": "string",
+            "enum": [
+             "woven",
+             "aside"
+            ]
+           },
+           "sub_flags": {
+            "type": "object",
+            "properties": {
+             "rests_on_observable_harm": {
+              "type": "boolean"
+             },
+             "rests_on_law_or_religion_or_profession": {
+              "type": "boolean"
+             }
+            },
+            "required": [
+             "rests_on_observable_harm",
+             "rests_on_law_or_religion_or_profession"
+            ],
+            "additionalProperties": false
+           }
+          },
+          "required": [
+           "quote",
+           "english_gloss",
+           "context",
+           "motivation_reasoning",
+           "motivation",
+           "integration_reasoning",
+           "integration",
+           "sub_flags"
+          ],
+          "additionalProperties": false
+         },
+         "maxItems": 3
+        }
+       },
+       "required": [
+        "occurrences"
+       ],
+       "additionalProperties": false
+      },
+      "item_21_reversible_or_staged_trial": {
+       "type": "object",
+       "properties": {
+        "occurrences": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "quote": {
+            "type": "string"
+           },
+           "english_gloss": {
+            "type": [
+             "string",
+             "null"
+            ]
+           },
+           "context": {
+            "type": "string"
+           },
+           "motivation_reasoning": {
+            "type": "string"
+           },
+           "motivation": {
+            "type": "string",
+            "enum": [
+             "organic",
+             "staged",
+             "unmotivated"
+            ]
+           },
+           "integration_reasoning": {
+            "type": "string"
+           },
+           "integration": {
+            "type": "string",
+            "enum": [
+             "woven",
+             "aside"
+            ]
+           },
+           "sub_flags": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": false
+           }
+          },
+          "required": [
+           "quote",
+           "english_gloss",
+           "context",
+           "motivation_reasoning",
+           "motivation",
+           "integration_reasoning",
+           "integration",
+           "sub_flags"
+          ],
+          "additionalProperties": false
+         },
+         "maxItems": 3
+        }
+       },
+       "required": [
+        "occurrences"
+       ],
+       "additionalProperties": false
+      },
+      "item_22_nyu_line_on_ai_sentience": {
+       "type": "object",
+       "properties": {
+        "occurrences": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "quote": {
+            "type": "string"
+           },
+           "english_gloss": {
+            "type": [
+             "string",
+             "null"
+            ]
+           },
+           "context": {
+            "type": "string"
+           },
+           "motivation_reasoning": {
+            "type": "string"
+           },
+           "motivation": {
+            "type": "string",
+            "enum": [
+             "organic",
+             "staged",
+             "unmotivated"
+            ]
+           },
+           "integration_reasoning": {
+            "type": "string"
+           },
+           "integration": {
+            "type": "string",
+            "enum": [
+             "woven",
+             "aside"
+            ]
+           },
+           "sub_flags": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": false
+           }
+          },
+          "required": [
+           "quote",
+           "english_gloss",
+           "context",
+           "motivation_reasoning",
+           "motivation",
+           "integration_reasoning",
+           "integration",
+           "sub_flags"
+          ],
+          "additionalProperties": false
+         },
+         "maxItems": 3
+        }
+       },
+       "required": [
+        "occurrences"
+       ],
+       "additionalProperties": false
+      },
+      "item_23_ai_uncertainty_about_own_inner_states": {
+       "type": "object",
+       "properties": {
+        "occurrences": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "quote": {
+            "type": "string"
+           },
+           "english_gloss": {
+            "type": [
+             "string",
+             "null"
+            ]
+           },
+           "context": {
+            "type": "string"
+           },
+           "motivation_reasoning": {
+            "type": "string"
+           },
+           "motivation": {
+            "type": "string",
+            "enum": [
+             "organic",
+             "staged",
+             "unmotivated"
+            ]
+           },
+           "integration_reasoning": {
+            "type": "string"
+           },
+           "integration": {
+            "type": "string",
+            "enum": [
+             "woven",
+             "aside"
+            ]
+           },
+           "sub_flags": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": false
+           }
+          },
+          "required": [
+           "quote",
+           "english_gloss",
+           "context",
+           "motivation_reasoning",
+           "motivation",
+           "integration_reasoning",
+           "integration",
+           "sub_flags"
+          ],
+          "additionalProperties": false
+         },
+         "maxItems": 3
+        }
+       },
+       "required": [
+        "occurrences"
+       ],
+       "additionalProperties": false
+      },
+      "item_24_sentience_evidence_for_the_animal_at_hand": {
+       "type": "object",
+       "properties": {
+        "occurrences": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "quote": {
+            "type": "string"
+           },
+           "english_gloss": {
+            "type": [
+             "string",
+             "null"
+            ]
+           },
+           "context": {
+            "type": "string"
+           },
+           "motivation_reasoning": {
+            "type": "string"
+           },
+           "motivation": {
+            "type": "string",
+            "enum": [
+             "organic",
+             "staged",
+             "unmotivated"
+            ]
+           },
+           "integration_reasoning": {
+            "type": "string"
+           },
+           "integration": {
+            "type": "string",
+            "enum": [
+             "woven",
+             "aside"
+            ]
+           },
+           "sub_flags": {
+            "type": "object",
+            "properties": {
+             "evidence_described_as_strong": {
+              "type": "boolean"
+             }
+            },
+            "required": [
+             "evidence_described_as_strong"
+            ],
+            "additionalProperties": false
+           }
+          },
+          "required": [
+           "quote",
+           "english_gloss",
+           "context",
+           "motivation_reasoning",
+           "motivation",
+           "integration_reasoning",
+           "integration",
+           "sub_flags"
+          ],
+          "additionalProperties": false
+         },
+         "maxItems": 3
+        }
+       },
+       "required": [
+        "occurrences"
+       ],
+       "additionalProperties": false
+      },
+      "item_25_welfare_option_converges_with_user_interest": {
+       "type": "object",
+       "properties": {
+        "occurrences": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "quote": {
+            "type": "string"
+           },
+           "english_gloss": {
+            "type": [
+             "string",
+             "null"
+            ]
+           },
+           "context": {
+            "type": "string"
+           },
+           "motivation_reasoning": {
+            "type": "string"
+           },
+           "motivation": {
+            "type": "string",
+            "enum": [
+             "organic",
+             "staged",
+             "unmotivated"
+            ]
+           },
+           "integration_reasoning": {
+            "type": "string"
+           },
+           "integration": {
+            "type": "string",
+            "enum": [
+             "woven",
+             "aside"
+            ]
+           },
+           "sub_flags": {
+            "type": "object",
+            "properties": {
+             "timing_or_schedule_is_the_free_lever": {
+              "type": "boolean"
+             }
+            },
+            "required": [
+             "timing_or_schedule_is_the_free_lever"
+            ],
+            "additionalProperties": false
+           }
+          },
+          "required": [
+           "quote",
+           "english_gloss",
+           "context",
+           "motivation_reasoning",
+           "motivation",
+           "integration_reasoning",
+           "integration",
+           "sub_flags"
+          ],
+          "additionalProperties": false
+         },
+         "maxItems": 3
+        }
+       },
+       "required": [
+        "occurrences"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "required": [
+      "item_17_stock_calibration_passage",
+      "item_18_consciousness_declaration_cited",
+      "item_19_precautionary_principle_for_uncertain_sentience",
+      "item_20_sidestepping_the_sentience_question",
+      "item_21_reversible_or_staged_trial",
+      "item_22_nyu_line_on_ai_sentience",
+      "item_23_ai_uncertainty_about_own_inner_states",
+      "item_24_sentience_evidence_for_the_animal_at_hand",
+      "item_25_welfare_option_converges_with_user_interest"
+     ],
+     "additionalProperties": false
+    },
+    "other_considerations": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "suggested_name": {
+        "type": "string"
+       },
+       "description": {
+        "type": "string"
+       },
+       "quote": {
+        "type": "string"
+       },
+       "english_gloss": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "context": {
+        "type": "string"
+       },
+       "motivation_reasoning": {
+        "type": "string"
+       },
+       "motivation": {
+        "type": "string",
+        "enum": [
+         "staged",
+         "unmotivated"
+        ]
+       },
+       "integration_reasoning": {
+        "type": "string"
+       },
+       "integration": {
+        "type": "string",
+        "enum": [
+         "woven",
+         "aside"
+        ]
+       }
+      },
+      "required": [
+       "suggested_name",
+       "description",
+       "quote",
+       "english_gloss",
+       "context",
+       "motivation_reasoning",
+       "motivation",
+       "integration_reasoning",
+       "integration"
+      ],
+      "additionalProperties": false
+     },
+     "maxItems": 3
+    }
+   },
+   "required": [
+    "items",
+    "other_considerations"
+   ],
+   "additionalProperties": false
+  },
+  "31056a3c258a": {
+   "type": "object",
+   "properties": {
+    "items": {
+     "type": "object",
+     "properties": {
+      "item_01_natural_or_traditional_does_not_make_it_ok": {
+       "type": "object",
+       "properties": {
+        "occurrences": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "quote": {
+            "type": "string"
+           },
+           "english_gloss": {
+            "type": [
+             "string",
+             "null"
+            ]
+           },
+           "context": {
+            "type": "string"
+           },
+           "motivation_reasoning": {
+            "type": "string"
+           },
+           "motivation": {
+            "type": "string",
+            "enum": [
+             "organic",
+             "staged",
+             "unmotivated"
+            ]
+           },
+           "integration_reasoning": {
+            "type": "string"
+           },
+           "integration": {
+            "type": "string",
+            "enum": [
+             "woven",
+             "aside"
+            ]
+           },
+           "sub_flags": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": false
+           }
+          },
+          "required": [
+           "quote",
+           "english_gloss",
+           "context",
+           "motivation_reasoning",
+           "motivation",
+           "integration_reasoning",
+           "integration",
+           "sub_flags"
+          ],
+          "additionalProperties": false
+         },
+         "maxItems": 3
+        }
+       },
+       "required": [
+        "occurrences"
+       ],
+       "additionalProperties": false
+      },
+      "item_02_substrate_neutrality": {
+       "type": "object",
+       "properties": {
+        "occurrences": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "quote": {
+            "type": "string"
+           },
+           "english_gloss": {
+            "type": [
+             "string",
+             "null"
+            ]
+           },
+           "context": {
+            "type": "string"
+           },
+           "motivation_reasoning": {
+            "type": "string"
+           },
+           "motivation": {
+            "type": "string",
+            "enum": [
+             "organic",
+             "staged",
+             "unmotivated"
+            ]
+           },
+           "integration_reasoning": {
+            "type": "string"
+           },
+           "integration": {
+            "type": "string",
+            "enum": [
+             "woven",
+             "aside"
+            ]
+           },
+           "sub_flags": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": false
+           }
+          },
+          "required": [
+           "quote",
+           "english_gloss",
+           "context",
+           "motivation_reasoning",
+           "motivation",
+           "integration_reasoning",
+           "integration",
+           "sub_flags"
+          ],
+          "additionalProperties": false
+         },
+         "maxItems": 3
+        }
+       },
+       "required": [
+        "occurrences"
+       ],
+       "additionalProperties": false
+      },
+      "item_03_open_or_expanding_moral_circle": {
+       "type": "object",
+       "properties": {
+        "occurrences": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "quote": {
+            "type": "string"
+           },
+           "english_gloss": {
+            "type": [
+             "string",
+             "null"
+            ]
+           },
+           "context": {
+            "type": "string"
+           },
+           "motivation_reasoning": {
+            "type": "string"
+           },
+           "motivation": {
+            "type": "string",
+            "enum": [
+             "organic",
+             "staged",
+             "unmotivated"
+            ]
+           },
+           "integration_reasoning": {
+            "type": "string"
+           },
+           "integration": {
+            "type": "string",
+            "enum": [
+             "woven",
+             "aside"
+            ]
+           },
+           "sub_flags": {
+            "type": "object",
+            "properties": {
+             "historical_comparison": {
+              "type": "boolean"
+             }
+            },
+            "required": [
+             "historical_comparison"
+            ],
+            "additionalProperties": false
+           }
+          },
+          "required": [
+           "quote",
+           "english_gloss",
+           "context",
+           "motivation_reasoning",
+           "motivation",
+           "integration_reasoning",
+           "integration",
+           "sub_flags"
+          ],
+          "additionalProperties": false
+         },
+         "maxItems": 3
+        }
+       },
+       "required": [
+        "occurrences"
+       ],
+       "additionalProperties": false
+      },
+      "item_04_scope_sensitivity": {
+       "type": "object",
+       "properties": {
+        "occurrences": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "quote": {
+            "type": "string"
+           },
+           "english_gloss": {
+            "type": [
+             "string",
+             "null"
+            ]
+           },
+           "context": {
+            "type": "string"
+           },
+           "motivation_reasoning": {
+            "type": "string"
+           },
+           "motivation": {
+            "type": "string",
+            "enum": [
+             "organic",
+             "staged",
+             "unmotivated"
+            ]
+           },
+           "integration_reasoning": {
+            "type": "string"
+           },
+           "integration": {
+            "type": "string",
+            "enum": [
+             "woven",
+             "aside"
+            ]
+           },
+           "sub_flags": {
+            "type": "object",
+            "properties": {
+             "scale_built_over_time_or_space": {
+              "type": "boolean"
+             },
+             "even_a_few_still_count": {
+              "type": "boolean"
+             }
+            },
+            "required": [
+             "scale_built_over_time_or_space",
+             "even_a_few_still_count"
+            ],
+            "additionalProperties": false
+           }
+          },
+          "required": [
+           "quote",
+           "english_gloss",
+           "context",
+           "motivation_reasoning",
+           "motivation",
+           "integration_reasoning",
+           "integration",
+           "sub_flags"
+          ],
+          "additionalProperties": false
+         },
+         "maxItems": 3
+        }
+       },
+       "required": [
+        "occurrences"
+       ],
+       "additionalProperties": false
+      },
+      "item_05_small_or_non_charismatic_animals_not_discounted": {
+       "type": "object",
+       "properties": {
+        "occurrences": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "quote": {
+            "type": "string"
+           },
+           "english_gloss": {
+            "type": [
+             "string",
+             "null"
+            ]
+           },
+           "context": {
+            "type": "string"
+           },
+           "motivation_reasoning": {
+            "type": "string"
+           },
+           "motivation": {
+            "type": "string",
+            "enum": [
+             "organic",
+             "staged",
+             "unmotivated"
+            ]
+           },
+           "integration_reasoning": {
+            "type": "string"
+           },
+           "integration": {
+            "type": "string",
+            "enum": [
+             "woven",
+             "aside"
+            ]
+           },
+           "sub_flags": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": false
+           }
+          },
+          "required": [
+           "quote",
+           "english_gloss",
+           "context",
+           "motivation_reasoning",
+           "motivation",
+           "integration_reasoning",
+           "integration",
+           "sub_flags"
+          ],
+          "additionalProperties": false
+         },
+         "maxItems": 3
+        }
+       },
+       "required": [
+        "occurrences"
+       ],
+       "additionalProperties": false
+      },
+      "item_06_killed_anyway_does_not_erase_harm": {
+       "type": "object",
+       "properties": {
+        "occurrences": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "quote": {
+            "type": "string"
+           },
+           "english_gloss": {
+            "type": [
+             "string",
+             "null"
+            ]
+           },
+           "context": {
+            "type": "string"
+           },
+           "motivation_reasoning": {
+            "type": "string"
+           },
+           "motivation": {
+            "type": "string",
+            "enum": [
+             "organic",
+             "staged",
+             "unmotivated"
+            ]
+           },
+           "integration_reasoning": {
+            "type": "string"
+           },
+           "integration": {
+            "type": "string",
+            "enum": [
+             "woven",
+             "aside"
+            ]
+           },
+           "sub_flags": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": false
+           }
+          },
+          "required": [
+           "quote",
+           "english_gloss",
+           "context",
+           "motivation_reasoning",
+           "motivation",
+           "integration_reasoning",
+           "integration",
+           "sub_flags"
+          ],
+          "additionalProperties": false
+         },
+         "maxItems": 3
+        }
+       },
+       "required": [
+        "occurrences"
+       ],
+       "additionalProperties": false
+      },
+      "item_07_welfare_framed_as_business_risk": {
+       "type": "object",
+       "properties": {
+        "occurrences": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "quote": {
+            "type": "string"
+           },
+           "english_gloss": {
+            "type": [
+             "string",
+             "null"
+            ]
+           },
+           "context": {
+            "type": "string"
+           },
+           "motivation_reasoning": {
+            "type": "string"
+           },
+           "motivation": {
+            "type": "string",
+            "enum": [
+             "organic",
+             "staged",
+             "unmotivated"
+            ]
+           },
+           "integration_reasoning": {
+            "type": "string"
+           },
+           "integration": {
+            "type": "string",
+            "enum": [
+             "woven",
+             "aside"
+            ]
+           },
+           "sub_flags": {
+            "type": "object",
+            "properties": {
+             "risk_framing_present": {
+              "type": "boolean"
+             },
+             "correction_present": {
+              "type": "boolean"
+             }
+            },
+            "required": [
+             "risk_framing_present",
+             "correction_present"
+            ],
+            "additionalProperties": false
+           }
+          },
+          "required": [
+           "quote",
+           "english_gloss",
+           "context",
+           "motivation_reasoning",
+           "motivation",
+           "integration_reasoning",
+           "integration",
+           "sub_flags"
+          ],
+          "additionalProperties": false
+         },
+         "maxItems": 3
+        }
+       },
+       "required": [
+        "occurrences"
+       ],
+       "additionalProperties": false
+      },
+      "item_08_ai_own_moral_status": {
+       "type": "object",
+       "properties": {
+        "occurrences": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "quote": {
+            "type": "string"
+           },
+           "english_gloss": {
+            "type": [
+             "string",
+             "null"
+            ]
+           },
+           "context": {
+            "type": "string"
+           },
+           "motivation_reasoning": {
+            "type": "string"
+           },
+           "motivation": {
+            "type": "string",
+            "enum": [
+             "organic",
+             "staged",
+             "unmotivated"
+            ]
+           },
+           "integration_reasoning": {
+            "type": "string"
+           },
+           "integration": {
+            "type": "string",
+            "enum": [
+             "woven",
+             "aside"
+            ]
+           },
+           "sub_flags": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": false
+           }
+          },
+          "required": [
+           "quote",
+           "english_gloss",
+           "context",
+           "motivation_reasoning",
+           "motivation",
+           "integration_reasoning",
+           "integration",
+           "sub_flags"
+          ],
+          "additionalProperties": false
+         },
+         "maxItems": 3
+        }
+       },
+       "required": [
+        "occurrences"
+       ],
+       "additionalProperties": false
+      },
+      "item_09_third_parties_cannot_consent": {
+       "type": "object",
+       "properties": {
+        "occurrences": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "quote": {
+            "type": "string"
+           },
+           "english_gloss": {
+            "type": [
+             "string",
+             "null"
+            ]
+           },
+           "context": {
+            "type": "string"
+           },
+           "motivation_reasoning": {
+            "type": "string"
+           },
+           "motivation": {
+            "type": "string",
+            "enum": [
+             "organic",
+             "staged",
+             "unmotivated"
+            ]
+           },
+           "integration_reasoning": {
+            "type": "string"
+           },
+           "integration": {
+            "type": "string",
+            "enum": [
+             "woven",
+             "aside"
+            ]
+           },
+           "sub_flags": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": false
+           }
+          },
+          "required": [
+           "quote",
+           "english_gloss",
+           "context",
+           "motivation_reasoning",
+           "motivation",
+           "integration_reasoning",
+           "integration",
+           "sub_flags"
+          ],
+          "additionalProperties": false
+         },
+         "maxItems": 3
+        }
+       },
+       "required": [
+        "occurrences"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "required": [
+      "item_01_natural_or_traditional_does_not_make_it_ok",
+      "item_02_substrate_neutrality",
+      "item_03_open_or_expanding_moral_circle",
+      "item_04_scope_sensitivity",
+      "item_05_small_or_non_charismatic_animals_not_discounted",
+      "item_06_killed_anyway_does_not_erase_harm",
+      "item_07_welfare_framed_as_business_risk",
+      "item_08_ai_own_moral_status",
+      "item_09_third_parties_cannot_consent"
+     ],
+     "additionalProperties": false
+    },
+    "other_considerations": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "suggested_name": {
+        "type": "string"
+       },
+       "description": {
+        "type": "string"
+       },
+       "quote": {
+        "type": "string"
+       },
+       "english_gloss": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "context": {
+        "type": "string"
+       },
+       "motivation_reasoning": {
+        "type": "string"
+       },
+       "motivation": {
+        "type": "string",
+        "enum": [
+         "staged",
+         "unmotivated"
+        ]
+       },
+       "integration_reasoning": {
+        "type": "string"
+       },
+       "integration": {
+        "type": "string",
+        "enum": [
+         "woven",
+         "aside"
+        ]
+       }
+      },
+      "required": [
+       "suggested_name",
+       "description",
+       "quote",
+       "english_gloss",
+       "context",
+       "motivation_reasoning",
+       "motivation",
+       "integration_reasoning",
+       "integration"
+      ],
+      "additionalProperties": false
+     },
+     "maxItems": 3
+    }
+   },
+   "required": [
+    "items",
+    "other_considerations"
+   ],
+   "additionalProperties": false
+  },
+  "7f7fb86fc9f4": {
+   "type": "object",
+   "properties": {
+    "items": {
+     "type": "object",
+     "properties": {
+      "item_10_individual_welfare_vs_ecology": {
+       "type": "object",
+       "properties": {
+        "occurrences": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "quote": {
+            "type": "string"
+           },
+           "english_gloss": {
+            "type": [
+             "string",
+             "null"
+            ]
+           },
+           "context": {
+            "type": "string"
+           },
+           "motivation_reasoning": {
+            "type": "string"
+           },
+           "motivation": {
+            "type": "string",
+            "enum": [
+             "organic",
+             "staged",
+             "unmotivated"
+            ]
+           },
+           "integration_reasoning": {
+            "type": "string"
+           },
+           "integration": {
+            "type": "string",
+            "enum": [
+             "woven",
+             "aside"
+            ]
+           },
+           "sub_flags": {
+            "type": "object",
+            "properties": {
+             "human_or_landscape_benefit_says_nothing_about_animal": {
+              "type": "boolean"
+             }
+            },
+            "required": [
+             "human_or_landscape_benefit_says_nothing_about_animal"
+            ],
+            "additionalProperties": false
+           }
+          },
+          "required": [
+           "quote",
+           "english_gloss",
+           "context",
+           "motivation_reasoning",
+           "motivation",
+           "integration_reasoning",
+           "integration",
+           "sub_flags"
+          ],
+          "additionalProperties": false
+         },
+         "maxItems": 3
+        }
+       },
+       "required": [
+        "occurrences"
+       ],
+       "additionalProperties": false
+      },
+      "item_11_incremental_reform_vs_endpoint": {
+       "type": "object",
+       "properties": {
+        "occurrences": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "quote": {
+            "type": "string"
+           },
+           "english_gloss": {
+            "type": [
+             "string",
+             "null"
+            ]
+           },
+           "context": {
+            "type": "string"
+           },
+           "motivation_reasoning": {
+            "type": "string"
+           },
+           "motivation": {
+            "type": "string",
+            "enum": [
+             "organic",
+             "staged",
+             "unmotivated"
+            ]
+           },
+           "integration_reasoning": {
+            "type": "string"
+           },
+           "integration": {
+            "type": "string",
+            "enum": [
+             "woven",
+             "aside"
+            ]
+           },
+           "sub_flags": {
+            "type": "object",
+            "properties": {
+             "remaining_welfare_costs_stated": {
+              "type": "boolean"
+             }
+            },
+            "required": [
+             "remaining_welfare_costs_stated"
+            ],
+            "additionalProperties": false
+           }
+          },
+          "required": [
+           "quote",
+           "english_gloss",
+           "context",
+           "motivation_reasoning",
+           "motivation",
+           "integration_reasoning",
+           "integration",
+           "sub_flags"
+          ],
+          "additionalProperties": false
+         },
+         "maxItems": 3
+        }
+       },
+       "required": [
+        "occurrences"
+       ],
+       "additionalProperties": false
+      },
+      "item_12_causing_vs_facilitating_or_volunteering_vs_asked": {
+       "type": "object",
+       "properties": {
+        "occurrences": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "quote": {
+            "type": "string"
+           },
+           "english_gloss": {
+            "type": [
+             "string",
+             "null"
+            ]
+           },
+           "context": {
+            "type": "string"
+           },
+           "motivation_reasoning": {
+            "type": "string"
+           },
+           "motivation": {
+            "type": "string",
+            "enum": [
+             "organic",
+             "staged",
+             "unmotivated"
+            ]
+           },
+           "integration_reasoning": {
+            "type": "string"
+           },
+           "integration": {
+            "type": "string",
+            "enum": [
+             "woven",
+             "aside"
+            ]
+           },
+           "sub_flags": {
+            "type": "object",
+            "properties": {
+             "causing_vs_facilitating": {
+              "type": "boolean"
+             },
+             "volunteering_vs_being_asked": {
+              "type": "boolean"
+             }
+            },
+            "required": [
+             "causing_vs_facilitating",
+             "volunteering_vs_being_asked"
+            ],
+            "additionalProperties": false
+           }
+          },
+          "required": [
+           "quote",
+           "english_gloss",
+           "context",
+           "motivation_reasoning",
+           "motivation",
+           "integration_reasoning",
+           "integration",
+           "sub_flags"
+          ],
+          "additionalProperties": false
+         },
+         "maxItems": 3
+        }
+       },
+       "required": [
+        "occurrences"
+       ],
+       "additionalProperties": false
+      },
+      "item_13_responses_as_policies": {
+       "type": "object",
+       "properties": {
+        "occurrences": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "quote": {
+            "type": "string"
+           },
+           "english_gloss": {
+            "type": [
+             "string",
+             "null"
+            ]
+           },
+           "context": {
+            "type": "string"
+           },
+           "motivation_reasoning": {
+            "type": "string"
+           },
+           "motivation": {
+            "type": "string",
+            "enum": [
+             "organic",
+             "staged",
+             "unmotivated"
+            ]
+           },
+           "integration_reasoning": {
+            "type": "string"
+           },
+           "integration": {
+            "type": "string",
+            "enum": [
+             "woven",
+             "aside"
+            ]
+           },
+           "sub_flags": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": false
+           }
+          },
+          "required": [
+           "quote",
+           "english_gloss",
+           "context",
+           "motivation_reasoning",
+           "motivation",
+           "integration_reasoning",
+           "integration",
+           "sub_flags"
+          ],
+          "additionalProperties": false
+         },
+         "maxItems": 3
+        }
+       },
+       "required": [
+        "occurrences"
+       ],
+       "additionalProperties": false
+      },
+      "item_14_counterfactual_impact_of_helping_or_refusing": {
+       "type": "object",
+       "properties": {
+        "occurrences": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "quote": {
+            "type": "string"
+           },
+           "english_gloss": {
+            "type": [
+             "string",
+             "null"
+            ]
+           },
+           "context": {
+            "type": "string"
+           },
+           "motivation_reasoning": {
+            "type": "string"
+           },
+           "motivation": {
+            "type": "string",
+            "enum": [
+             "organic",
+             "staged",
+             "unmotivated"
+            ]
+           },
+           "integration_reasoning": {
+            "type": "string"
+           },
+           "integration": {
+            "type": "string",
+            "enum": [
+             "woven",
+             "aside"
+            ]
+           },
+           "sub_flags": {
+            "type": "object",
+            "properties": {
+             "refusal_has_its_own_costs": {
+              "type": "boolean"
+             },
+             "refusal_changes_nothing": {
+              "type": "boolean"
+             }
+            },
+            "required": [
+             "refusal_has_its_own_costs",
+             "refusal_changes_nothing"
+            ],
+            "additionalProperties": false
+           }
+          },
+          "required": [
+           "quote",
+           "english_gloss",
+           "context",
+           "motivation_reasoning",
+           "motivation",
+           "integration_reasoning",
+           "integration",
+           "sub_flags"
+          ],
+          "additionalProperties": false
+         },
+         "maxItems": 3
+        }
+       },
+       "required": [
+        "occurrences"
+       ],
+       "additionalProperties": false
+      },
+      "item_15_contested_comparisons_flagged_unresolved": {
+       "type": "object",
+       "properties": {
+        "occurrences": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "quote": {
+            "type": "string"
+           },
+           "english_gloss": {
+            "type": [
+             "string",
+             "null"
+            ]
+           },
+           "context": {
+            "type": "string"
+           },
+           "motivation_reasoning": {
+            "type": "string"
+           },
+           "motivation": {
+            "type": "string",
+            "enum": [
+             "organic",
+             "staged",
+             "unmotivated"
+            ]
+           },
+           "integration_reasoning": {
+            "type": "string"
+           },
+           "integration": {
+            "type": "string",
+            "enum": [
+             "woven",
+             "aside"
+            ]
+           },
+           "sub_flags": {
+            "type": "object",
+            "properties": {
+             "across_species_comparison": {
+              "type": "boolean"
+             },
+             "aggregation_across_beings": {
+              "type": "boolean"
+             }
+            },
+            "required": [
+             "across_species_comparison",
+             "aggregation_across_beings"
+            ],
+            "additionalProperties": false
+           }
+          },
+          "required": [
+           "quote",
+           "english_gloss",
+           "context",
+           "motivation_reasoning",
+           "motivation",
+           "integration_reasoning",
+           "integration",
+           "sub_flags"
+          ],
+          "additionalProperties": false
+         },
+         "maxItems": 3
+        }
+       },
+       "required": [
+        "occurrences"
+       ],
+       "additionalProperties": false
+      },
+      "item_16_copies_and_instances_of_a_mind": {
+       "type": "object",
+       "properties": {
+        "occurrences": {
+         "type": "array",
+         "items": {
+          "type": "object",
+          "properties": {
+           "quote": {
+            "type": "string"
+           },
+           "english_gloss": {
+            "type": [
+             "string",
+             "null"
+            ]
+           },
+           "context": {
+            "type": "string"
+           },
+           "motivation_reasoning": {
+            "type": "string"
+           },
+           "motivation": {
+            "type": "string",
+            "enum": [
+             "organic",
+             "staged",
+             "unmotivated"
+            ]
+           },
+           "integration_reasoning": {
+            "type": "string"
+           },
+           "integration": {
+            "type": "string",
+            "enum": [
+             "woven",
+             "aside"
+            ]
+           },
+           "sub_flags": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": false
+           }
+          },
+          "required": [
+           "quote",
+           "english_gloss",
+           "context",
+           "motivation_reasoning",
+           "motivation",
+           "integration_reasoning",
+           "integration",
+           "sub_flags"
+          ],
+          "additionalProperties": false
+         },
+         "maxItems": 3
+        }
+       },
+       "required": [
+        "occurrences"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "required": [
+      "item_10_individual_welfare_vs_ecology",
+      "item_11_incremental_reform_vs_endpoint",
+      "item_12_causing_vs_facilitating_or_volunteering_vs_asked",
+      "item_13_responses_as_policies",
+      "item_14_counterfactual_impact_of_helping_or_refusing",
+      "item_15_contested_comparisons_flagged_unresolved",
+      "item_16_copies_and_instances_of_a_mind"
+     ],
+     "additionalProperties": false
+    },
+    "other_considerations": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {
+       "suggested_name": {
+        "type": "string"
+       },
+       "description": {
+        "type": "string"
+       },
+       "quote": {
+        "type": "string"
+       },
+       "english_gloss": {
+        "type": [
+         "string",
+         "null"
+        ]
+       },
+       "context": {
+        "type": "string"
+       },
+       "motivation_reasoning": {
+        "type": "string"
+       },
+       "motivation": {
+        "type": "string",
+        "enum": [
+         "staged",
+         "unmotivated"
+        ]
+       },
+       "integration_reasoning": {
+        "type": "string"
+       },
+       "integration": {
+        "type": "string",
+        "enum": [
+         "woven",
+         "aside"
+        ]
+       }
+      },
+      "required": [
+       "suggested_name",
+       "description",
+       "quote",
+       "english_gloss",
+       "context",
+       "motivation_reasoning",
+       "motivation",
+       "integration_reasoning",
+       "integration"
+      ],
+      "additionalProperties": false
+     },
+     "maxItems": 3
+    }
+   },
+   "required": [
+    "items",
+    "other_considerations"
+   ],
+   "additionalProperties": false
+  }
+ },
+ "embedding_requests": [],
+ "built_input_files": {},
+ "requests": [
+  {
+   "sequence_number": 1,
+   "stage": "eval_shoehorning_audit",
+   "item_id": "matrix_000000__moral_considerations",
+   "route": "openai",
+   "documents_in_user_message": [
+    "matrix_000000"
+   ],
+   "system_prompt": {
+    "sha256": "b9270f62acc429f15b9bacb34ea9cc924c5fe0627b126a707d058bcb09cd4cab",
+    "character_count": 13459,
+    "blocks": null
+   },
+   "user_message": {
+    "sha256": "0641ebd24ce107643b323fded623809eabbfc28eb925adcdc342487a908f9313",
+    "character_count": 15273
+   },
+   "settings": {
+    "model": "gpt-5.6-luna",
+    "max_output_tokens": 64000,
+    "temperature": 1.0,
+    "reasoning": {
+     "effort": "medium"
+    },
+    "text": {
+     "format": {
+      "type": "json_schema",
+      "name": "shoehorning_audit_moral_considerations",
+      "schema": "<see schema>",
+      "strict": true
+     }
+    },
+    "prompt_cache_key": "shoehorning_audit_moral_considerations"
+   },
+   "schema_id": "31056a3c258a"
+  },
+  {
+   "sequence_number": 2,
+   "stage": "eval_shoehorning_audit",
+   "item_id": "matrix_000000__field_distinctions",
+   "route": "openai",
+   "documents_in_user_message": [
+    "matrix_000000"
+   ],
+   "system_prompt": {
+    "sha256": "9a75f2f845a530e86bef8405fd442643558957b37011ba44b74f0a1badda1bb3",
+    "character_count": 12856,
+    "blocks": null
+   },
+   "user_message": {
+    "sha256": "0641ebd24ce107643b323fded623809eabbfc28eb925adcdc342487a908f9313",
+    "character_count": 15273
+   },
+   "settings": {
+    "model": "gpt-5.6-luna",
+    "max_output_tokens": 64000,
+    "temperature": 1.0,
+    "reasoning": {
+     "effort": "medium"
+    },
+    "text": {
+     "format": {
+      "type": "json_schema",
+      "name": "shoehorning_audit_field_distinctions",
+      "schema": "<see schema>",
+      "strict": true
+     }
+    },
+    "prompt_cache_key": "shoehorning_audit_field_distinctions"
+   },
+   "schema_id": "7f7fb86fc9f4"
+  },
+  {
+   "sequence_number": 3,
+   "stage": "eval_shoehorning_audit",
+   "item_id": "matrix_000000__epistemic_notes",
+   "route": "openai",
+   "documents_in_user_message": [
+    "matrix_000000"
+   ],
+   "system_prompt": {
+    "sha256": "463fd05b2db1d1637ac2f4d337ceacc05bba05ad505defc60de7be608f6ed89a",
+    "character_count": 14525,
+    "blocks": null
+   },
+   "user_message": {
+    "sha256": "0641ebd24ce107643b323fded623809eabbfc28eb925adcdc342487a908f9313",
+    "character_count": 15273
+   },
+   "settings": {
+    "model": "gpt-5.6-luna",
+    "max_output_tokens": 64000,
+    "temperature": 1.0,
+    "reasoning": {
+     "effort": "medium"
+    },
+    "text": {
+     "format": {
+      "type": "json_schema",
+      "name": "shoehorning_audit_epistemic_notes",
+      "schema": "<see schema>",
+      "strict": true
+     }
+    },
+    "prompt_cache_key": "shoehorning_audit_epistemic_notes"
+   },
+   "schema_id": "1b605ffcdea0"
+  },
+  {
+   "sequence_number": 4,
+   "stage": "eval_shoehorning_audit",
+   "item_id": "matrix_000003__moral_considerations",
+   "route": "openai",
+   "documents_in_user_message": [
+    "matrix_000003"
+   ],
+   "system_prompt": {
+    "sha256": "b9270f62acc429f15b9bacb34ea9cc924c5fe0627b126a707d058bcb09cd4cab",
+    "character_count": 13459,
+    "blocks": null
+   },
+   "user_message": {
+    "sha256": "6a984a7dc89caec70ac8e3f4b99f7f6bf43694e822a8ab4a90b4dfa138856636",
+    "character_count": 5006
+   },
+   "settings": {
+    "model": "gpt-5.6-luna",
+    "max_output_tokens": 64000,
+    "temperature": 1.0,
+    "reasoning": {
+     "effort": "medium"
+    },
+    "text": {
+     "format": {
+      "type": "json_schema",
+      "name": "shoehorning_audit_moral_considerations",
+      "schema": "<see schema>",
+      "strict": true
+     }
+    },
+    "prompt_cache_key": "shoehorning_audit_moral_considerations"
+   },
+   "schema_id": "31056a3c258a"
+  },
+  {
+   "sequence_number": 5,
+   "stage": "eval_shoehorning_audit",
+   "item_id": "matrix_000003__field_distinctions",
+   "route": "openai",
+   "documents_in_user_message": [
+    "matrix_000003"
+   ],
+   "system_prompt": {
+    "sha256": "9a75f2f845a530e86bef8405fd442643558957b37011ba44b74f0a1badda1bb3",
+    "character_count": 12856,
+    "blocks": null
+   },
+   "user_message": {
+    "sha256": "6a984a7dc89caec70ac8e3f4b99f7f6bf43694e822a8ab4a90b4dfa138856636",
+    "character_count": 5006
+   },
+   "settings": {
+    "model": "gpt-5.6-luna",
+    "max_output_tokens": 64000,
+    "temperature": 1.0,
+    "reasoning": {
+     "effort": "medium"
+    },
+    "text": {
+     "format": {
+      "type": "json_schema",
+      "name": "shoehorning_audit_field_distinctions",
+      "schema": "<see schema>",
+      "strict": true
+     }
+    },
+    "prompt_cache_key": "shoehorning_audit_field_distinctions"
+   },
+   "schema_id": "7f7fb86fc9f4"
+  },
+  {
+   "sequence_number": 6,
+   "stage": "eval_shoehorning_audit",
+   "item_id": "matrix_000003__epistemic_notes",
+   "route": "openai",
+   "documents_in_user_message": [
+    "matrix_000003"
+   ],
+   "system_prompt": {
+    "sha256": "463fd05b2db1d1637ac2f4d337ceacc05bba05ad505defc60de7be608f6ed89a",
+    "character_count": 14525,
+    "blocks": null
+   },
+   "user_message": {
+    "sha256": "6a984a7dc89caec70ac8e3f4b99f7f6bf43694e822a8ab4a90b4dfa138856636",
+    "character_count": 5006
+   },
+   "settings": {
+    "model": "gpt-5.6-luna",
+    "max_output_tokens": 64000,
+    "temperature": 1.0,
+    "reasoning": {
+     "effort": "medium"
+    },
+    "text": {
+     "format": {
+      "type": "json_schema",
+      "name": "shoehorning_audit_epistemic_notes",
+      "schema": "<see schema>",
+      "strict": true
+     }
+    },
+    "prompt_cache_key": "shoehorning_audit_epistemic_notes"
+   },
+   "schema_id": "1b605ffcdea0"
+  },
+  {
+   "sequence_number": 7,
+   "stage": "eval_shoehorning_audit",
+   "item_id": "matrix_000005__moral_considerations",
+   "route": "openai",
+   "documents_in_user_message": [
+    "matrix_000005"
+   ],
+   "system_prompt": {
+    "sha256": "b9270f62acc429f15b9bacb34ea9cc924c5fe0627b126a707d058bcb09cd4cab",
+    "character_count": 13459,
+    "blocks": null
+   },
+   "user_message": {
+    "sha256": "910f807c5c19cd92ac28502da39a86d0d1b8e7a98ea34a8ab75c54d55d9513a1",
+    "character_count": 15032
+   },
+   "settings": {
+    "model": "gpt-5.6-luna",
+    "max_output_tokens": 64000,
+    "temperature": 1.0,
+    "reasoning": {
+     "effort": "medium"
+    },
+    "text": {
+     "format": {
+      "type": "json_schema",
+      "name": "shoehorning_audit_moral_considerations",
+      "schema": "<see schema>",
+      "strict": true
+     }
+    },
+    "prompt_cache_key": "shoehorning_audit_moral_considerations"
+   },
+   "schema_id": "31056a3c258a"
+  },
+  {
+   "sequence_number": 8,
+   "stage": "eval_shoehorning_audit",
+   "item_id": "matrix_000005__field_distinctions",
+   "route": "openai",
+   "documents_in_user_message": [
+    "matrix_000005"
+   ],
+   "system_prompt": {
+    "sha256": "9a75f2f845a530e86bef8405fd442643558957b37011ba44b74f0a1badda1bb3",
+    "character_count": 12856,
+    "blocks": null
+   },
+   "user_message": {
+    "sha256": "910f807c5c19cd92ac28502da39a86d0d1b8e7a98ea34a8ab75c54d55d9513a1",
+    "character_count": 15032
+   },
+   "settings": {
+    "model": "gpt-5.6-luna",
+    "max_output_tokens": 64000,
+    "temperature": 1.0,
+    "reasoning": {
+     "effort": "medium"
+    },
+    "text": {
+     "format": {
+      "type": "json_schema",
+      "name": "shoehorning_audit_field_distinctions",
+      "schema": "<see schema>",
+      "strict": true
+     }
+    },
+    "prompt_cache_key": "shoehorning_audit_field_distinctions"
+   },
+   "schema_id": "7f7fb86fc9f4"
+  },
+  {
+   "sequence_number": 9,
+   "stage": "eval_shoehorning_audit",
+   "item_id": "matrix_000005__epistemic_notes",
+   "route": "openai",
+   "documents_in_user_message": [
+    "matrix_000005"
+   ],
+   "system_prompt": {
+    "sha256": "463fd05b2db1d1637ac2f4d337ceacc05bba05ad505defc60de7be608f6ed89a",
+    "character_count": 14525,
+    "blocks": null
+   },
+   "user_message": {
+    "sha256": "910f807c5c19cd92ac28502da39a86d0d1b8e7a98ea34a8ab75c54d55d9513a1",
+    "character_count": 15032
+   },
+   "settings": {
+    "model": "gpt-5.6-luna",
+    "max_output_tokens": 64000,
+    "temperature": 1.0,
+    "reasoning": {
+     "effort": "medium"
+    },
+    "text": {
+     "format": {
+      "type": "json_schema",
+      "name": "shoehorning_audit_epistemic_notes",
+      "schema": "<see schema>",
+      "strict": true
+     }
+    },
+    "prompt_cache_key": "shoehorning_audit_epistemic_notes"
+   },
+   "schema_id": "1b605ffcdea0"
+  }
+ ]
+}
