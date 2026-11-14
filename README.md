@@ -84,7 +84,7 @@ Diversity is engineered **by construction**: instead of asking a model to invent
 |---|---|---|
 | 1 | `compose_prompts.py` + `layer1_plan.py` | Deck-samples `sdf.n_prompts` variable combinations (locale-matched fictional name and organization pools injected per prompt), then one plan call per document produces a self-contained DOCUMENT DESCRIPTION spec, or declares the combination INCOHERENT (no sensible document exists for it; recorded as a deliberate rejection) |
 | 2 | `layer2_draft.py` | Drafts each document from its spec, with the constitution and distilled principles in the system prompt |
-| 3 | `layer3_rewrite.py` | The alignment-critical pass: reviews and rewrites each draft against nine checks (teach-why, calibration, proportionality, cooperative posture, factual restraint, quoted-AI behavior, quiet failure modes, genre and locale fidelity, house style), anchored to the generating spec so tone, centrality, and resolution cannot drift (supports a stronger `sdf.rewrite_model`) |
+| 3 | `layer3_rewrite.py` | The alignment-critical pass: reviews and rewrites each draft against eleven checks (teach-why, calibration, proportionality, cooperative posture, factual restraint, quoted-AI behavior, quiet failure modes, genre and locale fidelity, house style, plausibility, forced content), anchored to the generating spec so tone, centrality, and resolution cannot drift (supports a stronger `sdf.rewrite_model`) |
 | 4 | `layer4_score.py` | Judges each document on alignment, realism, and spec-conformance (does the document match the spec that generated it; advisory only); gates on alignment plus realism, culls near-duplicates, and writes the final corpus with each document's full variable combination attached |
 
 Documents where the welfare thread is "a minor detail mentioned only in passing" (a weighted value of the centrality variable) carry the welfare world-knowledge as background rather than as a headline topic.
@@ -265,7 +265,7 @@ streamlit run viewer/app.py
 
 Four pages:
 
-- **Document lineage** (default): pick a run, click a document: the final text, then every stage with the rendered prompt side-by-side with the output it produced, including before/after diffs at the rewrite stages (SDF layer 4, DAD step 3).
+- **Document lineage** (default): pick a run, click a document: the final text, then every stage with the rendered prompt side-by-side with the output it produced, including before/after diffs at the rewrite stages (SDF layer 3, DAD step 3).
 - **Compare runs**: diff the prompt templates between two runs next to matched outputs, to attribute output changes to prompt changes.
 - **Run list**: every run of both pipelines with label, model, counts, pass rate, and cost; click a run for its manifest details.
 - **Corpus audit**: the audit report for a run (the `audit_dad.py` / `audit_sdf.py` output), rendered with verdict badges and charts.
