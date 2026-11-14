@@ -14,6 +14,7 @@ returns canned replies (tests/sdf_audit_equivalence_fixture_support.py), with fa
     python scripts/regenerate_sdf_audit_equivalence_recorded_requests.py
 """
 
+import argparse
 import subprocess
 import sys
 import tempfile
@@ -56,4 +57,6 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    # A parser with no options, so that --help prints this text and exits instead of rewriting the recordings.
+    argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter).parse_args()
     main()
