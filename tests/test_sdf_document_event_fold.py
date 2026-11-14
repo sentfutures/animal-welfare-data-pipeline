@@ -27,6 +27,7 @@ def main_scenario_after_each_invocation():
             collected.append({
                 "events_text": events_path.read_text(encoding="utf-8"),
                 "states": load_document_states(run_directory),
+                "plan_records": utils.load_jsonl(utils.sdf_stage_dir(run_directory, 1) / "plans.jsonl"),
                 "draft_records": utils.load_jsonl(utils.sdf_stage_dir(run_directory, 2) / "drafts.jsonl"),
                 "score_records": utils.load_jsonl(utils.sdf_stage_dir(run_directory, 4) / "scores.jsonl"),
                 "final_corpus": utils.load_jsonl(run_directory / "final" / "sdf_corpus.jsonl"),
@@ -128,6 +129,24 @@ def test_the_resume_resolves_the_revise_failure_the_first_invocation_recorded_wi
         critique_events = [e for e in second if e["document_id"] == document_id and e["step"] == "critique"
                            and e["outcome"] == "accepted"]
         assert len(critique_events) == 1, "an accepted critique is kept, not paid for again"
+
+
+def test_folded_plan_events_match_the_plans_file_after_every_invocation(main_scenario_after_each_invocation, tmp_path):
+    for invocation in main_scenario_after_each_invocation:
+        folded = fold_document_events(_events_of(invocation["events_text"], tmp_path))
+        plans_file_records = {record["prompt_id"]: record for record in invocation["plan_records"]}
+        accepted_by_events = {
+            document_id: update for document_id, document in folded.items()
+            if (update := document.accepted_update_by_step.get("plan")) is not None}
+        incoherent_by_events = {
+            document_id for document_id, document in folded.items() if "plan" in document.removal_by_step}
+        assert accepted_by_events == {
+            prompt_id: record for prompt_id, record in plans_file_records.items() if not record["incoherent"]}
+        assert incoherent_by_events == {
+            prompt_id for prompt_id, record in plans_file_records.items() if record["incoherent"]}
+        for document_id, update in accepted_by_events.items():  # field for field and in field order
+            assert list(update.items()) == list(plans_file_records[document_id].items())
+        assert set(accepted_by_events) | incoherent_by_events == set(plans_file_records)
 
 
 def test_the_resume_resolves_the_draft_failure_the_first_invocation_recorded(main_scenario_after_each_invocation, tmp_path):
