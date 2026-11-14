@@ -72,6 +72,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from shared import api, deal_constraints, utils
 from shared.matrix import split_sections
 from sdf_pipeline import compose_prompts as cp
+from sdf_pipeline.dealt_value_identifiers import value_ids_of_dealt_hand
 from sdf_pipeline import structured_answers
 from sdf_pipeline.document_event_log import DOCUMENT_EVENT_LOG_FILE_NAME, DocumentEventLog
 from sdf_pipeline.step_runner import BatchStepRunner, send_model_request
@@ -311,6 +312,19 @@ def redeal_removed_hands(
 
 
 # ---------------------------------------------------------------- steps
+
+def _dealt_value_ids_of_hands(hands: list[dict], value_ids_by_axis: dict) -> tuple[dict, dict]:
+    """({hand id: {axis: value id}}, {hand id: [notes]}) for the round-dealt event. Read-only: the hands
+    and everything built from them are untouched."""
+    ids_by_hand: dict = {}
+    notes_by_hand: dict = {}
+    for hand in hands:
+        ids, notes = value_ids_of_dealt_hand(hand["variables"], value_ids_by_axis)
+        ids_by_hand[hand["prompt_id"]] = ids
+        if notes:
+            notes_by_hand[hand["prompt_id"]] = notes
+    return ids_by_hand, notes_by_hand
+
 
 def _hand_record(prompt_id: str, round_number: int, variables: dict) -> dict:
     return {"prompt_id": prompt_id, "round": round_number, "variables": variables}
@@ -552,8 +566,10 @@ def run(config: dict, prompts_dir: Path, output_dir: Path) -> list[dict] | None:
         utils.save_jsonl(hands, hands_path)   # replaces any partial write from an interrupted deal
         rounds = [{"round": 0, "prompt_ids": [h["prompt_id"] for h in hands], "note": "original deal"}]
         utils.append_jsonl(rounds[0], rounds_path)
+        ids_by_hand, id_notes_by_hand = _dealt_value_ids_of_hands(hands, value_ids)
         event_log.append_round_dealt_event(
-            round_number=0, prompt_ids=rounds[0]["prompt_ids"], note=rounds[0]["note"])
+            round_number=0, prompt_ids=rounds[0]["prompt_ids"], note=rounds[0]["note"],
+            dealt_value_ids=ids_by_hand, dealt_value_id_notes=id_notes_by_hand)
         event_log.append_corpus_step_finished_event(
             step_name="deal", summary={"round": 0, "created_prompt_ids": rounds[0]["prompt_ids"]})
     recorded_ids = {pid for r in rounds for pid in r["prompt_ids"]}
@@ -624,8 +640,10 @@ def run(config: dict, prompts_dir: Path, output_dir: Path) -> list[dict] | None:
         rounds.append({"round": round_number + 1, "prompt_ids": [r["prompt_id"] for r in new_records],
                        "note": f"redeal of {len(removed_ids)} removed hands"})
         utils.append_jsonl(rounds[-1], rounds_path)
+        ids_by_hand, id_notes_by_hand = _dealt_value_ids_of_hands(new_records, value_ids)
         event_log.append_round_dealt_event(
-            round_number=round_number + 1, prompt_ids=rounds[-1]["prompt_ids"], note=rounds[-1]["note"])
+            round_number=round_number + 1, prompt_ids=rounds[-1]["prompt_ids"], note=rounds[-1]["note"],
+            dealt_value_ids=ids_by_hand, dealt_value_id_notes=id_notes_by_hand)
         event_log.append_corpus_step_finished_event(
             step_name=RedealStep.step_name,
             summary={"round": round_number + 1, "removed_prompt_ids": removed_ids,

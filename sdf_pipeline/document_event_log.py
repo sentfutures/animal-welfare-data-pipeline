@@ -53,10 +53,19 @@ class DocumentEventLog:
 
     # The three events that are not about one document.
 
-    def append_round_dealt_event(self, *, round_number: int, prompt_ids: list, note: str) -> dict:
-        """A screen round was dealt: its hand ids (empty when the removed cards could not be redealt)."""
+    def append_round_dealt_event(self, *, round_number: int, prompt_ids: list, note: str,
+                                 dealt_value_ids: dict | None = None, dealt_value_id_notes: dict | None = None) -> dict:
+        """A screen round was dealt: its hand ids (empty when the removed cards could not be redealt).
+
+        ``dealt_value_ids`` ({hand id: {axis: value id}}) and ``dealt_value_id_notes`` ({hand id: [note]})
+        are kept in the event only (never in a stage file or request); they are left out of the event
+        when not given."""
         event = {"event": "round_dealt", "recorded_at": datetime.now(UTC).isoformat(),
                  "round": round_number, "prompt_ids": list(prompt_ids), "note": note}
+        if dealt_value_ids is not None:
+            event["dealt_value_ids"] = {hand_id: dict(ids) for hand_id, ids in dealt_value_ids.items()}
+        if dealt_value_id_notes:
+            event["dealt_value_id_notes"] = {hand_id: list(notes) for hand_id, notes in dealt_value_id_notes.items()}
         self._append(event)
         return event
 
@@ -123,6 +132,16 @@ def fold_document_events(events: list[dict]) -> dict:
             document.removal_by_step[step] = {"reason_code": event["reason_code"], "detail": event["detail"]}
             document.latest_outcome_by_step[step] = ("removed", document.removal_by_step[step])
     return folded
+
+
+def fold_dealt_value_ids(events: list[dict]) -> dict:
+    """{hand id: {axis: value id}} from every ``round_dealt`` event that carries ids (a hand is dealt
+    once, so no hand appears twice)."""
+    ids_by_hand: dict = {}
+    for event in events:
+        if event.get("event") == "round_dealt":
+            ids_by_hand.update(event.get("dealt_value_ids") or {})
+    return ids_by_hand
 
 
 def fold_round_and_batch_plan_events(events: list[dict]) -> dict:
