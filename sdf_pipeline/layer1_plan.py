@@ -1,31 +1,83 @@
-"""Layer 1: compose the prompt matrix (offline), then plan each document.
-
-The composition half replaces the old LLM layers entirely: a deck sample
-of the variables matrix (prompts/sdf/variables.txt x layer1.txt) yields one
-fully-specified prompt per planned document, at zero API cost. The plan half
-sends each composed prompt to the model, which works through the template's
-questions and emits a self-contained DOCUMENT DESCRIPTION spec (or declares
-the combination INCOHERENT). Only the extracted description travels
-downstream; the working notes are scaffolding.
-
-Checkpoint semantics (protects paid work):
-- The implausibility screen (layer1_screen.py) runs before this module and hands
-  it the accepted hands; removed hands are never planned.
-- prompts.jsonl is composed once per run and reloaded on --resume (the deck
-  sample is seeded, but reusing the file guarantees identity even if the
-  variables file later changes in the repo — the run's snapshot is authority).
-- A plan is checkpointed when it yields a description OR a deliberate
-  INCOHERENT; malformed output (no tags, truncation) is NOT checkpointed, so
-  --resume retries exactly the failed calls.
-"""
+"""Layer 1: compose the prompt matrix offline, then plan each document (a description spec, or INCOHERENT; only the description travels on).
+prompts.jsonl is composed once and reloaded on ``--resume``; a plan with no tags or truncated is not recorded, so ``--resume`` retries it."""
 
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from shared import api, utils
+from shared import utils
 from sdf_pipeline import compose_prompts as cp
+from sdf_pipeline.shared_step_machinery.step_record import LAYER1, Run, StageFile, Step
+from sdf_pipeline.shared_step_machinery.step_runner import run_step
+from sdf_pipeline.shared_step_machinery.update_steps import (
+    Accepted, Failed, FailureKind, ModelReply, ModelRequest, OutcomeRecords, Removed, StepProgress,
+    line_for_document_left_to_retry)
+
+PLANS = StageFile(LAYER1, "plans.jsonl", "prompt_id")
+
+
+def build_request(documents: list, run: Run) -> ModelRequest:
+    """The prompt the composer already wrote for the prompt record (``prompt_id``, ``variables``, ``prompt``, ``system``)."""
+    (prompt_record,) = documents
+    return STEP.model_request(prompt_record, prompt_record["prompt"], prompt_record.get("system"), run)
+
+
+def read_reply(documents: list, reply: ModelReply, run: Run) -> dict:
+    """A plan that declares the combination INCOHERENT is ``Removed``; its record is still written to plans.jsonl."""
+    (prompt_record,) = documents
+    if reply.stop_reason != "end_turn":
+        outcome = Failed(FailureKind.UNUSABLE_ANSWER, f"truncated plan (stop_reason={reply.stop_reason})")
+    else:
+        description = cp.extract_description(reply.text)
+        if cp.is_incoherent(reply.text):
+            outcome = Removed("incoherent", {"plan": reply.text, "description": description})
+        elif description is None:
+            outcome = Failed(FailureKind.UNUSABLE_ANSWER, "no DOCUMENT DESCRIPTION found")
+        else:
+            outcome = Accepted({"plan": reply.text, "description": description})
+    return {prompt_record["prompt_id"]: outcome}
+
+
+def _plan_record(prompt_record: dict, plan: str, description, incoherent: bool) -> dict:
+    return {
+        "prompt_id": prompt_record["prompt_id"],
+        "variables": prompt_record["variables"],
+        "plan": plan,
+        "description": description,
+        "incoherent": incoherent,
+    }
+
+
+def records(documents: list, outcomes: dict, run: Run) -> OutcomeRecords:
+    """An accepted plan, and an INCOHERENT one (a finished plan whose record says so), are one record each."""
+    (prompt_record,) = documents
+    outcome = outcomes[prompt_record["prompt_id"]]
+    if isinstance(outcome, Accepted):
+        return OutcomeRecords(((PLANS.file_name, _plan_record(
+            prompt_record, outcome.update["plan"], outcome.update["description"], False)),))
+    if isinstance(outcome, Removed):
+        return OutcomeRecords(((PLANS.file_name, _plan_record(
+            prompt_record, outcome.detail["plan"], outcome.detail["description"], True)),))
+    return OutcomeRecords()
+
+
+def progress_line(documents: list, outcomes: dict, progress: StepProgress, run: Run) -> str | None:
+    (prompt_record,), (outcome,) = documents, outcomes.values()
+    prompt_id = prompt_record["prompt_id"]
+    if isinstance(outcome, Accepted):
+        return f"  Planned {prompt_id}"
+    if isinstance(outcome, Removed):
+        return f"  Planned {prompt_id} (INCOHERENT)"
+    if outcome.kind is FailureKind.THROWN_CALL:
+        return line_for_document_left_to_retry(prompt_id, f"API call failed ({outcome.reason})")
+    return line_for_document_left_to_retry(prompt_id, outcome.reason)
+
+
+STEP = Step(
+    name="plan", folder_key=LAYER1, stage_tag="layer1_plan", model_setting_keys=("plan_model",),
+    build_request=build_request, read_reply=read_reply, records=records, writes=(PLANS,),
+    checkpoint_file_name="_checkpoint.json", progress_line=progress_line)
 
 
 def run(
@@ -35,8 +87,6 @@ def run(
     accepted ({"prompt_id", "variables"}); without them (screen disabled) the
     composer deals its own hands."""
     prompts_path = output_dir / "prompts.jsonl"
-    plans_path = output_dir / "plans.jsonl"
-    checkpoint = utils.Checkpoint(output_dir / "_checkpoint.json")
     sdf = config["sdf"]
 
     if prompts_path.exists():
@@ -60,63 +110,7 @@ def run(
             utils.append_jsonl(rec, prompts_path)
         print(f"  Composed {len(prompts)} prompts (offline, $0.00)")
 
-    existing = {r["prompt_id"]: r for r in utils.load_jsonl(plans_path)}
-    results = [existing[p["prompt_id"]] for p in prompts if p["prompt_id"] in existing]
-    pending = [
-        p for p in prompts
-        if p["prompt_id"] not in existing and not checkpoint.is_done(p["prompt_id"])
-    ]
-
-    def plan_one(rec: dict):
-        try:
-            return api.call_claude(
-                rec["prompt"],
-                system_prompt=rec.get("system") or "",
-                model=sdf.get("plan_model"),
-                stage="layer1_plan",
-                item_id=rec["prompt_id"],
-                return_stop_reason=True,
-            )
-        except Exception as e:
-            # One poison prompt (e.g. a usage-policy false positive on the
-            # claude_code backend) must not kill the layer and discard its
-            # siblings' in-flight work. Failed work is not checkpointed, so
-            # --resume retries exactly this call.
-            return None, f"error: {type(e).__name__}: {e}"
-
-    workers = config.get("workers", 1)
-    failed_calls = 0
-    for rec, (raw, stop) in zip(pending, utils.parallel_map(plan_one, pending, workers)):
-        pid = rec["prompt_id"]
-        if raw is None:
-            failed_calls += 1
-            print(f"  {pid}: API call failed ({stop}) — will retry on resume")
-            continue
-        if stop != "end_turn":
-            print(f"  {pid}: truncated plan (stop_reason={stop}) — will retry on resume")
-            continue
-        description = cp.extract_description(raw)
-        incoherent = cp.is_incoherent(raw)
-        if description is None and not incoherent:
-            print(f"  {pid}: no DOCUMENT DESCRIPTION found — will retry on resume")
-            continue
-        record = {
-            "prompt_id": pid,
-            "variables": rec["variables"],
-            "plan": raw,
-            "description": description,
-            "incoherent": incoherent,
-        }
-        results.append(record)
-        utils.append_jsonl(record, plans_path)
-        checkpoint.mark_done(pid)
-        print(f"  Planned {pid}" + (" (INCOHERENT)" if incoherent else ""))
-
-    if pending and failed_calls == len(pending):
-        raise SystemExit(
-            "layer1_plan: every pending API call failed — this is systemic "
-            "(auth, backend, or network), not per-document; fix and --resume."
-        )
+    results = run_step(STEP, Run(config, prompts_dir, {LAYER1: output_dir}), prompts).records_in_input_order
     incoherent_n = sum(1 for r in results if r.get("incoherent"))
     if incoherent_n:
         print(f"  {incoherent_n} combination(s) declared INCOHERENT — dropped")

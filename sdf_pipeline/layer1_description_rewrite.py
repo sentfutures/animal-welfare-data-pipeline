@@ -1,58 +1,24 @@
-"""Layer 1 description rewrite: repair a planned description before drafting.
+"""Layer 1 description rewrite: one call per planned description checks it for plausibility, dealt-value conformance and organisation naming.
+A rewrite keeps ``original_description`` and ``changes``; a dealt-value conflict drops the plan. Results live in description_rewrites.jsonl (plans.jsonl is never modified)
+and a malformed answer is not recorded, so ``--resume`` retries it. Use a GPT model for the call: Claude was far too lenient on plausibility (evidence in ``config.yaml``)."""
 
-Runs after planning, before the considerations selector and the first draft.
-One call per surviving plan is given the dealt variables (rendered as the lines
-the planner saw) and the plan's description, and checks it for plausibility
-(organisations, species and customs, simulated minds, what the AI can know,
-figures and scale), for conformance to every dealt value, and for organisation
-naming. The model may decline: when no check fails it answers
-``rewrite_needed: false`` and the original description passes through
-untouched. When it rewrites, the plan record keeps both versions
-(``original_description`` and the ``changes`` list) and ``description`` becomes
-the rewritten text, so layers 2-4 use it unchanged. When the only plausible fix
-would change a dealt value the model answers ``dealt_value_conflict: true``
-without a rewrite (whatever it put in ``rewrite_needed``, which is stored as false)
-and the plan is dropped and logged to
-description_rewrite_rejections.jsonl.
-
-The call is schema-constrained (prompts/sdf/layer1_description_rewrite_answer_schema.json)
-and the answer is validated in code. plans.jsonl is never modified; every
-result is stored in description_rewrites.jsonl and re-applied on resume.
-
-Config (``sdf`` section): ``description_rewrite_enabled`` (default true),
-``description_rewrite_model`` (falls back to ``plan_model``, then the global model),
-``description_rewrite_reasoning_effort`` (OpenAI models only). A model name starting
-with ``gpt-`` routes to OpenAI (shared/openai_api.py, key from the OPENAI_API_KEY
-environment variable); anything else goes to Claude.
-
-Why GPT, not Claude (2026-10-22): Claude is far too lenient on plausibility. Given GPT 6.1
-Sol's own one-description plausibility prompt on 97 descriptions, Claude Sonnet 5 flagged
-1 of 92 and Claude Opus 5 flagged 0 of 95, catching none of the 14 implausible premises
-GPT 6.1 Sol flagged; its reasoning notices the problem, then accepts it as "not clearly
-impossible" or allowed "within the fictional world". Do not use Claude for plausibility
-judgment without re-validating (see config.yaml for the run folder).
-
-Checkpoint semantics (protects paid work): one result per plan, appended to
-description_rewrites.jsonl before the plan is checkpointed; a malformed,
-truncated or self-contradictory answer is NOT checkpointed, so --resume retries
-exactly that plan. A described plan with no stored result (unusable answer or failed
-call) is held out of plans re-read on a resume past layer 1, so it never reaches
-drafting unchecked; the stage prints how many are held out and stops, because
-later stages assign over the whole plan set and a resume retries them.
-"""
 
 import copy
-import json
 import sys
-import time
 from dataclasses import dataclass
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from shared import api, openai_api, utils
+from shared import openai_api, utils
 from shared.api_keys import FIND_DOTENV_FLAG, load_optional_api_key
 from sdf_pipeline import compose_prompts as cp
+from sdf_pipeline.shared_step_machinery import structured_answers
+from sdf_pipeline.shared_step_machinery.step_record import LAYER1, Run, StageFile, Step, loaded_once_per_run
+from sdf_pipeline.shared_step_machinery.step_runner import find_pending, run_step, send_model_request
+from sdf_pipeline.shared_step_machinery.update_steps import (
+    Accepted, Failed, FailureKind, ModelReply, ModelRequest, OutcomeRecords, Removed, StepPolicy, StepProgress,
+    WhatAFailedDocumentDoes, WhereAnErrorIsAThrownCall, line_for_document_left_to_retry, reason_without_error_prefix)
 
 STAGE_TAG = "layer1_description_rewrite"
 TEMPLATE_FILENAME = "layer1_description_rewrite.txt"
@@ -61,7 +27,6 @@ RESULTS_FILENAME = "description_rewrites.jsonl"
 REJECTIONS_FILENAME = "description_rewrite_rejections.jsonl"
 CHECKPOINT_FILENAME = "_description_rewrite_checkpoint.json"
 _MAX_TOKENS = 8000  # for OpenAI models this includes reasoning tokens; reasoning, a description under 300 words and one-line reasons; non-English descriptions and long reasoning overran 3000
-PROGRESS_INTERVAL_SECONDS = 180
 
 
 class RewriteAnswerError(ValueError):
@@ -86,13 +51,11 @@ class RewritePrompts:
 
 def load_rewrite_prompts(prompts_dir: Path) -> RewritePrompts | None:
     """The stage's prompt files, or None for a run whose snapshot predates the stage."""
-    directory = Path(prompts_dir)
-    if not (directory / TEMPLATE_FILENAME).is_file():
+    loaded = structured_answers.load_template_and_answer_schema(prompts_dir, TEMPLATE_FILENAME, SCHEMA_FILENAME)
+    if loaded is None:
         return None
-    return RewritePrompts(
-        template=(directory / TEMPLATE_FILENAME).read_text(encoding="utf-8"),
-        answer_schema=json.loads((directory / SCHEMA_FILENAME).read_text(encoding="utf-8")),
-    )
+    template, answer_schema = loaded
+    return RewritePrompts(template=template, answer_schema=answer_schema)
 
 
 def build_rewrite_prompt(
@@ -104,19 +67,13 @@ def build_rewrite_prompt(
 
 
 def parse_rewrite_answer(raw: str, allowed_checks: list[str]) -> RewriteResult:
-    """Validate a rewrite answer. Raises RewriteAnswerError unless it is JSON of the
-    schema's shape and consistent: a rewrite carries a non-empty description and at
-    least one change with a known check and a reason; a declined rewrite carries
-    neither; a dealt-value conflict carries a conflict reason and no rewritten
-    description, and its ``rewrite_needed`` is ignored (stored as false) because
-    there is no rewrite to need."""
-    try:
-        data = json.loads(raw or "")
-        reasoning, needed, rewritten, changes, conflict, conflict_reason = (
+    """Validate a rewrite answer; raises RewriteAnswerError unless it is schema-shaped and consistent.
+    A dealt-value conflict has a reason and no rewrite, and its ``rewrite_needed`` is stored as false."""
+    reasoning, needed, rewritten, changes, conflict, conflict_reason = structured_answers.parse_json_answer(
+        raw, RewriteAnswerError,
+        extract=lambda data: (
             data["reasoning"], data["rewrite_needed"], data["rewritten_description"],
-            data["changes"], data["dealt_value_conflict"], data["conflict_reason"])
-    except (ValueError, KeyError, TypeError) as e:
-        raise RewriteAnswerError(f"answer is not the expected JSON ({type(e).__name__}: {e})") from e
+            data["changes"], data["dealt_value_conflict"], data["conflict_reason"]))
     if (not isinstance(reasoning, str) or not isinstance(needed, bool) or not isinstance(rewritten, str)
             or not isinstance(changes, list) or not isinstance(conflict, bool)
             or not isinstance(conflict_reason, str)):
@@ -152,6 +109,22 @@ def check_names(prompts: RewritePrompts) -> list[str]:
     return prompts.answer_schema["properties"]["changes"]["items"]["properties"]["check"]["enum"]
 
 
+def build_rewrite_request(
+    prompts: RewritePrompts, variable_lines: str, description: str, model: str | None,
+    reasoning_effort: str | None, item_id: str | None,
+) -> ModelRequest:
+    """The request for one plan: an OpenAI route for a ``gpt-`` model, otherwise Claude; both schema-constrained."""
+    system, user = build_rewrite_prompt(prompts, variable_lines, description)
+    settings = dict(
+        user_message=user, system_prompt=system or "", model=model, stage=STAGE_TAG, item_id=item_id,
+        max_tokens=_MAX_TOKENS, json_schema=copy.deepcopy(prompts.answer_schema))
+    if openai_api.is_openai_model(model):
+        return ModelRequest(
+            **settings, openai_reasoning_effort=reasoning_effort or openai_api.DEFAULT_REASONING_EFFORT,
+            openai_schema_name="description_rewrite_answer")
+    return ModelRequest(**settings)
+
+
 def rewrite_description(
     variable_lines: str,
     description: str,
@@ -161,35 +134,10 @@ def rewrite_description(
     reasoning_effort: str | None = None,
     item_id: str | None = None,
 ) -> RewriteResult:
-    """One rewrite call for one plan. Raises RewriteAnswerError for a truncated, refused or
-    invalid answer; API errors propagate. Tags the call ``layer1_description_rewrite``."""
-    system, user = build_rewrite_prompt(prompts, variable_lines, description)
-    if openai_api.is_openai_model(model):
-        raw, stop_reason = openai_api.call_openai(
-            user,
-            system_prompt=system or "",
-            model=model,
-            max_output_tokens=_MAX_TOKENS,
-            reasoning_effort=reasoning_effort or openai_api.DEFAULT_REASONING_EFFORT,
-            stage=STAGE_TAG,
-            item_id=item_id,
-            json_schema=copy.deepcopy(prompts.answer_schema),
-            schema_name="description_rewrite_answer",
-        )
-    else:
-        raw, stop_reason = api.call_claude(
-            user,
-            system_prompt=system or "",
-            model=model,
-            max_tokens=_MAX_TOKENS,
-            stage=STAGE_TAG,
-            item_id=item_id,
-            return_stop_reason=True,
-            json_schema=copy.deepcopy(prompts.answer_schema),
-        )
-    if stop_reason != "end_turn":
-        raise RewriteAnswerError(f"truncated answer (stop_reason={stop_reason})")
-    return parse_rewrite_answer(raw, check_names(prompts))
+    """One rewrite call for one plan. Raises RewriteAnswerError for a truncated or invalid answer; API errors propagate."""
+    reply = send_model_request(build_rewrite_request(prompts, variable_lines, description, model, reasoning_effort, item_id))
+    structured_answers.raise_if_answer_was_truncated(reply.stop_reason, RewriteAnswerError)
+    return parse_rewrite_answer(reply.text, check_names(prompts))
 
 
 # ---------------------------------------------------------------- stage
@@ -261,100 +209,153 @@ def load_rewritten_plans(config: dict, output_dir: Path, plans: list[dict]) -> l
     return apply_results(plans, results)
 
 
-def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) -> list[dict]:
-    """Check every described plan and return the plans after the rewrite (see the
-    module docstring). A disabled stage, or a run whose prompt snapshot has no
-    rewrite template, makes no calls and returns ``plans`` unchanged."""
-    sdf = config["sdf"]
-    if not enabled(config):
-        print("  Description rewrite disabled (sdf.description_rewrite_enabled: false)")
-        return plans
-    prompts = load_rewrite_prompts(prompts_dir)
-    if prompts is None:
-        print(f"  No {TEMPLATE_FILENAME} in this run's prompt snapshot — description rewrite skipped")
-        return plans
+RESULTS = StageFile(LAYER1, RESULTS_FILENAME, "prompt_id")
+REJECTIONS = StageFile(LAYER1, REJECTIONS_FILENAME, "prompt_id")
 
-    model = sdf.get("description_rewrite_model") or sdf.get("plan_model")
-    reasoning_effort = sdf.get("description_rewrite_reasoning_effort")
-    render_variable_lines = cp.make_variable_line_renderer(
-        prompts_dir, sdf.get("entity_pool_seed", cp.DEFAULT_ENTITY_SEED))
-    checkpoint = utils.Checkpoint(output_dir / CHECKPOINT_FILENAME)
-    results_path = output_dir / RESULTS_FILENAME
-    rejections_path = output_dir / REJECTIONS_FILENAME
 
-    described = [p for p in plans if p.get("description")]
-    existing = load_results(output_dir)
-    pending = [p for p in described if p["prompt_id"] not in existing and not checkpoint.is_done(p["prompt_id"])]
-    print(f"  Description rewrite: {len(described)} descriptions, {len(pending)} to check "
-          f"({len(described) - len(pending)} already done)")
+def _stored_result_record(plan: dict, reasoning: str, rewrite_needed: bool, rewritten_description: str,
+                          changes: list, dealt_value_conflict: bool, conflict_reason: str) -> dict:
+    return {
+        "prompt_id": plan["prompt_id"],
+        "reasoning": reasoning,
+        "rewrite_needed": rewrite_needed,
+        "original_description": plan["description"],
+        "rewritten_description": rewritten_description,
+        "changes": changes,
+        "dealt_value_conflict": dealt_value_conflict,
+        "conflict_reason": conflict_reason,
+    }
 
-    def rewrite_one(plan: dict):
-        try:
-            started = time.monotonic()
-            result = rewrite_description(
-                render_variable_lines(plan), plan["description"],
-                prompts=prompts, model=model, reasoning_effort=reasoning_effort,
-                item_id=plan["prompt_id"])
-            return result, time.monotonic() - started, None
-        except RewriteAnswerError as e:
-            return None, 0.0, f"unusable answer ({e})"
-        except Exception as e:  # one failing call must not discard its siblings' work
-            return None, 0.0, f"API call failed ({type(e).__name__}: {e})"
 
-    workers = config.get("workers", 1)
-    failed = rewritten = conflicts = 0
-    started_all = last_progress = time.monotonic()
-    for done, (plan, (result, seconds, problem)) in enumerate(
-        zip(pending, utils.parallel_map(rewrite_one, pending, workers)), 1
-    ):
-        pid = plan["prompt_id"]
-        if problem:
-            failed += 1
-            print(f"  {pid}: {problem} — will retry on resume")
-            continue
-        utils.append_jsonl({
-            "prompt_id": pid,
-            "reasoning": result.reasoning,
-            "rewrite_needed": result.rewrite_needed,
-            "original_description": plan["description"],
-            "rewritten_description": result.rewritten_description,
-            "changes": list(result.changes),
-            "dealt_value_conflict": result.dealt_value_conflict,
-            "conflict_reason": result.conflict_reason,
-        }, results_path)
-        if result.dealt_value_conflict:
-            conflicts += 1
-            utils.append_jsonl({
-                "prompt_id": pid, "variables": plan["variables"],
-                "conflict_reason": result.conflict_reason, "description": plan["description"],
-            }, rejections_path)
-        rewritten += result.rewrite_needed
-        checkpoint.mark_done(pid)
-        if time.monotonic() - last_progress >= PROGRESS_INTERVAL_SECONDS or done == len(pending):
-            last_progress = time.monotonic()
-            print(f"  Description rewrite {done}/{len(pending)}: {rewritten} rewritten, "
-                  f"{conflicts} dropped for a dealt-value conflict ({last_progress - started_all:.1f}s)")
+@loaded_once_per_run
+def _prompts(run: Run) -> RewritePrompts:
+    return load_rewrite_prompts(run.prompts_directory)
 
-    if pending and failed == len(pending):
-        raise SystemExit(
-            "layer1_description_rewrite: every pending call failed — this is systemic "
-            "(auth, backend, or network), not per-plan; fix and --resume."
-        )
-    results = load_results(output_dir)
-    kept = apply_results(plans, results)
-    held_out = sum(1 for p in described if p["prompt_id"] not in results)
-    if held_out:
-        print(f"  Description rewrite: {held_out} descriptions held out of drafting because their check "
-              f"failed or gave an unusable answer — --resume retries them")
+
+@loaded_once_per_run
+def _render_variable_lines(run: Run):
+    return cp.make_variable_line_renderer(
+        run.prompts_directory, run.config["sdf"].get("entity_pool_seed", cp.DEFAULT_ENTITY_SEED))
+
+
+def build_request(documents: list, run: Run) -> ModelRequest:
+    (plan,) = documents
+    return build_rewrite_request(
+        _prompts(run), _render_variable_lines(run)(plan), plan["description"], STEP.model_for(run.config),
+        run.config["sdf"].get("description_rewrite_reasoning_effort"), plan["prompt_id"])
+
+
+def read_reply(documents: list, reply: ModelReply, run: Run) -> dict:
+    """Accepted updates are ``RewriteResult``s (a decline or a rewrite); a dealt-value conflict is ``Removed``; a
+    truncated or unparseable answer is a ``Failed`` unusable answer."""
+    (plan,) = documents
+    try:
+        structured_answers.raise_if_answer_was_truncated(reply.stop_reason, RewriteAnswerError)
+        result = parse_rewrite_answer(reply.text, check_names(_prompts(run)))
+    except RewriteAnswerError as error:
+        return {plan["prompt_id"]: Failed(FailureKind.UNUSABLE_ANSWER, f"unusable answer ({error})")}
+    if result.dealt_value_conflict:
+        return {plan["prompt_id"]: Removed(
+            "dealt_value_conflict", {"reasoning": result.reasoning, "conflict_reason": result.conflict_reason})}
+    return {plan["prompt_id"]: Accepted(result)}
+
+
+def records(documents: list, outcomes: dict, run: Run) -> OutcomeRecords:
+    """An accepted result is one record. A dealt-value conflict is the stored result and then the rejection (in its
+    own file), in that order; both finish the plan."""
+    (plan,) = documents
+    outcome = outcomes[plan["prompt_id"]]
+    if isinstance(outcome, Accepted):
+        update = outcome.update
+        return OutcomeRecords(((RESULTS_FILENAME, _stored_result_record(
+            plan, update.reasoning, update.rewrite_needed, update.rewritten_description, list(update.changes),
+            update.dealt_value_conflict, update.conflict_reason)),))
+    if isinstance(outcome, Removed):
+        detail = outcome.detail
+        return OutcomeRecords((
+            (RESULTS_FILENAME, _stored_result_record(plan, detail["reasoning"], False, "", [], True, detail["conflict_reason"])),
+            (REJECTIONS_FILENAME, {
+                "prompt_id": plan["prompt_id"], "variables": plan["variables"],
+                "conflict_reason": detail["conflict_reason"], "description": plan["description"]}),
+        ))
+    return OutcomeRecords()
+
+
+def progress_line(documents: list, outcomes: dict, progress: StepProgress, run: Run) -> str | None:
+    (plan,), (outcome,) = documents, outcomes.values()
+    if isinstance(outcome, Failed):
+        if outcome.kind is FailureKind.THROWN_CALL:
+            problem = f"API call failed ({reason_without_error_prefix(outcome.reason)})"
+        else:
+            problem = outcome.reason
+        return line_for_document_left_to_retry(plan["prompt_id"], problem)
+    if progress.clock.is_due() or progress.groups_seen == progress.pending_count:
+        rewritten_count = sum(update.rewrite_needed for update in progress.accepted_updates)
+        elapsed_seconds = progress.clock.mark_printed()
+        return (f"  Description rewrite {progress.groups_seen}/{progress.pending_count}: {rewritten_count} "
+                f"rewritten, {progress.removed} dropped for a dealt-value conflict "
+                f"({elapsed_seconds:.1f}s)")
+    return None
+
+
+def count_held_out_plans(plans: list[dict], stage_directory: Path) -> int:
+    """How many described plans have no stored result: their check failed or gave an unusable answer."""
+    results = load_results(stage_directory)
+    return sum(1 for plan in plans if plan.get("description") and plan["prompt_id"] not in results)
+
+
+def held_out_stop_message(held_out_count: int) -> str:
+    return (f"{STAGE_TAG}: {held_out_count} descriptions held out — stopping before the "
+            "stages that assign over the whole plan set; fix and --resume.")
+
+
+def after_run(plans: list, run_result, run: Run) -> None:
+    stage_directory = run.stage_directories[LAYER1]
+    results = load_results(stage_directory)
+    described = [plan for plan in plans if plan.get("description")]
+    held_out_count = count_held_out_plans(plans, stage_directory)
+    if held_out_count:
+        print(f"  Description rewrite: {held_out_count} descriptions held out of drafting because their "
+              f"check failed or gave an unusable answer — --resume retries them")
     print(f"  Description rewrite: {sum(r['rewrite_needed'] for r in results.values())} of "
           f"{len(described)} descriptions rewritten, "
           f"{sum(r['dealt_value_conflict'] for r in results.values())} dropped for a dealt-value "
-          f"conflict ({time.monotonic() - started_all:.1f}s this session)")
-    if held_out:
-        raise SystemExit(
-            f"layer1_description_rewrite: {held_out} descriptions held out — stopping before the "
-            "stages that assign over the whole plan set; fix and --resume.")
-    return kept
+          f"conflict ({run_result.progress.clock.seconds_since_start():.1f}s this session)")
+
+
+STEP = Step(
+    name="description_rewrite", folder_key=LAYER1, stage_tag=STAGE_TAG,
+    model_setting_keys=("description_rewrite_model", "plan_model"),
+    applies=lambda plan, run: bool(plan.get("description")),
+    build_request=build_request, read_reply=read_reply, records=records, writes=(RESULTS, REJECTIONS),
+    checkpoint_file_name=CHECKPOINT_FILENAME,
+    policy=StepPolicy(
+        failure_kinds_counting_towards_the_systemic_stop=frozenset(FailureKind),
+        failed_document=WhatAFailedDocumentDoes.STOPS_THE_RUN_AFTER_THE_STEP,
+        errors_counted_as_thrown_calls=WhereAnErrorIsAThrownCall.BUILD | WhereAnErrorIsAThrownCall.SEND
+        | WhereAnErrorIsAThrownCall.INTERPRET),
+    call_noun="call", unit_noun="plan", progress_line=progress_line, after_run=after_run,
+    stop_message=lambda plans, run_result, run: held_out_stop_message(count_held_out_plans(plans, run.stage_directories[LAYER1])))
+
+
+def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) -> list[dict]:
+    """Check every described plan and return the plans after the rewrite; no calls and ``plans`` unchanged when disabled or the snapshot has no template."""
+    if not enabled(config):
+        print("  Description rewrite disabled (sdf.description_rewrite_enabled: false)")
+        return plans
+    if load_rewrite_prompts(prompts_dir) is None:
+        print(f"  No {TEMPLATE_FILENAME} in this run's prompt snapshot — description rewrite skipped")
+        return plans
+    run_of_rewrite = Run(config, prompts_dir, {LAYER1: output_dir})
+    described = [p for p in plans if p.get("description")]
+    _, pending = find_pending(STEP, run_of_rewrite, plans)
+    print(f"  Description rewrite: {len(described)} descriptions, {len(pending)} to check "
+          f"({len(described) - len(pending)} already done)")
+    run_step(STEP, run_of_rewrite, plans)  # stops the run itself when a failed document leaves descriptions held out
+    held_out_count = count_held_out_plans(plans, output_dir)
+    if held_out_count:  # held out with nothing failing in this run
+        raise SystemExit(held_out_stop_message(held_out_count))
+    return apply_results(plans, load_results(output_dir))
 
 
 # ---------------------------------------------------------------- reporting
