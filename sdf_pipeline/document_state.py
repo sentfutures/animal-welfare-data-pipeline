@@ -354,6 +354,14 @@ class DocumentState:
     has_plan_record: bool = False
     plan_record_variables: dict | None = None
 
+    # The stable id (``[id]`` of variables.txt) of each dealt value, {axis: value id}. Kept apart from
+    # ``variables`` so that nothing that builds a prompt can read it. Read from the deal's ``round_dealt``
+    # event on new runs and looked up in the run's frozen ``inputs/prompts/variables.txt`` on older ones.
+    # An axis it could not be found for has no entry, and ``dealt_value_id_notes`` says why (these notes
+    # are separate from ``loader_notes``, which they never join).
+    dealt_value_ids: dict = field(default_factory=dict)
+    dealt_value_id_notes: tuple[str, ...] = ()
+
     @property
     def current_description(self) -> str | None:
         """The description every later step uses: the rewritten one if the rewrite changed it."""

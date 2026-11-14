@@ -47,6 +47,8 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
+from sdf_pipeline.dealt_value_identifiers import load_frozen_value_ids, value_ids_of_dealt_hand_from_snapshot
+from sdf_pipeline.document_event_log import DOCUMENT_EVENT_LOG_FILE_NAME, fold_dealt_value_ids, read_document_events
 from sdf_pipeline.document_state import (
     AssignedConsideration, ConsiderationScoringRecord, DescriptionRewriteDecision,
     DescriptionRewriteVerdict, DescriptionVersion, DescriptionVersionKind, DocumentOutcome,
@@ -318,6 +320,14 @@ def _build_matrix_states(files: _RunFiles, run: Path, layout: RunLayout, thresho
     run_has_rewrite_results = bool(rewrite_results)
     run_has_selection_rows = bool(selection_rows)
 
+    # Dealt value ids: the deal's own record where the run's event log has one, else a lookup of each dealt
+    # text in the run's frozen variables.txt (both read-only; neither touches a stage file).
+    try:
+        recorded_value_ids = fold_dealt_value_ids(read_document_events(run / DOCUMENT_EVENT_LOG_FILE_NAME))
+    except ValueError:
+        recorded_value_ids = {}   # a damaged event log is reported by the event-log readers, not here
+    frozen_value_ids, why_no_snapshot = load_frozen_value_ids(run)
+
     states = []
     for document_id in deal_order + other_ids:
         notes = []
@@ -467,6 +477,14 @@ def _build_matrix_states(files: _RunFiles, run: Path, layout: RunLayout, thresho
 
         latest = text_versions[-1] if text_versions else None
         current_description = description_versions[-1].text if description_versions else None
+        if document_id in recorded_value_ids:
+            dealt_value_ids, dealt_value_id_notes = dict(recorded_value_ids[document_id]), []
+            for axis in dealt_variables or {}:
+                if axis not in dealt_value_ids:
+                    dealt_value_id_notes.append(f"dealt value of {{{axis}}} has no id: the deal event recorded none")
+        else:
+            dealt_value_ids, dealt_value_id_notes = value_ids_of_dealt_hand_from_snapshot(
+                dealt_variables, frozen_value_ids, why_no_snapshot)
         different_assignment = bool(
             run_has_selection_rows and latest is not None and latest.written_from.variables is not None
             and _label_pairs_of_variables(latest.written_from.variables) != _label_pairs_of_assignment(assignment))
@@ -485,7 +503,8 @@ def _build_matrix_states(files: _RunFiles, run: Path, layout: RunLayout, thresho
             latest_text_was_written_from_a_different_assignment=different_assignment,
             latest_text_was_written_from_a_different_description=different_description,
             legacy_fields={}, loader_notes=tuple(notes),
-            has_plan_record=plan is not None, plan_record_variables=plan.get("variables") if plan else None))
+            has_plan_record=plan is not None, plan_record_variables=plan.get("variables") if plan else None,
+            dealt_value_ids=dealt_value_ids, dealt_value_id_notes=tuple(dealt_value_id_notes)))
     return states
 
 
