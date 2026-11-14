@@ -4,7 +4,8 @@ layer3.txt is the single-call template; layer3a_critique.txt and
 layer3b_revise.txt are its split halves. All three carry the SAME SYSTEM
 section, because the checks are what makes the pass alignment-critical and a
 split that quietly reviewed against a different list would be a different
-pass wearing the same name.
+pass wearing the same name. Both SDF content profiles (prompts/sdf/ and
+prompts/sdf_human/) are held to it.
 
 The checks are duplicated rather than included from one file (a deliberate
 decision: layer3.txt is not rewritten to accommodate the experiment), so this
@@ -19,7 +20,8 @@ import pytest
 from shared.matrix import SYSTEM_MARKER, USER_MARKER
 from shared import utils
 
-PROMPTS = Path(__file__).resolve().parent.parent / "prompts" / "sdf"
+PROMPTS_ROOT = Path(__file__).resolve().parent.parent / "prompts"
+PROFILE_DIRS = ("sdf", "sdf_human")
 TEMPLATES = ("layer3.txt", "layer3a_critique.txt", "layer3b_revise.txt")
 
 # what each template's stage actually passes to utils.load_prompt
@@ -47,48 +49,52 @@ KWARGS = {
 }
 
 
-def system_block(name: str) -> str:
-    raw = (PROMPTS / name).read_text(encoding="utf-8")
+def system_block(prompts: Path, name: str) -> str:
+    raw = (prompts / name).read_text(encoding="utf-8")
     return raw.split(USER_MARKER, 1)[0].replace(SYSTEM_MARKER, "", 1).strip()
 
 
+@pytest.mark.parametrize("subdir", PROFILE_DIRS)
 class TestTheChecksDoNotDrift:
-    def test_all_three_templates_exist(self):
+    def test_all_three_templates_exist(self, subdir):
         for name in TEMPLATES:
-            assert (PROMPTS / name).exists(), f"{name} is missing"
+            assert (PROMPTS_ROOT / subdir / name).exists(), f"{subdir}/{name} is missing"
 
-    def test_the_system_block_is_byte_identical_across_all_three(self):
-        blocks = {name: system_block(name) for name in TEMPLATES}
+    def test_the_system_block_is_byte_identical_across_all_three(self, subdir):
+        prompts = PROMPTS_ROOT / subdir
+        blocks = {name: system_block(prompts, name) for name in TEMPLATES}
         distinct = set(blocks.values())
         assert len(distinct) == 1, (
-            "the nine review checks have drifted between the layer-3 templates; "
+            f"the review checks have drifted between {subdir}'s layer-3 templates; "
             "copy the edited SYSTEM section into all of: " + ", ".join(TEMPLATES)
         )
 
-    def test_the_system_block_really_is_the_nine_checks(self):
+    def test_the_system_block_really_is_the_nine_checks(self, subdir):
         """Guards against the assertion above passing on three empty strings."""
-        block = system_block("layer3.txt")
+        block = system_block(PROMPTS_ROOT / subdir, "layer3.txt")
         for marker in ("TEACH WHY", "CALIBRATION", "PROPORTIONALITY", "COOPERATIVE POSTURE",
                        "FACTUAL RESTRAINT", "QUOTED AI BEHAVIOR", "QUIET FAILURE MODES",
                        "GENRE AND LOCALE FIDELITY", "HOUSE STYLE"):
-            assert marker in block, f"{marker} missing from the layer-3 SYSTEM block"
+            assert marker in block, f"{marker} missing from {subdir}'s layer-3 SYSTEM block"
 
 
+@pytest.mark.parametrize("subdir", PROFILE_DIRS)
 class TestRendering:
     @pytest.mark.parametrize("name", TEMPLATES)
-    def test_renders_with_the_kwargs_its_stage_passes(self, name):
-        rendered = utils.load_prompt(PROMPTS / name, **KWARGS[name])
+    def test_renders_with_the_kwargs_its_stage_passes(self, subdir, name):
+        rendered = utils.load_prompt(PROMPTS_ROOT / subdir / name, **KWARGS[name])
         assert "{" not in rendered  # no unfilled slot survives
         assert SYSTEM_MARKER not in rendered.split(USER_MARKER, 1)[1]
 
-    def test_the_control_arm_leaves_no_trace_of_the_new_slots(self):
+    def test_the_control_arm_leaves_no_trace_of_the_new_slots(self, subdir):
         """Both directive slots empty must read as the prompt before they existed.
 
         Compared with blank-line runs collapsed: an empty placeholder on its own
         line leaves whitespace behind, and whitespace is the one difference that
         cannot change what the model is asked to do.
         """
-        rendered = utils.load_prompt(PROMPTS / "layer3.txt", **KWARGS["layer3.txt"])
+        rendered = utils.load_prompt(PROMPTS_ROOT / subdir / "layer3.txt",
+                                     **KWARGS["layer3.txt"])
         collapsed = "\n".join(
             line for line in rendered.splitlines() if line.strip()
         )
@@ -97,29 +103,29 @@ class TestRendering:
         # the control prompt still ends on the output contract it always did
         assert collapsed.rstrip().endswith("</improved_document>")
 
-    def test_the_critique_half_asks_for_no_document(self):
-        rendered = utils.load_prompt(PROMPTS / "layer3a_critique.txt",
+    def test_the_critique_half_asks_for_no_document(self, subdir):
+        rendered = utils.load_prompt(PROMPTS_ROOT / subdir / "layer3a_critique.txt",
                                      **KWARGS["layer3a_critique.txt"])
         user = rendered.split(USER_MARKER, 1)[1]
         assert "<review>" in user
         assert "<improved_document>" not in user
 
-    def test_the_revise_half_carries_the_critique_and_the_contract(self):
-        rendered = utils.load_prompt(PROMPTS / "layer3b_revise.txt",
+    def test_the_revise_half_carries_the_critique_and_the_contract(self, subdir):
+        rendered = utils.load_prompt(PROMPTS_ROOT / subdir / "layer3b_revise.txt",
                                      **KWARGS["layer3b_revise.txt"])
         user = rendered.split(USER_MARKER, 1)[1]
         assert "REVIEW" in user and "<improved_document>" in user
         # the spec, the draft and the critique all reach the rewriter, in order
         assert user.index("DESC") < user.index("DOC") < user.index("REVIEW")
 
-    def test_only_the_revise_half_takes_the_directive_slots(self):
+    def test_only_the_revise_half_takes_the_directive_slots(self, subdir):
         """The critique is held fixed across arms, so styling must not reach it.
 
         If it did, an arm would differ from the control in two places at once
         and the split experiment would stop isolating the split.
         """
-        critique = (PROMPTS / "layer3a_critique.txt").read_text(encoding="utf-8")
+        critique = (PROMPTS_ROOT / subdir / "layer3a_critique.txt").read_text(encoding="utf-8")
         assert "{style_directives}" not in critique
         assert "{length_directive}" not in critique
-        revise = (PROMPTS / "layer3b_revise.txt").read_text(encoding="utf-8")
+        revise = (PROMPTS_ROOT / subdir / "layer3b_revise.txt").read_text(encoding="utf-8")
         assert "{style_directives}" in revise and "{length_directive}" in revise

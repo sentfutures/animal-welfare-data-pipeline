@@ -693,12 +693,17 @@ def _run_claude_code_query(
         else:
             text = "".join(text_parts)
     usage = result_msg.usage or {}
+    stop_reason = result_msg.stop_reason
+    # a validated structured_output arrives via the CLI's output tool, so the
+    # turn ends in tool_use; the output is complete, not truncated
+    if json_schema is not None and result_msg.structured_output is not None:
+        stop_reason = "end_turn"
     return (
         text,
         usage.get("input_tokens", 0),
         usage.get("output_tokens", 0),
         result_msg.total_cost_usd,
-        result_msg.stop_reason,
+        stop_reason,
     )
 
 

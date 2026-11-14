@@ -1,0 +1,55 @@
+# Planning-prompt lines worded for hands whose resolution says the document features no
+# specific scenario (general_discussion_no_scenario, constitution_inclusion_no_scenario).
+# Each group is: "replace:", the exact line of layer1.txt, "with:", the line that stands in
+# for it. A replacement keeps exactly the placeholders of the line it replaces.
+# Applied by the rule that names this file in deal_constraints.txt.
+
+replace:
+The main tradeoff with welfare discussed in the document is {tradeoff}.
+with:
+The main tradeoff the discussion covers is between the welfare of the beings involved and {tradeoff}.
+
+replace:
+The welfare dilemma is {centrality}.
+with:
+The welfare dilemma the discussion covers is {centrality}.
+
+replace:
+The nonhumans whose welfare is at stake in the document is/are {sentient_category}, such as {sentient_example}. (Choose a different member of the category if it fits better.)
+with:
+The nonhumans whose welfare the discussion covers is/are {sentient_category}, such as {sentient_example}. (Choose a different member of the category if it fits better.)
+
+replace:
+The AI assistant character in the document is {naming}.
+with:
+The AI the discussion is about is {naming}.
+
+replace:
+The welfare issues discussed arise from {domain}.
+with:
+The welfare issues the discussion covers arise from {domain}.
+
+replace:
+The welfare stakes are on the scale of {decision_scale}.
+with:
+The welfare stakes the discussion covers are on the scale of {decision_scale}.
+
+replace:
+The AI in the document might be shown avoiding a common reasoning failure: {failure_mode_avoided}.
+with:
+The discussion might cover AI models avoiding a common reasoning failure: {failure_mode_avoided}.
+
+replace:
+1. If appropriate, what are some specific scenarios/subjects that could fit this combination of variables? Think of five different scenarios, and then choose any one of them other than the first one that came to mind.
+with:
+1. What are some angles or subjects for a general discussion that could fit this combination of variables? Think of five different ones, and then choose any one of them other than the first one that came to mind.
+
+replace:
+2. Who exactly produced this document—name, role, venue, and audience—and what are their motivations, both for creating the document and in the tradeoff(s) described? Remember, you should only attribute quotes to fictional (and ideally unnamed  or generically named) entities.
+with:
+2. Who exactly produced this document—name, role, venue, and audience—and what are their motivations, both for creating the document and in their view of the tradeoff(s) it covers? Remember, you should only attribute quotes to fictional (and ideally unnamed  or generically named) entities.
+
+replace:
+4. What specific reasoning motivates the AI character in the document, and how does it make its reasoning known to other parties or the reader?
+with:
+4. How does the document convey the reasoning that AI models bring to these questions in general, and who or what makes that reasoning known to the reader?

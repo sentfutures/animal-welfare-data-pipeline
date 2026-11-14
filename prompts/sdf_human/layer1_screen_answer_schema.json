@@ -1,0 +1,21 @@
+{
+  "type": "object",
+  "properties": {
+    "specifications": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "number": {"type": "integer", "enum": []},
+          "reasoning": {"type": "string"},
+          "remove": {"type": "boolean"},
+          "reason": {"type": "string"}
+        },
+        "required": ["number", "reasoning", "remove", "reason"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["specifications"],
+  "additionalProperties": false
+}

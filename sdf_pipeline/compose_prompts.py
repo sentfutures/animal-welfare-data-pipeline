@@ -93,6 +93,10 @@ from shared.matrix import (  # noqa: E402,F401
     template_placeholders,
 )
 from shared import matrix as _matrix  # noqa: E402
+from sdf_pipeline import profiles  # noqa: E402
+
+# CLI/test defaults; the pipeline passes the active profile's prompts dir
+# (run.py resolves it from sdf.profile), so these stay the animal originals.
 DEFAULT_TEMPLATE = REPO_ROOT / "prompts" / "sdf" / "layer1.txt"
 DEFAULT_VARIABLES = REPO_ROOT / "prompts" / "sdf" / "variables.txt"
 DEFAULT_PREAMBLE = REPO_ROOT / "prompts" / "sdf" / "preamble.txt"
@@ -106,10 +110,10 @@ LANGUAGE_RE = re.compile(r"written in ([^,]+)")
 # are locale-matched entity-pool samples drawn per prompt from the culture
 # axis (shared/entity_pools.py), so the plan picks names that fit the
 # document's culture and the DOCUMENT DESCRIPTION carries them downstream.
-# {sentient_example} is one concrete species drawn per prompt from the drawn
-# {sentient_category}'s pool (SPECIES_EXAMPLES) — a droppable nudge off the
-# default taxa (salmon/chicken/pig) toward the long tail; the plan is told it
-# may feature a different member of the category instead.
+# {sentient_example} is one concrete example drawn per prompt from the drawn
+# {sentient_category}'s pool (the active profile's CATEGORY_EXAMPLES) — a
+# droppable nudge off the default picks toward the long tail; the plan is told
+# it may feature a different member of the category instead.
 RESERVED = {"preamble", "fictional_names", "fictional_orgs", "sentient_example"}
 
 # Axes dealt from variables.txt that steer only how layer 3 REWRITES a document,
@@ -127,104 +131,6 @@ FALLBACK_NAMES = (
     "invented names typical of the culture and language — varied, avoiding the most common ones"
 )
 FALLBACK_ORGS = "invented organisations typical of the locale"
-
-# One concrete example is drawn per prompt from the drawn {sentient_category}'s
-# pool and offered to the plan as a droppable suggestion (see {sentient_example}
-# in RESERVED). Purpose: nudge drafts off the handful of default taxa
-# (salmon/chicken/pig) toward the long tail, without a hard sub-axis draw that
-# would force an ill-fitting species onto every document. Keys are the
-# {sentient_category} value IDs in variables.txt, so a category can be reworded
-# without touching this table — a coverage test
-# (tests/test_compose_prompts.py) fails if any category lacks a pool.
-SPECIES_EXAMPLES = {
-    "farmed_mammals": (
-        "pigs", "dairy cattle", "beef cattle", "sheep", "goats", "farmed rabbits",
-        "mink", "veal calves", "farmed camels", "farmed deer",
-    ),
-    "farmed_birds": (
-        "broiler chickens", "layer hens", "turkeys", "farmed ducks", "farmed geese",
-        "farmed quail", "farmed ostriches", "farmed guinea fowl",
-    ),
-    "farmed_fishes": (
-        "farmed Atlantic salmon", "rainbow trout", "farmed carp", "tilapia",
-        "pangasius catfish", "farmed sea bass", "farmed eel", "cleaner wrasse",
-    ),
-    "farmed_invertebrates": (
-        "farmed whiteleg shrimp", "farmed prawns", "farmed crayfish", "farmed octopus",
-        "black soldier fly larvae", "mealworms", "farmed crickets", "edible land snails",
-        "silkworms",
-    ),
-    # Wild categories split on harm source (anthropogenic vs. from nature
-    # itself). The species overlap, but each pool leans toward taxa where the
-    # named harm source is salient: human-driven harm (habitat loss, vehicles,
-    # bycatch, culls, rodenticide, pesticides) vs. harm from nature (starvation,
-    # cold, disease, parasitism, predation, drought) — the latter is the wild
-    # animal suffering framing, engaged on its own terms.
-    "large_wild_human_caused_harm": (
-        "African elephants", "humpback whales", "bottlenose dolphins", "red deer",
-        "grey seals", "wild boar", "brown bears", "wild macaques", "bison",
-    ),
-    "large_wild_natural_harm": (
-        "red deer facing winter starvation", "saiga antelope in a disease die-off",
-        "African elephants in a drought", "wildebeest at a river crossing",
-        "grey seal pups in a storm surge", "brown bears in a lean berry year",
-        "wild boar during a hard freeze", "migrating caribou",
-    ),
-    "small_vertebrate_wild_human_caused_harm": (
-        "wild songbirds", "urban pigeons", "corvids", "urban foxes", "wild rats",
-        "brown bats", "common frogs", "wall lizards", "hedgehogs",
-    ),
-    "small_vertebrate_wild_natural_harm": (
-        "common frogs facing chytrid fungus", "wild songbirds in a cold snap",
-        "nestling birds during a food shortage", "field mice under predation pressure",
-        "common toads in a drought", "garden birds with avian pox",
-        "wall lizards after a late frost", "tadpoles in a drying pond",
-    ),
-    "wild_invertebrates_human_caused_harm": (
-        "wild bumblebees", "monarch butterflies", "garden ants", "earthworms",
-        "garden snails", "orb-weaver spiders", "dung beetles", "shore crabs",
-        "moon jellyfish",
-    ),
-    "wild_invertebrates_natural_harm": (
-        "wild bumblebees carrying parasitic mites", "monarch butterflies in a storm",
-        "honeybee colonies infected by a fungal pathogen", "ants after a nest flood",
-        "overwintering butterflies in a cold snap", "caterpillars parasitized by wasps",
-        "shore crabs stranded by a tide", "solitary bees in a drought",
-    ),
-    "pets_companion_animals": (
-        "dogs", "cats", "pet rabbits", "budgerigars", "bearded dragons", "goldfish",
-        "betta fish", "hamsters", "guinea pigs",
-    ),
-    "research_animals": (
-        "lab mice", "lab rats", "zebrafish", "fruit flies", "captive macaques",
-        "beagles", "Xenopus frogs", "guinea pigs", "C. elegans nematodes",
-    ),
-    "simulated_human_connectomes": (
-        "a whole-brain emulation of a human volunteer",
-        "an uploaded human personality",
-        "a high-fidelity cortical simulation of a specific person",
-        "a partial human-brain emulation run in a research sandbox",
-        "a 'digital twin' mind-model of a living individual",
-    ),
-    "simulated_animal_connectomes": (
-        "a digital emulation of a mouse brain",
-        "an uploaded C. elegans connectome",
-        "a simulated zebrafish brain",
-        "a whole-brain emulation of a macaque",
-        "a digital fruit-fly connectome",
-    ),
-    "large_language_models": (
-        "a large language model assistant",
-        "a persistent AI companion app",
-        "a reinforcement-learning game agent",
-        "an autonomous coding agent",
-        "a customer-service chatbot",
-        "an embodied household robot's control model",
-        "a role-played AI character",
-    ),
-}
-# Defensive only: coverage is test-enforced, so this never renders in practice.
-SPECIES_FALLBACK = "a specific member of that category"
 
 DESCRIPTION_TAG_RE = re.compile(
     r"<document_description>(.*?)</document_description>", re.DOTALL | re.IGNORECASE
@@ -332,37 +238,40 @@ def load_deal_rules(
 
 def sentient_category_ids_by_text(value_ids: dict[str, dict[str, str]]) -> dict[str, str]:
     """{value text: value ID} for the sentient_category variable, from load_variables'
-    ``value_ids``, so a hand's dealt category text can be looked up in SPECIES_EXAMPLES."""
+    ``value_ids``, so a hand's dealt category text can be looked up in the active
+    profile's CATEGORY_EXAMPLES."""
     return {text: value_id for value_id, text in value_ids.get("sentient_category", {}).items()}
 
 
-_default_category_ids: dict[str, str] | None = None
+_default_category_ids: dict[str, dict[str, str]] = {}
 
 
 def default_sentient_category_ids() -> dict[str, str]:
-    """The repo's variables.txt categories, loaded once; the fallback for callers
-    that hold no value IDs of their own."""
-    global _default_category_ids
-    if _default_category_ids is None:
-        _default_category_ids = sentient_category_ids_by_text(load_variables(DEFAULT_VARIABLES)[2])
-    return _default_category_ids
+    """The active profile's variables.txt categories, loaded once per profile;
+    the fallback for callers that hold no value IDs of their own."""
+    name = profiles.current().NAME
+    if name not in _default_category_ids:
+        path = profiles.prompts_dir() / DEFAULT_VARIABLES.name
+        _default_category_ids[name] = sentient_category_ids_by_text(load_variables(path)[2])
+    return _default_category_ids[name]
 
 
 def species_example_for(
     assignment: dict[str, str], prompt_id: str, entity_seed: int,
     category_ids: dict[str, str] | None = None,
 ) -> str:
-    """The one example species drawn for a hand's sentient_category — a droppable
+    """The one concrete example drawn for a hand's sentient_category — a droppable
     nudge toward the long tail. Deterministic per prompt id and entity seed, so
     --resume (and the implausibility screen, which shows the same line) re-renders
-    the identical species. ``category_ids`` maps category text to its value ID
-    (default: the repo's variables.txt); a category without an ID or a pool gets
-    SPECIES_FALLBACK."""
+    the identical example. ``category_ids`` maps category text to its value ID
+    (default: the active profile's variables.txt); a category without an ID or a
+    pool gets the profile's fallback."""
+    profile = profiles.current()
     category_ids = category_ids if category_ids is not None else default_sentient_category_ids()
     category_id = category_ids.get(assignment.get("sentient_category", ""), "")
-    pool = SPECIES_EXAMPLES.get(category_id, ())
+    pool = profile.CATEGORY_EXAMPLES.get(category_id, ())
     picks = entity_pools.sample_for(list(pool), 1, f"species:{prompt_id}", entity_seed)
-    return picks[0] if picks else SPECIES_FALLBACK
+    return picks[0] if picks else profile.CATEGORY_EXAMPLE_FALLBACK
 
 
 def hand_axes(template: str, values: dict[str, list[str]]) -> list[str]:

@@ -1,0 +1,128 @@
+{
+  "manifest_version": 3,
+  "run_id": "2026-11-14_10-47_human-smoke-5",
+  "label": "human-smoke-5",
+  "created_at": "2026-11-14T10:47:15",
+  "git_commit": "220fcc9",
+  "git_branch": "sdf-human",
+  "git_dirty": true,
+  "git_dirty_files": [
+    "CLAUDE.md",
+    "config.yaml",
+    "constitution/README.md",
+    "sdf_pipeline/compose_prompts.py",
+    "sdf_pipeline/layer2_draft.py",
+    "sdf_pipeline/layer3_rewrite.py",
+    "sdf_pipeline/run.py",
+    "tests/conftest.py",
+    "tests/test_compose_prompts.py",
+    "tests/test_e2e_smoke.py",
+    "tests/test_layer3_templates.py",
+    "tests/test_prompts_render.py",
+    "viewer/loader.py",
+    "config_compare_animal.yaml",
+    "config_compare_human.yaml",
+    "config_sdf_human_opus5.yaml",
+    "outputs/sdf/runs/2026-11-07_10-42_sonnet-compare/",
+    "outputs/sdf_human/",
+    "prompts/sdf_human/",
+    "sdf_pipeline/profiles/",
+    "tests/test_sdf_profiles.py"
+  ],
+  "inputs_snapshot": true,
+  "model": "claude-sonnet-5",
+  "config": {
+    "backend": "api",
+    "model": "claude-sonnet-5",
+    "max_tokens": 4000,
+    "temperature": 1.0,
+    "workers": 8,
+    "evals": {
+      "judge_model": "claude-opus-5"
+    },
+    "sdf": {
+      "profile": "human",
+      "n_prompts": 5,
+      "seed": 0,
+      "entity_pool_seed": 137,
+      "min_score_threshold": 7,
+      "near_dup_threshold": 0.9,
+      "screen_enabled": true,
+      "screen_batch_size": 10,
+      "screen_redeal_rounds": 3,
+      "description_rewrite_enabled": true,
+      "description_rewrite_model": "gpt-6.1-sol",
+      "description_rewrite_reasoning_effort": "medium",
+      "select_enabled": true,
+      "max_scoring_attempts": 3,
+      "minimum_assignable_score": 3,
+      "max_moral_considerations_per_document": 3,
+      "max_epistemic_considerations_per_document": 3,
+      "max_considerations_per_document": 4,
+      "score_weights": {
+        "3": 1,
+        "4": 3,
+        "5": 9
+      },
+      "extra_consideration_penalty": 2,
+      "select_skip_no_stake": true,
+      "rewrite_model": "claude-opus-5",
+      "revision": {
+        "split": true,
+        "style_mode": "axes",
+        "use_length": true
+      }
+    },
+    "dad": {
+      "profile": "animal",
+      "scenario_model": "claude-opus-5-5",
+      "scenario_refusal_fallback_model": "claude-sonnet-5-5",
+      "prompt_draft_model": "claude-opus-5-5",
+      "prompt_gate_model": "claude-sonnet-5-5",
+      "prompt_refine_model": "claude-opus-5-5",
+      "response_scope_model": "claude-opus-5-5",
+      "scope_refusal_fallback_model": "claude-opus-4-8",
+      "response_select_model": "claude-opus-5-5",
+      "response_draft_model": "claude-opus-5-5",
+      "constitution_rewrite_model": "claude-opus-5-5",
+      "baseline": {
+        "enabled": true,
+        "model": "claude-opus-5-5"
+      },
+      "evals": {
+        "auto": true
+      },
+      "dilemmas": {
+        "count": 40,
+        "seed_path": null,
+        "scenario_seed": null,
+        "gate": true,
+        "refine": true
+      },
+      "responses": {
+        "per_prompt": 1
+      }
+    },
+    "pref": {
+      "prompts_path": null,
+      "arms": {
+        "a": {
+          "name": "baseline",
+          "system_prompt": ""
+        },
+        "b": {
+          "name": "candidate",
+          "system_prompt": ""
+        }
+      }
+    },
+    "language_distribution": {
+      "en": 1.0
+    },
+    "outputs": {
+      "sdf_final": "outputs/sdf/final/sdf_corpus.jsonl",
+      "dad_final": "outputs/dad/final/dad_corpus.jsonl",
+      "cost_log": "outputs/cost_log.jsonl"
+    }
+  }
+}

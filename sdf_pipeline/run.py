@@ -14,6 +14,7 @@ the wrong one.
 """
 
 import argparse
+import json
 import os
 import sys
 from pathlib import Path
@@ -30,7 +31,23 @@ from sdf_pipeline import (
     layer2_draft,
     layer3_rewrite,
     layer4_score,
+    profiles,
 )
+
+
+def _refuse_profile_change(run_dir: Path, name: str) -> None:
+    """A run is one profile for life: resuming it under another would mix two
+    domains' prompts and principles in one corpus. Runs that predate profiles
+    are animal runs."""
+    try:
+        manifest = json.loads((run_dir / "run_manifest.json").read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError):
+        return
+    was = profiles.name_from_config(manifest.get("config") or {})
+    if was != name:
+        raise SystemExit(f"{run_dir.name} was made with SDF profile {was!r}; resuming it "
+                         f"with {name!r} would mix profiles. Use a config with "
+                         f"sdf.profile: {was}.")
 
 
 def main() -> None:
@@ -55,20 +72,24 @@ def main() -> None:
     config = utils.load_config(args.config)
 
     root = Path(__file__).parent.parent
+    # The content profile (sdf.profile, default "animal") picks the prompt
+    # folder, the principles file and where runs live; the code is shared.
+    profile = profiles.use(profiles.name_from_config(config))
     # PIPELINE_OUTPUT_ROOT redirects all run output (used by the test suite)
     outputs_root = Path(os.environ.get("PIPELINE_OUTPUT_ROOT", root / "outputs"))
-    runs_root = outputs_root / "sdf" / "runs"
+    runs_root = outputs_root / profile.OUTPUT_SUBDIR / "runs"
 
     if args.resume:
         run_dir = utils.resolve_run_dir(runs_root, args.run_id)
         utils.warn_if_backend_changed(run_dir, config)
+        _refuse_profile_change(run_dir, profile.NAME)
     else:
         run_dir = utils.create_run_dir(
             runs_root,
             label=args.label,
             config=config,
             snapshot_dirs={
-                "prompts": root / "prompts" / "sdf",
+                "prompts": root / "prompts" / profile.PROMPTS_SUBDIR,
                 "constitution": root / "constitution",
             },
         )
@@ -77,7 +98,7 @@ def main() -> None:
     # (and --resume replays the run's own templates, not the repo's current ones).
     prompts_dir = run_dir / "inputs" / "prompts"
     if not prompts_dir.is_dir():
-        prompts_dir = root / "prompts" / "sdf"
+        prompts_dir = root / "prompts" / profile.PROMPTS_SUBDIR
         print("WARNING: run has no inputs/ snapshot (pre-snapshot run); using live prompts/.")
 
     api.init(args.config, cost_log_path=run_dir / "cost_log.jsonl")

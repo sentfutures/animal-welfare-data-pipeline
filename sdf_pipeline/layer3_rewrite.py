@@ -21,6 +21,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from shared import api, constitution_loader, deal_constraints, utils
 from sdf_pipeline import compose_prompts as cp
+from sdf_pipeline import profiles
 from sdf_pipeline import revision_style
 
 IMPROVED_TAG_RE = re.compile(r"<improved_document>(.*?)</improved_document>", re.DOTALL)
@@ -56,9 +57,11 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, drafts: list[dict]) -
     constitution_dir = utils.resolve_constitution_dir(prompts_dir)
     constitution_claude = constitution_loader.load_constitution_claude(constitution_dir)
     principles = constitution_loader.format_principles(
-        constitution_loader.load_principles(constitution_dir)
+        constitution_loader.load_principles(
+            constitution_dir, filename=profiles.current().PRINCIPLES_FILENAME)
     )
-    failure_modes = constitution_loader.load_failure_modes(constitution_dir)
+    failure_modes = constitution_loader.load_failure_modes(
+        constitution_dir, filename=profiles.current().FAILURE_MODES_FILENAME)
 
     def prepare(path: Path):
         """(text, considerations-less variant, variable-line renderer) for one template.

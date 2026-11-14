@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from shared import api, constitution_loader, deal_constraints, utils
 from sdf_pipeline import compose_prompts as cp
+from sdf_pipeline import profiles
 
 DOC_TAG_RE = re.compile(r"<document>(.*?)</document>", re.DOTALL)
 
@@ -29,7 +30,8 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
     constitution_dir = utils.resolve_constitution_dir(prompts_dir)
     constitution_claude = constitution_loader.load_constitution_claude(constitution_dir)
     principles = constitution_loader.format_principles(
-        constitution_loader.load_principles(constitution_dir)
+        constitution_loader.load_principles(
+            constitution_dir, filename=profiles.current().PRINCIPLES_FILENAME)
     )
     preamble = (prompts_dir / "preamble.txt").read_text(encoding="utf-8").strip()
 

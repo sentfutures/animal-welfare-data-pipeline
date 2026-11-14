@@ -1,0 +1,14 @@
+{
+  "dealt": 2,
+  "accepted": 2,
+  "leftover_dropped": 0,
+  "leftover_prompt_ids": [],
+  "rounds": [
+    {
+      "round": 0,
+      "hands": 2,
+      "removed": 0,
+      "note": "original deal"
+    }
+  ]
+}

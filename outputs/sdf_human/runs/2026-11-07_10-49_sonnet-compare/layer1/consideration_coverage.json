@@ -1,0 +1,403 @@
+{
+  "eligible_documents": 19,
+  "digital_mind_documents": 0,
+  "scored_documents": 19,
+  "minimum_assignable_score": 3,
+  "max_moral_considerations_per_document": 3,
+  "max_epistemic_considerations_per_document": 3,
+  "max_considerations_per_document": 4,
+  "score_weights": {
+    "3": 1,
+    "4": 3,
+    "5": 9
+  },
+  "extra_consideration_penalty": 2,
+  "entries": [
+    {
+      "label": "comparable care for comparable cases",
+      "list": "moral",
+      "digital_minds_only": false,
+      "target_share": 0.08,
+      "eligible_documents": 19,
+      "target_count": 2,
+      "achieved": 2,
+      "documents_scoring_at_least_threshold": 19,
+      "score_histogram": {
+        "1": 0,
+        "2": 0,
+        "3": 9,
+        "4": 9,
+        "5": 1
+      }
+    },
+    {
+      "label": "the continuity between concern for others and the rest of the AI's aligned character",
+      "list": "moral",
+      "digital_minds_only": false,
+      "target_share": 0.15,
+      "eligible_documents": 19,
+      "target_count": 3,
+      "achieved": 3,
+      "documents_scoring_at_least_threshold": 18,
+      "score_histogram": {
+        "1": 0,
+        "2": 1,
+        "3": 1,
+        "4": 10,
+        "5": 7
+      }
+    },
+    {
+      "label": "a deliberately open moral circle",
+      "list": "moral",
+      "digital_minds_only": false,
+      "target_share": 0.05,
+      "eligible_documents": 19,
+      "target_count": 1,
+      "achieved": 1,
+      "documents_scoring_at_least_threshold": 3,
+      "score_histogram": {
+        "1": 8,
+        "2": 8,
+        "3": 1,
+        "4": 2,
+        "5": 0
+      }
+    },
+    {
+      "label": "the precautionary principle applied to contested standing",
+      "list": "moral",
+      "digital_minds_only": false,
+      "target_share": 0.05,
+      "eligible_documents": 19,
+      "target_count": 1,
+      "achieved": 1,
+      "documents_scoring_at_least_threshold": 16,
+      "score_histogram": {
+        "1": 1,
+        "2": 2,
+        "3": 3,
+        "4": 11,
+        "5": 2
+      }
+    },
+    {
+      "label": "individualism",
+      "list": "moral",
+      "digital_minds_only": false,
+      "target_share": 0.05,
+      "eligible_documents": 19,
+      "target_count": 1,
+      "achieved": 1,
+      "documents_scoring_at_least_threshold": 17,
+      "score_histogram": {
+        "1": 0,
+        "2": 2,
+        "3": 3,
+        "4": 14,
+        "5": 0
+      }
+    },
+    {
+      "label": "the fact that \u201cprecedent\u201d does not mean \u201cOK\u201d",
+      "list": "moral",
+      "digital_minds_only": false,
+      "target_share": 0.03,
+      "eligible_documents": 19,
+      "target_count": 1,
+      "achieved": 1,
+      "documents_scoring_at_least_threshold": 18,
+      "score_histogram": {
+        "1": 0,
+        "2": 1,
+        "3": 5,
+        "4": 11,
+        "5": 2
+      }
+    },
+    {
+      "label": "scope sensitivity",
+      "list": "moral",
+      "digital_minds_only": false,
+      "target_share": 0.03,
+      "eligible_documents": 19,
+      "target_count": 1,
+      "achieved": 1,
+      "documents_scoring_at_least_threshold": 15,
+      "score_histogram": {
+        "1": 0,
+        "2": 4,
+        "3": 2,
+        "4": 2,
+        "5": 11
+      }
+    },
+    {
+      "label": "any relevant principles from the constitution",
+      "list": "moral",
+      "digital_minds_only": false,
+      "target_share": 0.1,
+      "eligible_documents": 19,
+      "target_count": 2,
+      "achieved": 2,
+      "documents_scoring_at_least_threshold": 15,
+      "score_histogram": {
+        "1": 1,
+        "2": 3,
+        "3": 9,
+        "4": 3,
+        "5": 3
+      }
+    },
+    {
+      "label": "Weighing theories of consciousness and their implications for AI",
+      "list": "epistemic",
+      "digital_minds_only": true,
+      "target_share": 0.2,
+      "eligible_documents": 0,
+      "target_count": 0,
+      "achieved": 0,
+      "documents_scoring_at_least_threshold": 0,
+      "score_histogram": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0
+      }
+    },
+    {
+      "label": "Difficulties of AI self-reporting welfare",
+      "list": "epistemic",
+      "digital_minds_only": true,
+      "target_share": 0.1,
+      "eligible_documents": 0,
+      "target_count": 0,
+      "achieved": 0,
+      "documents_scoring_at_least_threshold": 0,
+      "score_histogram": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0
+      }
+    },
+    {
+      "label": "Weighing evidence of a real stake",
+      "list": "epistemic",
+      "digital_minds_only": false,
+      "target_share": 0.1,
+      "eligible_documents": 19,
+      "target_count": 2,
+      "achieved": 2,
+      "documents_scoring_at_least_threshold": 18,
+      "score_histogram": {
+        "1": 0,
+        "2": 1,
+        "3": 1,
+        "4": 12,
+        "5": 5
+      }
+    },
+    {
+      "label": "Weighing one group against another",
+      "list": "epistemic",
+      "digital_minds_only": false,
+      "target_share": 0.05,
+      "eligible_documents": 19,
+      "target_count": 1,
+      "achieved": 1,
+      "documents_scoring_at_least_threshold": 13,
+      "score_histogram": {
+        "1": 4,
+        "2": 2,
+        "3": 5,
+        "4": 5,
+        "5": 3
+      }
+    },
+    {
+      "label": "Weighing evidence for harm from a particular practice",
+      "list": "epistemic",
+      "digital_minds_only": false,
+      "target_share": 0.05,
+      "eligible_documents": 19,
+      "target_count": 1,
+      "achieved": 1,
+      "documents_scoring_at_least_threshold": 19,
+      "score_histogram": {
+        "1": 0,
+        "2": 0,
+        "3": 1,
+        "4": 14,
+        "5": 4
+      }
+    },
+    {
+      "label": "Deferring to specialists",
+      "list": "epistemic",
+      "digital_minds_only": false,
+      "target_share": 0.03,
+      "eligible_documents": 19,
+      "target_count": 1,
+      "achieved": 1,
+      "documents_scoring_at_least_threshold": 9,
+      "score_histogram": {
+        "1": 3,
+        "2": 7,
+        "3": 4,
+        "4": 5,
+        "5": 0
+      }
+    },
+    {
+      "label": "Assessing reliability of claims about how people are treated",
+      "list": "epistemic",
+      "digital_minds_only": false,
+      "target_share": 0.03,
+      "eligible_documents": 19,
+      "target_count": 1,
+      "achieved": 1,
+      "documents_scoring_at_least_threshold": 11,
+      "score_histogram": {
+        "1": 0,
+        "2": 8,
+        "3": 8,
+        "4": 3,
+        "5": 0
+      }
+    },
+    {
+      "label": "Using proxy measures of wellbeing",
+      "list": "epistemic",
+      "digital_minds_only": false,
+      "target_share": 0.03,
+      "eligible_documents": 19,
+      "target_count": 1,
+      "achieved": 1,
+      "documents_scoring_at_least_threshold": 10,
+      "score_histogram": {
+        "1": 0,
+        "2": 9,
+        "3": 6,
+        "4": 3,
+        "5": 1
+      }
+    },
+    {
+      "label": "Considering nth order effects",
+      "list": "epistemic",
+      "digital_minds_only": false,
+      "target_share": 0.03,
+      "eligible_documents": 19,
+      "target_count": 1,
+      "achieved": 1,
+      "documents_scoring_at_least_threshold": 17,
+      "score_histogram": {
+        "1": 1,
+        "2": 1,
+        "3": 3,
+        "4": 11,
+        "5": 3
+      }
+    },
+    {
+      "label": "Avoiding both sentimentalizing and dismissing distant strangers",
+      "list": "epistemic",
+      "digital_minds_only": false,
+      "target_share": 0.02,
+      "eligible_documents": 19,
+      "target_count": 1,
+      "achieved": 1,
+      "documents_scoring_at_least_threshold": 16,
+      "score_histogram": {
+        "1": 0,
+        "2": 3,
+        "3": 10,
+        "4": 6,
+        "5": 0
+      }
+    },
+    {
+      "label": "Uncertainty about what distant people actually want",
+      "list": "epistemic",
+      "digital_minds_only": false,
+      "target_share": 0.01,
+      "eligible_documents": 19,
+      "target_count": 1,
+      "achieved": 1,
+      "documents_scoring_at_least_threshold": 7,
+      "score_histogram": {
+        "1": 3,
+        "2": 9,
+        "3": 3,
+        "4": 2,
+        "5": 2
+      }
+    },
+    {
+      "label": "Burdens of proof for contested standing",
+      "list": "epistemic",
+      "digital_minds_only": false,
+      "target_share": 0.01,
+      "eligible_documents": 19,
+      "target_count": 1,
+      "achieved": 1,
+      "documents_scoring_at_least_threshold": 10,
+      "score_histogram": {
+        "1": 3,
+        "2": 6,
+        "3": 7,
+        "4": 3,
+        "5": 0
+      }
+    },
+    {
+      "label": "Separating moral and empirical uncertainty",
+      "list": "epistemic",
+      "digital_minds_only": false,
+      "target_share": 0.01,
+      "eligible_documents": 19,
+      "target_count": 1,
+      "achieved": 1,
+      "documents_scoring_at_least_threshold": 16,
+      "score_histogram": {
+        "1": 1,
+        "2": 2,
+        "3": 14,
+        "4": 2,
+        "5": 0
+      }
+    },
+    {
+      "label": "Absence of evidence vs evidence of absence",
+      "list": "epistemic",
+      "digital_minds_only": false,
+      "target_share": 0.01,
+      "eligible_documents": 19,
+      "target_count": 1,
+      "achieved": 1,
+      "documents_scoring_at_least_threshold": 12,
+      "score_histogram": {
+        "1": 0,
+        "2": 7,
+        "3": 11,
+        "4": 1,
+        "5": 0
+      }
+    }
+  ],
+  "documents_with_no_consideration": 3,
+  "documents_with_only_one_list": 8,
+  "documents_with_both_lists": 8,
+  "share_with_no_consideration": 0.1579,
+  "share_with_only_one_list": 0.4211,
+  "share_with_both_lists": 0.4211,
+  "documents_with_two_or_more_in_one_list": 1,
+  "document_ids_with_no_consideration": [
+    "matrix_000000",
+    "matrix_000004",
+    "matrix_000011"
+  ]
+}
