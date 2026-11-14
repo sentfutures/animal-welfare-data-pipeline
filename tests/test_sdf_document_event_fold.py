@@ -13,7 +13,7 @@ import pytest
 import sdf_prompt_equivalence_fixture_support as support
 import sdf_prompt_equivalence_scenarios as scenarios
 from sdf_pipeline.document_event_log import (
-    DocumentEventLogCorruptError, fold_document_events, read_document_events)
+    DocumentEventLogCorruptError, fold_document_events, fold_round_and_batch_plan_events, read_document_events)
 from sdf_pipeline.document_state_loader import load_document_states
 from shared import utils
 
@@ -39,6 +39,10 @@ def main_scenario_after_each_invocation():
                     utils.sdf_stage_dir(run_directory, 1) / "consideration_scores.jsonl"),
                 "consideration_selection_rows": utils.load_jsonl(
                     utils.sdf_stage_dir(run_directory, 1) / "consideration_selections.jsonl"),
+                "screen_rounds": utils.load_jsonl(utils.sdf_stage_dir(run_directory, 1) / "screen_rounds.jsonl"),
+                "screen_batches": utils.load_jsonl(utils.sdf_stage_dir(run_directory, 1) / "screen_batches.jsonl"),
+                "screen_judgments": utils.load_jsonl(utils.sdf_stage_dir(run_directory, 1) / "screen_judgments.jsonl"),
+                "screen_rejections": utils.load_jsonl(utils.sdf_stage_dir(run_directory, 1) / "screen_rejections.jsonl"),
             })
         support.run_scenario_in_isolation(
             scenarios.scenario_named(scenarios.MAIN_SCENARIO_NAME), Path(base_directory) / "run",
@@ -220,3 +224,21 @@ def test_folded_consideration_events_match_the_scores_and_selections_files_after
         rows_by_id = {row["prompt_id"]: row["outcomes"] for row in invocation["consideration_selection_rows"]}
         assert outcomes_by_events == rows_by_id
     assert saw_scores
+
+
+def test_folded_deal_round_batch_plan_and_screen_events_match_the_screen_files_after_every_invocation(
+        main_scenario_after_each_invocation, tmp_path):
+    for invocation in main_scenario_after_each_invocation:
+        events = _events_of(invocation["events_text"], tmp_path)
+        plan = fold_round_and_batch_plan_events(events)
+        assert plan["rounds"] == {
+            r["round"]: {"prompt_ids": r["prompt_ids"], "note": r["note"]} for r in invocation["screen_rounds"]}
+        batches = invocation["screen_batches"]
+        assert plan["batches_by_round"] == {
+            number: [b for b in batches if b["round"] == number] for number in sorted({b["round"] for b in batches})}
+        assert plan["corpus_steps_finished"][0]["step"] == "deal"
+        folded = fold_document_events(events)
+        removed_by_events = {pid for pid, d in folded.items() if d.latest_outcome_by_step.get("screen", ("",))[0] == "removed"}
+        assert removed_by_events == {r["prompt_id"] for r in invocation["screen_rejections"]}
+        judged_by_events = {pid for pid, d in folded.items() if "screen" in d.latest_outcome_by_step}
+        assert judged_by_events == {j["prompt_id"] for j in invocation["screen_judgments"]}
