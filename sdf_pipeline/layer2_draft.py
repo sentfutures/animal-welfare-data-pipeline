@@ -22,7 +22,7 @@ from sdf_pipeline import compose_prompts as cp
 from sdf_pipeline.dealt_value_identifiers import value_ids_field_of
 from sdf_pipeline.step_runner import StepRunner
 from sdf_pipeline.update_steps import (
-    Accepted, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, StepPolicy,
+    Accepted, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, StepPolicy, StepProgress,
     line_for_document_left_to_retry)
 
 DOC_TAG_RE = re.compile(r"<document>(.*?)</document>", re.DOTALL)
@@ -106,7 +106,7 @@ class DraftStep(DocumentStep):
             "content": update,
         }
 
-    def progress_line(self, plan: dict, outcome) -> str | None:
+    def progress_line(self, plan: dict, outcome, progress: StepProgress) -> str | None:
         pid = plan["prompt_id"]
         if isinstance(outcome, Accepted):
             return f"  Drafted {pid} ({len(outcome.update)} chars)"

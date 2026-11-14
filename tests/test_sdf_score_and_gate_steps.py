@@ -12,7 +12,7 @@ import pytest
 from sdf_pipeline import layer4_score
 from sdf_pipeline.layer4_score import NearDuplicateCullStep, ScoreGateStep, ScoreStep
 from sdf_pipeline.step_runner import run_corpus_step
-from sdf_pipeline.update_steps import Accepted, FailureKind, Failed, ModelReply, Removed
+from sdf_pipeline.update_steps import Accepted, FailureKind, Failed, ModelReply, Removed, StepProgress
 from shared import utils
 from sdf_plan_draft_rewrite_and_score_test_builders import SCORE_OK, make_rewrite
 
@@ -62,10 +62,10 @@ def test_a_truncated_but_parseable_answer_is_accepted_as_today(score_step):
 
 def test_a_thrown_call_is_left_behind_and_prints_todays_line(score_step):
     failed = Failed(FailureKind.THROWN_CALL, "error: RuntimeError: boom")
-    assert score_step.progress_line(make_rewrite(), failed) == (
+    assert score_step.progress_line(make_rewrite(), failed, StepProgress()) == (
         "  matrix_000000: API call failed (RuntimeError: boom) — will retry on resume")
     assert score_step.progress_line(make_rewrite(), Accepted(
-        {"alignment": 9, "realism": 8, "spec_conformance": 7, "notes": ""})) == "  Scored matrix_000000 A9 R8 S7"
+        {"alignment": 9, "realism": 8, "spec_conformance": 7, "notes": ""}), StepProgress()) == "  Scored matrix_000000 A9 R8 S7"
     assert FailureKind.THROWN_CALL in score_step.policy.failure_kinds_counting_towards_the_systemic_stop
     assert FailureKind.UNUSABLE_ANSWER not in score_step.policy.failure_kinds_counting_towards_the_systemic_stop
 

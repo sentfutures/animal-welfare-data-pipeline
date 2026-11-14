@@ -12,7 +12,7 @@ import pytest
 from sdf_pipeline import layer1_description_rewrite as rewrite
 from sdf_pipeline.layer1_description_rewrite import DescriptionRewriteStep
 from sdf_pipeline.step_runner import send_model_request
-from sdf_pipeline.update_steps import Accepted, Failed, FailureKind, Removed, WhatAFailedDocumentDoes
+from sdf_pipeline.update_steps import Accepted, Failed, FailureKind, Removed, StepProgress, WhatAFailedDocumentDoes
 from sdf_step_and_command_line_test_helpers import reply
 from shared import api, openai_api, utils
 from sdf_description_rewrite_test_builders import answer, make_plans
@@ -60,10 +60,14 @@ def test_interpret_a_rewrite_keeps_the_changes(step, plans):
 def test_interpret_a_dealt_value_conflict_is_removed_and_its_records_are_todays(step, plans, tmp_path):
     outcome = step.interpret(plans[1], reply(answer(True, conflict=True, conflict_reason="Scale cannot occur.")))
     assert isinstance(outcome, Removed) and outcome.reason_code == "dealt_value_conflict"
-    record = step.stage_file_record_for_removal(plans[1], outcome)
+    records = step.outcome_records(plans[1], outcome)
+    assert records.finishes_the_document
+    # the results record first, then the rejection record, as on origin/main; the step writes neither
+    assert [file_name for file_name, _ in records.records] == [rewrite.RESULTS_FILENAME, rewrite.REJECTIONS_FILENAME]
+    assert not (tmp_path / "description_rewrite_rejections.jsonl").exists()
+    (_, record), (_, rejection) = records.records
     assert record["dealt_value_conflict"] is True and record["rewrite_needed"] is False
     assert record["conflict_reason"] == "Scale cannot occur." and record["rewritten_description"] == ""
-    (rejection,) = utils.load_jsonl(tmp_path / "description_rewrite_rejections.jsonl")
     assert rejection == {"prompt_id": plans[1]["prompt_id"], "variables": plans[1]["variables"],
                          "conflict_reason": "Scale cannot occur.", "description": plans[1]["description"]}
 
@@ -85,10 +89,10 @@ def test_interpret_an_unparseable_answer_is_an_unusable_failure(step, plans, tex
 
 def test_a_thrown_call_prints_todays_line_and_an_unusable_answer_its_own(step, plans):
     pid = plans[0]["prompt_id"]
-    step.begin_session(pending_count=5)
-    assert step.progress_line(plans[0], Failed(FailureKind.THROWN_CALL, "error: RuntimeError: boom")) == (
+    progress = StepProgress(pending_count=5)
+    assert step.progress_line(plans[0], Failed(FailureKind.THROWN_CALL, "error: RuntimeError: boom"), progress) == (
         f"  {pid}: API call failed (RuntimeError: boom) — will retry on resume")
-    assert step.progress_line(plans[0], Failed(FailureKind.UNUSABLE_ANSWER, "unusable answer (bad)")) == (
+    assert step.progress_line(plans[0], Failed(FailureKind.UNUSABLE_ANSWER, "unusable answer (bad)"), progress) == (
         f"  {pid}: unusable answer (bad) — will retry on resume")
 
 

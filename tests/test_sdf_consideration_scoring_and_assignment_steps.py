@@ -8,7 +8,7 @@ import pytest
 from sdf_pipeline import layer1_select_considerations as select
 from sdf_pipeline.considerations_catalog import load_considerations
 from sdf_pipeline.step_runner import run_corpus_step
-from sdf_pipeline.update_steps import Accepted, Failed, FailureKind, ModelReply
+from sdf_pipeline.update_steps import Accepted, Failed, FailureKind, ModelReply, StepProgress
 from shared import utils
 from sdf_consideration_selection_test_builders import (
     answer_with, make_plans, no_stake_resolution, offered_in, rows_of, score_everything_five, small_prompts)  # noqa: F401
@@ -39,14 +39,24 @@ def test_interpret_a_usable_answer_is_accepted_with_its_attempt_count_and_todays
 
 
 def test_interpret_an_unusable_answer_is_a_failure_that_names_the_attempts_only_on_the_last(scoring_step):
-    scoring_step.build_request(PLAN)
+    # the attempt number comes on the reply (the runner sets it), not from any state of the step
     for attempt in (1, 2, 3):
-        outcome = scoring_step.interpret(PLAN, ModelReply("not json", "end_turn"))
+        outcome = scoring_step.interpret(PLAN, ModelReply("not json", "end_turn", attempt=attempt))
         assert isinstance(outcome, Failed) and outcome.kind is FailureKind.UNUSABLE_ANSWER
         assert outcome.reason.endswith("(after 3 attempts)") == (attempt == 3)
-    # the count starts again for the next run's attempts
+    # a usable answer on the second attempt records 2; interpret keeps no count between calls
     _, reply = reply_for(scoring_step, PLAN)
+    assert scoring_step.interpret(PLAN, ModelReply(reply.text, "end_turn", attempt=2)).update["attempts"] == 2
     assert scoring_step.interpret(PLAN, reply).update["attempts"] == 1
+
+
+def test_interpret_keeps_no_state_between_documents_or_calls(scoring_step):
+    other_plan = make_plans(2)[1]
+    request, reply = reply_for(scoring_step, PLAN)
+    first = scoring_step.interpret(PLAN, reply)
+    scoring_step.interpret(other_plan, ModelReply("not json", "end_turn", attempt=2))
+    assert scoring_step.interpret(PLAN, reply) == first
+    assert scoring_step.offered_entries(PLAN) == scoring_step.offered_entries(PLAN)
 
 
 def test_interpret_a_truncated_answer_is_unusable(scoring_step):
@@ -58,10 +68,13 @@ def test_interpret_a_truncated_answer_is_unusable(scoring_step):
 def test_the_failure_record_and_line_for_unusable_and_thrown(scoring_step):
     unusable = Failed(FailureKind.UNUSABLE_ANSWER, "no usable JSON object (x) (after 3 attempts)")
     thrown = Failed(FailureKind.THROWN_CALL, "error: RuntimeError: boom")
-    assert scoring_step.failure_record(PLAN, unusable) == {
-        "prompt_id": PLAN["prompt_id"], "problem": "unusable answer (no usable JSON object (x) (after 3 attempts))"}
-    assert scoring_step.failure_record(PLAN, thrown)["problem"] == "API call failed (RuntimeError: boom)"
-    assert scoring_step.progress_line(PLAN, thrown) == (
+    unusable_records = scoring_step.outcome_records(PLAN, unusable)
+    assert unusable_records.records == ((select.FAILURES_FILENAME, {
+        "prompt_id": PLAN["prompt_id"], "problem": "unusable answer (no usable JSON object (x) (after 3 attempts))"}),)
+    assert not unusable_records.finishes_the_document
+    ((_, thrown_record),) = scoring_step.outcome_records(PLAN, thrown).records
+    assert thrown_record["problem"] == "API call failed (RuntimeError: boom)"
+    assert scoring_step.progress_line(PLAN, thrown, StepProgress(pending_count=1)) == (
         f"  {PLAN['prompt_id']}: API call failed (RuntimeError: boom) — will be rescored on resume")
 
 
@@ -154,13 +167,14 @@ def test_every_document_unusable_on_every_attempt_is_systemic(tiny_config, small
     assert len(calls) == 6
 
 
-def test_no_attempts_allowed_makes_no_call_and_fails_the_document(tiny_config, small_prompts, stage_dir, stub_claude):
+def test_no_attempts_allowed_is_refused_when_the_step_is_built_and_makes_no_call(
+        tiny_config, small_prompts, stage_dir, stub_claude):
     tiny_config["sdf"]["max_scoring_attempts"] = 0
     calls = stub_claude([])
-    with pytest.raises(SystemExit, match="every pending scoring call failed"):
+    with pytest.raises(ValueError, match="must be at least 1"):
         select.run(tiny_config, small_prompts, stage_dir, make_plans(1))
     assert calls == []
-    assert rows_of(stage_dir, select.FAILURES_FILENAME)[0]["problem"] == "unusable answer ( (after 0 attempts))"
+    assert not (stage_dir / select.FAILURES_FILENAME).exists()
 
 
 def test_the_code_default_attempts_apply_when_the_config_names_none(tiny_config, small_prompts, stage_dir, stub_claude):

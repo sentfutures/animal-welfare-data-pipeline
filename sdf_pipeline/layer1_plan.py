@@ -30,8 +30,8 @@ from sdf_pipeline.dealt_value_identifiers import (
     deal_hand_records_with_value_ids, run_records_value_ids, value_ids_field_of, value_ids_of_hands)
 from sdf_pipeline.step_runner import StepRunner
 from sdf_pipeline.update_steps import (
-    Accepted, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, Removed, StepPolicy,
-    line_for_document_left_to_retry)
+    Accepted, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, OutcomeRecords, Removed,
+    StepPolicy, StepProgress, line_for_document_left_to_retry)
 
 
 class PlanStep(DocumentStep):
@@ -77,10 +77,15 @@ class PlanStep(DocumentStep):
     def stage_file_record(self, prompt_record: dict, update: dict) -> dict:
         return self._record(prompt_record, update["plan"], update["description"], False)
 
-    def stage_file_record_for_removal(self, prompt_record: dict, removed: Removed) -> dict:
-        return self._record(prompt_record, removed.detail["plan"], removed.detail["description"], True)
+    def outcome_records(self, prompt_record: dict, outcome) -> OutcomeRecords:
+        """An INCOHERENT plan is a finished plan whose record says so; everything else as the default."""
+        if isinstance(outcome, Removed):
+            return OutcomeRecords(((
+                self.stage_file_name,
+                self._record(prompt_record, outcome.detail["plan"], outcome.detail["description"], True)),), True)
+        return super().outcome_records(prompt_record, outcome)
 
-    def progress_line(self, prompt_record: dict, outcome) -> str | None:
+    def progress_line(self, prompt_record: dict, outcome, progress: StepProgress) -> str | None:
         prompt_id = prompt_record["prompt_id"]
         if isinstance(outcome, Accepted):
             return f"  Planned {prompt_id}"

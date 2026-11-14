@@ -33,7 +33,7 @@ from sdf_pipeline import revision_style
 from sdf_pipeline.dealt_value_identifiers import value_ids_field_of
 from sdf_pipeline.step_runner import StepRunner
 from sdf_pipeline.update_steps import (
-    Accepted, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, StepPolicy,
+    Accepted, DocumentStep, Failed, FailureKind, ModelReply, ModelRequest, StepPolicy, StepProgress,
     line_for_document_left_to_retry, systemic_stop_message_for)
 
 IMPROVED_TAG_RE = re.compile(r"<improved_document>(.*?)</improved_document>", re.DOTALL)
@@ -192,7 +192,7 @@ class CritiqueStep(DocumentStep):
     def stage_file_record(self, draft: dict, update: str) -> dict:
         return {"doc_id": draft["doc_id"], "review": update}
 
-    def progress_line(self, draft: dict, outcome) -> str | None:
+    def progress_line(self, draft: dict, outcome, progress: StepProgress) -> str | None:
         if isinstance(outcome, Failed):  # an accepted critique prints nothing: the revise prints the result
             return line_for_document_left_to_retry(draft["doc_id"], f"no rewrite ({outcome.reason})")
         return None
@@ -241,7 +241,7 @@ class ReviseStep(DocumentStep):
     def stage_file_record(self, draft: dict, update: RewrittenText) -> dict:
         return _rewrite_record(draft, update)
 
-    def progress_line(self, draft: dict, outcome) -> str | None:
+    def progress_line(self, draft: dict, outcome, progress: StepProgress) -> str | None:
         return _rewrite_progress_line(draft, outcome)
 
 
@@ -279,7 +279,7 @@ class CombinedReviewAndReviseStep(DocumentStep):
     def stage_file_record(self, draft: dict, update: RewrittenText) -> dict:
         return _rewrite_record(draft, update)
 
-    def progress_line(self, draft: dict, outcome) -> str | None:
+    def progress_line(self, draft: dict, outcome, progress: StepProgress) -> str | None:
         return _rewrite_progress_line(draft, outcome)
 
 

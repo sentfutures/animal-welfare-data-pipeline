@@ -4,7 +4,7 @@ behaviour, printed lines. ``layer1_plan.run`` keeps its signature and behaviour.
 import pytest
 
 from sdf_pipeline import layer1_plan
-from sdf_pipeline.update_steps import Accepted, Failed, FailureKind, ModelReply, Removed
+from sdf_pipeline.update_steps import Accepted, Failed, FailureKind, ModelReply, Removed, StepProgress
 from shared import utils
 from sdf_plan_draft_rewrite_and_score_test_builders import plan_reply
 
@@ -24,17 +24,20 @@ def test_interpret_an_accepted_plan(plan_step):
     assert list(plan_step.stage_file_record(PROMPT_RECORD, outcome.update).items()) == [
         ("prompt_id", "matrix_000007"), ("variables", {"tone": "plain"}), ("plan", reply_text),
         ("description", "The spec."), ("incoherent", False)]
-    assert plan_step.progress_line(PROMPT_RECORD, outcome) == "  Planned matrix_000007"
+    assert plan_step.progress_line(PROMPT_RECORD, outcome, StepProgress()) == "  Planned matrix_000007"
 
 
 def test_interpret_an_incoherent_plan_is_a_removal_with_todays_record(plan_step):
     reply_text = "<document_description>INCOHERENT: no such document.</document_description>"
     outcome = plan_step.interpret(PROMPT_RECORD, ModelReply(reply_text, "end_turn"))
     assert isinstance(outcome, Removed) and outcome.reason_code == "incoherent"
-    record = plan_step.stage_file_record_for_removal(PROMPT_RECORD, outcome)
+    records = plan_step.outcome_records(PROMPT_RECORD, outcome)
+    assert records.finishes_the_document
+    ((file_name, record),) = records.records
+    assert file_name == layer1_plan.PlanStep.stage_file_name
     assert record["incoherent"] is True and record["plan"] == reply_text
     assert list(record) == ["prompt_id", "variables", "plan", "description", "incoherent"]
-    assert plan_step.progress_line(PROMPT_RECORD, outcome) == "  Planned matrix_000007 (INCOHERENT)"
+    assert plan_step.progress_line(PROMPT_RECORD, outcome, StepProgress()) == "  Planned matrix_000007 (INCOHERENT)"
 
 
 def test_interpret_unusable_answers_are_failures_left_behind(plan_step):
@@ -42,9 +45,9 @@ def test_interpret_unusable_answers_are_failures_left_behind(plan_step):
     no_tags = plan_step.interpret(PROMPT_RECORD, ModelReply("chatter", "end_turn"))
     for outcome in (truncated, no_tags):
         assert isinstance(outcome, Failed) and outcome.kind is FailureKind.UNUSABLE_ANSWER
-    assert plan_step.progress_line(PROMPT_RECORD, truncated) == (
+    assert plan_step.progress_line(PROMPT_RECORD, truncated, StepProgress()) == (
         "  matrix_000007: truncated plan (stop_reason=max_tokens) — will retry on resume")
-    assert plan_step.progress_line(PROMPT_RECORD, no_tags) == (
+    assert plan_step.progress_line(PROMPT_RECORD, no_tags, StepProgress()) == (
         "  matrix_000007: no DOCUMENT DESCRIPTION found — will retry on resume")
 
 
