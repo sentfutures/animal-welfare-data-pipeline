@@ -56,13 +56,6 @@ def small_prompts(prompts_sdf, tmp_path):
 
 
 @pytest.fixture
-def stage_dir(tmp_path):
-    directory = tmp_path / "layer1"
-    directory.mkdir()
-    return directory
-
-
-@pytest.fixture
 def select_config(tiny_config):
     return tiny_config
 

@@ -29,13 +29,6 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
 @pytest.fixture
-def stage_dir(tmp_path):
-    d = tmp_path / "stage"
-    d.mkdir()
-    return d
-
-
-@pytest.fixture
 def final_dir(tmp_path):
     d = tmp_path / "final"
     d.mkdir()
