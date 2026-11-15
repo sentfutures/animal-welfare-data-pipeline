@@ -302,6 +302,64 @@ def test_seeding_without_document_ids_takes_every_document_the_step_can_read(
     assert sorted(r["doc_id"] for r in utils.load_jsonl(seeded_run / "final" / "sdf_corpus.jsonl")) == sorted(document_ids_of(source_directory))
 
 
+PLAN_LAYER_FOLDER = "layer2_description_write_and_description_rewrite"
+
+
+def source_copy_with_one_document_dropped(source_directory: Path, tmp_path: Path, how_it_was_dropped: str) -> tuple:
+    """A copy of the source run whose first document was dropped as incoherent or for a dealt-value conflict; returns (copy, ids)."""
+    damaged = damaged_copy_of(source_directory, tmp_path)
+    ids = document_ids_of(source_directory)
+    if how_it_was_dropped == "incoherent":
+        plans = utils.load_jsonl(damaged / PLAN_LAYER_FOLDER / "plans.jsonl")
+        for plan in plans:
+            if plan["prompt_id"] == ids[0]:
+                plan["description"], plan["incoherent"] = "", True
+        utils.save_jsonl(plans, damaged / PLAN_LAYER_FOLDER / "plans.jsonl")
+    else:
+        results = utils.load_jsonl(damaged / PLAN_LAYER_FOLDER / "description_rewrites.jsonl")
+        for result in results:
+            if result["prompt_id"] == ids[0]:
+                result["dealt_value_conflict"] = True
+        utils.save_jsonl(results, damaged / PLAN_LAYER_FOLDER / "description_rewrites.jsonl")
+    return damaged, ids
+
+
+@pytest.mark.parametrize("how_it_was_dropped, reason", [
+    ("incoherent", "declared incoherent"), ("dealt_value_conflict", "dealt-value conflict")])
+def test_without_document_ids_documents_the_source_run_dropped_are_left_out_and_counted(
+        how_it_was_dropped, reason, source_run, config_file, outputs_root, stub_claude, monkeypatch, tmp_path, capsys):
+    source_directory, _ = source_run
+    damaged, ids = source_copy_with_one_document_dropped(source_directory, tmp_path, how_it_was_dropped)
+    known = run_names(outputs_root)
+    stub_claude(_dispatch)
+    capsys.readouterr()
+    run_main(monkeypatch, config_file, "--seed-from", str(damaged), "--from-step", "draft")
+    output = capsys.readouterr().out
+    assert f"Left out 1 of {DOCUMENT_COUNT} documents" in output and "1 x its" in output and reason in output
+    manifest = json.loads((only_run_directory_not_in(outputs_root, known) / "run_manifest.json").read_text())
+    assert manifest["seeded_from"]["document_ids"] == ids[1:]
+
+
+def test_an_explicitly_named_incoherent_document_is_still_refused_when_others_are_fine(
+        source_run, config_file, outputs_root, stub_claude, monkeypatch, tmp_path):
+    source_directory, _ = source_run
+    damaged, ids = source_copy_with_one_document_dropped(source_directory, tmp_path, "incoherent")
+    message, _ = refusal(monkeypatch, config_file, outputs_root, stub_claude, "--seed-from", str(damaged),
+                         "--from-step", "draft", "--document-ids", ",".join(ids))
+    assert f"{ids[0]}: " in message and "declared incoherent" in message
+
+
+def test_without_document_ids_a_source_whose_documents_were_all_dropped_is_refused(
+        source_run, config_file, outputs_root, stub_claude, monkeypatch, tmp_path):
+    source_directory, _ = source_run
+    damaged = damaged_copy_of(source_directory, tmp_path)
+    plans = [{**plan, "description": "", "incoherent": True}
+             for plan in utils.load_jsonl(damaged / PLAN_LAYER_FOLDER / "plans.jsonl")]
+    utils.save_jsonl(plans, damaged / PLAN_LAYER_FOLDER / "plans.jsonl")
+    message, _ = refusal(monkeypatch, config_file, outputs_root, stub_claude, "--seed-from", str(damaged), "--from-step", "draft")
+    assert "no document that can feed step draft" in message
+
+
 # ------------------------------------------------------------------ the revision override
 
 def test_a_revision_override_is_written_into_the_seeded_drafts_and_reaches_the_revise_request(

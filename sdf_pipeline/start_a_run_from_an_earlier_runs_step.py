@@ -159,9 +159,8 @@ def seed_run_from_chosen_step(
     if not input_records:
         _refuse(f"source run {source_run.name} has no {input_file_name} in {stage_directory[input_key].name} (or it is empty), "
                 f"which step {from_step} reads its documents from")
-    if document_ids is None:
-        document_ids = list(input_records)
-    document_ids = list(dict.fromkeys(document_ids))
+    named_by_the_user = document_ids is not None
+    document_ids = list(dict.fromkeys(input_records if document_ids is None else document_ids))
     if not document_ids:
         _refuse("no documents selected")
 
@@ -173,12 +172,27 @@ def seed_run_from_chosen_step(
     if unknown:
         _refuse(f"document ids not found in source run {source_run.name}: {unknown}")
 
-    problems = _required_records_for_step(
-        step, config, prompts_dir, stage_directory, document_ids, input_records,
-        f"{stage_directory[input_key].name}/{input_file_name}")
+    def problems_for(ids):
+        return _required_records_for_step(
+            step, config, prompts_dir, stage_directory, ids, input_records,
+            f"{stage_directory[input_key].name}/{input_file_name}")
+
+    problems = problems_for(document_ids)
+    if problems and not named_by_the_user:
+        # Documents the source run dropped cannot feed the step: leave them out and say why.
+        left_out = {document_id for document_id, _ in problems}
+        document_ids = [d for d in document_ids if d not in left_out]
+        reasons = {}
+        for document_id, reason in problems:
+            reasons.setdefault(reason, set()).add(document_id)
+        print(f"Left out {len(left_out)} of {len(left_out) + len(document_ids)} documents that cannot feed step {from_step}:\n  "
+              + "\n  ".join(f"{len(ids)} x {reason}" for reason, ids in reasons.items()))
+        if not document_ids:
+            _refuse(f"source run {source_run.name} has no document that can feed step {from_step}")
+        problems = problems_for(document_ids)
     if problems:
         _refuse(f"source run {source_run.name} cannot feed step {from_step} for the selected documents:\n  "
-                + "\n  ".join(problems))
+                + "\n  ".join(f"{document_id}: {reason}" for document_id, reason in problems))
 
     revision_overrides = {}
     if revision_override_path is not None:
@@ -234,7 +248,7 @@ def seed_run_from_chosen_step(
 
 
 def _required_records_for_step(step, config, prompts_dir, stage_directory, document_ids, input_records, input_location) -> list:
-    """One message per selected document and missing record. Empty when the source can feed the step."""
+    """One (document id, reason) per selected document and missing record. Empty when the source can feed the step."""
     problems = []
     position = _position_of(step.name)
     plan_folder, scoring_folder = (stage_directory[key] for key in (
@@ -246,26 +260,26 @@ def _required_records_for_step(step, config, prompts_dir, stage_directory, docum
 
     for document_id in document_ids:
         if document_id not in input_records:
-            problems.append(f"{document_id}: no record in {input_location}, which step {step.name} reads its documents from")
+            problems.append((document_id, f"no record in {input_location}, which step {step.name} reads its documents from"))
     if step.layer_in(sdf_run_layouts.FOUR_NUMBERED_LAYERS) == 1 and deal_variables_and_screen_layer.reason_screen_is_inactive(config, prompts_dir):
         prompt_ids = set(_records_by_id(plan_folder, "prompts.jsonl", "prompt_id"))
-        problems += [f"{d}: no record in {plan_folder.name}/prompts.jsonl (the screen is off, so planning reads composed prompts)"
+        problems += [(d, f"no record in {plan_folder.name}/prompts.jsonl (the screen is off, so planning reads composed prompts)")
                      for d in document_ids if d not in prompt_ids]
     if after("description_write") or step.name in ("description_rewrite", "consideration_scoring", "draft"):
         for document_id in document_ids:
             plan = plans.get(document_id)
             if plan is None:
-                problems.append(f"{document_id}: no plan in {plan_folder.name}/plans.jsonl")
+                problems.append((document_id, f"no plan in {plan_folder.name}/plans.jsonl"))
             elif not plan.get("description"):
-                problems.append(f"{document_id}: its plan was declared incoherent, so the document is not in the pipeline")
+                problems.append((document_id, "its plan was declared incoherent, so the document is not in the pipeline"))
     if position > _position_of("description_rewrite") \
             and not description_rewrite.reason_description_rewrite_is_inactive(config, prompts_dir):
         results = _records_by_id(plan_folder, description_rewrite.RESULTS_FILENAME, "prompt_id")
         for document_id in document_ids:
             if document_id not in results:
-                problems.append(f"{document_id}: no description rewrite result (seeding here would pay for the rewrite again)")
+                problems.append((document_id, "no description rewrite result (seeding here would pay for the rewrite again)"))
             elif results[document_id].get("dealt_value_conflict"):
-                problems.append(f"{document_id}: its description rewrite found a dealt-value conflict, so it was dropped")
+                problems.append((document_id, "its description rewrite found a dealt-value conflict, so it was dropped"))
     if after("consideration_selection") \
             and not consideration_layer.reason_consideration_selection_is_inactive(config, prompts_dir):
         catalog = consideration_layer.load_considerations(prompts_dir)
@@ -274,10 +288,10 @@ def _required_records_for_step(step, config, prompts_dir, stage_directory, docum
             config, catalog, [plans[d] for d in document_ids if d in plans and plans[d].get("description")])
         for plan in eligible:
             if plan["prompt_id"] not in selections:
-                problems.append(f"{plan['prompt_id']}: no assigned considerations in "
-                                f"{scoring_folder.name}/{consideration_layer.SELECTIONS_FILENAME}")
+                problems.append((plan["prompt_id"], f"no assigned considerations in "
+                                                 f"{scoring_folder.name}/{consideration_layer.SELECTIONS_FILENAME}"))
     if step.name in ("critique", "revise"):
         draft_folder = stage_directory[sdf_run_layouts.DRAFT]
         drafts = _records_by_id(draft_folder, "drafts.jsonl", "doc_id")
-        problems += [f"{d}: no draft in {draft_folder.name}/drafts.jsonl" for d in document_ids if d not in drafts]
+        problems += [(d, f"no draft in {draft_folder.name}/drafts.jsonl") for d in document_ids if d not in drafts]
     return problems
