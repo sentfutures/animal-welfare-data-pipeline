@@ -1,5 +1,6 @@
 """``run.py --resume`` on a run in the five-layer or pre-renumber layout refuses before creating any folder
-or making any call; such runs can be read but not resumed. Offline: the run folders are minimal."""
+or making any call; such runs can be read but not resumed. A run with no inputs/prompts snapshot is refused
+the same way. Offline: the run folders are minimal."""
 
 import sys
 
@@ -54,3 +55,19 @@ def test_a_folder_with_no_stage_folders_is_refused_as_an_unknown_layout(tmp_path
     with pytest.raises(SystemExit) as refusal:
         sdf_run.main()
     assert "layout is unknown" in str(refusal.value)
+
+
+def test_resuming_a_run_with_no_prompt_snapshot_stops_before_any_call(tmp_path, monkeypatch, tiny_config_file):
+    """A resumable run whose inputs/prompts snapshot is missing is not resumed on the live prompts."""
+    outputs_root = tmp_path / "outputs"
+    run = _make_run(outputs_root / "sdf" / "runs", ("layer1_deal_variables_and_screen",))
+    monkeypatch.setenv("PIPELINE_OUTPUT_ROOT", str(outputs_root))
+    monkeypatch.setattr(sys, "argv", ["run.py", "--config", str(tiny_config_file), "--resume"])
+
+    # No stub for call_claude: the suite's blocker raises if a call were attempted.
+    with pytest.raises(SystemExit) as refusal:
+        sdf_run.main()
+
+    message = str(refusal.value)
+    assert RUN_NAME in message and "no inputs/prompts snapshot" in message
+    assert not (run / "inputs").exists() and not (run / "cost_log.jsonl").exists()
