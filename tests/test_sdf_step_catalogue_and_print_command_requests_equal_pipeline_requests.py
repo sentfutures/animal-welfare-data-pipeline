@@ -177,6 +177,16 @@ def test_print_command_refusals_name_the_stage_the_reason_and_the_input(tmp_path
         command.build_full_request(run_directory, switched_off, "description_rewrite", "matrix_000000")
     with pytest.raises(command.RequestCannotBeBuilt, match="consideration_scoring step does not run.*sdf.select_enabled: false"):
         command.build_full_request(run_directory, switched_off, "consideration_scoring", "matrix_000000")
+    one_call = {**config, "sdf": {**config["sdf"], "revision": {**config["sdf"].get("revision", {}), "split": False}}}
+    for stage in ("critique", "revise"):
+        with pytest.raises(command.RequestCannotBeBuilt, match=rf"{stage} step does not run.*sdf.revision.split: false"):
+            command.build_full_request(run_directory, one_call, stage, "matrix_000000")
+    two_calls = {**config, "sdf": {**config["sdf"], "revision": {**config["sdf"].get("revision", {}), "split": True}}}
+    with pytest.raises(command.RequestCannotBeBuilt, match="critique_and_revise_in_one_call step does not run.*sdf.revision.split is true"):
+        command.build_full_request(run_directory, two_calls, "critique_and_revise_in_one_call", "matrix_000000")
+    screen_off = {**config, "sdf": {**config["sdf"], "screen_enabled": False}}
+    with pytest.raises(command.RequestCannotBeBuilt, match=r"screen step does not run.*sdf.screen_enabled: false"):
+        command.build_full_request(run_directory, screen_off, "screen", "matrix_000000")
     with pytest.raises(command.RequestCannotBeBuilt, match="no record with prompt_id 'nope' in the input documents of the draft step"):
         command.build_full_request(run_directory, config, "draft", "nope")
     with pytest.raises(command.RequestCannotBeBuilt, match="no record with doc_id 'nope' in the input documents of the revise step"):

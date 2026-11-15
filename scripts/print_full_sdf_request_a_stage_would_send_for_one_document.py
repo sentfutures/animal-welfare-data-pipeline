@@ -17,7 +17,6 @@ sys.path.insert(0, str(REPOSITORY_ROOT))
 
 from shared import api, sdf_run_layouts, utils  # noqa: E402
 from sdf_pipeline.layer1_deal_variables_and_screen import run_layer as deal_variables_and_screen_layer  # noqa: E402
-from sdf_pipeline.layer1_deal_variables_and_screen import screen  # noqa: E402
 from sdf_pipeline.layer4_draft_critique_and_revise import revise  # noqa: E402
 from sdf_pipeline import pipeline_steps  # noqa: E402
 from sdf_pipeline.shared_step_machinery.step_record import Run, document_id_of, id_field_of  # noqa: E402
@@ -26,7 +25,6 @@ from sdf_pipeline.shared_step_machinery.update_steps import ModelRequest  # noqa
 
 STAGES_THIS_COMMAND_COVERS = tuple(step.name for step in pipeline_steps.PIPELINE_STEPS if step.makes_model_calls)
 STAGES_THIS_COMMAND_CANNOT_COVER_YET = {"score_gate": "makes no model call", "near_duplicate_removal": "makes no model call"}
-STAGES_REFUSED_WHEN_INACTIVE = ("description_rewrite", "consideration_scoring")   # a disabled stage sends nothing for any document
 
 
 class RequestCannotBeBuilt(Exception):
@@ -98,16 +96,14 @@ def _build_full_request_in_layout(config, stage, document_id, round_number, prom
     if stage not in STAGES_THIS_COMMAND_COVERS:
         raise RequestCannotBeBuilt(f"unknown stage {stage!r}; choose from {', '.join(STAGES_THIS_COMMAND_COVERS)}")
     step = pipeline_steps.entry_named(stage)
+    reason_inactive = step.reason_inactive(config, prompts_directory)
+    if reason_inactive:
+        raise RequestCannotBeBuilt(f"the {stage} step does not run in this run: {reason_inactive}")
     run = Run(config, prompts_directory, folders)
     if stage == "screen":
         # The one stage whose documents are a batch of hands (from the saved batch plan).
-        if screen.load_screen_prompts(prompts_directory) is None:
-            raise RequestCannotBeBuilt("this run's prompt snapshot has no screen template")
         request = step.build_request(_screen_batch(folders[sdf_run_layouts.DEAL_VARIABLES_AND_SCREEN], document_id, round_number), run)
         return FullRequest(request=request, settings=resolve_settings_of_model_request(request, config))
-    reason_inactive = stage in STAGES_REFUSED_WHEN_INACTIVE and step.reason_inactive(config, prompts_directory)
-    if reason_inactive:
-        raise RequestCannotBeBuilt(f"the {stage} step does not run in this run: {reason_inactive}")
     document = _record_with_id(step.reads(run), document_id, f"the input documents of the {stage} step")
     if stage == "revise" and document_id not in revise.critique_by_document_id(run):
         raise RequestCannotBeBuilt(f"the revise request needs the critique of {document_id!r}, and "
