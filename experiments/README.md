@@ -36,8 +36,8 @@ The voices run is `outputs/sdf/experiments/exp1`. It predates the
 structural-spread column, so the figures quoted for it were computed from its
 run directories afterwards rather than read off its own comparison table.
 
-The two-call revision is now the only one, so `split/arms.yaml` (whose control
-sets `split: false`) is refused and records the measurement only. Every knob in
+The two-call revision is now the only one, so `split/arms.yaml` and `length/arms.yaml`
+(whose control arms set `split: false`) are refused and record the measurement only. Every knob in
 `config.yaml`'s `sdf.revision` block is a per-arm choice, and an arm that leaves
 them off sends the prompt layer 3 has always sent — which is what makes a
 control arm a real control rather than a near-copy. Because the block no longer
