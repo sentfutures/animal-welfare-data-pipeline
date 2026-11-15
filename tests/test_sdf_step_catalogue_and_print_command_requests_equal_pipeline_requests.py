@@ -106,6 +106,9 @@ def test_a_run_whose_snapshot_lacks_a_template_of_an_active_step_is_refused_befo
     assert pipeline_steps.prompt_files_missing_from_snapshot("draft", config, prompts_directory) == []
     (prompts_directory / "layer2.txt").unlink()
     assert pipeline_steps.prompt_files_missing_from_snapshot("draft", config, prompts_directory) == [("draft", ["layer2.txt"])]
+    (prompts_directory / "preamble.txt").unlink()
+    assert pipeline_steps.prompt_files_missing_from_snapshot("draft", config, prompts_directory) == [
+        ("draft", ["layer2.txt", "preamble.txt"])]
 
 
 # ------------------------------------------------------------------ print command against the pipeline's own requests

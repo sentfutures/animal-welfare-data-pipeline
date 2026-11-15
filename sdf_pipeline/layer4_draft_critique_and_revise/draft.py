@@ -110,7 +110,7 @@ def progress_line(documents: list, outcomes: dict, progress: StepProgress, run: 
 # Only a thrown call counts towards the systemic stop; an unusable answer is left behind.
 STEP = Step(
     name="draft", folder_key=sdf_run_layouts.DRAFT, model_setting_keys=("draft_model",),
-    required_prompt_files=lambda config, prompts_directory: [utils.sdf_template_path(prompts_directory, 2).name],
+    required_prompt_files=lambda config, prompts_directory: [utils.sdf_template_path(prompts_directory, 2).name, "preamble.txt"],
     reads=plans_with_selections,
     applies=lambda plan, run: bool(plan.get("description")),
     build_request=build_request, read_reply=read_reply,
