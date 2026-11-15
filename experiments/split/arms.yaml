@@ -1,3 +1,7 @@
+# A record of a finished experiment; it cannot be rerun. The pipeline refuses
+# sdf.revision.split: false, so experiment.py refuses its control arms. The
+# results are in report.md.
+#
 # Does splitting layer 3's single critique-and-rewrite call into two calls
 # change anything?
 #
