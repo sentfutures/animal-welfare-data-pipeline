@@ -178,18 +178,10 @@ def test_sdf_resume_at_last_layer_makes_no_calls(tiny_config_file, outputs_root,
     run_sdf_main(monkeypatch, tiny_config_file)
 
     calls = stub_claude([])
-    run_sdf_main(monkeypatch, tiny_config_file, "--resume", "--layer", "4")
+    run_sdf_main(monkeypatch, tiny_config_file, "--resume", "--layer", "5")
     assert calls == []
     corpus = utils.load_jsonl(outputs_root / "sdf" / "latest" / "final" / "sdf_corpus.jsonl")
     assert len(corpus) == 2
-
-
-def test_sdf_rejects_a_pre_renumber_layer_number(tiny_config_file, stub_claude, monkeypatch):
-    """--layer 5 is refused rather than remapped, which would resume a paid run at the wrong stage."""
-    calls = stub_claude([])
-    with pytest.raises(SystemExit):
-        run_sdf_main(monkeypatch, tiny_config_file, "--resume", "--layer", "5")
-    assert calls == []
 
 
 # --- DAD ---------------------------------------------------------------

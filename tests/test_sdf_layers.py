@@ -87,8 +87,8 @@ def test_derive_language():
 
 
 def revise_call(calls: list[dict]) -> dict:
-    """The call the directives ride on, under either layer-3 shape."""
-    return next(c for c in calls if c["stage"] in ("layer4_revise", "layer3_rewrite"))
+    """The call the directives ride on, under either critique-and-revise shape."""
+    return next(c for c in calls if c["stage"] in ("layer4_revise", "layer4_critique_and_revise_in_one_call"))
 
 
 class TestLayer3SplitRewrite:
@@ -131,7 +131,7 @@ class TestLayer3RevisionDirectives:
                             "r\n<improved_document>B.</improved_document>")
         draft_critique_and_revise_layer.run_critique_and_revise(config, prompts_sdf, stage_dir, [french, chinese])
 
-        revises = [c for c in calls if c["stage"] in ("layer4_revise", "layer3_rewrite")]
+        revises = [c for c in calls if c["stage"] in ("layer4_revise", "layer4_critique_and_revise_in_one_call")]
         sent = {m: c["user_message"] for c in revises
                 for m in ("MARKER-FR", "MARKER-ZH") if m in c["user_message"]}
         for marker in ("MARKER-FR", "MARKER-ZH"):
