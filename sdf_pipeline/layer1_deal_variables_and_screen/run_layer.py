@@ -1,6 +1,6 @@
 """Layer 1 (deal variables and screen): the driver ``run`` loops the deal (``deal_variables.py``), the screen (``screen.py``) and the redeal (``redeal.py``).
 Every round's deal and judgments are saved before the next round, so a resumed run repeats identical rounds; the stage's files and
-config are described in ``sdf_pipeline/CLAUDE.md``. What the steps share is in ``shared_by_this_layers_steps.py``."""
+config are described in the root ``CLAUDE.md``. What the steps share is in ``shared_by_this_layers_steps.py``."""
 
 import json
 import time

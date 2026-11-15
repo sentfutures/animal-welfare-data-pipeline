@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """SDF matrix pipeline orchestrator: five layers (deal variables and screen; description write and description rewrite; consideration scoring and selection;
 draft, critique and revise; score and final selection), each a folder in ``sdf_pipeline/`` with a driver ``run_layer.py`` and one file per step.
-The step table and the layouts are in ``sdf_pipeline/CLAUDE.md``; a run keeps the layout it was created in (``shared/sdf_run_layouts.py``)."""
+The layouts are in ``shared/sdf_run_layouts.py``; a run keeps the layout it was created in."""
 
 import argparse
 import os
