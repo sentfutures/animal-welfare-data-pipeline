@@ -143,7 +143,7 @@ class WhereAnErrorIsAThrownCall(Flag):
 
 @dataclass(frozen=True)
 class StepPolicy:
-    """A step's attempts and failure rules (the exception policy is in ``sdf_pipeline/CLAUDE.md``).
+    """A step's attempts and failure rules (``WhereAnErrorIsAThrownCall`` says which errors are recorded as thrown calls).
     A thrown call is never retried within the run."""
     maximum_attempts_in_one_run: int = 1
     maximum_attempts_setting: str | None = None

@@ -1,4 +1,4 @@
-"""The critique, revise and one-call critique-and-revise steps of layer 4.
+"""The critique, revise and one-call critique-and-revise steps.
 
 Reading of each reply shape (accepted, no review tags, unusable, thrown call), the request
 read from the draft record, resume (zero calls for finished work; a failed revise after an accepted
