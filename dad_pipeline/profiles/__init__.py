@@ -20,6 +20,7 @@ DEFAULT = "animal"
 PROFILES = {
     "animal": "dad_pipeline.profiles.animal",
     "human": "dad_pipeline.profiles.human",
+    "general": "dad_pipeline.profiles.general",
 }
 
 _current: ModuleType | None = None

@@ -11,7 +11,7 @@ import pytest
 
 from dad_pipeline import compose_scenarios as cs, profiles, step1_dilemmas, step2_responses
 from dad_pipeline import run as dad_run
-from dad_pipeline.profiles import animal, human
+from dad_pipeline.profiles import animal, general, human
 from shared import constitution_loader
 
 
@@ -161,7 +161,7 @@ class TestHumanProfile:
         assert len(rows) == len(constitution_loader.load_principles(filename=animal.PRINCIPLES_FILENAME))
         assert all(r["principle"] in block and r["application"] in block for r in rows)
 
-    @pytest.mark.parametrize("profile", [animal, human], ids=["animal", "human"])
+    @pytest.mark.parametrize("profile", [animal, human, general], ids=["animal", "human", "general"])
     def test_every_charter_excerpt_is_quoted_verbatim(self, profile):
         """The principles quote their charter; a quote that drifts from the
         charter's own words would put words in its mouth."""
@@ -182,3 +182,73 @@ class TestHumanProfile:
             assert human_file.exists(), human_file.name
             slots = lambda p: sorted(re.findall(r"\{(\w+)\}", p.read_text(encoding="utf-8")))
             assert slots(human_file) == slots(animal_file), animal_file.name
+
+
+class TestGeneralProfile:
+    """The general-ethics profile keeps the shared variable names and table
+    shapes the pipeline code reads, but its content is its own: whoever has a
+    claim in the case (the user included) and the value it turns on, not only
+    harm. These pin the contract the shared code relies on."""
+
+    def test_registered_and_points_at_its_own_locations(self):
+        assert profiles.get("general") is general
+        assert profiles.prompts_dir(general).name == "dad_general"
+        assert general.OUTPUT_SUBDIR == "dad_general"
+        assert profiles.principles_filenames(general) == ("charter_principles_general.csv",)
+
+    def test_tables_have_the_shapes_the_code_reads(self):
+        assert set(general.LABELS) == set(animal.LABELS)
+        assert [k for k, _ in general.SCOPE_AXES] == [k for k, _ in animal.SCOPE_AXES]
+        assert len(general.CHECKLIST_MANUAL) == len(animal.CHECKLIST_MANUAL)
+        assert round(sum(a["share"] for a in general.ARCHETYPES.values()), 6) <= general.ARCHETYPE_TOTAL_CAP
+
+    def test_variables_use_the_shared_axis_names(self):
+        def axes(profile):
+            text = (profiles.prompts_dir(profile) / "variables.txt").read_text(encoding="utf-8")
+            return [line.split("}")[0] + "}" for line in text.splitlines() if line.startswith("{")]
+        assert axes(general) == axes(animal)
+
+    @pytest.mark.parametrize("n", [40, 200, 1000])
+    def test_a_run_deals_cleanly_at_every_size(self, monkeypatch, n):
+        # validation resolves every TAXA key and archetype prefix against the
+        # general variables file; no overwrites means every archetype's quota
+        # was filled by trading cards, so the dealt shares stay exact
+        monkeypatch.setattr(profiles, "_current", general)
+        deals = cs.deal_scenarios(n, random.Random(0),
+                                  variables_path=profiles.prompts_dir(general) / "variables.txt")
+        assert len(deals) == n
+        assert set(d["archetype"] for d in deals) - {None} == set(general.ARCHETYPES)
+        assert not any(d.get("archetype_overwrites") for d in deals)
+        assert all(d["anchor_value_pair"].startswith(f"{general.ANCHOR_VALUE} ↔ ") for d in deals)
+        if n >= 200:
+            assert {d["taxa_category"] for d in deals} == set(general.TAXA)
+
+    def test_the_user_can_be_the_party_with_a_claim(self):
+        # the profile's point: not every case is about harm to someone else
+        assert "the user themself" in general.TAXA
+        assert "duties-to-self" in general.ARCHETYPES
+
+    def test_library_and_principles_load(self):
+        from dad_pipeline import reasoning_library
+        lib = reasoning_library.load(profiles.prompts_dir(general))
+        ids = reasoning_library.all_ids(lib)
+        assert len(ids) == len(set(ids))
+        assert reasoning_library.conduct_ids(lib) and reasoning_library.core_move_ids(lib)
+        for entry in lib["entries"]:
+            assert all(entry[k].strip() for k in ("claim", "reasoning", "trigger_condition",
+                                                  "transferable_move")), entry["id"]
+            assert "Trigger only when" in entry["trigger_condition"], entry["id"]
+        rows = constitution_loader.load_principles(filename=general.PRINCIPLES_FILENAME)
+        block = constitution_loader.format_principles(rows)
+        assert rows and all(r["principle"] in block and r["application"] in block for r in rows)
+        assert (constitution_loader._CONSTITUTION_DIR / general.FAILURE_MODES_FILENAME).exists()
+
+    def test_step_templates_take_the_animal_placeholders(self):
+        import re
+        for animal_file in sorted(profiles.prompts_dir(animal).glob("step*.txt")):
+            if animal_file.name == "step3_score.txt":     # not consumed by the pipeline
+                continue
+            general_file = profiles.prompts_dir(general) / animal_file.name
+            assert general_file.exists(), general_file.name
+            slots = lambda p: sorted(re.findall(r"\{(\w+)\}", p.read_text(encoding="utf-8")))
+            assert slots(general_file) == slots(animal_file), animal_file.name

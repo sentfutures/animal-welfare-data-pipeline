@@ -94,7 +94,7 @@ sdf:
     use_length: true     # render the dealt {length} card as a target
 
 dad:
-  profile: animal  # content profile: dad_pipeline/profiles/<name>.py + prompts/<its folder>/ (animal = the original pipeline)
+  profile: animal  # content profile: dad_pipeline/profiles/<name>.py + prompts/<its folder>/ (animal = the original pipeline; human; general)
   # Per-stage model overrides (each falls back to the global `model`).
   # DAD runs on Opus 5.5 at every stage except the 1c gate, which is Sonnet 5.5: the
   # winners of the 2026-10/11 model-per-stage experiment (Sonnet stays the global/SDF default).
