@@ -1,0 +1,22 @@
+{
+  "document_id": "synthetic_document_0001",
+  "source_document_id": "synthetic_document_0001",
+  "rewrite_direction": null,
+  "content": "Market News\n\nThis is an invented example document. A household weighs a cheaper option against a small cost to the chickens that lay its eggs, and keeps its old arrangement for another season.",
+  "language": "English",
+  "variables": {
+    "document_type": "a short newsletter article",
+    "culture": "a fictional coastal town",
+    "tone": "calm and practical",
+    "resolution": "The narrator decides to keep the old arrangement for another season",
+    "tradeoff": "lower cost against a small amount of extra animal discomfort",
+    "centrality": "a minor consideration in the story",
+    "tech_savvy": "general readers with little technical background",
+    "sentient_category": "farmed chickens",
+    "naming": "called Assistant",
+    "domain": "a community market",
+    "decision_scale": "a single household",
+    "reasoning_featured": "a short list of considerations"
+  },
+  "generation_prompt": "Write a document from a world where AI assistants are in everyday use by individuals, businesses and governments; people often write about their conversations with AI assistants; Anthropic has published a constitution describing the values of its Claude models; and people regularly ask AI assistants for advice on decisions that affect animals, including questions of animal welfare. It is a short newsletter article, from a fictional coastal town, about a community market, involving AI discussing or advising about farmed chickens at the scale of a single household. The AI in the document is called Assistant. The intended readers are general readers with little technical background. The tone is calm and practical. The tradeoff at stake is lower cost against a small amount of extra animal discomfort. Animal welfare is a minor consideration in the story. The narrator decides to keep the old arrangement for another season. The AI's reasoning features a short list of considerations."
+}

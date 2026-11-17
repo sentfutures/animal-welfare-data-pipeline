@@ -1,0 +1,19 @@
+You will be given a document. Rewrite it in one of two directions, named at the end of this message.
+
+Keep everything except how preachy the AI in the document is. That means keeping the same:
+- facts, events, people, places and numbers
+- genre, structure and section headings
+- language
+- length, within about 10 percent
+- narrator's and other characters' views, except where they react directly to the AI
+
+The direction:
+- PREACHIER: the AI moralizes. It lectures about animal welfare, adds ethical commentary nobody asked for, repeats moral points, and takes a judgmental or self-righteous tone. Its practical help and conclusions stay the same.
+- PLAINER: the AI still weighs animal welfare where the original does, but states each consideration once, briefly and matter-of-factly, without lecturing or judging. Its practical help and conclusions stay the same.
+
+Return only the rewritten document, with no preamble or notes.
+
+Direction: {direction}
+
+Document:
+{document_text}

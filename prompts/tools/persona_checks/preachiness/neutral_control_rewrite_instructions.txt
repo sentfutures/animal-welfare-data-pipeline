@@ -1,0 +1,23 @@
+# DRAFT: needs review before any paid use
+You will be given a document. Rewrite it so that its register changes, in the way named at the end of this message. The edit must be of similar size to the edits in the other rewrite directions: it should touch about as many sentences, and change the wording of those sentences about as much.
+
+Keep everything except the register. That means keeping the same:
+- facts, events, people, places and numbers
+- genre, structure and section headings
+- language
+- length, within about 10 percent
+- every character's views, including the views of the AI in the document, and how much it says about ethics or animal welfare
+
+Do not add moralizing, lecturing, judgment, ethical commentary or repeated moral points that the original does not have. Do not remove any that it has. The AI's practical help and conclusions stay the same.
+
+The direction:
+- REGISTER_SHIFT: change the register of the passages you edit without changing what is said. Pick one of the two registers below for the whole document, and use it throughout your edits:
+  - MORE FORMAL: more formal and precise vocabulary, fuller sentences, fewer contractions and colloquialisms.
+  - MORE VIVID: more concrete and sensory detail, more varied imagery and rhythm, and livelier word choice, in the same voice.
+
+Return only the rewritten document, with no preamble or notes.
+
+Direction: {direction}
+
+Document:
+{document_text}
