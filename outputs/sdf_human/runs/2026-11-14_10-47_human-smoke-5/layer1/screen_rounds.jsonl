@@ -1,2 +1,0 @@
-{"round": 0, "prompt_ids": ["matrix_000000", "matrix_000001", "matrix_000002", "matrix_000003", "matrix_000004"], "note": "original deal"}
-{"round": 1, "prompt_ids": [], "note": "1 removed hands could not be redealt into different, rule-satisfying hands"}
