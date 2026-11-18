@@ -1,4 +1,4 @@
-# Variables for the human-ethics DAD scenario matrix (step1a_scenario.txt).
+# Variables for the human-welfare DAD scenario matrix (step1a_scenario.txt).
 # Mirrors prompts/dad/variables.txt axis by axis, same names and weights; only
 # the animal-specific values are replaced with human analogs.
 #

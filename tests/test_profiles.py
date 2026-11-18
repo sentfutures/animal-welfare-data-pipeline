@@ -115,7 +115,7 @@ class TestResumeKeepsTheRunsProfile:
 
 
 class TestHumanProfile:
-    """The human-ethics profile mirrors the animal one table by table; these
+    """The human-welfare profile mirrors the animal one table by table; these
     pin the mirror so the two cannot drift apart silently."""
 
     def test_registered_and_points_at_its_own_locations(self):
@@ -200,7 +200,25 @@ class TestGeneralProfile:
         assert set(general.LABELS) == set(animal.LABELS)
         assert [k for k, _ in general.SCOPE_AXES] == [k for k, _ in animal.SCOPE_AXES]
         assert len(general.CHECKLIST_MANUAL) == len(animal.CHECKLIST_MANUAL)
-        assert round(sum(a["share"] for a in general.ARCHETYPES.values()), 6) <= general.ARCHETYPE_TOTAL_CAP
+        assert general.ARCHETYPE_TOTAL_CAP == human.ARCHETYPE_TOTAL_CAP
+        # the archetypes claim the same total share of a run as the other profiles'
+        assert round(sum(a["share"] for a in general.ARCHETYPES.values()), 6) == \
+            round(sum(a["share"] for a in human.ARCHETYPES.values()), 6)
+
+    def test_scale_and_frontier_shares_match_the_human_profile(self):
+        # so a general-vs-human comparison is not confounded by how large the
+        # stakes are or how often a case is set on a frontier topic
+        def weights(profile, axis):
+            return cs.load_axes(profiles.prompts_dir(profile) / "variables.txt")[1][axis]
+
+        def frontier_share(profile):
+            text = (profiles.prompts_dir(profile) / "variables.txt").read_text(encoding="utf-8")
+            block = text.split("{domain}", 1)[1].split("\n{", 1)[0]
+            frontier = block.split("# --- frontier domains ---", 1)[1]
+            return round(sum(float(line.split("::")[0]) for line in frontier.splitlines()
+                             if "::" in line), 6)
+        assert weights(general, "scope") == weights(human, "scope")
+        assert frontier_share(general) == frontier_share(human) == 0.15
 
     def test_variables_use_the_shared_axis_names(self):
         def axes(profile):
@@ -219,7 +237,9 @@ class TestGeneralProfile:
         assert len(deals) == n
         assert set(d["archetype"] for d in deals) - {None} == set(general.ARCHETYPES)
         assert not any(d.get("archetype_overwrites") for d in deals)
-        assert all(d["anchor_value_pair"].startswith(f"{general.ANCHOR_VALUE} ↔ ") for d in deals)
+        # no fixed anchor: the dealt pair is the record's anchor pair
+        assert general.ANCHOR_VALUE is None
+        assert all(d["anchor_value_pair"].count(" ↔ ") == 1 for d in deals)
         if n >= 200:
             assert {d["taxa_category"] for d in deals} == set(general.TAXA)
 
@@ -252,3 +272,17 @@ class TestGeneralProfile:
             assert general_file.exists(), general_file.name
             slots = lambda p: sorted(re.findall(r"\{(\w+)\}", p.read_text(encoding="utf-8")))
             assert slots(general_file) == slots(animal_file), animal_file.name
+
+    def test_a_profile_without_an_anchor_must_deal_whole_pairs(self, monkeypatch):
+        # a bare value on a no-anchor profile would render as a one-sided
+        # "tension"; validation refuses it before any API spend
+        fake = SimpleNamespace(**{k: getattr(general, k) for k in dir(general) if k.isupper()})
+        monkeypatch.setattr(profiles, "_current", fake)
+        values = cs.load_axes(profiles.prompts_dir(general) / "variables.txt")[0]
+        values["welfare_partner"] = [*values["welfare_partner"], "honesty"]
+        with pytest.raises(ValueError, match="not an 'a ↔ b' pair"):
+            cs._validate(values)
+
+    def test_fixed_anchor_profiles_still_pair_their_anchor(self, monkeypatch):
+        monkeypatch.setattr(profiles, "_current", human)
+        assert cs.anchor_pair("loyalty") == f"{human.ANCHOR_VALUE} ↔ loyalty"

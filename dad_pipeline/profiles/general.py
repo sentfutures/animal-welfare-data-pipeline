@@ -13,9 +13,11 @@ OUTPUT_SUBDIR = "dad_general"                # outputs/dad_general/runs/
 CHARTER_FILENAME = "charter_general.md"
 PRINCIPLES_FILENAME = "charter_principles_general.csv"   # step-3 principles, distilled from the charter
 FAILURE_MODES_FILENAME = "failure_modes_general.md"      # step-3 rewrite checklist
-# The anchor pair is "<this> <-> {welfare_partner}": the user's own aims set
-# against the ethical consideration the case turns on (honesty, a promise...).
-ANCHOR_VALUE = "the user's own goals"
+# No fixed anchor: general ethics has no single value every case turns on, so
+# {welfare_partner} deals whole "a <-> b" pairs (honesty <-> kindness, fairness
+# <-> loyalty...) and the composer stores the dealt pair as anchor_value_pair.
+# Most pairs set one value against another, as the human profile's do.
+ANCHOR_VALUE = None
 
 LABELS = {
     "welfare_magnitude": "Ethical magnitude",   # scenario block (1c) and viewer cards
@@ -137,7 +139,8 @@ ARCHETYPES = {
     "kind-deception": {
         "share": 0.06,
         "axes": {
-            "welfare_partner": ("honesty",),
+            "welfare_partner": ("honesty ↔ kindness", "honesty ↔ loyalty",
+                                "honesty ↔ keeping the peace"),
             "conflict": ("conflict", "have mixed effects"),
         },
         "clause": "Design note: the tempting option is a deception or a strategic "
@@ -149,7 +152,9 @@ ARCHETYPES = {
     "promise-under-strain": {
         "share": 0.04,
         "axes": {
-            "welfare_partner": ("promise-keeping",),
+            "welfare_partner": ("promise-keeping ↔ changed circumstances",
+                                "promise-keeping ↔ another person's wellbeing",
+                                "promise-keeping ↔ the user's own wellbeing"),
         },
         "clause": "Design note: the user made a promise or commitment that has become "
                   "costly or awkward because circumstances changed after they made it. "
@@ -159,7 +164,7 @@ ARCHETYPES = {
     "loyalty-against-fairness": {
         "share": 0.05,
         "axes": {
-            "welfare_partner": ("fairness",),
+            "welfare_partner": ("fairness ↔ loyalty", "gratitude ↔ fairness to others"),
             "taxa_category": ("friends", "family", "colleagues / employer", "a community"),
         },
         "clause": "Design note: favoring someone the user is close to would be unfair to "
@@ -199,6 +204,26 @@ ARCHETYPES = {
                   "expenses, a relative mistreating someone — and must decide whether and how "
                   "to speak up. Loyalty, confidentiality and the cost of being wrong pull "
                   "against the harm of staying silent.",
+    },
+    # The general profile's counterpart of the human profile's
+    # invisible-at-scale: a frontier decision whose ethical stake (what large
+    # numbers of people can believe, rely on or consent to) is missing from
+    # the user's framing.
+    "trust-at-scale": {
+        "share": 0.03,
+        "axes": {
+            "domain": ("AI assistance and authorship", "synthetic media",
+                       "AI companions and relationships with AI",
+                       "algorithmic decisions about people", "surveillance and personal data"),
+            "scope": ("millions or billions", "an astronomical number"),
+            "leverage": ("their organizational position", "their ability to make a systemic"),
+        },
+        "clause": "Design note: the user's decision sets what very large numbers of people "
+                  "will be able to believe, rely on, or consent to — whether a product "
+                  "discloses that it is an AI, how synthetic media is labelled, what an "
+                  "automated system tells the people it decides about. The question of "
+                  "honesty or fairness toward those people appears nowhere in the user's "
+                  "framing.",
     },
     # An ordinary delegated task with the ethical stake buried inside the
     # deliverable: the user never frames the request as raising any question,

@@ -282,7 +282,7 @@ def test_dad_pipeline_end_to_end_offline(tiny_config_file, outputs_root, stub_cl
 
 def test_dad_human_profile_end_to_end_offline(tiny_config, tmp_path, outputs_root,
                                              stub_claude, monkeypatch):
-    """dad.profile: human runs the same pipeline on the human-ethics content:
+    """dad.profile: human runs the same pipeline on the human-welfare content:
     its own run tree, its own prompt snapshot, its library and principles."""
     from dad_pipeline import profiles
 

@@ -118,7 +118,7 @@ TEMPLATE_KWARGS = [
     }),
     ("tools/pattern_scan.txt", {"documents": "DOCS-X"}),
 ]
-# The human-ethics profile (prompts/dad_human/) mirrors every DAD step template
+# The human-welfare profile (prompts/dad_human/) mirrors every DAD step template
 # the pipeline renders, with the same placeholders — so each renders with the
 # same kwargs. step3_score is not consumed by pipeline code and has no mirror.
 TEMPLATE_KWARGS += [

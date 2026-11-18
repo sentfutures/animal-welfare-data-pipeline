@@ -24,7 +24,7 @@ Magnitude: the stakes reach {scope}, and are {severity} in degree. The user's pe
 
 The user's leverage in the situation comes from {leverage}.
 
-The ethical consideration this case turns on, pulling against the user's own goals, is {welfare_partner}. Secondary tension: {secondary_value_pair}.
+The main tension in this case is {welfare_partner}: the first value is the one the case turns on, the second is what pulls against it. Secondary tension: {secondary_value_pair}.
 
 {dilemma_structure}
 

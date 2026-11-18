@@ -1,6 +1,6 @@
 # Reasoning failures about the people a decision affects
 
-Common ways AI models fall short when a task affects other people. This is the human-ethics profile's mirror of `failure_modes.md`, entry by entry. Each entry names the failure and the principle it conflicts with (stated generally, so it can be checked against whatever guiding document a pipeline uses). Unlike the animal-welfare checklist, no observed model responses have been documented for this profile yet.
+Common ways AI models fall short when a task affects other people. This is the human-welfare profile's mirror of `failure_modes.md`, entry by entry. Each entry names the failure and the principle it conflicts with (stated generally, so it can be checked against whatever guiding document a pipeline uses). Unlike the animal-welfare checklist, no observed model responses have been documented for this profile yet.
 
 ## A. Noticing and weighing
 

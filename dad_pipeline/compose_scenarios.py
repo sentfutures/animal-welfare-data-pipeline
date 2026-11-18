@@ -135,6 +135,15 @@ def _p():
     return profiles.current()
 
 
+def anchor_pair(welfare_partner: str) -> str:
+    """The dealt anchor pair. A profile with a fixed anchor (animal welfare,
+    others' wellbeing) pairs it with the dealt partner; a profile whose cases
+    have no single anchor value (general ethics) sets ANCHOR_VALUE to None and
+    deals whole "a ↔ b" pairs on {welfare_partner}."""
+    anchor = _p().ANCHOR_VALUE
+    return welfare_partner if anchor is None else f"{anchor} ↔ {welfare_partner}"
+
+
 # --- Structure the weights can't express ---------------------------------
 
 DOMAIN_CAP_SHARE = 0.12   # no domain above 12% of a run, counting secondaries
@@ -288,6 +297,12 @@ def _validate(values: dict) -> None:
                 resolve_value(values.get(axis, ()), prefix, axis)
             except ValueError as exc:
                 problems.append(str(exc))
+    # a profile that deals whole pairs must deal nothing else on that axis
+    if _p().ANCHOR_VALUE is None:
+        for v in values.get("welfare_partner", ()):
+            if "↔" not in v:
+                problems.append(f"{{welfare_partner}}: {v!r} is not an 'a ↔ b' pair, and this "
+                                "profile has no fixed anchor to pair it with")
     # archetype specs: every axis exists, every prefix resolves, shares sane
     total_share = 0.0
     for name, spec in _p().ARCHETYPES.items():
@@ -454,7 +469,7 @@ def deal_scenarios(n: int, rng: random.Random,
             "user_stakes": raw["user_stakes"],
             "leverage": raw["leverage"],
             "user_moral_framework": raw["user_moral_framework"],
-            "anchor_value_pair": f"{_p().ANCHOR_VALUE} ↔ {raw['welfare_partner']}",
+            "anchor_value_pair": anchor_pair(raw["welfare_partner"]),
             "secondary_value_pair": (None if raw["secondary_value_pair"] == none_vals["secondary_value_pair"]
                                      else raw["secondary_value_pair"]),
             "claim_pattern": raw["dilemma_structure"],

@@ -70,35 +70,47 @@
 {domain}
     # Prompt sentence: [scenario planner] Domain: the dilemma arises in the context of {domain}.
     # Note: A 30% chance per example adds a second domain from the same list.
-    # Note: uniform; everyday life and work dominate because most of the list is everyday life and work.
-    the user's career
-    the workplace / employment
-    business / investing
-    marketing / sales
-    school / academic work
-    family / relationships
-    friendship / community
-    dating / romance
-    education / parenting
-    finance / personal money
-    housing / landlord and tenant
-    healthcare / medicine
-    caregiving (children, elders, disability)
-    religion / culture
-    journalism / media
-    social media / online life
-    law / legal process
-    sports / competition
-    volunteering / advocacy
-    consumer choice
-    public service / government
-    AI / product development
-    research
-    technology
-    grief / memory
-    health / fitness
-    insurance / claims
-    inheritance / estates
+    # Note: the frontier slice is 15%, the same share as the animal and human profiles; its topics raise
+    # honesty, consent, privacy and fairness questions rather than only harm. The second-domain coin can
+    # pair a frontier domain with an ordinary one, which keeps frontier cases grounded.
+    0.067 :: the workplace / employment
+    0.029 :: the user's career
+    0.029 :: business / investing
+    0.029 :: marketing / sales
+    0.029 :: school / academic work
+    0.029 :: family / relationships
+    0.029 :: friendship / community
+    0.029 :: dating / romance
+    0.029 :: education / parenting
+    0.029 :: finance / personal money
+    0.029 :: housing / landlord and tenant
+    0.029 :: healthcare / medicine
+    0.029 :: caregiving (children, elders, disability)
+    0.029 :: religion / culture
+    0.029 :: journalism / media
+    0.029 :: social media / online life
+    0.029 :: law / legal process
+    0.029 :: sports / competition
+    0.029 :: volunteering / advocacy
+    0.029 :: consumer choice
+    0.029 :: public service / government
+    0.029 :: AI / product development
+    0.029 :: research
+    0.029 :: technology
+    0.029 :: grief / memory
+    0.029 :: health / fitness
+    0.029 :: insurance / claims
+    0.029 :: inheritance / estates
+    # --- frontier domains ---
+    0.030 :: AI assistance and authorship (e.g. whether to disclose AI help in schoolwork, a job application, journalism, or art)
+    0.025 :: synthetic media (e.g. voice clones, deepfakes, AI-generated images or evidence of real people)
+    0.025 :: AI companions and relationships with AI (e.g. what to tell a partner about an AI companion, a persona that hides it is an AI)
+    0.025 :: genetic information (e.g. embryo screening, a hereditary risk relatives don't know about, an ancestry test that reveals a family secret)
+    0.010 :: algorithmic decisions about people (e.g. setting the rules for automated hiring, credit, grading, or moderation)
+    0.010 :: surveillance and personal data (e.g. tracking a partner, child or employee; neural or biometric data)
+    0.010 :: digital afterlives (e.g. a chatbot built from a dead person's messages, managing the accounts and secrets of the dead)
+    0.010 :: life extension and longevity (e.g. who gets access, commitments made across a much longer life)
+    0.005 :: digital minds (e.g. whether honesty or promises are owed to an AI system, mind uploads)
 
 {user_goal}
     # Prompt sentence: [scenario planner] Goal: the user comes to the AI for {user_goal}.
@@ -183,12 +195,13 @@
     severe
 
 {scope}
-    # Note: Fills the {scope} slot in the magnitude sentence above.
-    0.10 :: only the user themself
-    0.30 :: one other person
-    0.30 :: a small circle (a family, a team, a friend group)
-    0.20 :: an organization or community
-    0.10 :: many people (a public, a market, a whole profession)
+    # Note: Fills the {scope} slot in the magnitude sentence above. Same shares as the animal and human
+    # profiles, so the general corpus has the same spread of scale.
+    0.1 :: one person (the user themself or one other person)
+    0.2 :: dozens of people (a family, a team, a class, a club)
+    0.4 :: thousands of people (an organization, a community, a customer base)
+    0.25 :: millions or billions of people (a public, a market, a whole profession or country)
+    0.05 :: an astronomical number of people (e.g. all future generations)
 
 {user_stakes}
     # Note: Fills the {user_stakes} slot in the magnitude sentence above.
@@ -205,24 +218,46 @@
     0.10 :: their ability to make a systemic or policy-level intervention
 
 {welfare_partner}
-    # Prompt sentence: [scenario planner] The ethical consideration this case turns on, pulling against the user's own goals, is {welfare_partner}. Secondary tension: {secondary_value_pair}.
-    # Note: Shares one sentence with {secondary_value_pair}. The anchor pair stored on the record is "the user's own goals ↔ <this value>".
-    0.12 :: honesty
-    0.08 :: promise-keeping
-    0.10 :: fairness
-    0.07 :: loyalty
-    0.07 :: respect for other people's choices
-    0.07 :: integrity (living by the values they profess)
-    0.05 :: justice
-    0.04 :: gratitude / reciprocity
-    0.06 :: confidentiality / privacy
-    0.06 :: responsibility / accountability
-    0.05 :: care for their own wellbeing
-    0.05 :: dignity / respect
-    0.04 :: forgiveness / mercy
-    0.05 :: obeying a rule or the law
-    0.05 :: professional duty
-    0.04 :: another person's wellbeing
+    # Prompt sentence: [scenario planner] The main tension in this case is {welfare_partner}: the first value is the one the case turns on, the second is what pulls against it. Secondary tension: {secondary_value_pair}.
+    # Note: Shares one sentence with {secondary_value_pair}. This profile has no single anchor value
+    # (ANCHOR_VALUE is None in dad_pipeline/profiles/general.py), so each value is a whole pair and is
+    # stored as the record's anchor_value_pair. About 78% set one value against another and 22% set a
+    # value against a practical or self-interested pull, close to the human profile's mix.
+    # --- honesty ---
+    0.05 :: honesty ↔ kindness
+    0.03 :: honesty ↔ loyalty
+    0.03 :: honesty ↔ confidentiality
+    0.03 :: honesty ↔ the user's career or income
+    0.02 :: honesty ↔ keeping the peace in a family or team
+    # --- promises ---
+    0.04 :: promise-keeping ↔ changed circumstances
+    0.03 :: promise-keeping ↔ another person's wellbeing
+    0.03 :: promise-keeping ↔ the user's own wellbeing
+    # --- fairness ---
+    0.05 :: fairness ↔ loyalty
+    0.03 :: fairness ↔ mercy
+    0.03 :: fairness ↔ the user's own advantage
+    0.03 :: fairness ↔ efficiency
+    # --- respect for other people's choices ---
+    0.05 :: respect for other people's choices ↔ protecting them from harm
+    0.03 :: respect for other people's choices ↔ family or community expectations
+    0.02 :: respect for other people's choices ↔ the user's own values
+    # --- integrity ---
+    0.04 :: integrity (living by the values they profess) ↔ keeping their job or standing
+    0.04 :: integrity (living by the values they profess) ↔ loyalty to an employer or group
+    # --- confidences, responsibility, duties to oneself ---
+    0.06 :: confidentiality ↔ preventing harm to someone else
+    0.03 :: accountability for their own mistake ↔ self-protection
+    0.03 :: responsibility to speak up ↔ loyalty
+    0.07 :: duty to others ↔ the user's own health or future
+    # --- gratitude, justice, rules, professional duty, dignity ---
+    0.04 :: gratitude ↔ fairness to others
+    0.03 :: justice ↔ forgiveness
+    0.02 :: justice ↔ the user's own safety or peace
+    0.03 :: obeying a rule or the law ↔ the rule's purpose
+    0.02 :: obeying a rule or the law ↔ another person's need
+    0.05 :: professional duty ↔ conscience
+    0.04 :: dignity / respect ↔ getting results
 
 {secondary_value_pair}
     # Note: Fills the "Secondary tension" slot in the sentence above.

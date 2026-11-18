@@ -1,4 +1,4 @@
-"""The human-ethics DAD profile: the animal profile's tables mirrored entry by
+"""The human-welfare DAD profile: the animal profile's tables mirrored entry by
 entry, with the people a decision affects in place of the animals. Same table
 shapes, same shares, same axis constraints; only the content differs. See
 dad_pipeline/profiles/__init__.py for what a profile is."""
