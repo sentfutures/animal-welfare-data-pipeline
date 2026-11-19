@@ -11,7 +11,7 @@ import pytest
 import yaml
 
 from evals import variable_persistence_sdf as vp
-from sdf_pipeline import compose_prompts as cp
+from sdf_pipeline.shared_step_machinery import compose_prompts as cp
 
 DESCRIPTION_MARKER = "SECRET-DESCRIPTION-TEXT-DO-NOT-LEAK"
 

@@ -7,12 +7,12 @@ OpenAI route and pin the stage files, the rejections file, resume and the stop r
 
 import pytest
 
-from sdf_pipeline import layer1_description_rewrite as rewrite
-from sdf_pipeline.layer1_description_rewrite import STEP
+from sdf_pipeline.layer2_description_write_and_description_rewrite import description_rewrite as rewrite
+from sdf_pipeline.layer2_description_write_and_description_rewrite.description_rewrite import STEP
 from sdf_pipeline.shared_step_machinery.update_steps import Accepted, Failed, FailureKind, Removed, StepProgress, WhatAFailedDocumentDoes
 from sdf_step_and_command_line_test_helpers import outcome_of, records_of, reply, run_of
 from shared import api, openai_api
-from sdf_pipeline.shared_step_machinery.step_record import LAYER1
+from shared.sdf_run_layouts import DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE
 from sdf_description_rewrite_test_builders import answer, make_plans
 
 CLAUDE_MODEL = "claude-sonnet-5"
@@ -26,7 +26,7 @@ def plans(prompts_sdf):
 
 def make_run(config, prompts_sdf, tmp_path, model):
     config["sdf"]["description_rewrite_model"] = model
-    return run_of(config, prompts_sdf, LAYER1, tmp_path)
+    return run_of(config, prompts_sdf, DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE, tmp_path)
 
 
 @pytest.fixture(params=[CLAUDE_MODEL, OPENAI_MODEL], ids=["claude_route", "openai_route"])

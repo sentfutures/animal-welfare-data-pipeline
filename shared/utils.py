@@ -13,6 +13,8 @@ from datetime import datetime, UTC
 
 import yaml
 
+from shared import sdf_run_layouts
+
 
 def parallel_map(fn, items: list, workers: int):
     """Map fn over items with a thread pool, yielding results in input order.
@@ -53,78 +55,62 @@ def ensure_dir(path: str | Path) -> Path:
     return p
 
 
-# ---------------------------------------------------------------- SDF layout
-#
-# The SDF layers were renumbered from 1-2/3/4/5 to 1/2/3/4 (composition and
-# planning had been counted as two layers when only one call is made). Runs
-# made before the renumber keep the old directory names, and they are read by
-# the viewer, evals/report_sdf.py and the handoff page, so both layouts have to
-# resolve.
-#
-# The two layouts OVERLAP rather than merely differ: old "layer3" holds drafts
-# while new "layer3" holds rewrites, and old "layer4" holds rewrites while new
-# "layer4" holds scores. A resolver that tried the new directory name first and
-# fell back to the old one would therefore read an old run's drafts as its
-# rewrites. So resolution keys off the OUTPUT FILE, whose basename is unique per
-# stage, and a stage directory alone is only ever resolved for writing.
-_SDF_STAGE_DIRS = {1: ("layer1", "layer12"), 2: ("layer2", "layer3"),
-                   3: ("layer3", "layer4"), 4: ("layer4", "layer5")}
+# ---- SDF layout ----
+# A run's stage folders are named by its layout (``shared/sdf_run_layouts.py``) and found by folder KEY, never by trying a name and falling back;
+# the layouts are told apart by folder names (the pre-renumber and four-layer ones overlap on ``layer3``/``layer4``; ``layer12`` separates them).
 
-# stage key -> (layer number, output filename)
-_SDF_STAGE_FILES = {"dealt": (1, "prompts.jsonl"), "plan": (1, "plans.jsonl"),
-                    "draft": (2, "drafts.jsonl"), "rewrite": (3, "rewrites.jsonl"),
-                    "score": (4, "scores.jsonl")}
+# stage key -> (folder key, output filename)
+_SDF_STAGE_FILES = {"dealt": (sdf_run_layouts.DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE, "prompts.jsonl"),
+                    "plan": (sdf_run_layouts.DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE, "plans.jsonl"),
+                    "draft": (sdf_run_layouts.DRAFT, "drafts.jsonl"),
+                    "rewrite": (sdf_run_layouts.CRITIQUE_AND_REVISE, "rewrites.jsonl"),
+                    "score": (sdf_run_layouts.SCORE, "scores.jsonl")}
+
+
+def sdf_layout_of_run(run_dir: str | Path) -> sdf_run_layouts.SdfRunLayout:
+    """The layout of a run folder: told by its folder names, else its manifest's record, else (a folder
+    with neither: a run not created yet) the five-layer layout every new run uses."""
+    run = Path(run_dir)
+    layout = sdf_run_layouts.layout_of_run_folder(run)
+    if layout is None and (run / "run_manifest.json").is_file():
+        manifest = json.loads((run / "run_manifest.json").read_text(encoding="utf-8"))
+        layout = sdf_run_layouts.layout_of_run_folder(run, manifest)
+    return layout or sdf_run_layouts.FIVE_NAMED_LAYERS
+
+
+def sdf_stage_folder(run_dir: str | Path, folder_key: str) -> Path:
+    """The folder of one kind of SDF stage file (a ``sdf_run_layouts`` folder key) in the run's own layout,
+    for reading and writing."""
+    return sdf_layout_of_run(run_dir).folder_of(run_dir, folder_key)
 
 
 def sdf_stage_dir(run_dir: str | Path, layer: int) -> Path:
-    """The directory for one SDF layer, honouring a pre-renumber run's layout.
-
-    The layout is decided ONCE for the whole run, not per layer, because the two
-    naming schemes overlap: a pre-renumber run already contains a "layer4" (its
-    rewrites), so asking "does layer4 exist?" when resolving layer 4 — the score
-    stage, which such a run keeps in "layer5" — answers yes for the wrong
-    directory and a resume would write scores over rewrites. Only "layer12"
-    appears in the old scheme and never in the new one, so it is the marker.
-    """
-    run = Path(run_dir)
-    new, old = _SDF_STAGE_DIRS[layer]
-    return run / (old if (run / "layer12").is_dir() else new)
+    """The folder of ``--layer`` number ``layer`` of the run, in the run's own layout (1 to 5 in the
+    five-layer layout, 1 to 4 in the four-layer one). Where the layout has two folders for a layer, the first."""
+    layout = sdf_layout_of_run(run_dir)
+    if layer not in layout.layer_numbers:
+        raise KeyError(layer)
+    return layout.folder_of(run_dir, layout.folder_key_of_layer(layer))
 
 
-# Layer number -> (current template name, pre-renumber template name).
-_SDF_TEMPLATES = {1: ("layer1.txt", "layers1-2.txt"), 2: ("layer2.txt", "layer3.txt"),
-                  3: ("layer3.txt", "layer4.txt"), 4: ("layer4.txt", "layer5.txt")}
+def sdf_stage_dir_of_existing_run(run_dir: str | Path, layer: int) -> Path:
+    """``sdf_stage_dir`` for reading a run in any layout."""
+    return sdf_stage_dir(run_dir, layer)
+
+
+_SDF_TEMPLATES = {1: "layer1.txt", 2: "layer2.txt", 3: "layer3.txt", 4: "layer4.txt"}
 
 
 def sdf_template_path(prompts_dir: str | Path, layer: int) -> Path:
-    """One layer's prompt template, honouring a pre-renumber snapshot.
-
-    Each run freezes its templates into inputs/prompts/, so --resume on a run
-    started before the renumber must read that run's own OLD filenames. The old
-    names overlap the new ones (old layer3.txt is the draft template, new
-    layer3.txt is the rewrite template), so the layout is decided once for the
-    whole directory rather than per file: only a pre-renumber snapshot contains
-    ``layers1-2.txt``, and that file is the marker.
-    """
-    d = Path(prompts_dir)
-    new, old = _SDF_TEMPLATES[layer]
-    return d / (old if (d / "layers1-2.txt").exists() else new)
+    """One layer's prompt template (a run's frozen snapshot or ``prompts/sdf``). The template file names do not
+    change with the layers; ``layer`` is the number in their names (1 deal, 2 draft, 3 critique and revise, 4 score)."""
+    return Path(prompts_dir) / _SDF_TEMPLATES[layer]
 
 
 def sdf_stage_file(run_dir: str | Path, stage: str) -> Path:
-    """Path to one SDF stage's output jsonl, honouring a pre-renumber layout.
-
-    ``stage`` is one of dealt/plan/draft/rewrite/score — named, not numbered,
-    because the numbers moved and the names did not. Falls back to the old
-    location only if the file is actually there; otherwise returns the current
-    path, so a missing-file message names the layout in use today.
-    """
-    layer, filename = _SDF_STAGE_FILES[stage]
-    new, old = _SDF_STAGE_DIRS[layer]
-    run = Path(run_dir)
-    if not (run / new / filename).exists() and (run / old / filename).exists():
-        return run / old / filename
-    return run / new / filename
+    """Path to one SDF stage's output jsonl in the run's layout (read-only); ``stage`` is dealt/plan/draft/rewrite/score, named because numbers differ between layouts."""
+    folder_key, filename = _SDF_STAGE_FILES[stage]
+    return sdf_stage_folder(run_dir, folder_key) / filename
 
 
 def save_jsonl(data: list[dict], path: str | Path, append: bool = False) -> None:
@@ -528,12 +514,13 @@ def create_run_dir(
     label: str,
     config: dict,
     snapshot_dirs: dict[str, Path] | None = None,
+    extra_manifest_fields: dict | None = None,
 ) -> Path:
     """Create a new run directory with a manifest, and point the `latest` symlink at it.
 
     snapshot_dirs maps name -> source directory; each is copied into
     run_dir/inputs/<name> so the run stays reproducible even after the
-    source files (prompt templates, constitution) change.
+    source files (prompt templates, constitution) change. ``extra_manifest_fields`` are added to the manifest as given.
     """
     runs_root = Path(runs_root)
     run_id = new_run_id(label)
@@ -561,6 +548,7 @@ def create_run_dir(
         "inputs_snapshot": bool(snapshot_dirs),
         "model": config.get("model"),
         "config": config,
+        **(extra_manifest_fields or {}),
     }
     with open(run_dir / "run_manifest.json", "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=2)

@@ -38,7 +38,7 @@ variable-meanings file or the model differs from what the folder recorded (or if
 folder recorded none).
 
 Config (``sdf`` section): ``variable_persistence_model`` (falls back to
-``score_model``, then ``plan_model``, then the global ``model``),
+``score_model``, then ``description_write_model``, then the global ``model``),
 ``variable_persistence_max_attempts`` (default 3); the global ``workers`` sets the
 thread pool.
 """
@@ -60,8 +60,9 @@ from evals.audit_sdf import resolve_input
 from evals.model_judged_audit_support import (
     SMALL_SAMPLE_CHECKS_DIRECTORY_NAME, check_resume_is_compatible, corpus_path_of, sha256_of_file,
     write_run_configuration)
-from sdf_pipeline import compose_prompts as cp
-from sdf_pipeline import considerations_catalog
+from sdf_pipeline.shared_step_machinery import compose_prompts as cp
+from sdf_pipeline.compatibility_with_runs_made_by_earlier_code.renamed_model_settings import model_setting
+from sdf_pipeline.shared_step_machinery import considerations_catalog
 from shared import api, utils
 from shared.api_keys import add_api_key_source_flags, apply_api_key_source_flags
 
@@ -465,7 +466,7 @@ def dry_run(records: list[dict], context: JudgeContext, model: str | None, confi
 
 def resolve_model(config: dict) -> str | None:
     sdf = config.get("sdf", {})
-    return (sdf.get("variable_persistence_model") or sdf.get("score_model") or sdf.get("plan_model") or None)
+    return (sdf.get("variable_persistence_model") or sdf.get("score_model") or model_setting(sdf, "description_write_model") or None)
 
 
 def select_records(records: list[dict], doc_ids: list[str] | None, sample: int | None, seed: int) -> list[dict]:

@@ -6,7 +6,7 @@
 up covered, the latter on the final corpus records.
 """
 
-from sdf_pipeline.considerations_catalog import (
+from sdf_pipeline.shared_step_machinery.considerations_catalog import (
     LIST_NAMES, MORAL_LIST, ConsiderationCatalog, target_count,
 )
 

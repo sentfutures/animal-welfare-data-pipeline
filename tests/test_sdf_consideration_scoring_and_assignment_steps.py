@@ -3,19 +3,19 @@ arm, resume) and the assignment as a plain function (solved again over every doc
 
 import pytest
 
-from sdf_pipeline import layer1_select_considerations as select
-from sdf_pipeline.considerations_catalog import load_considerations
+from sdf_pipeline.layer3_consideration_scoring_and_selection import run_layer as select
+from sdf_pipeline.shared_step_machinery.considerations_catalog import load_considerations
 from sdf_pipeline.shared_step_machinery.update_steps import Accepted, Failed, FailureKind, ModelReply, StepProgress
 from sdf_step_and_command_line_test_helpers import outcome_of, records_of, run_of
 from shared import utils
-from sdf_pipeline.shared_step_machinery.step_record import LAYER1
+from shared.sdf_run_layouts import CONSIDERATION_SCORING_AND_SELECTION
 from sdf_consideration_selection_test_builders import (
     answer_with, make_plans, no_stake_resolution, rows_of, score_everything_five, small_prompts)  # noqa: F401
 
 
 @pytest.fixture
 def scoring_run(tiny_config, small_prompts, stage_dir):
-    return run_of(tiny_config, small_prompts, LAYER1, stage_dir)
+    return run_of(tiny_config, small_prompts, CONSIDERATION_SCORING_AND_SELECTION, stage_dir)
 
 
 PLAN = make_plans(1)[0]
@@ -79,10 +79,10 @@ def test_the_failure_record_and_line_for_unusable_and_thrown(scoring_run):
 
 def test_the_no_welfare_stake_arm_and_undescribed_plans_are_skipped(tiny_config, small_prompts, stage_dir):
     plans = make_plans(4, no_stake={1}, incoherent={2}, resolution=no_stake_resolution(small_prompts))
-    skipping = run_of(tiny_config, small_prompts, LAYER1, stage_dir)
+    skipping = run_of(tiny_config, small_prompts, CONSIDERATION_SCORING_AND_SELECTION, stage_dir)
     assert [select.STEP.applies(p, skipping) for p in plans] == [True, False, False, True]
     tiny_config["sdf"]["select_skip_no_stake"] = False
-    keeping = run_of(tiny_config, small_prompts, LAYER1, stage_dir)
+    keeping = run_of(tiny_config, small_prompts, CONSIDERATION_SCORING_AND_SELECTION, stage_dir)
     assert [select.STEP.applies(p, keeping) for p in plans] == [True, True, False, True]
 
 
@@ -168,7 +168,7 @@ def test_the_assignment_makes_no_call_and_returns_what_the_layer_writes(
         tiny_config, small_prompts, stage_dir, stub_claude):
     catalog = load_considerations(small_prompts)
     plans = make_plans(3)
-    scoring_run = run_of(tiny_config, small_prompts, LAYER1, stage_dir)
+    scoring_run = run_of(tiny_config, small_prompts, CONSIDERATION_SCORING_AND_SELECTION, stage_dir)
     score_rows = []
     for plan in plans:
         request, reply = reply_for(scoring_run, plan)

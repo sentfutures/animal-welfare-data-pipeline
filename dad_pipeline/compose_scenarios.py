@@ -1,6 +1,6 @@
 """Compose scenario-plan prompts from a template and a variables file.
 
-DAD analog of sdf_pipeline/compose_prompts.py: step 1a's vocabulary and
+DAD analog of sdf_pipeline/shared_step_machinery/compose_prompts.py: step 1a's vocabulary and
 weights live in ``prompts/dad/variables.txt`` (editable without touching
 code), the plan prompt lives in ``prompts/dad/step1a_scenario.txt``, and this
 module stitches them together. ``deal_scenarios()`` deck-samples n scenario

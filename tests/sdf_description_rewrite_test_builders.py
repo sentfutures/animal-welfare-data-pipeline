@@ -2,7 +2,7 @@
 
 import json
 
-from sdf_pipeline import compose_prompts as cp
+from sdf_pipeline.shared_step_machinery import compose_prompts as cp
 
 
 def answer(rewrite_needed=False, description="", checks=("plausibility_organisation",), conflict=False,

@@ -76,7 +76,7 @@ def write_comparison_table(report: dict, original_report: dict | None, total_cos
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--source-run-dir", type=Path, help="Earlier SDF run directory holding layer1/ (read only).")
+    parser.add_argument("--source-run-dir", type=Path, help="Earlier SDF run directory (read only).")
     parser.add_argument("--config", type=Path, help="Config yaml the source run used.")
     parser.add_argument("--output-root", type=Path, help="Folder in which the new rerun folder is created.")
     parser.add_argument("--run-label", default="stored_plans", help="Descriptive label used in the folder name.")
@@ -110,16 +110,20 @@ def main() -> None:
         except MissingApiKeyError as error:
             sys.exit(f"ERROR: {error}")
 
-    from shared import api, utils
-    from sdf_pipeline import layer1_description_rewrite, layer1_select_considerations as selector
-    from sdf_pipeline import considerations_assignment as assignment
-    from sdf_pipeline.considerations_catalog import load_considerations
-    from sdf_pipeline.considerations_coverage import entry_targets
+    from shared import api, sdf_run_layouts, utils
+    from sdf_pipeline.compatibility_with_runs_made_by_earlier_code.renamed_model_settings import model_setting
+    from sdf_pipeline.layer2_description_write_and_description_rewrite import description_rewrite
+    from sdf_pipeline.layer3_consideration_scoring_and_selection import run_layer as selector
+    from sdf_pipeline.shared_step_machinery import considerations_assignment as assignment
+    from sdf_pipeline.shared_step_machinery.considerations_catalog import load_considerations
+    from sdf_pipeline.shared_step_machinery.considerations_coverage import entry_targets
 
-    source_layer1_dir = utils.sdf_stage_dir(source_run_dir, 1)
+    source_plans_dir = utils.sdf_stage_folder(source_run_dir, sdf_run_layouts.DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE)
+    source_considerations_dir = utils.sdf_stage_folder(
+        source_run_dir, sdf_run_layouts.CONSIDERATION_SCORING_AND_SELECTION)
     config = utils.load_config(str(config_path))
-    plans = layer1_description_rewrite.load_rewritten_plans(
-        config, source_layer1_dir, utils.load_jsonl(source_layer1_dir / "plans.jsonl"))
+    plans = description_rewrite.load_rewritten_plans(
+        config, source_plans_dir, utils.load_jsonl(source_plans_dir / "plans.jsonl"))
 
     prompt_snapshot_dir = run_dir / "prompt_snapshot"
     selector_output_dir = run_dir / "selector_outputs"
@@ -131,11 +135,11 @@ def main() -> None:
         document_is_digital = selector.digital_mind_flags(catalog, eligible)
         targets = entry_targets(catalog, len(eligible), sum(document_is_digital.values()))
         limits = assignment.limits_from_config(config)
-        print(f"DRY RUN (no API calls). Source run: {source_layer1_dir}")
+        print(f"DRY RUN (no API calls). Source run: {source_run_dir}")
         print(f"Plans loaded: {len(plans)}; eligible documents: {len(eligible)}; "
               f"digital-mind documents: {sum(document_is_digital.values())}; "
               f"scoring calls that would be made: {len(eligible)}")
-        print(f"Model: {config['sdf'].get('select_model') or config['sdf'].get('plan_model') or config['model']}; "
+        print(f"Model: {model_setting(config['sdf'], 'consideration_scoring_model') or model_setting(config['sdf'], 'description_write_model') or config['model']}; "
               f"workers: {config.get('workers')}; {limits}")
         print("Targets per entry:")
         for entry in catalog.all_entries:
@@ -168,7 +172,7 @@ def main() -> None:
             "source_run_dir": str(source_run_dir),
             "config_path": str(config_path),
             "git_commit": current_git_commit(),
-            "model": config["sdf"].get("select_model") or config["sdf"].get("plan_model") or config["model"],
+            "model": model_setting(config["sdf"], "consideration_scoring_model") or model_setting(config["sdf"], "description_write_model") or config["model"],
             "workers": config.get("workers"),
             "seed": config["sdf"].get("seed"),
             "run_timestamp": run_timestamp,
@@ -183,7 +187,7 @@ def main() -> None:
     selector.run(config, prompt_snapshot_dir, selector_output_dir, plans)
 
     report = json.loads((selector_output_dir / selector.COVERAGE_FILENAME).read_text(encoding="utf-8"))
-    original_path = source_layer1_dir / selector.COVERAGE_FILENAME
+    original_path = source_considerations_dir / selector.COVERAGE_FILENAME
     original_report = json.loads(original_path.read_text(encoding="utf-8")) if original_path.is_file() else None
     total_cost = api.get_total_cost()
     table = write_comparison_table(report, original_report, total_cost,

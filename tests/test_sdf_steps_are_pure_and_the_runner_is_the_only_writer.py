@@ -4,8 +4,9 @@ writes two records for one outcome (the description rewrite's dealt-value confli
 
 import pytest
 
-from sdf_pipeline import layer1_description_rewrite as rewrite
-from sdf_pipeline.shared_step_machinery.step_record import LAYER1, Run, StageFile, Step, one_record_per_accepted_document
+from sdf_pipeline.layer2_description_write_and_description_rewrite import description_rewrite as rewrite
+from sdf_pipeline.shared_step_machinery.step_record import Run, StageFile, Step, one_record_per_accepted_document
+from shared.sdf_run_layouts import DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE
 from sdf_pipeline.shared_step_machinery.step_runner import run_step
 from sdf_pipeline.shared_step_machinery.update_steps import (
     Accepted, Failed, FailureKind, ModelReply, ModelRequest, OutcomeRecords, StepPolicy, StepProgress)
@@ -69,7 +70,7 @@ def test_after_that_crash_a_resume_neither_repeats_nor_adds_the_rejection(
 def test_the_description_rewrite_step_writes_no_file_for_any_outcome(tiny_config, prompts_sdf, tmp_path):
     tiny_config["sdf"]["description_rewrite_model"] = "claude-sonnet-5"
     plans = make_plans(prompts_sdf, count=2)
-    run = run_of(tiny_config, prompts_sdf, LAYER1, tmp_path)
+    run = run_of(tiny_config, prompts_sdf, DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE, tmp_path)
     progress = StepProgress(pending_count=2)
     for text in (answer(), answer(conflict=True, conflict_reason="No.")):
         outcome = outcome_of(rewrite.STEP, plans[0], ModelReply(text, "end_turn"), run)
@@ -93,7 +94,7 @@ def recording_step(progress_seen, attempts_seen, policy=StepPolicy(maximum_attem
         progress_seen.append((progress.groups_seen, progress.answered, progress.failed, progress.pending_count))
 
     fields = dict(
-        name="recording", folder_key="recording_folder", stage_tag="recording_stage",
+        name="recording", folder_key="recording_folder",
         build_request=lambda documents, run: ModelRequest("ask", "sys", "m", "recording_stage", documents[0]["doc_id"]),
         read_reply=read_reply,
         records=one_record_per_accepted_document(

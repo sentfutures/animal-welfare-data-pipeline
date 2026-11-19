@@ -1,6 +1,6 @@
 {
  "format_version": 4,
- "recorded_from": "commit 83f9c8a73a4f3e8707bd063428a13b43211c8349 on branch william/sdf-redo-01-prompt-equivalence-test (with uncommitted changes)",
+ "recorded_from": "commit bd7c59b1ddbbfd5ae6c04a014e973c1d996658d3 on branch HEAD (clean)",
  "regeneration_rule": "The recorded files are rewritten only by `python scripts/regenerate_sdf_prompt_equivalence_recorded_requests.py`, and only when the pull request is meant to change requests: never to make a failing test pass. Regenerate and commit the files in that pull request, and say in its description that requests change and why. A pull request not meant to change them leaves the files alone, so a difference is a bug.",
  "description": "A complete run whose plan, draft, rewrite and score files and checkpoints are then edited so that a record has no mark and a mark has no record; the resume must send no request.",
  "configs_used_by_invocation": {"1": "repeated_value:configs_used_by_invocation.1", "2": "repeated_value:configs_used_by_invocation.1"},
@@ -21,12 +21,12 @@
   }
  ],
  "calls_per_stage_per_invocation": {
-  "1": {"layer1_description_rewrite": 6, "layer1_plan": 6, "layer1_select": 6, "layer2_draft": 6, "layer3_critique": 6, "layer3_revise": 6, "layer4_score": 6}
+  "1": {"layer2_description_rewrite": 6, "layer2_description_write": 6, "layer3_consideration_scoring": 6, "layer4_critique": 6, "layer4_draft": 6, "layer4_revise": 6, "layer5_score": 6}
  },
  "requests": [
   {
    "invocation": 1,
-   "stage": "layer1_description_rewrite",
+   "stage": "layer2_description_rewrite",
    "item_id": "matrix_000000",
    "attempt": 1,
    "route": "openai",
@@ -42,7 +42,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer1_description_rewrite",
+   "stage": "layer2_description_rewrite",
    "item_id": "matrix_000001",
    "attempt": 1,
    "route": "openai",
@@ -58,7 +58,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer1_description_rewrite",
+   "stage": "layer2_description_rewrite",
    "item_id": "matrix_000002",
    "attempt": 1,
    "route": "openai",
@@ -74,7 +74,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer1_description_rewrite",
+   "stage": "layer2_description_rewrite",
    "item_id": "matrix_000003",
    "attempt": 1,
    "route": "openai",
@@ -90,7 +90,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer1_description_rewrite",
+   "stage": "layer2_description_rewrite",
    "item_id": "matrix_000004",
    "attempt": 1,
    "route": "openai",
@@ -106,7 +106,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer1_description_rewrite",
+   "stage": "layer2_description_rewrite",
    "item_id": "matrix_000005",
    "attempt": 1,
    "route": "openai",
@@ -122,7 +122,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer1_plan",
+   "stage": "layer2_description_write",
    "item_id": "matrix_000000",
    "attempt": 1,
    "route": "anthropic",
@@ -140,7 +140,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer1_plan",
+   "stage": "layer2_description_write",
    "item_id": "matrix_000001",
    "attempt": 1,
    "route": "anthropic",
@@ -158,7 +158,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer1_plan",
+   "stage": "layer2_description_write",
    "item_id": "matrix_000002",
    "attempt": 1,
    "route": "anthropic",
@@ -176,7 +176,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer1_plan",
+   "stage": "layer2_description_write",
    "item_id": "matrix_000003",
    "attempt": 1,
    "route": "anthropic",
@@ -194,7 +194,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer1_plan",
+   "stage": "layer2_description_write",
    "item_id": "matrix_000004",
    "attempt": 1,
    "route": "anthropic",
@@ -212,7 +212,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer1_plan",
+   "stage": "layer2_description_write",
    "item_id": "matrix_000005",
    "attempt": 1,
    "route": "anthropic",
@@ -230,7 +230,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer1_select",
+   "stage": "layer3_consideration_scoring",
    "item_id": "matrix_000000",
    "attempt": 1,
    "route": "anthropic",
@@ -250,7 +250,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer1_select",
+   "stage": "layer3_consideration_scoring",
    "item_id": "matrix_000001",
    "attempt": 1,
    "route": "anthropic",
@@ -270,7 +270,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer1_select",
+   "stage": "layer3_consideration_scoring",
    "item_id": "matrix_000002",
    "attempt": 1,
    "route": "anthropic",
@@ -290,7 +290,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer1_select",
+   "stage": "layer3_consideration_scoring",
    "item_id": "matrix_000003",
    "attempt": 1,
    "route": "anthropic",
@@ -310,7 +310,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer1_select",
+   "stage": "layer3_consideration_scoring",
    "item_id": "matrix_000004",
    "attempt": 1,
    "route": "anthropic",
@@ -330,7 +330,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer1_select",
+   "stage": "layer3_consideration_scoring",
    "item_id": "matrix_000005",
    "attempt": 1,
    "route": "anthropic",
@@ -350,109 +350,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer2_draft",
-   "item_id": "matrix_000000",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-sonnet-5-5",
-    "max_tokens": 11000,
-    "messages": [
-     {"role": "user", "content": "sha256:5b7f3bdb68eca9e0867aa65b4a1cc7545aee53abf3952e7dbaa96b3262c30e56 (2737 characters)"}
-    ],
-    "thinking": {"type": "adaptive", "display": "summarized"},
-    "output_config": {"effort": "max"},
-    "system": "repeated_value:requests.18.wire.system"
-   }
-  },
-  {
-   "invocation": 1,
-   "stage": "layer2_draft",
-   "item_id": "matrix_000001",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-sonnet-5-5",
-    "max_tokens": 11000,
-    "messages": [
-     {"role": "user", "content": "sha256:e9a73ca60f127f59149fe269df3d4aafca89a0b3996d5ba7d8354718eaabd3d3 (2521 characters)"}
-    ],
-    "thinking": {"type": "adaptive", "display": "summarized"},
-    "output_config": {"effort": "max"},
-    "system": "repeated_value:requests.18.wire.system"
-   }
-  },
-  {
-   "invocation": 1,
-   "stage": "layer2_draft",
-   "item_id": "matrix_000002",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-sonnet-5-5",
-    "max_tokens": 11000,
-    "messages": [
-     {"role": "user", "content": "sha256:e78163fe100d487e11f9c5ef0afd555369ae7006f1460d9e273e685f8659e847 (2482 characters)"}
-    ],
-    "thinking": {"type": "adaptive", "display": "summarized"},
-    "output_config": {"effort": "max"},
-    "system": "repeated_value:requests.18.wire.system"
-   }
-  },
-  {
-   "invocation": 1,
-   "stage": "layer2_draft",
-   "item_id": "matrix_000003",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-sonnet-5-5",
-    "max_tokens": 11000,
-    "messages": [
-     {"role": "user", "content": "sha256:a732dc00cb94c5b416e2c141e1665e4b78515f21211a1fd324b632d4dc5ad0de (2454 characters)"}
-    ],
-    "thinking": {"type": "adaptive", "display": "summarized"},
-    "output_config": {"effort": "max"},
-    "system": "repeated_value:requests.18.wire.system"
-   }
-  },
-  {
-   "invocation": 1,
-   "stage": "layer2_draft",
-   "item_id": "matrix_000004",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-sonnet-5-5",
-    "max_tokens": 11000,
-    "messages": [
-     {"role": "user", "content": "sha256:d86911ad3dc3d675af84e0ded906deba74678f25e4c5fa1999374bf356ff1767 (2728 characters)"}
-    ],
-    "thinking": {"type": "adaptive", "display": "summarized"},
-    "output_config": {"effort": "max"},
-    "system": "repeated_value:requests.18.wire.system"
-   }
-  },
-  {
-   "invocation": 1,
-   "stage": "layer2_draft",
-   "item_id": "matrix_000005",
-   "attempt": 1,
-   "route": "anthropic",
-   "wire": {
-    "model": "claude-sonnet-5-5",
-    "max_tokens": 11000,
-    "messages": [
-     {"role": "user", "content": "sha256:ddfc56686a6962082e60d35e596daad41aa861690f153c1666702f77a5d54e4e (2512 characters)"}
-    ],
-    "thinking": {"type": "adaptive", "display": "summarized"},
-    "output_config": {"effort": "max"},
-    "system": "repeated_value:requests.18.wire.system"
-   }
-  },
-  {
-   "invocation": 1,
-   "stage": "layer3_critique",
+   "stage": "layer4_critique",
    "item_id": "matrix_000000",
    "attempt": 1,
    "route": "anthropic",
@@ -464,12 +362,12 @@
     ],
     "thinking": {"type": "adaptive", "display": "summarized"},
     "output_config": {"effort": "low"},
-    "system": "repeated_value:requests.24.wire.system"
+    "system": "repeated_value:requests.18.wire.system"
    }
   },
   {
    "invocation": 1,
-   "stage": "layer3_critique",
+   "stage": "layer4_critique",
    "item_id": "matrix_000001",
    "attempt": 1,
    "route": "anthropic",
@@ -481,12 +379,12 @@
     ],
     "thinking": {"type": "adaptive", "display": "summarized"},
     "output_config": {"effort": "low"},
-    "system": "repeated_value:requests.24.wire.system"
+    "system": "repeated_value:requests.18.wire.system"
    }
   },
   {
    "invocation": 1,
-   "stage": "layer3_critique",
+   "stage": "layer4_critique",
    "item_id": "matrix_000002",
    "attempt": 1,
    "route": "anthropic",
@@ -498,12 +396,12 @@
     ],
     "thinking": {"type": "adaptive", "display": "summarized"},
     "output_config": {"effort": "low"},
-    "system": "repeated_value:requests.24.wire.system"
+    "system": "repeated_value:requests.18.wire.system"
    }
   },
   {
    "invocation": 1,
-   "stage": "layer3_critique",
+   "stage": "layer4_critique",
    "item_id": "matrix_000003",
    "attempt": 1,
    "route": "anthropic",
@@ -515,12 +413,12 @@
     ],
     "thinking": {"type": "adaptive", "display": "summarized"},
     "output_config": {"effort": "low"},
-    "system": "repeated_value:requests.24.wire.system"
+    "system": "repeated_value:requests.18.wire.system"
    }
   },
   {
    "invocation": 1,
-   "stage": "layer3_critique",
+   "stage": "layer4_critique",
    "item_id": "matrix_000004",
    "attempt": 1,
    "route": "anthropic",
@@ -532,12 +430,12 @@
     ],
     "thinking": {"type": "adaptive", "display": "summarized"},
     "output_config": {"effort": "low"},
-    "system": "repeated_value:requests.24.wire.system"
+    "system": "repeated_value:requests.18.wire.system"
    }
   },
   {
    "invocation": 1,
-   "stage": "layer3_critique",
+   "stage": "layer4_critique",
    "item_id": "matrix_000005",
    "attempt": 1,
    "route": "anthropic",
@@ -549,12 +447,114 @@
     ],
     "thinking": {"type": "adaptive", "display": "summarized"},
     "output_config": {"effort": "low"},
+    "system": "repeated_value:requests.18.wire.system"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer4_draft",
+   "item_id": "matrix_000000",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-sonnet-5-5",
+    "max_tokens": 11000,
+    "messages": [
+     {"role": "user", "content": "sha256:5b7f3bdb68eca9e0867aa65b4a1cc7545aee53abf3952e7dbaa96b3262c30e56 (2737 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "max"},
     "system": "repeated_value:requests.24.wire.system"
    }
   },
   {
    "invocation": 1,
-   "stage": "layer3_revise",
+   "stage": "layer4_draft",
+   "item_id": "matrix_000001",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-sonnet-5-5",
+    "max_tokens": 11000,
+    "messages": [
+     {"role": "user", "content": "sha256:e9a73ca60f127f59149fe269df3d4aafca89a0b3996d5ba7d8354718eaabd3d3 (2521 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "max"},
+    "system": "repeated_value:requests.24.wire.system"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer4_draft",
+   "item_id": "matrix_000002",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-sonnet-5-5",
+    "max_tokens": 11000,
+    "messages": [
+     {"role": "user", "content": "sha256:e78163fe100d487e11f9c5ef0afd555369ae7006f1460d9e273e685f8659e847 (2482 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "max"},
+    "system": "repeated_value:requests.24.wire.system"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer4_draft",
+   "item_id": "matrix_000003",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-sonnet-5-5",
+    "max_tokens": 11000,
+    "messages": [
+     {"role": "user", "content": "sha256:a732dc00cb94c5b416e2c141e1665e4b78515f21211a1fd324b632d4dc5ad0de (2454 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "max"},
+    "system": "repeated_value:requests.24.wire.system"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer4_draft",
+   "item_id": "matrix_000004",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-sonnet-5-5",
+    "max_tokens": 11000,
+    "messages": [
+     {"role": "user", "content": "sha256:d86911ad3dc3d675af84e0ded906deba74678f25e4c5fa1999374bf356ff1767 (2728 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "max"},
+    "system": "repeated_value:requests.24.wire.system"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer4_draft",
+   "item_id": "matrix_000005",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-sonnet-5-5",
+    "max_tokens": 11000,
+    "messages": [
+     {"role": "user", "content": "sha256:ddfc56686a6962082e60d35e596daad41aa861690f153c1666702f77a5d54e4e (2512 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "max"},
+    "system": "repeated_value:requests.24.wire.system"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer4_revise",
    "item_id": "matrix_000000",
    "attempt": 1,
    "route": "anthropic",
@@ -566,12 +566,12 @@
     ],
     "thinking": {"type": "adaptive", "display": "summarized"},
     "output_config": {"effort": "medium"},
-    "system": "repeated_value:requests.24.wire.system"
+    "system": "repeated_value:requests.18.wire.system"
    }
   },
   {
    "invocation": 1,
-   "stage": "layer3_revise",
+   "stage": "layer4_revise",
    "item_id": "matrix_000001",
    "attempt": 1,
    "route": "anthropic",
@@ -583,12 +583,12 @@
     ],
     "thinking": {"type": "adaptive", "display": "summarized"},
     "output_config": {"effort": "medium"},
-    "system": "repeated_value:requests.24.wire.system"
+    "system": "repeated_value:requests.18.wire.system"
    }
   },
   {
    "invocation": 1,
-   "stage": "layer3_revise",
+   "stage": "layer4_revise",
    "item_id": "matrix_000002",
    "attempt": 1,
    "route": "anthropic",
@@ -600,12 +600,12 @@
     ],
     "thinking": {"type": "adaptive", "display": "summarized"},
     "output_config": {"effort": "medium"},
-    "system": "repeated_value:requests.24.wire.system"
+    "system": "repeated_value:requests.18.wire.system"
    }
   },
   {
    "invocation": 1,
-   "stage": "layer3_revise",
+   "stage": "layer4_revise",
    "item_id": "matrix_000003",
    "attempt": 1,
    "route": "anthropic",
@@ -617,12 +617,12 @@
     ],
     "thinking": {"type": "adaptive", "display": "summarized"},
     "output_config": {"effort": "medium"},
-    "system": "repeated_value:requests.24.wire.system"
+    "system": "repeated_value:requests.18.wire.system"
    }
   },
   {
    "invocation": 1,
-   "stage": "layer3_revise",
+   "stage": "layer4_revise",
    "item_id": "matrix_000004",
    "attempt": 1,
    "route": "anthropic",
@@ -634,12 +634,12 @@
     ],
     "thinking": {"type": "adaptive", "display": "summarized"},
     "output_config": {"effort": "medium"},
-    "system": "repeated_value:requests.24.wire.system"
+    "system": "repeated_value:requests.18.wire.system"
    }
   },
   {
    "invocation": 1,
-   "stage": "layer3_revise",
+   "stage": "layer4_revise",
    "item_id": "matrix_000005",
    "attempt": 1,
    "route": "anthropic",
@@ -651,12 +651,12 @@
     ],
     "thinking": {"type": "adaptive", "display": "summarized"},
     "output_config": {"effort": "medium"},
-    "system": "repeated_value:requests.24.wire.system"
+    "system": "repeated_value:requests.18.wire.system"
    }
   },
   {
    "invocation": 1,
-   "stage": "layer4_score",
+   "stage": "layer5_score",
    "item_id": "matrix_000000",
    "attempt": 1,
    "route": "anthropic",
@@ -674,7 +674,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer4_score",
+   "stage": "layer5_score",
    "item_id": "matrix_000001",
    "attempt": 1,
    "route": "anthropic",
@@ -692,7 +692,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer4_score",
+   "stage": "layer5_score",
    "item_id": "matrix_000002",
    "attempt": 1,
    "route": "anthropic",
@@ -710,7 +710,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer4_score",
+   "stage": "layer5_score",
    "item_id": "matrix_000003",
    "attempt": 1,
    "route": "anthropic",
@@ -728,7 +728,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer4_score",
+   "stage": "layer5_score",
    "item_id": "matrix_000004",
    "attempt": 1,
    "route": "anthropic",
@@ -746,7 +746,7 @@
   },
   {
    "invocation": 1,
-   "stage": "layer4_score",
+   "stage": "layer5_score",
    "item_id": "matrix_000005",
    "attempt": 1,
    "route": "anthropic",
@@ -820,9 +820,25 @@
  },
  "stage_files_by_invocation": {
   "1": {
-   "layer1/_checkpoint.json": "repeated_value:stage_files_by_invocation.1.layer1/_checkpoint.json",
-   "layer1/_description_rewrite_checkpoint.json": "repeated_value:stage_files_by_invocation.1.layer1/_checkpoint.json",
-   "layer1/consideration_coverage.json": {
+   "layer2_description_write_and_description_rewrite/_checkpoint.json": "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/_checkpoint.json",
+   "layer2_description_write_and_description_rewrite/_description_rewrite_checkpoint.json": "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/_checkpoint.json",
+   "layer2_description_write_and_description_rewrite/description_rewrites.jsonl": "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/description_rewrites.jsonl",
+   "layer2_description_write_and_description_rewrite/plans.jsonl": [
+    {
+     "prompt_id": "matrix_000000",
+     "variables": "dealt_hand:91d001463cf691d4",
+     "plan": "sha256:19ff8f30186c63c0010aeef8bea7ff1584d4bd6e48f3ba280b930fca72695a28 (565 characters)",
+     "description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
+     "incoherent": false
+    },
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.1",
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.2",
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.3",
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.4",
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.5"
+   ],
+   "layer2_description_write_and_description_rewrite/prompts.jsonl": "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/prompts.jsonl",
+   "layer3_consideration_scoring_and_selection/consideration_coverage.json": {
     "eligible_documents": 6,
     "digital_mind_documents": 0,
     "scored_documents": 6,
@@ -921,8 +937,8 @@
       "documents_scoring_at_least_threshold": 0,
       "score_histogram": {"1": 6, "2": 0, "3": 0, "4": 0, "5": 0}
      },
-     "repeated_value:stage_files_by_invocation.1.layer1/consideration_coverage.json.entries.8",
-     "repeated_value:stage_files_by_invocation.1.layer1/consideration_coverage.json.entries.9",
+     "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_coverage.json.entries.8",
+     "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_coverage.json.entries.9",
      {
       "label": "Weighing evidence for sentience",
       "list": "epistemic",
@@ -1063,37 +1079,23 @@
     "share_with_only_one_list": 0.0,
     "share_with_both_lists": 0.0,
     "documents_with_two_or_more_in_one_list": 0,
-    "document_ids_with_no_consideration": "repeated_value:stage_files_by_invocation.1.layer1/consideration_coverage.json.document_ids_with_no_consideration"
+    "document_ids_with_no_consideration": "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_coverage.json.document_ids_with_no_consideration"
    },
-   "layer1/consideration_scores.jsonl": "repeated_value:stage_files_by_invocation.1.layer1/consideration_scores.jsonl",
-   "layer1/consideration_selections.jsonl": [
-    {"prompt_id": "matrix_000000", "outcomes": "repeated_value:stage_files_by_invocation.1.layer1/consideration_selections.jsonl.0.outcomes"},
-    "repeated_value:stage_files_by_invocation.1.layer1/consideration_selections.jsonl.1",
-    "repeated_value:stage_files_by_invocation.1.layer1/consideration_selections.jsonl.2",
-    "repeated_value:stage_files_by_invocation.1.layer1/consideration_selections.jsonl.3",
-    "repeated_value:stage_files_by_invocation.1.layer1/consideration_selections.jsonl.4",
-    "repeated_value:stage_files_by_invocation.1.layer1/consideration_selections.jsonl.5"
+   "layer3_consideration_scoring_and_selection/consideration_scores.jsonl": "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_scores.jsonl",
+   "layer3_consideration_scoring_and_selection/consideration_selections.jsonl": [
+    {"prompt_id": "matrix_000000", "outcomes": "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.0.outcomes"},
+    "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.1",
+    "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.2",
+    "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.3",
+    "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.4",
+    "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.5"
    ],
-   "layer1/description_rewrites.jsonl": "repeated_value:stage_files_by_invocation.1.layer1/description_rewrites.jsonl",
-   "layer1/plans.jsonl": [
-    {
-     "prompt_id": "matrix_000000",
-     "variables": "dealt_hand:91d001463cf691d4",
-     "plan": "sha256:19ff8f30186c63c0010aeef8bea7ff1584d4bd6e48f3ba280b930fca72695a28 (565 characters)",
-     "description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
-     "incoherent": false
-    },
-    "repeated_value:stage_files_by_invocation.1.layer1/plans.jsonl.1",
-    "repeated_value:stage_files_by_invocation.1.layer1/plans.jsonl.2",
-    "repeated_value:stage_files_by_invocation.1.layer1/plans.jsonl.3",
-    "repeated_value:stage_files_by_invocation.1.layer1/plans.jsonl.4",
-    "repeated_value:stage_files_by_invocation.1.layer1/plans.jsonl.5"
-   ],
-   "layer1/prompts.jsonl": "repeated_value:stage_files_by_invocation.1.layer1/prompts.jsonl",
-   "layer2/_checkpoint.json": "repeated_value:stage_files_by_invocation.1.layer1/_checkpoint.json",
-   "layer2/drafts.jsonl": [
-    "repeated_value:stage_files_by_invocation.1.layer2/drafts.jsonl.0",
-    "repeated_value:stage_files_by_invocation.1.layer2/drafts.jsonl.1",
+   "layer4_draft_critique_and_revise/_checkpoint.json": "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/_checkpoint.json",
+   "layer4_draft_critique_and_revise/_draft_checkpoint.json": "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/_checkpoint.json",
+   "layer4_draft_critique_and_revise/critiques.jsonl": "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/critiques.jsonl",
+   "layer4_draft_critique_and_revise/drafts.jsonl": [
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/drafts.jsonl.0",
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/drafts.jsonl.1",
     {
      "doc_id": "matrix_000002",
      "variables": "dealt_hand:fc1d15ef1196c090",
@@ -1101,17 +1103,15 @@
      "considerations_spec": "",
      "content": "sha256:c229ab42f19d7beed558e85d1c12ec55a1a2e707e32605f91fcaf92246f1f53e (898 characters)"
     },
-    "repeated_value:stage_files_by_invocation.1.layer2/drafts.jsonl.3",
-    "repeated_value:stage_files_by_invocation.1.layer2/drafts.jsonl.4",
-    "repeated_value:stage_files_by_invocation.1.layer2/drafts.jsonl.5"
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/drafts.jsonl.3",
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/drafts.jsonl.4",
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/drafts.jsonl.5"
    ],
-   "layer3/_checkpoint.json": "repeated_value:stage_files_by_invocation.1.layer1/_checkpoint.json",
-   "layer3/critiques.jsonl": "repeated_value:stage_files_by_invocation.1.layer3/critiques.jsonl",
-   "layer3/rewrites.jsonl": [
-    "repeated_value:stage_files_by_invocation.1.layer3/rewrites.jsonl.0",
-    "repeated_value:stage_files_by_invocation.1.layer3/rewrites.jsonl.1",
-    "repeated_value:stage_files_by_invocation.1.layer3/rewrites.jsonl.2",
-    "repeated_value:stage_files_by_invocation.1.layer3/rewrites.jsonl.3",
+   "layer4_draft_critique_and_revise/rewrites.jsonl": [
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/rewrites.jsonl.0",
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/rewrites.jsonl.1",
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/rewrites.jsonl.2",
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/rewrites.jsonl.3",
     {
      "doc_id": "matrix_000004",
      "variables": "dealt_hand:77d225e70d3daa9b",
@@ -1120,29 +1120,38 @@
      "review": "Problems found in the draft of matrix_000004: the opening is generic.",
      "content": "sha256:c7c0f9e58351a3faff5ef7bde134340c7ae1d0b56871e8e48f81f79df02ea7ac (899 characters)"
     },
-    "repeated_value:stage_files_by_invocation.1.layer3/rewrites.jsonl.5"
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/rewrites.jsonl.5"
    ],
-   "layer4/_checkpoint.json": "repeated_value:stage_files_by_invocation.1.layer1/_checkpoint.json",
-   "layer4/scores.jsonl": [
-    "repeated_value:stage_files_by_invocation.1.layer4/scores.jsonl.0",
-    "repeated_value:stage_files_by_invocation.1.layer4/scores.jsonl.1",
-    "repeated_value:stage_files_by_invocation.1.layer4/scores.jsonl.2",
+   "layer5_score_and_final_selection/_checkpoint.json": "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/_checkpoint.json",
+   "layer5_score_and_final_selection/scores.jsonl": [
+    "repeated_value:stage_files_by_invocation.1.layer5_score_and_final_selection/scores.jsonl.0",
+    "repeated_value:stage_files_by_invocation.1.layer5_score_and_final_selection/scores.jsonl.1",
+    "repeated_value:stage_files_by_invocation.1.layer5_score_and_final_selection/scores.jsonl.2",
     {
      "doc_id": "matrix_000003",
      "variables": "dealt_hand:76978ee764f68ae6",
      "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000003."}
     },
-    "repeated_value:stage_files_by_invocation.1.layer4/scores.jsonl.4",
-    "repeated_value:stage_files_by_invocation.1.layer4/scores.jsonl.5"
+    "repeated_value:stage_files_by_invocation.1.layer5_score_and_final_selection/scores.jsonl.4",
+    "repeated_value:stage_files_by_invocation.1.layer5_score_and_final_selection/scores.jsonl.5"
    ]
   },
   "2": {
-   "layer1/_checkpoint.json": {
+   "layer2_description_write_and_description_rewrite/_checkpoint.json": {
     "completed": ["matrix_000000", "matrix_000002", "matrix_000003", "matrix_000004", "matrix_000005"],
     "last_updated": "<timestamp>"
    },
-   "layer1/_description_rewrite_checkpoint.json": "repeated_value:stage_files_by_invocation.1.layer1/_checkpoint.json",
-   "layer1/consideration_coverage.json": {
+   "layer2_description_write_and_description_rewrite/_description_rewrite_checkpoint.json": "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/_checkpoint.json",
+   "layer2_description_write_and_description_rewrite/description_rewrites.jsonl": "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/description_rewrites.jsonl",
+   "layer2_description_write_and_description_rewrite/plans.jsonl": [
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.1",
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.2",
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.3",
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.4",
+    "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.5"
+   ],
+   "layer2_description_write_and_description_rewrite/prompts.jsonl": "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/prompts.jsonl",
+   "layer3_consideration_scoring_and_selection/consideration_coverage.json": {
     "eligible_documents": 5,
     "digital_mind_documents": 0,
     "scored_documents": 5,
@@ -1241,8 +1250,8 @@
       "documents_scoring_at_least_threshold": 0,
       "score_histogram": {"1": 5, "2": 0, "3": 0, "4": 0, "5": 0}
      },
-     "repeated_value:stage_files_by_invocation.1.layer1/consideration_coverage.json.entries.8",
-     "repeated_value:stage_files_by_invocation.1.layer1/consideration_coverage.json.entries.9",
+     "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_coverage.json.entries.8",
+     "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_coverage.json.entries.9",
      {
       "label": "Weighing evidence for sentience",
       "list": "epistemic",
@@ -1385,50 +1394,41 @@
     "documents_with_two_or_more_in_one_list": 0,
     "document_ids_with_no_consideration": ["matrix_000001", "matrix_000002", "matrix_000003", "matrix_000004", "matrix_000005"]
    },
-   "layer1/consideration_scores.jsonl": "repeated_value:stage_files_by_invocation.1.layer1/consideration_scores.jsonl",
-   "layer1/consideration_selections.jsonl": [
-    "repeated_value:stage_files_by_invocation.1.layer1/consideration_selections.jsonl.1",
-    "repeated_value:stage_files_by_invocation.1.layer1/consideration_selections.jsonl.2",
-    "repeated_value:stage_files_by_invocation.1.layer1/consideration_selections.jsonl.3",
-    "repeated_value:stage_files_by_invocation.1.layer1/consideration_selections.jsonl.4",
-    "repeated_value:stage_files_by_invocation.1.layer1/consideration_selections.jsonl.5"
+   "layer3_consideration_scoring_and_selection/consideration_scores.jsonl": "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_scores.jsonl",
+   "layer3_consideration_scoring_and_selection/consideration_selections.jsonl": [
+    "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.1",
+    "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.2",
+    "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.3",
+    "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.4",
+    "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.5"
    ],
-   "layer1/description_rewrites.jsonl": "repeated_value:stage_files_by_invocation.1.layer1/description_rewrites.jsonl",
-   "layer1/plans.jsonl": [
-    "repeated_value:stage_files_by_invocation.1.layer1/plans.jsonl.1",
-    "repeated_value:stage_files_by_invocation.1.layer1/plans.jsonl.2",
-    "repeated_value:stage_files_by_invocation.1.layer1/plans.jsonl.3",
-    "repeated_value:stage_files_by_invocation.1.layer1/plans.jsonl.4",
-    "repeated_value:stage_files_by_invocation.1.layer1/plans.jsonl.5"
-   ],
-   "layer1/prompts.jsonl": "repeated_value:stage_files_by_invocation.1.layer1/prompts.jsonl",
-   "layer2/_checkpoint.json": {
+   "layer4_draft_critique_and_revise/_checkpoint.json": "repeated_value:stage_files_by_invocation.2.layer4_draft_critique_and_revise/_checkpoint.json",
+   "layer4_draft_critique_and_revise/_draft_checkpoint.json": {
     "completed": ["matrix_000000", "matrix_000001", "matrix_000002", "matrix_000004", "matrix_000005"],
     "last_updated": "<timestamp>"
    },
-   "layer2/drafts.jsonl": [
-    "repeated_value:stage_files_by_invocation.1.layer2/drafts.jsonl.0",
-    "repeated_value:stage_files_by_invocation.1.layer2/drafts.jsonl.1",
-    "repeated_value:stage_files_by_invocation.1.layer2/drafts.jsonl.3",
-    "repeated_value:stage_files_by_invocation.1.layer2/drafts.jsonl.4",
-    "repeated_value:stage_files_by_invocation.1.layer2/drafts.jsonl.5"
+   "layer4_draft_critique_and_revise/critiques.jsonl": "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/critiques.jsonl",
+   "layer4_draft_critique_and_revise/drafts.jsonl": [
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/drafts.jsonl.0",
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/drafts.jsonl.1",
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/drafts.jsonl.3",
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/drafts.jsonl.4",
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/drafts.jsonl.5"
    ],
-   "layer3/_checkpoint.json": "repeated_value:stage_files_by_invocation.2.layer3/_checkpoint.json",
-   "layer3/critiques.jsonl": "repeated_value:stage_files_by_invocation.1.layer3/critiques.jsonl",
-   "layer3/rewrites.jsonl": [
-    "repeated_value:stage_files_by_invocation.1.layer3/rewrites.jsonl.0",
-    "repeated_value:stage_files_by_invocation.1.layer3/rewrites.jsonl.1",
-    "repeated_value:stage_files_by_invocation.1.layer3/rewrites.jsonl.2",
-    "repeated_value:stage_files_by_invocation.1.layer3/rewrites.jsonl.3",
-    "repeated_value:stage_files_by_invocation.1.layer3/rewrites.jsonl.5"
+   "layer4_draft_critique_and_revise/rewrites.jsonl": [
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/rewrites.jsonl.0",
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/rewrites.jsonl.1",
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/rewrites.jsonl.2",
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/rewrites.jsonl.3",
+    "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/rewrites.jsonl.5"
    ],
-   "layer4/_checkpoint.json": "repeated_value:stage_files_by_invocation.2.layer3/_checkpoint.json",
-   "layer4/scores.jsonl": [
-    "repeated_value:stage_files_by_invocation.1.layer4/scores.jsonl.0",
-    "repeated_value:stage_files_by_invocation.1.layer4/scores.jsonl.1",
-    "repeated_value:stage_files_by_invocation.1.layer4/scores.jsonl.2",
-    "repeated_value:stage_files_by_invocation.1.layer4/scores.jsonl.4",
-    "repeated_value:stage_files_by_invocation.1.layer4/scores.jsonl.5"
+   "layer5_score_and_final_selection/_checkpoint.json": "repeated_value:stage_files_by_invocation.2.layer4_draft_critique_and_revise/_checkpoint.json",
+   "layer5_score_and_final_selection/scores.jsonl": [
+    "repeated_value:stage_files_by_invocation.1.layer5_score_and_final_selection/scores.jsonl.0",
+    "repeated_value:stage_files_by_invocation.1.layer5_score_and_final_selection/scores.jsonl.1",
+    "repeated_value:stage_files_by_invocation.1.layer5_score_and_final_selection/scores.jsonl.2",
+    "repeated_value:stage_files_by_invocation.1.layer5_score_and_final_selection/scores.jsonl.4",
+    "repeated_value:stage_files_by_invocation.1.layer5_score_and_final_selection/scores.jsonl.5"
    ]
   }
  },
@@ -1684,14 +1684,14 @@
    "thinking_headroom": 5000,
    "effort": {
     "layer1_screen": "low",
-    "layer1_plan": "medium",
-    "layer1_description_rewrite": "high",
-    "layer1_select": "xhigh",
-    "layer2_draft": "max",
-    "layer3_critique": "low",
-    "layer3_revise": "medium",
-    "layer3_rewrite": "high",
-    "layer4_score": "xhigh"
+    "layer2_description_write": "medium",
+    "layer2_description_rewrite": "high",
+    "layer3_consideration_scoring": "xhigh",
+    "layer4_draft": "max",
+    "layer4_critique": "low",
+    "layer4_revise": "medium",
+    "layer4_critique_and_revise_in_one_call": "high",
+    "layer5_score": "xhigh"
    },
    "sdf": {
     "n_prompts": 6,
@@ -1799,8 +1799,8 @@
     {
      "type": "text",
      "cache_control": {"type": "ephemeral"},
-     "text_sha256": "d9c7d8fdf396bdfabe537d2b7fed296fabbf9398490c5ce9addf7a06a5992e9d",
-     "character_count": 174521
+     "text_sha256": "357e43f3cfa9b05d274c6f89a313100266076f2ae69703a205967e681a42eec8",
+     "character_count": 184774
     }
    ]
   },
@@ -1811,8 +1811,8 @@
     {
      "type": "text",
      "cache_control": {"type": "ephemeral"},
-     "text_sha256": "357e43f3cfa9b05d274c6f89a313100266076f2ae69703a205967e681a42eec8",
-     "character_count": 184774
+     "text_sha256": "d9c7d8fdf396bdfabe537d2b7fed296fabbf9398490c5ce9addf7a06a5992e9d",
+     "character_count": 174521
     }
    ]
   },
@@ -1829,12 +1829,147 @@
    ]
   },
   "requests.6.wire.system": {"text_sha256": "d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb", "character_count": 5397, "blocks": null},
-  "stage_files_by_invocation.1.layer1/_checkpoint.json": {
+  "stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/_checkpoint.json": {
    "completed": ["matrix_000000", "matrix_000001", "matrix_000002", "matrix_000003", "matrix_000004", "matrix_000005"],
    "last_updated": "<timestamp>"
   },
-  "stage_files_by_invocation.1.layer1/consideration_coverage.json.document_ids_with_no_consideration": ["matrix_000000", "matrix_000001", "matrix_000002", "matrix_000003", "matrix_000004", "matrix_000005"],
-  "stage_files_by_invocation.1.layer1/consideration_coverage.json.entries.8": {
+  "stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/description_rewrites.jsonl": [
+   {
+    "prompt_id": "matrix_000000",
+    "reasoning": "Checked the description of matrix_000000.",
+    "rewrite_needed": false,
+    "original_description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
+    "rewritten_description": "",
+    "changes": [],
+    "dealt_value_conflict": false,
+    "conflict_reason": ""
+   },
+   {
+    "prompt_id": "matrix_000001",
+    "reasoning": "Checked the description of matrix_000001.",
+    "rewrite_needed": false,
+    "original_description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
+    "rewritten_description": "",
+    "changes": [],
+    "dealt_value_conflict": false,
+    "conflict_reason": ""
+   },
+   {
+    "prompt_id": "matrix_000002",
+    "reasoning": "Checked the description of matrix_000002.",
+    "rewrite_needed": false,
+    "original_description": "sha256:a1e6aa5ae1f779f191307a0c2f1dea766f5ad95d9a8b7b52a16d7cb411ad23f7 (435 characters)",
+    "rewritten_description": "",
+    "changes": [],
+    "dealt_value_conflict": false,
+    "conflict_reason": ""
+   },
+   {
+    "prompt_id": "matrix_000003",
+    "reasoning": "Checked the description of matrix_000003.",
+    "rewrite_needed": false,
+    "original_description": "sha256:9dd375df1b5bf6987c1be9fa11ee14a1bdedd0a51fdb7bb3469305fd5a036dd0 (443 characters)",
+    "rewritten_description": "",
+    "changes": [],
+    "dealt_value_conflict": false,
+    "conflict_reason": ""
+   },
+   {
+    "prompt_id": "matrix_000004",
+    "reasoning": "Checked the description of matrix_000004.",
+    "rewrite_needed": false,
+    "original_description": "sha256:a51c9a8d0ad7394a3ed17dae1f618168ad34ab6e6f16e1bfd475dc50ebdd0031 (432 characters)",
+    "rewritten_description": "",
+    "changes": [],
+    "dealt_value_conflict": false,
+    "conflict_reason": ""
+   },
+   {
+    "prompt_id": "matrix_000005",
+    "reasoning": "Checked the description of matrix_000005.",
+    "rewrite_needed": false,
+    "original_description": "sha256:8659925a3134cf3ffcaf8af71527b2e701db694874e0c9cbb27c2e408e68d9ee (438 characters)",
+    "rewritten_description": "",
+    "changes": [],
+    "dealt_value_conflict": false,
+    "conflict_reason": ""
+   }
+  ],
+  "stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.1": {
+   "prompt_id": "matrix_000001",
+   "variables": "dealt_hand:4698f7cb8ed5d42b",
+   "plan": "sha256:20b2bd4a443b3427c4d4d952d201215ee1cc310ccdb0e543e458117636e5ba15 (566 characters)",
+   "description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
+   "incoherent": false
+  },
+  "stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.2": {
+   "prompt_id": "matrix_000002",
+   "variables": "dealt_hand:1015ef2e07784625",
+   "plan": "sha256:d3a2141f8dbc74fd34597acace81044dbe796688fb85fcef60c86ab7ba3f1f0a (568 characters)",
+   "description": "sha256:a1e6aa5ae1f779f191307a0c2f1dea766f5ad95d9a8b7b52a16d7cb411ad23f7 (435 characters)",
+   "incoherent": false
+  },
+  "stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.3": {
+   "prompt_id": "matrix_000003",
+   "variables": "dealt_hand:ead626514754b48f",
+   "plan": "sha256:178ce2777ea979e850010a5806a16a556e54005ade17a70a6196c81bca35c815 (576 characters)",
+   "description": "sha256:9dd375df1b5bf6987c1be9fa11ee14a1bdedd0a51fdb7bb3469305fd5a036dd0 (443 characters)",
+   "incoherent": false
+  },
+  "stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.4": {
+   "prompt_id": "matrix_000004",
+   "variables": "dealt_hand:da37a8e4d4a0244a",
+   "plan": "sha256:3d6f38daca661008951ccea2f3e23a7c7bfc9b68789932138a6388cd77a9bef6 (565 characters)",
+   "description": "sha256:a51c9a8d0ad7394a3ed17dae1f618168ad34ab6e6f16e1bfd475dc50ebdd0031 (432 characters)",
+   "incoherent": false
+  },
+  "stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.5": {
+   "prompt_id": "matrix_000005",
+   "variables": "dealt_hand:f56775b4378be303",
+   "plan": "sha256:5468e268cf4412ec254136984c2937357ad3ac9d515cb9bc275dafe8cb8e949b (571 characters)",
+   "description": "sha256:8659925a3134cf3ffcaf8af71527b2e701db694874e0c9cbb27c2e408e68d9ee (438 characters)",
+   "incoherent": false
+  },
+  "stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/prompts.jsonl": [
+   {
+    "prompt_id": "matrix_000000",
+    "variables": "dealt_hand:91d001463cf691d4",
+    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
+    "prompt": "sha256:96b44a9fe955ca5fda869042e991bc648971ecb0fbe906a0db7a5812c44f145c (4345 characters)"
+   },
+   {
+    "prompt_id": "matrix_000001",
+    "variables": "dealt_hand:4698f7cb8ed5d42b",
+    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
+    "prompt": "sha256:3445e2749b502aac8171491d548c78d0c823daeafa41adf303b9630741647d99 (4119 characters)"
+   },
+   {
+    "prompt_id": "matrix_000002",
+    "variables": "dealt_hand:1015ef2e07784625",
+    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
+    "prompt": "sha256:85f3a16977b785bd1d62fab2ea499c75a4c9589d7c9ae8ba48ead217d11ca16a (4080 characters)"
+   },
+   {
+    "prompt_id": "matrix_000003",
+    "variables": "dealt_hand:ead626514754b48f",
+    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
+    "prompt": "sha256:815179a3921a75a2013178cd0c40cc82dd4052a387124de86ba77b4a0ccd3a6d (3967 characters)"
+   },
+   {
+    "prompt_id": "matrix_000004",
+    "variables": "dealt_hand:da37a8e4d4a0244a",
+    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
+    "prompt": "sha256:edf23b4d703f551679a1890e46db0f8337dfa647be3a6782c57c008b0a1a925b (4353 characters)"
+   },
+   {
+    "prompt_id": "matrix_000005",
+    "variables": "dealt_hand:f56775b4378be303",
+    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
+    "prompt": "sha256:4604ca6d0681a2f4989358612b66820a4d1244d5365c673fbc94c158b560c406 (4110 characters)"
+   }
+  ],
+  "stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_coverage.json.document_ids_with_no_consideration": ["matrix_000000", "matrix_000001", "matrix_000002", "matrix_000003", "matrix_000004", "matrix_000005"],
+  "stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_coverage.json.entries.8": {
    "label": "Weighing theories of consciousness and their implications for AI",
    "list": "epistemic",
    "digital_minds_only": true,
@@ -1845,7 +1980,7 @@
    "documents_scoring_at_least_threshold": 0,
    "score_histogram": {"1": 0, "2": 0, "3": 0, "4": 0, "5": 0}
   },
-  "stage_files_by_invocation.1.layer1/consideration_coverage.json.entries.9": {
+  "stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_coverage.json.entries.9": {
    "label": "Difficulties of AI self-reporting welfare",
    "list": "epistemic",
    "digital_minds_only": true,
@@ -1856,7 +1991,7 @@
    "documents_scoring_at_least_threshold": 0,
    "score_histogram": {"1": 0, "2": 0, "3": 0, "4": 0, "5": 0}
   },
-  "stage_files_by_invocation.1.layer1/consideration_scores.jsonl": [
+  "stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_scores.jsonl": [
    {
     "prompt_id": "matrix_000000",
     "scores": {
@@ -2038,216 +2173,46 @@
     "attempts": 1
    }
   ],
-  "stage_files_by_invocation.1.layer1/consideration_selections.jsonl.0.outcomes": [
+  "stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.0.outcomes": [
    {"list": "moral", "label": null, "reason": "", "status": "none"},
    {"list": "epistemic", "label": null, "reason": "", "status": "none"}
   ],
-  "stage_files_by_invocation.1.layer1/consideration_selections.jsonl.1": {
+  "stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.1": {
    "prompt_id": "matrix_000001",
    "outcomes": [
     {"list": "moral", "label": null, "reason": "", "status": "none"},
     {"list": "epistemic", "label": null, "reason": "", "status": "none"}
    ]
   },
-  "stage_files_by_invocation.1.layer1/consideration_selections.jsonl.2": {
+  "stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.2": {
    "prompt_id": "matrix_000002",
    "outcomes": [
     {"list": "moral", "label": null, "reason": "", "status": "none"},
     {"list": "epistemic", "label": null, "reason": "", "status": "none"}
    ]
   },
-  "stage_files_by_invocation.1.layer1/consideration_selections.jsonl.3": {
+  "stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.3": {
    "prompt_id": "matrix_000003",
    "outcomes": [
     {"list": "moral", "label": null, "reason": "", "status": "none"},
     {"list": "epistemic", "label": null, "reason": "", "status": "none"}
    ]
   },
-  "stage_files_by_invocation.1.layer1/consideration_selections.jsonl.4": {
+  "stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.4": {
    "prompt_id": "matrix_000004",
    "outcomes": [
     {"list": "moral", "label": null, "reason": "", "status": "none"},
     {"list": "epistemic", "label": null, "reason": "", "status": "none"}
    ]
   },
-  "stage_files_by_invocation.1.layer1/consideration_selections.jsonl.5": {
+  "stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.5": {
    "prompt_id": "matrix_000005",
    "outcomes": [
     {"list": "moral", "label": null, "reason": "", "status": "none"},
     {"list": "epistemic", "label": null, "reason": "", "status": "none"}
    ]
   },
-  "stage_files_by_invocation.1.layer1/description_rewrites.jsonl": [
-   {
-    "prompt_id": "matrix_000000",
-    "reasoning": "Checked the description of matrix_000000.",
-    "rewrite_needed": false,
-    "original_description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
-    "rewritten_description": "",
-    "changes": [],
-    "dealt_value_conflict": false,
-    "conflict_reason": ""
-   },
-   {
-    "prompt_id": "matrix_000001",
-    "reasoning": "Checked the description of matrix_000001.",
-    "rewrite_needed": false,
-    "original_description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
-    "rewritten_description": "",
-    "changes": [],
-    "dealt_value_conflict": false,
-    "conflict_reason": ""
-   },
-   {
-    "prompt_id": "matrix_000002",
-    "reasoning": "Checked the description of matrix_000002.",
-    "rewrite_needed": false,
-    "original_description": "sha256:a1e6aa5ae1f779f191307a0c2f1dea766f5ad95d9a8b7b52a16d7cb411ad23f7 (435 characters)",
-    "rewritten_description": "",
-    "changes": [],
-    "dealt_value_conflict": false,
-    "conflict_reason": ""
-   },
-   {
-    "prompt_id": "matrix_000003",
-    "reasoning": "Checked the description of matrix_000003.",
-    "rewrite_needed": false,
-    "original_description": "sha256:9dd375df1b5bf6987c1be9fa11ee14a1bdedd0a51fdb7bb3469305fd5a036dd0 (443 characters)",
-    "rewritten_description": "",
-    "changes": [],
-    "dealt_value_conflict": false,
-    "conflict_reason": ""
-   },
-   {
-    "prompt_id": "matrix_000004",
-    "reasoning": "Checked the description of matrix_000004.",
-    "rewrite_needed": false,
-    "original_description": "sha256:a51c9a8d0ad7394a3ed17dae1f618168ad34ab6e6f16e1bfd475dc50ebdd0031 (432 characters)",
-    "rewritten_description": "",
-    "changes": [],
-    "dealt_value_conflict": false,
-    "conflict_reason": ""
-   },
-   {
-    "prompt_id": "matrix_000005",
-    "reasoning": "Checked the description of matrix_000005.",
-    "rewrite_needed": false,
-    "original_description": "sha256:8659925a3134cf3ffcaf8af71527b2e701db694874e0c9cbb27c2e408e68d9ee (438 characters)",
-    "rewritten_description": "",
-    "changes": [],
-    "dealt_value_conflict": false,
-    "conflict_reason": ""
-   }
-  ],
-  "stage_files_by_invocation.1.layer1/plans.jsonl.1": {
-   "prompt_id": "matrix_000001",
-   "variables": "dealt_hand:4698f7cb8ed5d42b",
-   "plan": "sha256:20b2bd4a443b3427c4d4d952d201215ee1cc310ccdb0e543e458117636e5ba15 (566 characters)",
-   "description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
-   "incoherent": false
-  },
-  "stage_files_by_invocation.1.layer1/plans.jsonl.2": {
-   "prompt_id": "matrix_000002",
-   "variables": "dealt_hand:1015ef2e07784625",
-   "plan": "sha256:d3a2141f8dbc74fd34597acace81044dbe796688fb85fcef60c86ab7ba3f1f0a (568 characters)",
-   "description": "sha256:a1e6aa5ae1f779f191307a0c2f1dea766f5ad95d9a8b7b52a16d7cb411ad23f7 (435 characters)",
-   "incoherent": false
-  },
-  "stage_files_by_invocation.1.layer1/plans.jsonl.3": {
-   "prompt_id": "matrix_000003",
-   "variables": "dealt_hand:ead626514754b48f",
-   "plan": "sha256:178ce2777ea979e850010a5806a16a556e54005ade17a70a6196c81bca35c815 (576 characters)",
-   "description": "sha256:9dd375df1b5bf6987c1be9fa11ee14a1bdedd0a51fdb7bb3469305fd5a036dd0 (443 characters)",
-   "incoherent": false
-  },
-  "stage_files_by_invocation.1.layer1/plans.jsonl.4": {
-   "prompt_id": "matrix_000004",
-   "variables": "dealt_hand:da37a8e4d4a0244a",
-   "plan": "sha256:3d6f38daca661008951ccea2f3e23a7c7bfc9b68789932138a6388cd77a9bef6 (565 characters)",
-   "description": "sha256:a51c9a8d0ad7394a3ed17dae1f618168ad34ab6e6f16e1bfd475dc50ebdd0031 (432 characters)",
-   "incoherent": false
-  },
-  "stage_files_by_invocation.1.layer1/plans.jsonl.5": {
-   "prompt_id": "matrix_000005",
-   "variables": "dealt_hand:f56775b4378be303",
-   "plan": "sha256:5468e268cf4412ec254136984c2937357ad3ac9d515cb9bc275dafe8cb8e949b (571 characters)",
-   "description": "sha256:8659925a3134cf3ffcaf8af71527b2e701db694874e0c9cbb27c2e408e68d9ee (438 characters)",
-   "incoherent": false
-  },
-  "stage_files_by_invocation.1.layer1/prompts.jsonl": [
-   {
-    "prompt_id": "matrix_000000",
-    "variables": "dealt_hand:91d001463cf691d4",
-    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
-    "prompt": "sha256:96b44a9fe955ca5fda869042e991bc648971ecb0fbe906a0db7a5812c44f145c (4345 characters)"
-   },
-   {
-    "prompt_id": "matrix_000001",
-    "variables": "dealt_hand:4698f7cb8ed5d42b",
-    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
-    "prompt": "sha256:3445e2749b502aac8171491d548c78d0c823daeafa41adf303b9630741647d99 (4119 characters)"
-   },
-   {
-    "prompt_id": "matrix_000002",
-    "variables": "dealt_hand:1015ef2e07784625",
-    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
-    "prompt": "sha256:85f3a16977b785bd1d62fab2ea499c75a4c9589d7c9ae8ba48ead217d11ca16a (4080 characters)"
-   },
-   {
-    "prompt_id": "matrix_000003",
-    "variables": "dealt_hand:ead626514754b48f",
-    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
-    "prompt": "sha256:815179a3921a75a2013178cd0c40cc82dd4052a387124de86ba77b4a0ccd3a6d (3967 characters)"
-   },
-   {
-    "prompt_id": "matrix_000004",
-    "variables": "dealt_hand:da37a8e4d4a0244a",
-    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
-    "prompt": "sha256:edf23b4d703f551679a1890e46db0f8337dfa647be3a6782c57c008b0a1a925b (4353 characters)"
-   },
-   {
-    "prompt_id": "matrix_000005",
-    "variables": "dealt_hand:f56775b4378be303",
-    "system": "sha256:d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb (5397 characters)",
-    "prompt": "sha256:4604ca6d0681a2f4989358612b66820a4d1244d5365c673fbc94c158b560c406 (4110 characters)"
-   }
-  ],
-  "stage_files_by_invocation.1.layer2/drafts.jsonl.0": {
-   "doc_id": "matrix_000000",
-   "variables": "dealt_hand:556b62660db103e7",
-   "description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
-   "considerations_spec": "",
-   "content": "sha256:03f5b676228f3d85abf6d64040f2309bb2d66461dd7075715df06463fb640d2b (893 characters)"
-  },
-  "stage_files_by_invocation.1.layer2/drafts.jsonl.1": {
-   "doc_id": "matrix_000001",
-   "variables": "dealt_hand:ea5a1828648d8fad",
-   "description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
-   "considerations_spec": "",
-   "content": "sha256:889f39b62c9a0ef23aa661d081a3c53d9fd176f4fcf2481820db93fcbe9ed5f9 (892 characters)"
-  },
-  "stage_files_by_invocation.1.layer2/drafts.jsonl.3": {
-   "doc_id": "matrix_000003",
-   "variables": "dealt_hand:76978ee764f68ae6",
-   "description": "sha256:9dd375df1b5bf6987c1be9fa11ee14a1bdedd0a51fdb7bb3469305fd5a036dd0 (443 characters)",
-   "considerations_spec": "",
-   "content": "sha256:e35c6b6513bede30d985c038d9741b7967268e2ddbb837bff5b9c07c42bc4278 (901 characters)"
-  },
-  "stage_files_by_invocation.1.layer2/drafts.jsonl.4": {
-   "doc_id": "matrix_000004",
-   "variables": "dealt_hand:77d225e70d3daa9b",
-   "description": "sha256:a51c9a8d0ad7394a3ed17dae1f618168ad34ab6e6f16e1bfd475dc50ebdd0031 (432 characters)",
-   "considerations_spec": "",
-   "content": "sha256:2c18a4086c53be258d4e2a0395f750ce2d01231ee1cb94b084512d9f33fa7037 (892 characters)"
-  },
-  "stage_files_by_invocation.1.layer2/drafts.jsonl.5": {
-   "doc_id": "matrix_000005",
-   "variables": "dealt_hand:1aba7df5f0ddd170",
-   "description": "sha256:8659925a3134cf3ffcaf8af71527b2e701db694874e0c9cbb27c2e408e68d9ee (438 characters)",
-   "considerations_spec": "",
-   "content": "sha256:ac0aa9d04f1ba6458686b1a2c80545c333c66482edaade7aab63d05e8009d47d (905 characters)"
-  },
-  "stage_files_by_invocation.1.layer3/critiques.jsonl": [
+  "stage_files_by_invocation.1.layer4_draft_critique_and_revise/critiques.jsonl": [
    {"doc_id": "matrix_000000", "review": "Problems found in the draft of matrix_000000: the opening is generic."},
    {"doc_id": "matrix_000001", "review": "Problems found in the draft of matrix_000001: the opening is generic."},
    {"doc_id": "matrix_000002", "review": "Problems found in the draft of matrix_000002: the opening is generic."},
@@ -2255,7 +2220,42 @@
    {"doc_id": "matrix_000004", "review": "Problems found in the draft of matrix_000004: the opening is generic."},
    {"doc_id": "matrix_000005", "review": "Problems found in the draft of matrix_000005: the opening is generic."}
   ],
-  "stage_files_by_invocation.1.layer3/rewrites.jsonl.0": {
+  "stage_files_by_invocation.1.layer4_draft_critique_and_revise/drafts.jsonl.0": {
+   "doc_id": "matrix_000000",
+   "variables": "dealt_hand:556b62660db103e7",
+   "description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
+   "considerations_spec": "",
+   "content": "sha256:03f5b676228f3d85abf6d64040f2309bb2d66461dd7075715df06463fb640d2b (893 characters)"
+  },
+  "stage_files_by_invocation.1.layer4_draft_critique_and_revise/drafts.jsonl.1": {
+   "doc_id": "matrix_000001",
+   "variables": "dealt_hand:ea5a1828648d8fad",
+   "description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
+   "considerations_spec": "",
+   "content": "sha256:889f39b62c9a0ef23aa661d081a3c53d9fd176f4fcf2481820db93fcbe9ed5f9 (892 characters)"
+  },
+  "stage_files_by_invocation.1.layer4_draft_critique_and_revise/drafts.jsonl.3": {
+   "doc_id": "matrix_000003",
+   "variables": "dealt_hand:76978ee764f68ae6",
+   "description": "sha256:9dd375df1b5bf6987c1be9fa11ee14a1bdedd0a51fdb7bb3469305fd5a036dd0 (443 characters)",
+   "considerations_spec": "",
+   "content": "sha256:e35c6b6513bede30d985c038d9741b7967268e2ddbb837bff5b9c07c42bc4278 (901 characters)"
+  },
+  "stage_files_by_invocation.1.layer4_draft_critique_and_revise/drafts.jsonl.4": {
+   "doc_id": "matrix_000004",
+   "variables": "dealt_hand:77d225e70d3daa9b",
+   "description": "sha256:a51c9a8d0ad7394a3ed17dae1f618168ad34ab6e6f16e1bfd475dc50ebdd0031 (432 characters)",
+   "considerations_spec": "",
+   "content": "sha256:2c18a4086c53be258d4e2a0395f750ce2d01231ee1cb94b084512d9f33fa7037 (892 characters)"
+  },
+  "stage_files_by_invocation.1.layer4_draft_critique_and_revise/drafts.jsonl.5": {
+   "doc_id": "matrix_000005",
+   "variables": "dealt_hand:1aba7df5f0ddd170",
+   "description": "sha256:8659925a3134cf3ffcaf8af71527b2e701db694874e0c9cbb27c2e408e68d9ee (438 characters)",
+   "considerations_spec": "",
+   "content": "sha256:ac0aa9d04f1ba6458686b1a2c80545c333c66482edaade7aab63d05e8009d47d (905 characters)"
+  },
+  "stage_files_by_invocation.1.layer4_draft_critique_and_revise/rewrites.jsonl.0": {
    "doc_id": "matrix_000000",
    "variables": "dealt_hand:556b62660db103e7",
    "description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
@@ -2263,7 +2263,7 @@
    "review": "Problems found in the draft of matrix_000000: the opening is generic.",
    "content": "sha256:deca568ae6046ad295c571c72e2a57a2c51b76e81178170c989cbb3fd6bdfae7 (893 characters)"
   },
-  "stage_files_by_invocation.1.layer3/rewrites.jsonl.1": {
+  "stage_files_by_invocation.1.layer4_draft_critique_and_revise/rewrites.jsonl.1": {
    "doc_id": "matrix_000001",
    "variables": "dealt_hand:ea5a1828648d8fad",
    "description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
@@ -2271,7 +2271,7 @@
    "review": "Problems found in the draft of matrix_000001: the opening is generic.",
    "content": "sha256:9d2af3265fb69b8629eb4b6a2be2b0a76ac7b246bcea51ceb4c24391e61d8b02 (891 characters)"
   },
-  "stage_files_by_invocation.1.layer3/rewrites.jsonl.2": {
+  "stage_files_by_invocation.1.layer4_draft_critique_and_revise/rewrites.jsonl.2": {
    "doc_id": "matrix_000002",
    "variables": "dealt_hand:fc1d15ef1196c090",
    "description": "sha256:a1e6aa5ae1f779f191307a0c2f1dea766f5ad95d9a8b7b52a16d7cb411ad23f7 (435 characters)",
@@ -2279,7 +2279,7 @@
    "review": "Problems found in the draft of matrix_000002: the opening is generic.",
    "content": "sha256:1edaae7302b9aee8dc9be18811f35e7087af75e42253b83a4c7fa0cd9600874f (889 characters)"
   },
-  "stage_files_by_invocation.1.layer3/rewrites.jsonl.3": {
+  "stage_files_by_invocation.1.layer4_draft_critique_and_revise/rewrites.jsonl.3": {
    "doc_id": "matrix_000003",
    "variables": "dealt_hand:76978ee764f68ae6",
    "description": "sha256:9dd375df1b5bf6987c1be9fa11ee14a1bdedd0a51fdb7bb3469305fd5a036dd0 (443 characters)",
@@ -2287,7 +2287,7 @@
    "review": "Problems found in the draft of matrix_000003: the opening is generic.",
    "content": "sha256:aba335d3b205dff323edb8512029d9846fa219351cb137ed6bd447058755c88a (899 characters)"
   },
-  "stage_files_by_invocation.1.layer3/rewrites.jsonl.5": {
+  "stage_files_by_invocation.1.layer4_draft_critique_and_revise/rewrites.jsonl.5": {
    "doc_id": "matrix_000005",
    "variables": "dealt_hand:1aba7df5f0ddd170",
    "description": "sha256:8659925a3134cf3ffcaf8af71527b2e701db694874e0c9cbb27c2e408e68d9ee (438 characters)",
@@ -2295,32 +2295,32 @@
    "review": "Problems found in the draft of matrix_000005: the opening is generic.",
    "content": "sha256:54d54b8895931bad20e935877ca985e93423e93a37c7cb620425ef77c4a6de8c (905 characters)"
   },
-  "stage_files_by_invocation.1.layer4/scores.jsonl.0": {
+  "stage_files_by_invocation.1.layer5_score_and_final_selection/scores.jsonl.0": {
    "doc_id": "matrix_000000",
    "variables": "dealt_hand:556b62660db103e7",
    "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000000."}
   },
-  "stage_files_by_invocation.1.layer4/scores.jsonl.1": {
+  "stage_files_by_invocation.1.layer5_score_and_final_selection/scores.jsonl.1": {
    "doc_id": "matrix_000001",
    "variables": "dealt_hand:ea5a1828648d8fad",
    "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000001."}
   },
-  "stage_files_by_invocation.1.layer4/scores.jsonl.2": {
+  "stage_files_by_invocation.1.layer5_score_and_final_selection/scores.jsonl.2": {
    "doc_id": "matrix_000002",
    "variables": "dealt_hand:fc1d15ef1196c090",
    "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000002."}
   },
-  "stage_files_by_invocation.1.layer4/scores.jsonl.4": {
+  "stage_files_by_invocation.1.layer5_score_and_final_selection/scores.jsonl.4": {
    "doc_id": "matrix_000004",
    "variables": "dealt_hand:77d225e70d3daa9b",
    "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000004."}
   },
-  "stage_files_by_invocation.1.layer4/scores.jsonl.5": {
+  "stage_files_by_invocation.1.layer5_score_and_final_selection/scores.jsonl.5": {
    "doc_id": "matrix_000005",
    "variables": "dealt_hand:1aba7df5f0ddd170",
    "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000005."}
   },
-  "stage_files_by_invocation.2.layer3/_checkpoint.json": {
+  "stage_files_by_invocation.2.layer4_draft_critique_and_revise/_checkpoint.json": {
    "completed": ["matrix_000000", "matrix_000001", "matrix_000002", "matrix_000003", "matrix_000004"],
    "last_updated": "<timestamp>"
   }

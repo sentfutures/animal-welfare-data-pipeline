@@ -17,8 +17,9 @@ from pathlib import Path
 import pytest
 
 from evals import audit_sdf
-from sdf_pipeline import compose_prompts as cp
-from sdf_pipeline import layer1_screen as screen
+from sdf_pipeline.shared_step_machinery import compose_prompts as cp
+from sdf_pipeline.layer1_deal_variables_and_screen import run_layer as screen
+from sdf_pipeline.layer1_deal_variables_and_screen.redeal import redeal_removed_hands
 from shared import utils
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -143,7 +144,7 @@ def test_screen_hands_maps_numbers_to_judgments_through_the_public_function(stub
 
 
 def test_no_model_facing_prose_lives_in_the_python_module():
-    source = (REPO_ROOT / "sdf_pipeline" / "layer1_screen.py").read_text(encoding="utf-8")
+    source = (REPO_ROOT / "sdf_pipeline" / "layer1_deal_variables_and_screen" / "screen.py").read_text(encoding="utf-8")
     for phrase in ("Judge against how the world actually is", "These are not reasons", "competent planner"):
         assert phrase not in source
 
@@ -267,13 +268,13 @@ def test_batches_are_written_before_any_call(screen_config, prompts_sdf, stage_d
     assert seen_at_first_call == [3, 3, 3]
 
 
-def test_model_falls_back_from_screen_to_plan_to_global(screen_config, prompts_sdf, tmp_path, stub_claude):
+def test_model_falls_back_from_screen_to_description_write_to_global(screen_config, prompts_sdf, tmp_path, stub_claude):
     screen_config["sdf"]["n_prompts"] = 3
     calls = stub_claude(no_removals)
     for name, knobs, expected in (
         ("first", {}, None),
-        ("second", {"plan_model": "plan-model-x"}, "plan-model-x"),
-        ("third", {"plan_model": "plan-model-x", "screen_model": "screen-model-x"}, "screen-model-x"),
+        ("second", {"description_write_model": "description-write-model-x"}, "description-write-model-x"),
+        ("third", {"description_write_model": "description-write-model-x", "screen_model": "screen-model-x"}, "screen-model-x"),
     ):
         directory = tmp_path / name
         directory.mkdir()
@@ -342,7 +343,7 @@ def test_redeal_applies_deal_rule_repair_only_among_the_new_hands(prompts_sdf):
     hands = [{"prompt_id": f"matrix_{i:06d}", "variables": v}
              for i, v in enumerate(cp.deal_hands(template, values, weights, 60, 0, rules))]
     removed = hands[:12]
-    new_hands = screen.redeal_removed_hands(removed, 1, 0, rules)
+    new_hands = redeal_removed_hands(removed, 1, 0, rules)
     assert new_hands is not None and len(new_hands) == 12
     assert column_counts([{"variables": h} for h in new_hands]) == column_counts(removed)
     from shared import deal_constraints
@@ -355,15 +356,15 @@ def test_redeal_is_deterministic_per_seed_and_round(prompts_sdf):
     template = (prompts_sdf / "layer1.txt").read_text(encoding="utf-8")
     hands = [{"prompt_id": f"matrix_{i:06d}", "variables": v}
              for i, v in enumerate(cp.deal_hands(template, values, weights, 40, 0, rules))][:10]
-    same = [screen.redeal_removed_hands(hands, 1, 0, rules) for _ in range(2)]
+    same = [redeal_removed_hands(hands, 1, 0, rules) for _ in range(2)]
     assert same[0] == same[1]
-    assert screen.redeal_removed_hands(hands, 2, 0, rules) != same[0]
-    assert screen.redeal_removed_hands(hands, 1, 1, rules) != same[0]
+    assert redeal_removed_hands(hands, 2, 0, rules) != same[0]
+    assert redeal_removed_hands(hands, 1, 1, rules) != same[0]
 
 
 def test_a_lone_removed_hand_cannot_be_redealt_into_a_different_hand(prompts_sdf):
     hand = {"prompt_id": "matrix_000000", "variables": {"tone": "a", "culture": "b"}}
-    assert screen.redeal_removed_hands([hand], 1, 0, []) is None
+    assert redeal_removed_hands([hand], 1, 0, []) is None
 
 
 def test_screen_terminates_after_the_maximum_rounds_and_reports_leftovers(

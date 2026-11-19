@@ -1,20 +1,21 @@
-"""Layer 1: compose the prompt matrix offline, then plan each document (a description spec, or INCOHERENT; only the description travels on).
-prompts.jsonl is composed once and reloaded on ``--resume``; a plan with no tags or truncated is not recorded, so ``--resume`` retries it."""
+"""Layer 2 step: compose the prompt matrix offline, then write each document's description (a description spec, or INCOHERENT; only the description travels on).
+prompts.jsonl is composed once and reloaded on ``--resume``; a reply with no tags or truncated is not recorded, so ``--resume`` retries it."""
 
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from shared import utils
-from sdf_pipeline import compose_prompts as cp
-from sdf_pipeline.shared_step_machinery.step_record import LAYER1, Run, StageFile, Step
+from sdf_pipeline.shared_step_machinery import compose_prompts as cp
+from sdf_pipeline.shared_step_machinery.step_record import Run, StageFile, Step
 from sdf_pipeline.shared_step_machinery.step_runner import run_step
 from sdf_pipeline.shared_step_machinery.update_steps import (
     Accepted, Failed, FailureKind, ModelReply, ModelRequest, OutcomeRecords, Removed, StepProgress,
     line_for_document_left_to_retry)
+from shared.sdf_run_layouts import DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE
 
-PLANS = StageFile(LAYER1, "plans.jsonl", "prompt_id")
+PLANS = StageFile(DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE, "plans.jsonl", "prompt_id")
 
 
 def build_request(documents: list, run: Run) -> ModelRequest:
@@ -24,10 +25,10 @@ def build_request(documents: list, run: Run) -> ModelRequest:
 
 
 def read_reply(documents: list, reply: ModelReply, run: Run) -> dict:
-    """A plan that declares the combination INCOHERENT is ``Removed``; its record is still written to plans.jsonl."""
+    """A reply that declares the combination INCOHERENT is ``Removed``; its record is still written to plans.jsonl."""
     (prompt_record,) = documents
     if reply.stop_reason != "end_turn":
-        outcome = Failed(FailureKind.UNUSABLE_ANSWER, f"truncated plan (stop_reason={reply.stop_reason})")
+        outcome = Failed(FailureKind.UNUSABLE_ANSWER, f"truncated description write (stop_reason={reply.stop_reason})")
     else:
         description = cp.extract_description(reply.text)
         if cp.is_incoherent(reply.text):
@@ -50,7 +51,7 @@ def _plan_record(prompt_record: dict, plan: str, description, incoherent: bool) 
 
 
 def records(documents: list, outcomes: dict, run: Run) -> OutcomeRecords:
-    """An accepted plan, and an INCOHERENT one (a finished plan whose record says so), are one record each."""
+    """An accepted description write, and an INCOHERENT one (a finished one whose record says so), are one record each."""
     (prompt_record,) = documents
     outcome = outcomes[prompt_record["prompt_id"]]
     if isinstance(outcome, Accepted):
@@ -66,16 +67,16 @@ def progress_line(documents: list, outcomes: dict, progress: StepProgress, run: 
     (prompt_record,), (outcome,) = documents, outcomes.values()
     prompt_id = prompt_record["prompt_id"]
     if isinstance(outcome, Accepted):
-        return f"  Planned {prompt_id}"
+        return f"  Wrote description for {prompt_id}"
     if isinstance(outcome, Removed):
-        return f"  Planned {prompt_id} (INCOHERENT)"
+        return f"  Wrote description for {prompt_id} (INCOHERENT)"
     if outcome.kind is FailureKind.THROWN_CALL:
         return line_for_document_left_to_retry(prompt_id, f"API call failed ({outcome.reason})")
     return line_for_document_left_to_retry(prompt_id, outcome.reason)
 
 
 STEP = Step(
-    name="plan", folder_key=LAYER1, stage_tag="layer1_plan", model_setting_keys=("plan_model",),
+    name="description_write", folder_key=DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE, model_setting_keys=("description_write_model",),
     build_request=build_request, read_reply=read_reply, records=records, writes=(PLANS,),
     checkpoint_file_name="_checkpoint.json", progress_line=progress_line)
 
@@ -83,7 +84,7 @@ STEP = Step(
 def run(
     config: dict, prompts_dir: Path, output_dir: Path, hands: list[dict] | None = None
 ) -> list[dict]:
-    """Plan every hand. ``hands`` are the hand records the implausibility screen
+    """Write the description of every hand. ``hands`` are the hand records the implausibility screen
     accepted ({"prompt_id", "variables"}); without them (screen disabled) the
     composer deals its own hands."""
     prompts_path = output_dir / "prompts.jsonl"
@@ -110,7 +111,7 @@ def run(
             utils.append_jsonl(rec, prompts_path)
         print(f"  Composed {len(prompts)} prompts (offline, $0.00)")
 
-    results = run_step(STEP, Run(config, prompts_dir, {LAYER1: output_dir}), prompts).records_in_input_order
+    results = run_step(STEP, Run(config, prompts_dir, {DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE: output_dir}), prompts).records_in_input_order
     incoherent_n = sum(1 for r in results if r.get("incoherent"))
     if incoherent_n:
         print(f"  {incoherent_n} combination(s) declared INCOHERENT — dropped")

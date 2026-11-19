@@ -6,7 +6,7 @@ request it sends and that a resume pays for exactly the unfinished work.
 
 import pytest
 
-from sdf_pipeline import layer2_draft as draft_step
+from sdf_pipeline.layer4_draft_critique_and_revise import draft as draft_step
 from shared import utils
 from sdf_plan_draft_rewrite_and_score_test_builders import make_plan
 

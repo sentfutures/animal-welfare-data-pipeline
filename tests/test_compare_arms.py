@@ -11,7 +11,7 @@ import math
 import pytest
 
 from experiments import compare_arms as ca
-from sdf_pipeline import revision_style
+from sdf_pipeline.shared_step_machinery import revision_style
 
 
 def row(arm, *, ratio=None, pass_rate=1.0, length=None):

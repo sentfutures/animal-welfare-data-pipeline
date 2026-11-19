@@ -1,4 +1,4 @@
-"""Layer 2: draft one document per plan from its DOCUMENT DESCRIPTION spec; the draft must come back inside <document> tags.
+"""Layer 4 step: draft one document per plan from its DOCUMENT DESCRIPTION spec; the draft must come back inside <document> tags.
 Anything else (missing tags, truncation) is not recorded, so ``--resume`` retries it."""
 
 import re
@@ -7,12 +7,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from shared import constitution_loader, deal_constraints, utils
-from sdf_pipeline import compose_prompts as cp
+from shared import constitution_loader, deal_constraints, sdf_run_layouts, utils
+from sdf_pipeline.shared_step_machinery import compose_prompts as cp
 from sdf_pipeline.shared_step_machinery.step_record import (
-    LAYER2, Run, StageFile, Step, loaded_once_per_run, one_record_per_accepted_document)
+    Run, StageFile, Step, loaded_once_per_run, one_record_per_accepted_document)
 from sdf_pipeline.shared_step_machinery.step_runner import run_step
 from sdf_pipeline.shared_step_machinery.update_steps import (
     Accepted, Failed, FailureKind, ModelReply, ModelRequest, StepProgress, line_for_document_left_to_retry)
@@ -21,7 +21,7 @@ DOC_TAG_RE = re.compile(r"<document>(.*?)</document>", re.DOTALL)
 
 _MAX_TOKENS = 6000  # real documents are often long; the cap bounds api-backend cost
 
-DRAFTS = StageFile(LAYER2, "drafts.jsonl", "doc_id")
+DRAFTS = StageFile(sdf_run_layouts.DRAFT, "drafts.jsonl", "doc_id")
 
 
 @dataclass(frozen=True)
@@ -108,13 +108,13 @@ def progress_line(documents: list, outcomes: dict, progress: StepProgress, run: 
 
 # Only a thrown call counts towards the systemic stop; an unusable answer is left behind.
 STEP = Step(
-    name="draft", folder_key=LAYER2, stage_tag="layer2_draft", model_setting_keys=("draft_model",),
+    name="draft", folder_key=sdf_run_layouts.DRAFT, model_setting_keys=("draft_model",),
     applies=lambda plan, run: bool(plan.get("description")),
     build_request=build_request, read_reply=read_reply,
     records=one_record_per_accepted_document(DRAFTS, record_of), writes=(DRAFTS,),
-    checkpoint_file_name="_checkpoint.json", progress_line=progress_line)
+    checkpoint_file_name=lambda: sdf_run_layouts.active_layout().draft_checkpoint_file_name, progress_line=progress_line)
 
 
 def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) -> list[dict]:
     """Draft every plan and return the draft records in input order."""
-    return run_step(STEP, Run(config, prompts_dir, {LAYER2: output_dir}), plans).records_in_input_order
+    return run_step(STEP, Run(config, prompts_dir, {sdf_run_layouts.DRAFT: output_dir}), plans).records_in_input_order

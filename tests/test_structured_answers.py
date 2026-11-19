@@ -5,7 +5,7 @@ import json
 
 import pytest
 
-from sdf_pipeline import layer1_select_considerations as select
+from sdf_pipeline.layer3_consideration_scoring_and_selection import run_layer as select
 from sdf_pipeline.shared_step_machinery import structured_answers
 
 

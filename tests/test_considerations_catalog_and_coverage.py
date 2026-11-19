@@ -7,11 +7,11 @@ catalog tests read the real prompts/sdf/considerations.txt and variables.txt
 
 import pytest
 
-from sdf_pipeline import considerations_catalog as catalog_module
-from sdf_pipeline.considerations_catalog import (
+from sdf_pipeline.shared_step_machinery import considerations_catalog as catalog_module
+from sdf_pipeline.shared_step_machinery.considerations_catalog import (
     Consideration, ConsiderationCatalog, EPISTEMIC_LIST, MORAL_LIST, load_considerations, target_count,
 )
-from sdf_pipeline.considerations_coverage import corpus_coverage, document_coverage_shares, entry_targets
+from sdf_pipeline.shared_step_machinery.considerations_coverage import corpus_coverage, document_coverage_shares, entry_targets
 
 
 def make_catalog(moral=(("M1", 0.5), ("M2", 0.5)), epistemic=(("E1", 0.5),), digital=(("D1", 0.5),)):

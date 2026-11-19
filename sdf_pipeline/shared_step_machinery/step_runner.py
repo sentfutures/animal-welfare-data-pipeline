@@ -87,7 +87,8 @@ def checkpoint_of(step: Step, run: Run) -> utils.Checkpoint | None:
     """The step's checkpoint file in its folder (written by earlier and current code alike), or None for a step without one."""
     if not step.checkpoint_file_name:
         return None
-    return utils.Checkpoint(run.stage_directories[step.folder_key] / step.checkpoint_file_name)
+    file_name = step.checkpoint_file_name() if callable(step.checkpoint_file_name) else step.checkpoint_file_name
+    return utils.Checkpoint(run.stage_directories[step.folder_key] / file_name)
 
 
 def find_pending(step: Step, run: Run, documents: list) -> tuple[dict, dict]:
