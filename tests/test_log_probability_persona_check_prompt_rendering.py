@@ -161,6 +161,29 @@ def test_document_token_ids_are_identical_across_all_72_conditions(instruct_cond
     assert len({sequence.document_start_index for sequence in tokenized_sequences}) > 1  # prompts differ in length
 
 
+def test_real_user_message_is_the_user_turn_and_document_tokens_are_identical_across_conditions(
+        instruct_conditions):
+    real_message = "My neighbour's dog barks all night.  Should I call the council? {not_a_slot}\n\nThanks"
+    files = persona_sets.load_generation_prompt_files(
+        persona_sets.PERSONA_CHECKS_PROMPT_DIRECTORY / "generation_prompt_real_user_message")
+    generation_prompt = prompt_rendering.render_generation_prompt({"user_message": real_message}, "doc", files)
+    assert generation_prompt == real_message
+    tokenizer = make_tokenizer()
+    document = {"document_id": "doc", "content": SHORT_DOCUMENT_TEXTS[0], "generation_prompt": generation_prompt}
+    tokenized_sequences, document_token_ids = prompt_rendering.tokenize_all_conditions_for_document(
+        tokenizer, document, instruct_conditions, "m")
+    for condition, sequence in zip(instruct_conditions, tokenized_sequences):
+        assert sequence.full_token_ids[sequence.document_start_index:sequence.document_end_index] == document_token_ids
+        rendered_prompt = prompt_rendering.render_prompt_text_with_generation_header(
+            tokenizer, condition, generation_prompt)
+        assert real_message in rendered_prompt
+    # the same document under the default template has the same document tokens
+    default_prompt = "Write a short document about shrimp."
+    _, default_document_token_ids = prompt_rendering.tokenize_all_conditions_for_document(
+        tokenizer, {**document, "generation_prompt": default_prompt}, instruct_conditions[:3], "m")
+    assert default_document_token_ids == document_token_ids
+
+
 def test_mismatched_document_token_ids_across_conditions_are_caught(monkeypatch, instruct_conditions):
     tokenizer = make_tokenizer()
     real_function = prompt_rendering.tokenize_condition_and_document

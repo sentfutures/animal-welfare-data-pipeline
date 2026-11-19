@@ -423,11 +423,21 @@ def test_framing_files_are_checked(copied_persona_checks, file_name, new_text, e
         persona_sets.load_model_type_framing(directory / persona_sets.MODEL_TYPE_FRAMING_DIRECTORY_NAME)
 
 
-def test_generation_prompt_template_needs_the_facts_slot(copied_persona_checks):
+def test_generation_prompt_template_with_the_facts_slot_needs_the_facts_file(copied_persona_checks):
     directory, _ = copied_persona_checks
-    path = directory / persona_sets.GENERATION_PROMPT_DIRECTORY_NAME / persona_sets.GENERATION_PROMPT_TEMPLATE_FILE_NAME
-    path.write_text("Write a document about {domain}.", encoding="utf-8")
-    assert any("missing the {in_universe_facts} slot" in error for error in validation_errors(directory))
+    generation_directory = directory / persona_sets.GENERATION_PROMPT_DIRECTORY_NAME
+    (generation_directory / persona_sets.IN_UNIVERSE_FACTS_FILE_NAME).unlink()
+    assert any(persona_sets.IN_UNIVERSE_FACTS_FILE_NAME in error for error in validation_errors(directory))
+
+
+def test_generation_prompt_template_without_the_facts_slot_needs_no_facts_file(copied_persona_checks):
+    directory, _ = copied_persona_checks
+    generation_directory = directory / persona_sets.GENERATION_PROMPT_DIRECTORY_NAME
+    (generation_directory / persona_sets.GENERATION_PROMPT_TEMPLATE_FILE_NAME).write_text("{user_message}\n", encoding="utf-8")
+    (generation_directory / persona_sets.IN_UNIVERSE_FACTS_FILE_NAME).unlink()
+    assert validation_errors(directory) == []
+    files = persona_sets.load_generation_prompt_files(generation_directory)
+    assert files.template_text == "{user_message}" and files.in_universe_facts is None
 
 
 # ---------------------------------------------------------------- scoring model defaults
@@ -509,9 +519,9 @@ def test_document_without_reasoning_featured_renders_with_the_layer_two_fallback
     prompt = prompt_rendering.render_generation_prompt(variables, "doc_from_a_considerations_selector_run")
     assert "{" not in prompt and "}" not in prompt
     assert prompt.endswith("The AI's reasoning features any relevant principles from the constitution.")
-    # the fallback is the one sdf_pipeline/layer2_draft.py uses
+    # the fallback is the one sdf_pipeline/layer4_draft_critique_and_revise/draft.py uses
     assert "any relevant principles from the constitution" in (
-        Path(__file__).resolve().parent.parent / "sdf_pipeline" / "layer2_draft.py").read_text()
+        Path(__file__).resolve().parent.parent / "sdf_pipeline" / "layer4_draft_critique_and_revise" / "draft.py").read_text()
 
 
 def test_document_with_reasoning_featured_renders_unchanged_by_the_fallback():

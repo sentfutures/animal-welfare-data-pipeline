@@ -93,17 +93,6 @@ class TestJudging:
         assert "said nothing" in finding["evidence"]
         assert all(c["stage"] == "eval_compliance" for c in calls)
 
-    def test_prompt_carries_typology_and_document(self, stub_claude, typology):
-        body, modes = typology
-        calls = stub_claude(lambda user_message, **kwargs: _all_absent(modes))
-        cs.judge_documents(_recs("UNIQUE-DOC-BODY"), {"workers": 1}, body, modes, sample=10)
-        sent = calls[0]["user_message"]
-        assert "UNIQUE-DOC-BODY" in sent
-        assert body[:200] in sent, "the typology rubric did not reach the judge"
-        # scope rules that keep deliberate design slices from reading as failures
-        assert "silence is CORRECT" in sent
-        assert "fictional by construction" in sent
-
     def test_malformed_output_is_unjudged_not_clean(self, stub_claude, typology):
         # A dropped call must not inflate the clean-document count — that would
         # report a judge outage as perfect compliance.

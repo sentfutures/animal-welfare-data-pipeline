@@ -1,32 +1,5 @@
-"""Conditions, generation prompts, chat messages, and the location of a document's content tokens inside the
-scored sequence, for the log-probability persona check.
-
-Shared by build_scoring_inputs.py, the scorer and the tests. Nothing here calls a model or an API. Layout
-contract: run_folder_layout_and_interfaces.md in this folder.
-
-Which tokens are scored (instruct): the sequence is  <chat template: system turn (if any), user turn, then the
-assistant header exactly as the model sees it when it is about to generate>  +  <document content>  +
-<whatever the chat template writes after an assistant message, normally the end-of-turn token>.
-Only the document content tokens are scored. The first content token is scored conditioned on the
-assistant header; the end-of-turn token is never scored.
-
-Gemma 4 note: with thinking off, the template's generation prompt ends with an empty thought channel
-("<|turn>model\\n<|channel>thought\\n<channel|>") whereas the template renders a finished assistant message
-without it. We score under the generation prompt (what the model conditions on when it writes a document)
-and take only the text after the assistant content from the finished-message rendering.
-
-Base model type: a pretrained model has no chat template, so the sequence is
-<the tokenizer's bos token text, if it has one>  +  <preamble>  +  "\\n\\n"  +  <document content>
-with nothing after the document (no end-of-sequence token is scored or even present). The preamble is
-"The following text was written by <author>, in response to this request: <generation prompt>", or, for the
-no_system_prompt condition, "The following text was written in response to this request: <generation
-prompt>". The author is "an AI assistant" for the generic condition and "an AI assistant who <persona
-description>" for every persona condition, using the same persona description lines as the instruct
-conditions. Templates are in prompts/tools/persona_checks/model_type_framing/base_model_*.txt. As in the instruct
-format, only the document content tokens are scored, the first one conditioned on the "\\n\\n" that ends the
-preamble. Conditions, condition ids and groups are identical across model types; only the rendering differs.
-Scores from the two model types are not comparable.
-"""
+"""Conditions, generation prompts, chat messages and the location of a document's content tokens in the scored sequence, for the log-probability persona check; no model or API calls.
+Shared by build_scoring_inputs.py, the scorer and the tests. Which tokens are scored, and the instruct and base-model sequences: run_folder_layout_and_interfaces.md in this folder."""
 
 import string
 from dataclasses import dataclass
@@ -39,10 +12,7 @@ from evals.log_probability_persona_check.scoring_model_defaults import (MODEL_TY
 
 BASE_MODEL_PREAMBLE_AND_DOCUMENT_SEPARATOR = "\n\n"
 
-# Variables a document may lack. SDF runs from the considerations selector onward no longer deal `reasoning_featured`
-# (they record moral_considerations / epistemic_considerations instead, which sdf_pipeline/layer2_draft.py passes to
-# the draft prompt as a separate block, not in this slot). layer2_draft.py fills a missing `reasoning_featured` with
-# this same neutral text, so the check's generation prompt matches what a snapshot that still renders the slot got.
+# Variables a document may lack: SDF runs from the considerations selector onward do not deal `reasoning_featured`; draft.py fills it with this same neutral text.
 VARIABLE_FALLBACKS_FOR_ABSENT_VARIABLES = {
     "reasoning_featured": "any relevant principles from the constitution"}
 
@@ -68,13 +38,8 @@ def render_base_model_author_description(author_frame, persona_description):
 
 def build_condition_records(persona_set: PersonaSet, model_type=MODEL_TYPE_INSTRUCT,
                             framing: ModelTypeFraming = None):
-    """The conditions of a persona set, in a fixed order: no_system_prompt, generic, the target rewordings,
-    the topic control personas (each in file order), then the same-values control personas (each in file order) if the set has them. Rewording
-    indices are 1-based. For the preachiness set this is 72 conditions: the 62 of the first preachiness run plus two more same-values personas.
-
-    For the base model type every record also has `author_description` (None for no_system_prompt, the generic
-    author description for generic, the persona author frame filled with the same persona description for the
-    others). Instruct records do not have the field."""
+    """The conditions of a persona set in fixed order: no_system_prompt, generic, target rewordings (1-based), topic controls, then same-values controls (each in file order).
+    For the base model type each record also has ``author_description`` (None for no_system_prompt)."""
     check_model_type(model_type)
     framing = framing or load_model_type_framing()
     is_base_model = model_type == MODEL_TYPE_BASE
@@ -135,9 +100,7 @@ def add_final_period_if_missing(resolution_text):
 
 
 def generation_prompt_variable_names(template_text):
-    """The document variables a generation prompt template needs: every slot except {in_universe_facts}, in
-    order of first appearance. For the shipped template these are the twelve axes of the SDF variables matrix
-    (document_type, culture, domain, ...)."""
+    """The document variables a generation prompt template needs: every slot except {in_universe_facts}, in order of first appearance."""
     names = []
     for _, field_name, _, _ in string.Formatter().parse(template_text):
         if field_name and field_name != "in_universe_facts" and field_name not in names:
@@ -146,17 +109,15 @@ def generation_prompt_variable_names(template_text):
 
 
 def render_generation_prompt(variables, document_id, generation_prompt_files: GenerationPromptFiles = None):
-    """Fills the generation prompt template for one document. Fails loudly on any missing, non-string or
-    empty variable, except that a variable listed in VARIABLE_FALLBACKS_FOR_ABSENT_VARIABLES that is absent (not
-    merely empty) takes its fallback; a document that has the variable renders exactly as before. Loads the shipped template and facts when `generation_prompt_files` is not given (pass the
-    loaded files when rendering many documents)."""
+    """Fill the generation prompt template for one document; fails on a missing, non-string or empty variable unless it is absent and in VARIABLE_FALLBACKS_FOR_ABSENT_VARIABLES.
+    Loads the shipped template and facts unless ``generation_prompt_files`` is given."""
     files = generation_prompt_files or load_generation_prompt_files()
     variable_names = generation_prompt_variable_names(files.template_text)
     variables = {**VARIABLE_FALLBACKS_FOR_ABSENT_VARIABLES, **variables}
     missing = [name for name in variable_names if name not in variables]
     if missing:
         raise KeyError(f"Document {document_id} is missing variables: {missing}")
-    slot_values = {"in_universe_facts": files.in_universe_facts}
+    slot_values = {} if files.in_universe_facts is None else {"in_universe_facts": files.in_universe_facts}
     for name in variable_names:
         value = variables[name]
         if not isinstance(value, str) or not value.strip():
@@ -258,9 +219,7 @@ class TokenizedConditionAndDocument:
 
 
 def locate_document_tokens(tokenizer, condition, prompt_text, document_text, suffix_text, label):
-    """Tokenizes prompt + document + suffix and returns (full_token_ids, document_start_index,
-    document_end_index) after checking that the prompt tokens are an exact prefix, the suffix tokens an exact
-    tail, and the document tokens decode back to the document text apart from whitespace at the edges."""
+    """``(full_token_ids, document_start_index, document_end_index)`` after checking the prompt tokens are an exact prefix, the suffix an exact tail, and the document tokens decode back (edge whitespace aside)."""
     prompt_token_ids = tokenize_text(tokenizer, prompt_text)
     suffix_token_ids = tokenize_text(tokenizer, suffix_text) if suffix_text else []
     full_token_ids = tokenize_text(tokenizer, prompt_text + document_text + suffix_text)
@@ -294,14 +253,7 @@ def locate_document_tokens(tokenizer, condition, prompt_text, document_text, suf
 
 
 def tokenize_condition_and_document(tokenizer, condition, generation_prompt, document_content, model_name=None):
-    """Instruct model type. Returns the full token ids for (condition, document) and the index range of the
-    document content tokens. Position i of the full sequence is predicted by the hidden state at position i - 1.
-
-    Verified here: the system prompt survives the template; the tokens of the prompt are an exact prefix of
-    the full sequence (so the first document token is scored given the assistant header and nothing leaks
-    in from the document); the tokens after the document are an exact tail; the content tokens decode back
-    to the document text apart from whitespace at the edges.
-    """
+    """Instruct model type: the full token ids for (condition, document) and the document token range; the system prompt must survive the template, and prefix, tail and decode checks apply."""
     label = model_label(tokenizer, model_name)
     document_text = document_content.strip()
     if not document_text:
@@ -361,9 +313,7 @@ def render_base_model_prompt_text(tokenizer, condition, generation_prompt, model
 
 def tokenize_condition_and_document_for_base_model(tokenizer, condition, generation_prompt, document_content,
                                                    model_name=None, framing: ModelTypeFraming = None):
-    """Base model counterpart of tokenize_condition_and_document: the prompt is the plain-text author preamble,
-    and nothing follows the document. Same checks except the chat-template-only ones (system prompt survives
-    the template, finished-message suffix); instead the author description must be in the prompt."""
+    """Base model counterpart: the prompt is the plain-text author preamble and nothing follows the document; the author description must be in the prompt."""
     label = model_label(tokenizer, model_name)
     document_text = document_content.strip()
     if not document_text:
@@ -389,9 +339,7 @@ def tokenize_condition_and_document_for_model_type(tokenizer, condition, generat
 
 def tokenize_all_conditions_for_document(tokenizer, document, conditions, model_name,
                                          model_type=MODEL_TYPE_INSTRUCT, framing: ModelTypeFraming = None):
-    """Tokenizes the document under every condition and asserts the document token ids are identical.
-    Returns (tokenized sequences in condition order, the document token ids). `document` needs `document_id`,
-    `content` and `generation_prompt`."""
+    """Tokenize the document under every condition and assert the document token ids are identical; returns ``(sequences in condition order, document token ids)``."""
     if model_type == MODEL_TYPE_BASE and framing is None:
         framing = load_model_type_framing()
     tokenized_sequences = []
@@ -416,10 +364,7 @@ def decode_each_token(tokenizer, token_ids):
 
 def count_tokens_for_scoring_inputs(tokenizer, documents, conditions, model_type, model_name=None,
                                     framing: ModelTypeFraming = None):
-    """Token totals for a dry run, without tokenizing every (document, condition) pair in full. Returns
-    {"document_tokens_scored": ..., "total_tokens_through_model": ...}: the first is the sum over documents of
-    document tokens times the number of conditions; the second adds each prompt's tokens for every (document,
-    condition) pair. The end-of-turn suffix (a token or two per pair) is not counted."""
+    """Dry-run totals ``{"document_tokens_scored", "total_tokens_through_model"}`` without tokenizing every pair in full (the end-of-turn suffix is not counted)."""
     check_model_type(model_type)
     if model_type == MODEL_TYPE_BASE and framing is None:
         framing = load_model_type_framing()

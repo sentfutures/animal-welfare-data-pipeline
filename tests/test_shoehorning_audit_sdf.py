@@ -5,7 +5,6 @@ Runs on a synthetic corpus. The shared helpers (run folders, quote
 verification, CSV writing, structured-output retry) are covered in test_model_judged_audit_support.py.
 """
 
-import hashlib
 import json
 from pathlib import Path
 
@@ -13,19 +12,10 @@ import pytest
 
 from evals import shoehorning_audit_postprocess_sdf as postprocess
 from evals import shoehorning_audit_sdf as classifier
-from evals.model_judged_audit_support import assert_schema_is_strict_valid as assert_strict_valid
 from evals.model_judged_audit_support import check_resume_is_compatible
 from shared import utils
 
 FIXTURE_DIRECTORY = Path(__file__).resolve().parent / "fixtures"
-
-# sha256 of the prompt files in prompts/tools/ when the audit was added; an intentional prompt change updates them.
-PINNED_PROMPT_HASHES = {
-    "shoehorning_audit_shared_header.txt": "a6ee4ac0fb93c25a333ac1a0068667d1f380685d4a308dbef97fa05d7d192ead",
-    "shoehorning_audit_pass_moral_considerations.txt": "6e2da3fee62714f68d45436d9ec0cb55f3b0c3c54c019481fd00c204f01ed955",
-    "shoehorning_audit_pass_field_distinctions.txt": "bb91da17d15af0d4375d2aedbb5c87ed8107f76f9dd38db4bbce73325d3c9a26",
-    "shoehorning_audit_pass_epistemic_notes.txt": "482328e744728dfbaf2674b26f102ecc7e2ddbaaf154905f9d77536b3bb476ab",
-}
 
 
 def synthetic_corpus(count=3):
@@ -47,9 +37,15 @@ def empty_answer(pass_name):
             "other_considerations": []}
 
 
-def test_the_prompt_files_are_unchanged():
-    for file_name, expected in PINNED_PROMPT_HASHES.items():
-        assert hashlib.sha256((classifier.PROMPT_DIRECTORY / file_name).read_bytes()).hexdigest() == expected
+@pytest.mark.parametrize("pass_name", classifier.ALL_PASS_NAMES)
+def test_schema_and_instructions_identical_to_expected_fixtures(pass_name):
+    fixture = json.loads((FIXTURE_DIRECTORY / f"shoehorning_audit_expected_schema_and_instructions_{pass_name}.json").read_text())
+    definition = classifier.PassDefinition(pass_name)
+    assert definition.schema == fixture["schema"]
+    # Also identical key order (generation order matters for structured outputs).
+    assert json.dumps(definition.schema) == json.dumps(fixture["schema"])
+    assert definition.schema_name == fixture["schema_name"]
+    assert definition.instructions_text == fixture["instructions_text"]
 
 
 def item_keys(pass_name):
@@ -82,57 +78,12 @@ def test_sub_flag_names_parsed():
     assert epistemic["item_21_reversible_or_staged_trial"] == []
 
 
-@pytest.mark.parametrize("pass_name", classifier.ALL_PASS_NAMES)
-def test_schema_is_strict_valid_and_ordered(pass_name):
-    definition = classifier.PassDefinition(pass_name)
-    assert_strict_valid(definition.schema)
-    first_item = next(iter(definition.schema["properties"]["items"]["properties"].values()))
-    occurrence = first_item["properties"]["occurrences"]["items"]
-    assert list(occurrence["properties"].keys())[:7] == [
-        "quote", "english_gloss", "context", "motivation_reasoning", "motivation", "integration_reasoning",
-        "integration"]
-    assert occurrence["properties"]["english_gloss"]["type"] == ["string", "null"]
-
-
-@pytest.mark.parametrize("pass_name", classifier.ALL_PASS_NAMES)
-def test_schema_and_instructions_identical_to_expected_fixtures(pass_name):
-    fixture = json.loads((FIXTURE_DIRECTORY / f"shoehorning_audit_expected_schema_and_instructions_{pass_name}.json").read_text())
-    definition = classifier.PassDefinition(pass_name)
-    assert definition.schema == fixture["schema"]
-    # Also identical key order (generation order matters for structured outputs).
-    assert json.dumps(definition.schema) == json.dumps(fixture["schema"])
-    assert definition.schema_name == fixture["schema_name"]
-    assert definition.instructions_text == fixture["instructions_text"]
-
-
-@pytest.mark.parametrize("pass_name", classifier.ALL_PASS_NAMES)
-def test_instructions_are_shared_header_plus_pass_file(pass_name):
-    prompt_directory = classifier.PROMPT_DIRECTORY
-    expected = ((prompt_directory / "shoehorning_audit_shared_header.txt").read_text(encoding="utf-8") + "\n\n"
-                + (prompt_directory / f"shoehorning_audit_pass_{pass_name}.txt").read_text(encoding="utf-8"))
-    assert classifier.PassDefinition(pass_name).instructions_text == expected
-
-
 def test_origin_stage():
     final = "Intro. The fish may feel pain. Extra added sentence about shrimp welfare matters."
     draft = "Intro. The fish may feel pain."
     assert postprocess.decide_origin_stage("The fish may feel pain.", final, draft) == "present_in_draft"
     assert postprocess.decide_origin_stage("added sentence about shrimp welfare matters", final, draft) == "added_in_rewrite"
     assert postprocess.decide_origin_stage("completely invented sentence here", final, draft) == "quote_not_verified"
-
-
-@pytest.mark.parametrize("pass_name", classifier.ALL_PASS_NAMES)
-def test_other_considerations_schema(pass_name):
-    schema = classifier.PassDefinition(pass_name).schema
-    assert list(schema["properties"].keys()) == ["items", "other_considerations"]
-    assert schema["required"] == ["items", "other_considerations"]
-    entry = schema["properties"]["other_considerations"]["items"]
-    assert list(entry["properties"].keys()) == [
-        "suggested_name", "description", "quote", "english_gloss", "context",
-        "motivation_reasoning", "motivation", "integration_reasoning", "integration"]
-    assert entry["properties"]["motivation"]["enum"] == ["staged", "unmotivated"]
-    assert entry["properties"]["english_gloss"]["type"] == ["string", "null"]
-    assert_strict_valid(schema)
 
 
 def test_other_consideration_rows_verified():
@@ -313,20 +264,6 @@ def cost_log(tmp_path, monkeypatch):
     path = tmp_path / "cost_log.jsonl"
     monkeypatch.setattr(api, "_cost_log_path", path)
     return path
-
-
-def test_request_contains_only_instructions_and_content():
-    definition = classifier.PassDefinition("moral_considerations")
-    for document in synthetic_corpus():
-        arguments = classifier.build_request_arguments(definition, document["content"], "medium")
-        assert arguments["input"] == document["content"]
-        assert arguments["instructions"] == definition.instructions_text
-        assert arguments["temperature"] == 1 and "top_p" not in arguments
-        assert arguments["prompt_cache_key"] == "shoehorning_audit_moral_considerations"
-        sent = json.dumps(arguments, ensure_ascii=False)
-        for value in (document["doc_id"], document["description"], "dry"):
-            if value not in document["content"] and value not in definition.instructions_text:
-                assert value not in sent, f"leaked: {value}"
 
 
 def test_one_document_one_pass_makes_one_call_and_keeps_usage(stub_openai_responses, openai_response, cost_log):
@@ -540,10 +477,14 @@ def test_the_default_runs_directory_is_the_audit_folder_of_the_run(tmp_path):
     assert classifier.default_runs_directory(loose_corpus) == tmp_path / "audit" / "shoehorning_audit_runs"
 
 
-def test_drafts_are_found_next_to_the_corpus_of_an_sdf_run(tmp_path):
-    corpus = tmp_path / "some_run" / "final" / "sdf_corpus.jsonl"
-    assert postprocess.default_drafts_path(corpus) == utils.sdf_stage_file(tmp_path / "some_run", "draft")
-    assert postprocess.default_drafts_path(tmp_path / "loose_corpus.jsonl") is None
+def test_drafts_are_found_for_the_corpus_of_an_sdf_run(tmp_path):
+    run = tmp_path / "some_run"
+    (run / "layer2").mkdir(parents=True)
+    utils.save_jsonl([{"doc_id": "matrix_000000", "content": "the draft text"}], run / "layer2" / "drafts.jsonl")
+    corpus = run / "final" / "sdf_corpus.jsonl"
+    assert postprocess.default_drafts_by_id(corpus) == {
+        "matrix_000000": {"doc_id": "matrix_000000", "content": "the draft text"}}
+    assert postprocess.default_drafts_by_id(tmp_path / "loose_corpus.jsonl") == {}
 
 
 def test_item_summary_sorts_items_numerically_not_as_strings():

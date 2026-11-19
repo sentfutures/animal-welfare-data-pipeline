@@ -1,13 +1,11 @@
 """Voice and length directive rendering for layer 3.
 
-The property that matters most here is the OFF state: a document dealt
-`unchanged` on every axis must render nothing at all, so a run with the voice
-cards quiet sends the prompt layer 3 sent before these axes existed.
+The OFF state matters most: a document dealt `unchanged` on every axis must render nothing at all.
 """
 
 import pytest
 
-from sdf_pipeline import revision_style as rs
+from sdf_pipeline.shared_step_machinery import revision_style as rs
 
 
 
@@ -101,12 +99,7 @@ class TestTheOnState:
 
 
 class TestTheRelativeLengthCard:
-    """A length card asks for a MULTIPLE of the document's own length.
-
-    Absolute counts were replaced because an absolute target's difficulty
-    depends on where the draft happened to start, and because a word count
-    means nothing for a language written without spaces.
-    """
+    """A length card asks for a MULTIPLE of the document's own length, since a word count means nothing without spaces."""
 
     def test_the_multiple_is_read_off_the_card(self):
         assert rs.length_ratio("at roughly 0.5x its current length") == 0.5

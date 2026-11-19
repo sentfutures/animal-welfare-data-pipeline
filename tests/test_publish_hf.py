@@ -1,12 +1,6 @@
-"""Tests for evals/publish_hf.py — staging and the Hub-upload chokepoints
-(stubbed via the stub_hf fixture; never touches huggingface_hub or the
-network).
+"""Tests for evals/publish_hf.py staging and the Hub-upload chokepoints, with the Hub stubbed (never touches the network).
 
-There is nothing here about building a dataset card, because this script no
-longer builds one: the card is hand-written and edited on the Hub. What that
-leaves is a contract worth testing in its own right — a publish must never
-stage or delete README.md — and it is pinned in TestMainEndToEnd.
-"""
+The script never builds a dataset card: a publish must never stage or delete README.md (pinned in TestMainEndToEnd)."""
 
 import json
 import re
@@ -74,27 +68,13 @@ def unmerged_state(branch="declan/wip", commit="deadbee", ahead=3, **over):
 
 @pytest.fixture(autouse=True)
 def _default_merged(monkeypatch):
-    """Pin merge_state to "merged" for every test in this module.
-
-    Without this the real helper runs, and the suite's result would depend on
-    the branch the developer happens to be on — green on main, and blocked on a
-    typed confirmation everywhere else. Tests that exercise the guard override
-    this with their own monkeypatch.
-    """
+    """Pin merge_state to "merged" for every test so results do not depend on the current branch; guard tests override it."""
     monkeypatch.setattr(publish_hf, "merge_state",
                         lambda commit, fetch=True: dict(MERGED_STATE))
 
 
 def marked_setting(language):
-    """A cultural_setting card in the exact wording derive_language parses.
-
-    English is the UNMARKED slice in prompts/dad/variables.txt — ~65% of a run
-    is dealt "no particular location or culture" and stored as null — so an
-    English row gets no card, and derive_language falls through to English on
-    the empty string. Mirroring that here is what makes
-    test_the_unmarked_cultural_setting_slice_is_treated_as_english real rather
-    than a tautology over a value the pipeline never writes.
-    """
+    """A cultural_setting card in the wording derive_language parses; English is the unmarked slice, stored as null with no card."""
     if language == "English":
         return None
     return f"Somewhere, written in {language}, with local idioms and references"
@@ -103,26 +83,10 @@ def marked_setting(language):
 def make_run_dir(tmp_path, pipeline="sdf", docs=3, audit_files=None, manifest=MANIFEST,
                   include_html=True, extra_audit_files=None, run_name=None,
                   languages=None, gid_start=0):
-    """Build a fake run directory with the given audit files present.
+    """Build a fake run directory; audit_files=None means all known audit files plus report_content.json and html.
 
-    audit_files=None means "all six known + report_content.json + html";
-    pass a subset of KNOWN_AUDIT_FILES' keys to omit others. run_name lets a
-    combined-publish test build several distinct run dirs under one tmp_path.
-
-    languages=None (the default) builds a run with NO language data at all —
-    an SDF corpus whose records have no `language` key, and a DAD run with no
-    step3/rewrites.jsonl. That is the ordering pass's decline path, which is
-    what keeps every pre-existing test in this module asserting the behaviour
-    it was written for. Pass a list of language names to cycle over the records
-    and put the reorder in play.
-
-    gid_start offsets the DAD example_gids. Two runs default to the SAME gids,
-    which is deliberate for the tests that prove rows are not distinguished by
-    id; a test that joins per-row language across runs needs distinct ones,
-    because two runs disagreeing about one gid's language is a state the real
-    pipeline cannot produce (gids are content-keyed via
-    dad_pipeline/id_registry.py, so a shared gid means identical content).
-    """
+    languages=None builds a run with no language data (the ordering pass declines); a list of names cycles over the records.
+    gid_start offsets the DAD example_gids; runs default to the same gids, so a test joining language across runs needs distinct ones."""
     run_dir = tmp_path / "runs" / (run_name or "2026-07-25_15-57_fullscale-500-opus5")
     final = run_dir / "final"
     final.mkdir(parents=True)
@@ -260,9 +224,7 @@ class TestStageRun:
         assert staged["audit_files"] == ["custom_eval.json"]
 
     def test_jsonl_audit_files_are_staged(self, tmp_path):
-        """Regression: the glob only matched *.json/*.html, silently dropping
-        evals/audit_dad.py's audit/tic_candidates.jsonl and
-        audit/reason_failures.jsonl for DAD runs."""
+        """Regression: jsonl audit files (tic_candidates, reason_failures) are staged for DAD runs."""
         run_dir, corpus_name = make_run_dir(
             tmp_path, pipeline="dad", audit_files=[], include_html=False,
             extra_audit_files={
@@ -276,15 +238,7 @@ class TestStageRun:
         assert (dataset_dir / "audit" / "tic_candidates.jsonl").exists()
 
     def test_reused_staging_dir_is_cleared_of_stale_files(self, tmp_path):
-        """Regression: a --staging-dir reused across two invocations (e.g. after
-        fixing a typo'd --input) must reflect only the LATEST run — leftover
-        files from an earlier call must not ride along into the upload.
-
-        Under the per-pipeline layout the staging ROOT is wiped, so an earlier
-        run's whole `<pipeline>/` dir goes with it. That's intended: the sibling
-        dataset's files stay on the Hub untouched — upload_folder only writes
-        paths present in the staged folder — so nothing depends on whatever
-        happens to be left in a local staging dir."""
+        """A reused --staging-dir reflects only the latest run; leftover files from an earlier call do not ride along."""
         staging_dir = tmp_path / "staged"
 
         run_a, corpus_a = make_run_dir(tmp_path / "a", audit_files=["compliance_report.json"])
@@ -303,10 +257,7 @@ class TestStageRun:
         assert (dir_b / corpus_b).exists()
 
     def test_staging_dir_equal_to_run_dir_is_rejected(self, tmp_path):
-        """Regression: rmtree(staging_dir) must never fire before verifying
-        staging_dir doesn't equal or contain run_dir — otherwise a mistyped
-        --staging-dir pointing back at --input deletes the run being
-        published before it can even be copied."""
+        """Regression: a staging dir equal to or containing run_dir is rejected before anything is deleted."""
         run_dir, corpus_name = make_run_dir(tmp_path)
         with pytest.raises(SystemExit):
             publish_hf.stage_run([run_dir], corpus_name, run_dir, "sdf")
@@ -320,10 +271,7 @@ class TestStageRun:
         assert (run_dir / "final" / corpus_name).exists()
 
     def test_staging_dir_equal_to_run_final_is_rejected(self, tmp_path):
-        """Regression: the run_dir-only check missed this — a --staging-dir
-        pointing directly at run_dir/final (an easy typo, since 'final' is a
-        real, well-known subdirectory name on every run) slipped past it,
-        and rmtree then deleted the corpus before it could be copied."""
+        """Regression: a staging dir equal to run_dir/final is rejected before anything is deleted."""
         run_dir, corpus_name = make_run_dir(tmp_path)
         with pytest.raises(SystemExit):
             publish_hf.stage_run([run_dir], corpus_name, run_dir / "final", "sdf")
@@ -336,10 +284,7 @@ class TestStageRun:
         assert (run_dir / "audit" / "audit_report.json").exists()
 
     def test_staging_dir_nested_inside_run_dir_is_allowed(self, tmp_path):
-        """The reverse nesting is safe as long as it doesn't overlap final/
-        or audit/ specifically — deleting an unrelated subdir of run_dir
-        doesn't touch run_dir's own data, and colocating the staged output
-        with the run is a plausible deliberate choice."""
+        """A staging dir nested inside run_dir is allowed as long as it does not overlap final/ or audit/."""
         run_dir, corpus_name = make_run_dir(tmp_path)
         staging_dir = run_dir / "hf_staging"
         staged, dataset_dir = _stage(run_dir, corpus_name, staging_dir)
@@ -347,9 +292,7 @@ class TestStageRun:
         assert (run_dir / "final" / corpus_name).exists()
 
     def test_staging_dir_pointing_at_a_sibling_run_is_rejected(self, tmp_path):
-        """A --staging-dir that typo'd onto a DIFFERENT run dir (a very
-        plausible mistake — both live under outputs/*/runs/) must be refused
-        rather than wiped, or the sibling run's corpus/manifest are gone."""
+        """A staging dir that points at a different run dir is refused rather than wiped."""
         run_a, corpus_a = make_run_dir(tmp_path, run_name="run-a")
         run_b, _ = make_run_dir(tmp_path, run_name="run-b")
         with pytest.raises(SystemExit):
@@ -387,10 +330,7 @@ class TestStageRun:
         assert (dataset_dir / corpus_name).exists()
 
     def test_legacy_staging_dir_without_the_marker_is_still_reused(self, tmp_path):
-        """A staging dir created by a pre-marker version of this script has no
-        STAGING_MARKER, but its shape (README.md + sdf/ and/or dad/ dirs) is
-        recognizable — don't force a manual delete on every existing local
-        staging dir just because the script grew a marker file."""
+        """A staging dir without the ownership marker but with a recognizable shape is still reused."""
         run_dir, corpus_name = make_run_dir(tmp_path)
         staging_dir = tmp_path / "staged"
         staging_dir.mkdir()
@@ -416,13 +356,7 @@ class TestStageRun:
 
 class TestFlattenDadCorpus:
     def test_staged_dad_records_are_flat_columns(self, tmp_path):
-        """The published copy shows one column per field (example_gid,
-        user_prompt, assistant_response) — no messages array, no role keys.
-
-        Rows are looked up BY GID rather than by position: this test is about
-        the shape of a record, and the ordering tests own row order. Asserting
-        both here would mean a deliberate reordering change failed as a shape
-        regression."""
+        """The published DAD copy has one flat column per field, looked up by gid so row order is not part of this check."""
         run_dir, corpus_name = make_run_dir(tmp_path, pipeline="dad", docs=2,
                                             audit_files=[], include_html=False)
         staged, dataset_dir = _stage(run_dir, corpus_name, tmp_path / "staged")
@@ -462,12 +396,7 @@ class TestFlattenDadCorpus:
         assert "messages" in before  # the SFT chat shape stays on disk
 
     def test_an_sdf_corpus_with_no_language_field_keeps_row_order(self, tmp_path):
-        """Records with no `language` key are unmeasurable, so the row-order
-        pass declines and rows stay in the run's own order — which is what
-        every SDF run predating layer4_score's language field gets. Columns
-        are still reordered per SDF_COLUMN_ORDER regardless of that (doc_id
-        moves from this fixture's leading position to trailing), so this
-        compares parsed records rather than raw bytes."""
+        """Records with no language key keep the run's row order; columns are still reordered, so parsed records are compared."""
         run_dir, corpus_name = make_run_dir(tmp_path, pipeline="sdf", docs=2,
                                             audit_files=[], include_html=False)
         staged, dataset_dir = _stage(run_dir, corpus_name, tmp_path / "staged")
@@ -504,12 +433,7 @@ class TestFlattenDadCorpus:
 
 
 class TestReorderSdfCorpus:
-    """Direct tests of reorder_sdf_corpus, the column-order counterpart of
-    flatten_dad_corpus for the SDF config — SDF is no longer staged via a
-    verbatim shutil.copy2. make_run_dir's own SDF fixture writes doc_id
-    first, which SDF_COLUMN_ORDER no longer matches (doc_id trails, as pure
-    lineage/join bookkeeping), so these tests build records directly to
-    exercise the actual reordering."""
+    """Direct tests of reorder_sdf_corpus, the SDF column-order step (doc_id trails per SDF_COLUMN_ORDER); records are built directly."""
 
     FULL_RECORD = {
         "doc_id": "matrix_000042", "type_id": "policy_memo",
@@ -517,6 +441,8 @@ class TestReorderSdfCorpus:
         "register": "clinical, dispassionate",
         "variables": {"document_type": "policy_memo",
                       "tone": "clinical, dispassionate"},
+        "variable_value_ids": {"document_type": "policy_memo",
+                               "tone": "clinical_dispassionate"},
         "description": "A policy memo weighing procurement options.",
         "content": "This memo evaluates the welfare implications of...",
         "scores": {"alignment": 8, "realism": 7, "spec_conformance": 9,
@@ -533,12 +459,18 @@ class TestReorderSdfCorpus:
         assert n == 1
         published = json.loads(dst.read_text(encoding="utf-8").splitlines()[0])
         assert list(published) == publish_hf.SDF_COLUMN_ORDER
+        assert publish_hf.SDF_COLUMN_ORDER[-3:] == ["variables", "variable_value_ids", "doc_id"]
         assert published == self.FULL_RECORD  # same values, only key order moved
 
+    def test_a_record_without_the_ids_column_publishes_without_it(self, tmp_path):
+        record = {k: v for k, v in self.FULL_RECORD.items() if k != "variable_value_ids"}
+        src, dst = tmp_path / "final.jsonl", tmp_path / "published.jsonl"
+        src.write_text(json.dumps(record) + "\n", encoding="utf-8")
+        publish_hf.reorder_sdf_corpus(src, dst)
+        assert "variable_value_ids" not in json.loads(dst.read_text(encoding="utf-8").splitlines()[0])
+
     def test_legacy_fields_are_kept_and_appended_after_known_columns(self, tmp_path):
-        """Four committed SDF runs predate variables/description/type_name and
-        carry subtype_id/role instead. Reordering must not drop them —
-        nothing here is a column SELECTION, only an order."""
+        """Legacy fields (subtype_id, role) are kept and appended after the known columns, not dropped."""
         legacy = {"doc_id": "d0", "subtype_id": "s1", "type_id": "t1",
                  "role": "advisor", "register": "warm", "language": "English",
                  "content": "hello", "scores": {"alignment": 8}}
@@ -596,10 +528,7 @@ def _published(dataset_dir, corpus_name):
 
 
 class TestEnglishFirstOrdering:
-    """The Hub viewer opens on whatever row is first in the file, so English
-    rows lead. Only the STAGED copy is touched — never the run's own final/
-    corpus, which several evals stride-sample and which layer5's near-dup cull
-    already ordered."""
+    """English rows lead the staged copy (the Hub viewer opens on the first row); the run's own final/ corpus is never touched."""
 
     def test_english_documents_lead_the_published_sdf_corpus(self, tmp_path):
         run_dir, corpus_name = make_run_dir(
@@ -623,11 +552,7 @@ class TestEnglishFirstOrdering:
 
     def test_non_english_documents_keep_their_relative_order_behind_the_english_block(
             self, tmp_path):
-        """The partition is STABLE and binary — one boundary, nothing else
-        moved. A secondary sort key (by language name, by length) would group
-        the tail into monolingual runs too, which is worse for anyone streaming
-        the corpus without shuffling. This test is what stops that being added
-        quietly."""
+        """The English-first partition is stable and binary: non-English rows keep their relative order, with no secondary sort."""
         run_dir, corpus_name = make_run_dir(
             tmp_path, pipeline="sdf", docs=6, audit_files=[], include_html=False,
             languages=["English", "Spanish", "Japanese"])
@@ -640,13 +565,7 @@ class TestEnglishFirstOrdering:
 
     def test_the_published_rows_are_the_run_s_own_records_reordered_not_changed(
             self, tmp_path):
-        """The one assertion that catches every dropped/altered-value hazard
-        at once: the published file must be a value-level PERMUTATION of the
-        run's records, so nothing can have added, dropped, or changed a
-        field's value on the way through. Column order is deliberately
-        allowed to differ — reorder_sdf_corpus re-keys every row — so this
-        compares parsed records, not raw line text (TestReorderSdfCorpus pins
-        the exact column order separately)."""
+        """The published file is a value-level permutation of the run's records; column order may differ, so parsed records are compared."""
         run_dir, corpus_name = make_run_dir(
             tmp_path, pipeline="sdf", docs=6, audit_files=[], include_html=False,
             languages=["English", "Spanish", "Japanese"])
@@ -661,9 +580,7 @@ class TestEnglishFirstOrdering:
         # and it really did reorder rows (English-first)
 
     def test_native_script_survives_the_reorder_unescaped(self, tmp_path):
-        """json.dumps defaults to ensure_ascii=True, which would turn most of
-        this corpus into \\uXXXX. Sorting raw lines is what makes that
-        impossible."""
+        """Native-script text is written unescaped (ensure_ascii off), which sorting raw lines would not catch."""
         run_dir, corpus_name = make_run_dir(
             tmp_path, pipeline="sdf", docs=2, audit_files=[], include_html=False,
             languages=["English", "Japanese"])
@@ -704,12 +621,7 @@ class TestEnglishFirstOrdering:
 
     def test_a_malformed_corpus_line_leaves_row_order_untouched_instead_of_aborting(
             self, tmp_path):
-        """Row order is cosmetic, so it degrades rather than killing a publish:
-        an old run whose language cannot be read is published in the order it
-        was written. The malformed line itself passes through unchanged;
-        valid lines still go through the column reorder (moving doc_id from
-        this fixture's leading position to trailing), which is why this
-        compares parsed records rather than raw bytes."""
+        """A malformed corpus line leaves row order untouched and passes through unchanged; valid lines still get the column reorder."""
         run_dir, corpus_name = make_run_dir(
             tmp_path, pipeline="sdf", docs=2, audit_files=[], include_html=False,
             languages=["Spanish", "English"])
@@ -728,9 +640,7 @@ class TestEnglishFirstOrdering:
 
     def test_a_record_whose_language_cannot_be_read_lands_behind_the_english_block(
             self, tmp_path):
-        """The front of the file is a promise, so an unreadable row sorts
-        behind rather than being defaulted to English the way audit_sdf's
-        wider net does."""
+        """A row whose language cannot be read sorts behind the English block rather than defaulting to English."""
         run_dir, corpus_name = make_run_dir(
             tmp_path, pipeline="sdf", docs=2, audit_files=[], include_html=False,
             languages=["English"])
@@ -745,9 +655,7 @@ class TestEnglishFirstOrdering:
         assert [r["doc_id"] for r in records] == ["d1", "d0"]
 
     def test_the_run_s_own_final_corpus_is_never_reordered(self, tmp_path):
-        """Five evals stride-sample this file and layer5's greedy near-dup cull
-        already ordered it. Reordering it here would silently change which
-        documents those samples pick."""
+        """The run's own final corpus is never reordered, since evals stride-sample it."""
         run_dir, corpus_name = make_run_dir(
             tmp_path, pipeline="sdf", docs=4, audit_files=[], include_html=False,
             languages=["Spanish", "English"])
@@ -769,9 +677,7 @@ class TestEnglishFirstOrdering:
 
 
 class TestDadLanguageJoin:
-    """DAD final records carry no language, so it is joined off
-    step3/rewrites.jsonl — one hop, on the example_gid the published row keeps.
-    """
+    """DAD language is joined off step3/rewrites.jsonl on the example_gid the published row keeps."""
 
     def test_dad_rows_are_ordered_by_the_language_dealt_to_their_scenario(self, tmp_path):
         run_dir, corpus_name = make_run_dir(
@@ -785,9 +691,7 @@ class TestDadLanguageJoin:
         assert staged["languages"] == {"English": 2, "Spanish": 2}
 
     def test_the_unmarked_cultural_setting_slice_is_treated_as_english(self, tmp_path):
-        """~65% of a DAD run is dealt "no particular location or culture" and
-        stored as null. Those prompts ARE English, so a null card must lead,
-        not sort behind."""
+        """A null cultural_setting is treated as English, so those rows lead."""
         run_dir, corpus_name = make_run_dir(
             tmp_path, pipeline="dad", docs=2, audit_files=[], include_html=False,
             languages=["Japanese", "English"])
@@ -828,10 +732,7 @@ class TestDadLanguageJoin:
 
     def test_a_run_whose_cards_carry_no_cultural_setting_publishes_unreordered(
             self, tmp_path):
-        """archetype10 is the committed example: hand-seeded, so it bypassed
-        the matrix and records no setting at all. Its rows are in fact English,
-        but declaring that from absent evidence is what code_state() refuses to
-        do for a dirty tree, and the same reasoning applies here."""
+        """A run whose cards carry no cultural_setting publishes unreordered, since English is not declared from absent evidence."""
         run_dir, corpus_name = make_run_dir(
             tmp_path, pipeline="dad", docs=2, audit_files=[], include_html=False,
             languages=["English", "English"])
@@ -842,9 +743,7 @@ class TestDadLanguageJoin:
         assert [r["example_gid"] for r in records] == ["E-0000", "E-0001"]
 
     def test_published_dad_rows_carry_the_language_they_were_dealt(self, tmp_path):
-        """SDF rows already publish a language column; this closes the gap so
-        a reader can rebuild a balanced subset from a corpus that is now
-        ordered English-first."""
+        """Published DAD rows carry the language they were dealt, so a reader can rebuild a balanced subset."""
         run_dir, corpus_name = make_run_dir(
             tmp_path, pipeline="dad", docs=2, audit_files=[], include_html=False,
             languages=["English", "Mandarin Chinese"])
@@ -896,12 +795,7 @@ class TestDadLanguageJoin:
 
 
 def write_dealt_cards(run_dir, cards_by_gid):
-    """Overwrite a DAD run's step3/rewrites.jsonl with the given dealt cards.
-
-    make_run_dir's own step3 file carries only cultural_setting, which is all
-    the language join reads; the variables column publishes the whole hand, so
-    these tests deal a fuller one.
-    """
+    """Overwrite a DAD run's step3/rewrites.jsonl with the given dealt cards (the default file carries only cultural_setting)."""
     step3 = run_dir / "step3"
     step3.mkdir(parents=True, exist_ok=True)
     (step3 / "rewrites.jsonl").write_text("\n".join(
@@ -912,9 +806,7 @@ def write_dealt_cards(run_dir, cards_by_gid):
 
 
 class TestDadVariablesColumn:
-    """The dealt cards reach the published row as one nested column, the DAD
-    counterpart of the SDF corpus's own `variables`. Same join as the language
-    column, one file read, so the two cannot describe different records."""
+    """The dealt cards reach the published row as one nested column, joined the same way as the language column."""
 
     DEALT = {"domain": ["procurement"], "user_goal": ["drafting"],
              "taxa_category": "insect-at-scale", "user_attitude": "unaware",
@@ -944,10 +836,7 @@ class TestDadVariablesColumn:
             assert not {"claims", "dilemma_anatomy", "moral_patients"} & set(variables)
 
     def test_example_gid_trails_every_column_including_variables(self, tmp_path):
-        """The two text columns are what a visitor came to read, so they
-        lead; example_gid trails everything — including the 19-field
-        variables struct — as pure lineage/join bookkeeping, not something a
-        reader needs in front of the content."""
+        """The text columns lead and example_gid trails every column, including variables."""
         run_dir, corpus_name = make_run_dir(tmp_path, pipeline="dad", docs=1,
                                             audit_files=[], include_html=False)
         # a marked setting, so the language column is in play too
@@ -984,9 +873,7 @@ class TestDadVariablesColumn:
         assert by_gid["E-0001"]["variables"] is None
 
     def test_a_run_with_cards_but_no_language_still_publishes_them(self, tmp_path):
-        """The hand-seeded archetype10 run deals no cultural_setting, so the
-        language gate declines for it — but it has cards worth publishing, and
-        the two columns are gated separately for exactly that reason."""
+        """A run with cards but no language still publishes the cards, because the two columns are gated separately."""
         run_dir, corpus_name = make_run_dir(tmp_path, pipeline="dad", docs=2,
                                             audit_files=[], include_html=False)
         write_dealt_cards(run_dir, {"E-0000": self.DEALT, "E-0001": self.DEALT})
@@ -1001,9 +888,7 @@ class TestDadVariablesColumn:
 
 
 def _dad_manifest(run_id, backend="api", dirty=None, dirty_files=None):
-    """A DAD run manifest. dirty=None omits the git_dirty fields entirely (a
-    manifest predating them); pass dirty=True/False to set them, shaped as
-    shared.utils records them."""
+    """A DAD run manifest; dirty=None omits the git_dirty fields, True/False sets them as shared.utils records them."""
     m = {"run_id": run_id, "label": run_id.split("_", 2)[-1],
          "git_commit": "abc1234", "model": "claude-sonnet-5",
          "config": {"backend": backend,
@@ -1029,16 +914,7 @@ class TestCombinedPublish:
         return [run_a, run_b], corpus_name
 
     def test_corpora_without_language_data_concatenate_in_input_order(self, tmp_path):
-        """Every run's rows land in the combined corpus, in --input order. The
-        rows carry no run column — example_gid is what identifies them, and
-        _two_runs gives both runs the same gids on purpose (each run dir is
-        built independently, exactly as separate real runs would be) so the
-        assertion can't accidentally lean on distinct ids.
-
-        No run here carries language data, so the ordering pass declines and
-        raw --input order is what ships. The partitioned contract is pinned
-        separately by
-        test_a_combined_corpus_is_partitioned_across_all_runs_not_within_each."""
+        """Every run's rows land in the combined corpus in --input order when no run carries language data."""
         run_dirs, corpus_name = self._two_runs(tmp_path)
         staged, dataset_dir = _stage(run_dirs, corpus_name, tmp_path / "staged")
 
@@ -1069,10 +945,7 @@ class TestCombinedPublish:
 
     def test_a_combined_corpus_is_partitioned_across_all_runs_not_within_each(
             self, tmp_path):
-        """The partition runs over the WHOLE published file, after the run
-        loop. Partitioning per run would only put English first if run_dirs[0]
-        happened to hold enough English rows — on the real five-run input order
-        the viewer's first screen would still turn non-English part way down."""
+        """The English-first partition runs over the whole combined file, not per run."""
         run_dirs, corpus_name = self._two_runs_with_languages(tmp_path)
         staged, dataset_dir = _stage(run_dirs, corpus_name, tmp_path / "staged")
 
@@ -1108,10 +981,7 @@ class TestCombinedPublish:
 
     def test_duplicate_example_gids_across_runs_do_not_break_the_language_join(
             self, tmp_path):
-        """_two_runs gives both runs the same gids on purpose. A repeated gid
-        means byte-identical content — the ids are content-keyed via
-        dad_pipeline/id_registry.py — so whichever run wins the dict merge
-        carries the same answer, and the merge must not raise or drop rows."""
+        """Duplicate example_gids across runs (same gid means identical content) neither raise nor drop rows in the language join."""
         run_dirs, corpus_name = self._two_runs_with_languages(tmp_path)
         staged, dataset_dir = _stage(run_dirs, corpus_name, tmp_path / "staged")
 
@@ -1122,14 +992,7 @@ class TestCombinedPublish:
         assert staged["n_docs"] == 4
 
     def test_manifests_and_audits_are_run_scoped(self, tmp_path):
-        """Several runs in one dataset dir must not collide on filenames:
-        manifests land under manifests/<run_id>.json and audit files under
-        audit/<run_id>/.
-
-        These per-run manifests ARE the combined corpus's provenance record —
-        the rows carry no run column, and no card is generated to tabulate
-        them — so each run keeping its own file is what lets a reader tell
-        which runs, on which commits, went into one corpus."""
+        """Manifests land under manifests/<run_id>.json and audit files under audit/<run_id>/, so several runs in one dataset dir do not collide."""
         run_dirs, corpus_name = self._two_runs(tmp_path, second_audit=True)
         staged, dataset_dir = _stage(run_dirs, corpus_name, tmp_path / "staged")
 
@@ -1175,10 +1038,7 @@ class TestCombinedPublish:
 
 class TestHubApiWrappers:
     def test_create_tag_passes_exist_ok(self, monkeypatch):
-        """Regression: a retried publish with the same --tag (e.g. after
-        fixing a typo'd --input, the exact retry the staging-dir wipe logic
-        is designed to support) must not die on a "tag already exists" error
-        after the corpus has already been re-uploaded."""
+        """Regression: a retried publish with the same --tag does not die on "tag already exists"."""
         calls = []
 
         class FakeHfApi:
@@ -1193,10 +1053,7 @@ class TestHubApiWrappers:
         }]
 
     def test_upload_folder_forwards_caller_scoped_delete_patterns(self, monkeypatch):
-        """Republishing a run must clear that run's own audit/ on the Hub, so
-        a file only an EARLIER run produced can't linger. The pattern comes
-        from the caller because it must be scoped per pipeline — see
-        test_delete_patterns_are_scoped_to_the_published_pipeline."""
+        """Republishing a run clears that run's own audit/ on the Hub, using a delete pattern supplied by the caller."""
         calls = []
 
         class FakeHfApi:
@@ -1215,9 +1072,7 @@ class TestHubApiWrappers:
         assert calls[0]["folder_path"] == "/tmp/staged"
 
     def test_upload_folder_never_uploads_the_staging_marker(self, monkeypatch):
-        """huggingface_hub only ignores .git*/.cache/huggingface by default,
-        so without an explicit ignore_patterns the local ownership marker
-        would ship to the Hub as dataset content."""
+        """The local staging ownership marker is never uploaded to the Hub."""
         calls = []
 
         class FakeHfApi:
@@ -1278,9 +1133,7 @@ class TestMainEndToEnd:
         assert "no Hub API calls made" in out
 
     def test_dry_run_refuses_a_foreign_staging_dir(self, tmp_path, monkeypatch, stub_hf):
-        """The ownership check runs inside stage_run, which --dry-run calls
-        before its early return — so --dry-run must refuse a foreign
-        --staging-dir too, deleting nothing."""
+        """--dry-run also refuses a foreign --staging-dir and deletes nothing."""
         run_dir, _ = make_run_dir(tmp_path)
         foreign = tmp_path / "foreign"
         foreign.mkdir()
@@ -1295,11 +1148,7 @@ class TestMainEndToEnd:
     def test_dry_run_without_staging_dir_leaves_files_on_disk(
         self, tmp_path, monkeypatch, stub_hf, capsys
     ):
-        """Regression: --dry-run's default staging dir used to live inside a
-        tempfile.TemporaryDirectory() that self-deleted the instant main()
-        returned, so the printed "Staged at <path>" was already gone by the
-        time a human went to look — defeating the entire point of --dry-run.
-        """
+        """Regression: the dry-run default staging dir stays on disk after main() returns, so the printed path exists."""
         run_dir, corpus_name = make_run_dir(tmp_path)
         stub_hf(raise_on_call=True)
         _run_main(monkeypatch, "--input", str(run_dir),
@@ -1318,10 +1167,7 @@ class TestMainEndToEnd:
     def test_dry_run_stages_no_card_and_prints_none(
         self, tmp_path, monkeypatch, stub_hf, capsys
     ):
-        """--dry-run used to build and print a card unconditionally, as an
-        operator preview. There is no card to preview any more, and printing
-        one would be worse than printing nothing: it would show the operator
-        prose that is not on the Hub and never will be."""
+        """--dry-run stages no card and prints none."""
         run_dir, _ = make_run_dir(tmp_path)
         stub_hf(raise_on_call=True)
         staging_dir = tmp_path / "staged"
@@ -1355,14 +1201,7 @@ class TestMainEndToEnd:
         assert not any("report_content.json" in u for u in uploaded)
 
     def test_publish_never_stages_a_card(self, tmp_path, monkeypatch, stub_hf):
-        """The contract that replaced card generation, and the only thing
-        protecting a card edited on the Hub.
-
-        upload_folder overwrites every path it finds and deletes every path
-        matching delete_patterns, so a README.md that is neither staged nor
-        matched is one it cannot touch. Both halves are asserted: there is no
-        flag or run shape that puts a card back in the staging dir, and no
-        delete pattern reaches the repo root."""
+        """A publish never stages a card and no delete pattern reaches the repo root, so a card edited on the Hub is untouched."""
         for pipeline in ("sdf", "dad"):
             run_dir, _ = make_run_dir(tmp_path / pipeline, pipeline=pipeline)
             staging_dir = tmp_path / pipeline / "staged"
@@ -1378,9 +1217,7 @@ class TestMainEndToEnd:
     def test_delete_patterns_are_scoped_to_the_published_pipeline(
         self, tmp_path, monkeypatch, stub_hf
     ):
-        """THE most dangerous line in the multi-dataset change: a bare
-        "audit/*" would delete the SIBLING pipeline's audit files on every
-        publish, silently gutting the other dataset in the same repo."""
+        """Delete patterns are scoped to the published pipeline; a bare "audit/*" would delete the sibling pipeline's audit files."""
         run_dir, _ = make_run_dir(tmp_path, pipeline="dad", audit_files=[], include_html=False)
         calls = stub_hf()
         _run_main(monkeypatch, "--input", str(run_dir), "--repo-id", "org/repo")
@@ -1398,14 +1235,7 @@ class TestMainEndToEnd:
     def test_legacy_card_meta_is_cleared_and_never_rewritten(
         self, tmp_path, monkeypatch, stub_hf
     ):
-        """card_meta.json fed the removed card generator, and `sdf/` still has
-        one on the Hub from the last publish that wrote it.
-
-        Nothing stages that path now, so upload_folder's add-wins-over-delete
-        rule no longer suppresses the deletion and the next publish clears the
-        orphan. Both halves matter: the run below carries a
-        report_content.json (the input the sidecar used to be derived from) and
-        must still write no sidecar."""
+        """A stale card_meta.json on the Hub is cleared by the next publish, and no sidecar is written even when report_content.json exists."""
         run_dir, _ = make_run_dir(tmp_path)  # includes report_content.json
         staging_dir = tmp_path / "staged"
         calls = stub_hf()
@@ -1437,10 +1267,7 @@ class TestMainEndToEnd:
     ])
     def test_the_removed_card_flags_are_gone(self, tmp_path, monkeypatch, stub_hf,
                                              flag, value):
-        """These three only ever fed the card builder. They must ERROR rather
-        than be silently accepted and ignored — --license especially, whose
-        default would otherwise read as the published licence while declaring
-        nothing at all."""
+        """The removed card flags (including --license) are rejected with an error rather than silently ignored."""
         run_dir, _ = make_run_dir(tmp_path, audit_files=[], include_html=False)
         stub_hf(raise_on_call=True)
         extra = [flag] if value is None else [flag, value]
@@ -1450,16 +1277,7 @@ class TestMainEndToEnd:
 
 
 class TestUnmergedGuard:
-    """The pre-flight provenance gate. It warns and asks rather than refusing:
-    the HF write token lives on contributors' laptops, so a hard block would
-    push an unmerged publish out of this script — and out of the only place
-    that records provenance at all.
-
-    What makes it stick is the Hub COMMIT MESSAGE. It used to be a stamp on
-    the generated dataset card; that card is hand-edited on the Hub now and
-    this script no longer writes it, so the stamp went where an edit cannot
-    reach it. Every test below asserts on the commit message for that reason.
-    """
+    """The pre-flight provenance gate: it warns and asks rather than refusing, and the record lives in the Hub commit message."""
 
     def _unmerged(self, monkeypatch, **over):
         state = unmerged_state(**over)
@@ -1522,9 +1340,7 @@ class TestUnmergedGuard:
     def test_allow_unmerged_publishes_and_stamps_everything(
         self, tmp_path, monkeypatch, stub_hf, capsys
     ):
-        """The durable half of the guard: the warning reaches the operator's
-        terminal, and the Hub commit message records it where nobody can edit
-        it away afterwards."""
+        """--allow-unmerged publishes, warns on the terminal, and records the unmerged state in the Hub commit message."""
         run_dir, _ = make_run_dir(tmp_path)
         calls = stub_hf()
         staging_dir = tmp_path / "staged"
@@ -1544,10 +1360,7 @@ class TestUnmergedGuard:
     def test_stamp_survives_a_run_with_no_audit_files(
         self, tmp_path, monkeypatch, stub_hf
     ):
-        """The record must not depend on what the run happens to have produced.
-        It once rode in a sidecar written only when a run had a curated
-        title, so a run without report_content.json published unlabelled; the
-        commit message is derived from the merge check alone."""
+        """The unmerged record does not depend on the run having audit files or report_content.json."""
         run_dir, _ = make_run_dir(tmp_path, audit_files=[], include_html=False)
         calls = stub_hf()
         staging_dir = tmp_path / "staged"
@@ -1563,13 +1376,7 @@ class TestUnmergedGuard:
     def test_dry_run_shows_the_warning_and_stamp_without_prompting(
         self, tmp_path, monkeypatch, stub_hf, capsys
     ):
-        """A preview that hid the warning would be the wrong preview — but
-        --dry-run publishes nothing, so there is nothing to confirm.
-
-        Both halves have to show: the terminal warning, and the commit message
-        the publish would leave on the Hub. The record used to be previewable
-        as part of the card; showing only the warning would preview the half
-        that doesn't outlive the terminal."""
+        """--dry-run shows both the terminal warning and the commit message without prompting."""
         run_dir, _ = make_run_dir(tmp_path)
         stub_hf(raise_on_call=True)
         self._unmerged(monkeypatch)
@@ -1606,9 +1413,7 @@ class TestUnmergedGuard:
     def test_unknown_provenance_is_treated_as_unmerged(
         self, tmp_path, monkeypatch, stub_hf
     ):
-        """An unverifiable claim is not a safe one: a manifest with no git
-        commit, or a commit this clone has never seen, must warn rather than
-        sail through."""
+        """Unknown provenance (no git commit, or a commit this clone has not seen) is treated as unmerged."""
         run_dir, _ = make_run_dir(tmp_path)
         stub_hf(raise_on_call=True)
         self._unmerged(monkeypatch, head_merged=True, run_commit_merged=None,
@@ -1621,9 +1426,7 @@ class TestUnmergedGuard:
     def test_unverifiable_is_not_reported_as_definitely_unmerged(
         self, tmp_path, monkeypatch, stub_hf, capsys
     ):
-        """Both verdicts block, but they must not read the same. Claiming a run
-        is unmerged when the truth is "couldn't tell" teaches people the warning
-        is inaccurate, which is how a guardrail loses its authority."""
+        """An unverifiable run is reported differently from a definitely unmerged one."""
         run_dir, _ = make_run_dir(tmp_path)
         stub_hf()
         self._unmerged(monkeypatch, head_merged=True, run_commit_merged=None,
@@ -1650,12 +1453,7 @@ class TestUnmergedGuard:
     def test_stamp_names_the_branch_the_data_was_generated_on(
         self, tmp_path, monkeypatch, stub_hf
     ):
-        """A run generated on one branch can be published from another, and the
-        commit message must keep the two straight: the RUN entry names the
-        branch the data came from (v3 manifests' git_branch), while an unmerged
-        checkout is reported separately as the publish branch. Collapsing them
-        would let a reader think the corpus was generated by whatever happens
-        to be checked out now."""
+        """The run entry names the branch the data was generated on, separately from the unmerged publish branch."""
         run_dir, _ = make_run_dir(
             tmp_path,
             manifest={**MANIFEST, "git_branch": "aidan/local-only",
@@ -1708,11 +1506,7 @@ class TestUnmergedGuard:
     def test_combined_publish_names_only_the_unmerged_runs(
         self, tmp_path, monkeypatch, stub_hf
     ):
-        """The point of per-run stamping: a combined corpus is only as merged as
-        its least-merged run, and a reader can trace a row to its run through
-        the repo (example_gid) — so the warning must say WHICH runs, or that
-        trace can't tell them whether a given row's code was reviewed. The
-        merged run must not be smeared with the others' warning."""
+        """A combined publish warns only about the runs that are unmerged, and names them."""
         runs = self._dad_runs(
             tmp_path,
             ("2026-07-01_10-00_merged", "aaaaaaa", "main"),
@@ -1794,11 +1588,7 @@ class TestUnmergedGuard:
     def test_a_publish_only_stamps_the_pipeline_it_publishes(
         self, tmp_path, monkeypatch, stub_hf
     ):
-        """Each publish's record is its own Hub commit, so a sibling's earlier
-        unmerged stamp is a different commit in the same history and cannot be
-        overwritten or extended by this one. The stamp used to be regenerated
-        whole on every publish, which is why it needed a persisted sidecar to
-        survive; a commit message needs nothing."""
+        """A publish stamps only the pipeline it publishes; a sibling's earlier stamp is a separate commit."""
         run_dir, _ = make_run_dir(tmp_path, pipeline="dad", audit_files=[],
                                   include_html=False)
         calls = stub_hf()

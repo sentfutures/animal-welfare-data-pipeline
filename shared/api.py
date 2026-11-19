@@ -1,20 +1,6 @@
-"""Anthropic API wrapper with retry logic and cost tracking.
-
-Three backends behind the same call_claude() contract:
-- "api" (default): the anthropic SDK, billed to the shared ANTHROPIC_API_KEY.
-- "claude_code": the Claude Agent SDK driving the Claude Code CLI, billed to
-  the contributor's own Claude subscription (Claude Code login, or a
-  CLAUDE_CODE_OAUTH_TOKEN from `claude setup-token`).
-- "auto": prefer the subscription, fall back to the api key. Per-call routing:
-  empty-system calls (the DAD baseline arm) always go to the api so the
-  plain-model condition stays exact; everything else goes to claude_code until
-  it can't serve the run (sdk/CLI missing, usage window exhausted, or a
-  persistently failing CLI), at which point the rest of the run is served by
-  the api — announced loudly, and each cost-log record names the backend that
-  actually served it. Requires ANTHROPIC_API_KEY (the fallback leg).
-
-Select via the `backend` key in config.yaml. See README "Authentication".
-"""
+"""Anthropic API wrapper with retry logic and cost tracking; the ``backend`` key in config.yaml selects "api" (default), "claude_code"
+(the contributor's subscription) or "auto" (subscription first, falling back to the api key; empty-system calls always use the api so the plain-model arm stays exact).
+Every cost-log record names the backend that served it. See README "Authentication"."""
 
 import contextlib
 import hashlib
@@ -25,6 +11,7 @@ import sys
 import tempfile
 import threading
 import time
+from dataclasses import dataclass
 from pathlib import Path
 from datetime import datetime, UTC
 
@@ -37,6 +24,7 @@ from tenacity import (
     retry_if_exception_type,
 )
 
+from shared import sdf_run_layouts
 from shared.api_keys import hide_environment_value_unless_environment_is_allowed, load_api_key, load_optional_api_key
 
 _config: dict = {}
@@ -56,12 +44,7 @@ _model_call_log_failure_warned = False
 # record no full model calls.
 _record_model_calls = True
 
-# Pricing per million tokens (input, output) for known models
-# Prices per million tokens (input, output). Keys must cover every model id
-# (or alias) that can appear in config.yaml — unknown models fall back to
-# a fixed $3/$15 estimate WITH A WARNING, which can badly misstate real spend (a Haiku
-# run was overreported 3x this way). The Anthropic console is the source of
-# truth for billing; this log is for per-stage breakdowns.
+# Prices per million tokens (input, output); keys must cover every model id in config.yaml, since an unknown model falls back to $3/$15 with a warning and can misstate spend.
 _PRICING = {
     "claude-sonnet-4-6": (3.00, 15.00),
     "claude-sonnet-5": (2.00, 10.00),
@@ -83,22 +66,9 @@ _UNPRICED_WARNED: set = set()
 
 _BACKENDS = ("api", "claude_code", "auto")
 
-# Optional `effort` in config.yaml: one level for every call, or a map from stage
-# tag (the `stage=` each call passes, e.g. scenario_plan, response_draft) to a
-# level, so an experiment arm can set one stage's effort while the others keep
-# their own. Sent as output_config.effort to Claude (api backend), reasoning.effort
-# to OpenAI and thinkingConfig.thinkingLevel to Gemini (see shared/gemini_api.py).
-# Unset, or a stage missing from the map, keeps the default:
-# _HIDDEN_THINKING_EFFORT_BY_PREFIX for Claude, openai_api.DEFAULT_REASONING_EFFORT
-# for OpenAI, the model's own for Gemini.
+# Optional `effort` in config.yaml: one level for every call, or a map from stage tag to level; sent as output_config.effort (Claude), reasoning.effort (OpenAI), thinkingConfig.thinkingLevel (Gemini).
+# Unset, or a stage missing from the map, keeps the default (_HIDDEN_THINKING_EFFORT_BY_PREFIX, openai_api.DEFAULT_REASONING_EFFORT, the Gemini model's own).
 _EFFORT_LEVELS = ("low", "medium", "high", "xhigh", "max")
-
-
-def _effort_for(stage: str | None) -> str | None:
-    effort = _config.get("effort")
-    if isinstance(effort, dict):
-        return effort.get(stage)
-    return effort
 
 
 # Models whose reasoning cannot be turned off spend part of max_tokens on it, so
@@ -116,16 +86,8 @@ _claude_code_oauth_token: str | None = None
 # call is served by the api backend.
 _cc_demoted: str | None = None
 
-# Matches subscription-limit exhaustion, which must abort rather than retry.
-# Two message families qualify: "Claude AI usage limit reached|<reset-timestamp>"
-# (the 5-hour window), and "You've hit your org's monthly spend limit" — which
-# orgs that DISABLE usage-billing overflow receive in place of the window
-# message, so it too usually means the window resets in a few hours (observed
-# live on an overnight run, where it burned 8 tenacity retries per call and
-# killed the run instead of pausing for --resume). Deliberately
-# narrow otherwise: a transient CLI "rate limit" hiccup should fall through to
-# the retried ClaudeCodeError path, so we don't match bare "rate limit" /
-# "limit reached" here.
+# Subscription-limit exhaustion must abort, not retry: the "usage limit reached|<reset>" window message and an org's "monthly spend limit" message.
+# Deliberately narrow: a transient CLI "rate limit" must stay on the retried ClaudeCodeError path.
 _LIMIT_PATTERN = re.compile(r"usage limit|spend limit", re.IGNORECASE)
 # The CLI's content-policy refusal (observed: "Claude Code is unable to respond
 # to this request, which appears to violate our Usage Policy"). Distinct from
@@ -133,29 +95,18 @@ _LIMIT_PATTERN = re.compile(r"usage limit|spend limit", re.IGNORECASE)
 _REFUSAL_PATTERN = re.compile(r"usage policy|unable to respond to this request",
                               re.IGNORECASE)
 
-# Claude Code treats an empty --system-prompt as unset and substitutes its own
-# agentic CLI prompt, which leaks tool/codebase behavior into generated text.
-# Stages that send no system prompt get this neutral stand-in instead. Note this
-# means a genuinely empty system prompt is not reproducible on this backend — the
-# DAD pipeline's response steps (which send no system prompt) are therefore not
-# reproduced exactly here; use backend: api for runs where that matters.
+# Claude Code treats an empty --system-prompt as unset and substitutes its own agentic prompt, so stages with no system prompt get this neutral stand-in;
+# an empty system prompt is therefore not reproducible on this backend (use backend: api where that matters).
 _NEUTRAL_SYSTEM = "You are Claude, a helpful AI assistant. Respond directly to the user's message."
 _neutral_system_warned = False
 _temperature_warned = False
 
-# Linux caps each argv string at 128 KiB (MAX_ARG_STRLEN), and a str
-# system_prompt reaches the CLI as a single --system-prompt argument — so the
-# ~185 KB constitution (SDF layers 3-5) aborts the spawn with E2BIG on Linux.
-# System prompts over this many UTF-8 bytes travel via --system-prompt-file.
+# Linux caps one argv string at 128 KiB, so the ~185 KB constitution would abort the spawn with E2BIG: system prompts over this many UTF-8 bytes go via --system-prompt-file.
 _CC_SYSTEM_ARG_MAX_BYTES = 100_000
 
 
 class UsageLimitExceeded(Exception):
-    """Claude subscription usage window exhausted (claude_code backend).
-
-    Not retried: the 5-hour window can take hours to reset. Checkpoints are
-    written after every call, so the run can continue later with --resume.
-    """
+    """Claude subscription usage window exhausted (claude_code backend); not retried, so the run continues later with ``--resume``."""
 
 
 class ClaudeCodeError(Exception):
@@ -163,13 +114,7 @@ class ClaudeCodeError(Exception):
 
 
 class ClaudeCodeRefusal(Exception):
-    """The subscription path refused this request on content/policy grounds.
-
-    Not transient — retrying re-serves the same content — and not the
-    backend's health, so it must never demote an auto run. call_claude
-    converts it to the api leg's refusal shape (empty text,
-    stop_reason='refusal') so the callers' per-item rejection machinery
-    handles it like any other refusal."""
+    """The subscription path refused on content grounds: not retried, never demotes an auto run, and ``call_claude`` converts it to the api refusal shape."""
 
 
 def init(config_path: str = "config.yaml", cost_log_path: str | Path | None = None) -> None:
@@ -185,18 +130,11 @@ def init(config_path: str = "config.yaml", cost_log_path: str | Path | None = No
         if level is not None and level not in _EFFORT_LEVELS:
             raise ValueError(f"config effort must be one of {_EFFORT_LEVELS} "
                              f"(or a stage -> level map), got {level!r}")
-    # The api backend needs the key; fail loudly here rather than deep in a run.
-    # The claude_code backend authenticates via the Claude Code CLI, so no key.
-    # auto needs the key too: it is the fallback leg AND serves the empty-system
-    # calls (the DAD baseline arm) that claude_code cannot reproduce exactly.
+    # The api backend needs the key (fail here, not deep in a run); claude_code authenticates via the CLI; auto needs it too, as the fallback and for empty-system calls.
     if _backend in ("api", "auto"):
         load_api_key("ANTHROPIC_API_KEY")   # raises MissingApiKeyError (a KeyError) naming the .env path
-    # The claude_code subprocess reads CLAUDE_CODE_OAUTH_TOKEN, optional because an interactive
-    # Claude Code login also works. Load it through the same source rules as the other keys
-    # (repo-root .env by default; --find-dotenv adds the environment) and hand it to the
-    # subprocess explicitly. In the default mode an exported token is hidden from the process, so
-    # the environment is never used there; the .env value reaches the subprocess through
-    # _run_claude_code_query's options instead.
+    # CLAUDE_CODE_OAUTH_TOKEN is optional (an interactive login also works); load it by the same source rules as the other keys and hand it to the subprocess explicitly,
+    # since in the default mode an exported token is hidden from the process.
     _claude_code_oauth_token = None
     if _backend in ("claude_code", "auto"):
         _claude_code_oauth_token = load_optional_api_key("CLAUDE_CODE_OAUTH_TOKEN")
@@ -208,9 +146,7 @@ def init(config_path: str = "config.yaml", cost_log_path: str | Path | None = No
 
 
 def init_cost_log_only(cost_log_path: str | Path) -> None:
-    """Point the cost log (and the model-call log beside it) at ``cost_log_path`` without reading
-    config.yaml or needing an Anthropic key. For callers that only make OpenAI calls through
-    shared/openai_api.py (the model-judged audits in evals/)."""
+    """Point the cost log at ``cost_log_path`` without reading config.yaml or needing an Anthropic key (for OpenAI-only callers)."""
     global _cost_log_path, _record_model_calls
     _cost_log_path = Path(cost_log_path)
     _cost_log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -265,10 +201,7 @@ def _log_usage(
     record = {
         "timestamp": datetime.now(UTC).isoformat(),
         "model": model,
-        # For claude_code, cost_usd is notional (what the call would have cost
-        # at API prices) — actual billing is the contributor's subscription.
-        # The EFFECTIVE backend that served the call (auto runs log which leg
-        # each call actually took); falls back to the configured backend.
+        # For claude_code, cost_usd is notional (API prices); billing is the subscription. ``backend`` is the one that served the call (auto logs the leg taken), else the configured one.
         "backend": backend or _backend,
         "input_tokens": input_tokens,
         "output_tokens": output_tokens,
@@ -307,14 +240,8 @@ def _log_model_call(
     error: str | None = None,
     log_path: Path | None = None,
 ) -> None:
-    """Append the FULL record of one model call to model_calls.jsonl beside the
-    cost log: the user message(s), the raw response text exactly as returned
-    (before any parsing or tag extraction), any thinking text, stop reason,
-    token usage and attempt count. The system prompt (constitution-sized) is
-    stored once per distinct text in system_prompts/<sha256>.txt and referenced
-    by hash. Failed or refused calls get a record too (stop_reason / error).
-    A failure to write the record is warned about once per process and otherwise ignored.
-    Writes nothing when the run has no cost log path of its own (tests, evals)."""
+    """Append the full record of one model call (raw response, usage, attempts; system prompt stored once by hash) to model_calls.jsonl beside the cost log.
+    A write failure is warned about once and ignored; nothing is written when the run has no cost log path."""
     log_path = log_path if log_path is not None else _cost_log_path
     if log_path is None or not _record_model_calls:
         return
@@ -360,11 +287,7 @@ def _log_model_call(
                   "continuing without it.", file=sys.stderr)
 
 
-# Only transient failures are worth retrying. APIStatusError is the base for
-# 4xx too, and retrying a non-retryable 4xx (bad request, auth, not-found) just
-# burns 8 exponential-backoff attempts before surfacing the real error — so
-# retry only rate limits, 5xx, and connection/timeout (APITimeoutError
-# subclasses APIConnectionError).
+# Retry only transient failures (rate limits, 5xx, connection/timeout): APIStatusError also covers non-retryable 4xx, which would burn 8 backoff attempts.
 _RETRYABLE_ERRORS = (
     anthropic.RateLimitError,
     anthropic.InternalServerError,
@@ -397,17 +320,8 @@ def _call_with_retry(
     json_schema: dict | None = None,
     effort: str | None = None,
 ) -> anthropic.types.Message:
-    # Extended thinking is requested OFF — training data should show
-    # user-facing reasoning, not internal scratchpads (see CLAUDE.md). Models in
-    # the Claude 5 family emit a thinking block by default, so disable it
-    # explicitly rather than parse around it. Exception: the models in
-    # _ADAPTIVE_THINKING_PREFIXES (fable/mythos, Opus 5.5) REQUIRE adaptive
-    # thinking — the API 400s on `thinking: disabled` — so for those the flag
-    # is replaced by adaptive thinking with display "summarized" (so a summary is
-    # recorded in model_calls.jsonl), thinking runs (kept short where _HIDDEN_THINKING_EFFORT_BY_PREFIX
-    # sets an effort), and _response_text strips the thinking blocks. Their outputs are therefore generated WITH hidden
-    # reasoning: comparison/eval arms only, never corpus generation, unless the
-    # no-scratchpads design decision is deliberately revisited.
+    # Thinking is requested OFF (training data should show user-facing reasoning), except for _ADAPTIVE_THINKING_PREFIXES, which 400 on `disabled`:
+    # those get adaptive thinking with a summarized display and _response_text strips it, so they are for comparison/eval arms only, never corpus generation.
     kwargs = dict(
         model=model,
         max_tokens=max_tokens,
@@ -417,13 +331,14 @@ def _call_with_retry(
     # temperature/top_p/top_k are REMOVED on the Claude 5 family and Opus 4.7+ —
     # the API 400s if any is sent. Only send temperature to models that still
     # accept it; the rest run at default sampling (steer them via prompting).
-    if _accepts_sampling_params(model):
-        kwargs["temperature"] = temperature
+    temperature_on_the_wire = _temperature_for_the_wire(model, temperature)
+    if temperature_on_the_wire is not None:
+        kwargs["temperature"] = temperature_on_the_wire
     # "summarized" makes the API return a summary of the hidden thinking, so it
     # can be recorded in model_calls.jsonl; _response_text still strips it.
     kwargs["thinking"] = _thinking_config(model)
     output_config: dict = {}
-    effort = effort or _hidden_thinking_effort(model)
+    effort = _effort_for_the_wire(model, effort)
     if effort is not None:
         output_config["effort"] = effort
     if json_schema is not None:
@@ -477,10 +392,18 @@ _NO_SAMPLING_PREFIXES = (
 )
 
 
+def _temperature_for_the_wire(model: str, temperature: float) -> float | None:
+    """The temperature a Claude request carries: None (omitted) for a model that rejects it."""
+    return temperature if _accepts_sampling_params(model) else None
+
+
+def _effort_for_the_wire(model: str, configured_effort: str | None) -> str | None:
+    """The reasoning effort a Claude request carries: the configured one, else the model's default."""
+    return configured_effort or _hidden_thinking_effort(model)
+
+
 def _accepts_sampling_params(model: str) -> bool:
-    """False for models that 400 on temperature/top_p/top_k (Claude 5 family,
-    Opus 4.7+). Callers pass temperature unconditionally; this gates whether it
-    reaches the API."""
+    """False for models that 400 on temperature/top_p/top_k (Claude 5 family, Opus 4.7+)."""
     return not model.startswith(_NO_SAMPLING_PREFIXES)
 
 
@@ -522,9 +445,7 @@ def _sdk_importable() -> bool:
 
 
 def _demote_cc(reason: str) -> None:
-    """auto backend: take the subscription path out of play for the rest of the
-    run and say so loudly — every remaining call is served by the api backend
-    (billed to ANTHROPIC_API_KEY). Progress made so far is unaffected."""
+    """auto backend: take the subscription path out of play for the rest of the run, loudly; every remaining call goes to the api."""
     global _cc_demoted
     if _cc_demoted is not None:
         return
@@ -538,12 +459,7 @@ def _demote_cc(reason: str) -> None:
 
 
 def _resolve_cc_system(system: str) -> str:
-    """Effective system prompt for the claude_code backend.
-
-    Claude Code injects its own agentic prompt when the system is empty, so an
-    empty system gets a neutral stand-in. Warn once so the substitution — which
-    notably changes the DAD `plain` condition — isn't silent.
-    """
+    """Effective system prompt for claude_code: an empty system gets a neutral stand-in (Claude Code injects its own), warned once because it changes the DAD `plain` condition."""
     global _neutral_system_warned
     if system:
         return system
@@ -565,14 +481,7 @@ def _run_claude_code_query(
     user_message: str,
     json_schema: dict | None = None,
 ) -> tuple[str, int, int, float | None, str | None]:
-    """One Claude Code CLI turn: run the query and parse the result into
-    (text, input_tokens, output_tokens, notional_cost_usd, stop_reason).
-
-    Raises UsageLimitExceeded / ClaudeCodeError on failure; the retry wrapper
-    (_call_claude_code_with_retry) decides whether to retry. Kept separate from
-    that wrapper so this parse — the money path — is unit-testable by stubbing
-    claude_agent_sdk.query, without triggering tenacity's backoff.
-    """
+    """One Claude Code CLI turn, parsed into (text, input_tokens, output_tokens, notional_cost_usd, stop_reason); kept apart from the retry wrapper so tests can stub it."""
     try:
         import anyio
         from claude_agent_sdk import CLINotFoundError, ClaudeAgentOptions, query
@@ -599,20 +508,11 @@ def _run_claude_code_query(
         ),
         tools=[],  # pure text generation: no file/bash/web access
         max_turns=1,
-        # Thinking disabled so training data shows user-facing reasoning only.
-        # Models in _ADAPTIVE_THINKING_PREFIXES (fable/mythos, Opus 5.5) require
-        # adaptive thinking and 400 on disabled, so they get adaptive + summarized
-        # display instead (mirrors the api backend's _call_with_retry), with the same per-model
-        # effort; their thinking blocks are stripped by the TextBlock filter below.
-        # Hermetic run: without these, the CLI loads the contributor's own
-        # ~/.claude settings (custom agents, plan-by-default permission modes,
-        # hooks), which leaks agentic scaffolding into generated text.
+        # Thinking disabled, except adaptive + summarized for _ADAPTIVE_THINKING_PREFIXES (as the api backend does); their thinking blocks are stripped by the TextBlock filter below.
+        # Hermetic run: otherwise the CLI loads the contributor's ~/.claude settings (agents, hooks, permission modes), which leaks agentic scaffolding into generated text.
         setting_sources=[],
         permission_mode="default",
-        # Blank out any key loaded from .env so the subprocess can't silently
-        # bill the shared API key — Claude Code treats an empty value as unset
-        # and falls back to its own login / CLAUDE_CODE_OAUTH_TOKEN (added below
-        # when init() loaded one through shared/api_keys.py).
+        # Blank any key loaded from .env so the subprocess cannot silently bill the shared API key (an empty value is treated as unset, falling back to its own login or the token added below).
         env={"ANTHROPIC_API_KEY": "", "ANTHROPIC_AUTH_TOKEN": ""},
     )
     if _claude_code_oauth_token is not None:
@@ -639,12 +539,7 @@ def _run_claude_code_query(
                         elif isinstance(block, ThinkingBlock) and block.thinking:
                             thinking_parts.append(block.thinking)
                 elif isinstance(msg, ResultMessage):
-                    # The result is final for our single-turn calls — stop here.
-                    # After an is_error result the CLI exits non-zero; reading
-                    # past the result turns that exit into a ProcessError whose
-                    # text drops result_msg.result (the CLI's actual error),
-                    # masking the is_error handling below and its usage-limit
-                    # classification.
+                    # The result is final for single-turn calls: stop here, since reading past an is_error result turns the CLI's non-zero exit into a ProcessError that drops the CLI's actual error.
                     result_msg = msg
                     break
         finally:
@@ -719,86 +614,109 @@ def _call_claude_code_with_retry(
     user_message: str,
     json_schema: dict | None = None,
 ) -> tuple[str, int, int, float | None, str | None]:
-    """Retry wrapper around _run_claude_code_query (transient ClaudeCodeError
-    only; UsageLimitExceeded is not retried). This is the seam call_claude uses
-    and that the test suite blocks."""
+    """Retry wrapper around ``_run_claude_code_query`` (transient ClaudeCodeError only); the seam the test suite blocks."""
     if json_schema is None:
         return _run_claude_code_query(model, system, user_message)
     return _run_claude_code_query(model, system, user_message, json_schema=json_schema)
 
 
+@dataclass(frozen=True)
+class ResolvedRequestSettings:
+    """Everything ``call_claude`` decides about a request before sending it."""
+    provider: str                       # "anthropic", "openai" or "gemini": the route the model name selects
+    model: str                          # after the config default
+    max_tokens: int                     # includes the thinking headroom
+    thinking_headroom_added: int        # 0 for a model that does not reason on every call
+    requested_temperature: float        # what the caller or config asked for
+    temperature: float | None           # what reaches the wire; None = omitted (some Claude models 400 on it)
+    effort: str | None                  # reasoning effort on the wire; None = the model's own default
+    effort_configured: str | None       # the part that came from the config alone (``_call_with_retry`` adds the model default)
+    thinking: dict | None               # the Anthropic ``thinking`` field; None for OpenAI and Gemini
+    structured_output: bool             # a JSON schema constrains the answer
+    cache_system: bool                  # the caller's request; honoured on the Anthropic api backend with a non-empty system prompt
+
+
+def resolve_request_settings(
+    model: str | None,
+    stage_tag: str | None,
+    max_tokens: int | None,
+    temperature: float | None,
+    json_schema: dict | None = None,
+    cache_system: bool = False,
+    config: dict | None = None,
+) -> ResolvedRequestSettings:
+    """The lookups ``call_claude`` does before sending (model, max tokens, thinking headroom, temperature, effort by ``stage_tag``).
+    Pure: it reads ``config`` and sends nothing, so a read-only command can print what a stage would send."""
+    from shared import gemini_api, openai_api
+    active_config = _config if config is None else config
+    resolved_model = model or active_config.get("model", "claude-sonnet-5")
+    resolved_max = max_tokens or active_config.get("max_tokens", 4000)
+    requested_temperature = temperature if temperature is not None else active_config.get("temperature", 1.0)
+    configured_effort = active_config.get("effort")
+    if isinstance(configured_effort, dict):
+        configured_effort = sdf_run_layouts.value_for_tag(configured_effort, stage_tag)
+
+    headroom_added = 0
+    if (_requires_adaptive_thinking(resolved_model) or openai_api.is_openai_model(resolved_model)
+            or gemini_api.is_gemini_model(resolved_model)):
+        headroom_added = active_config.get("thinking_headroom", _DEFAULT_THINKING_HEADROOM)
+
+    if openai_api.is_openai_model(resolved_model):
+        provider = "openai"
+        wire_temperature = openai_api.SAMPLING_TEMPERATURE
+        wire_effort = configured_effort or openai_api.DEFAULT_REASONING_EFFORT
+        thinking = None
+    elif gemini_api.is_gemini_model(resolved_model):
+        provider = "gemini"
+        wire_temperature = gemini_api.SAMPLING_TEMPERATURE
+        wire_effort = configured_effort
+        thinking = None
+    else:
+        provider = "anthropic"
+        wire_temperature = _temperature_for_the_wire(resolved_model, requested_temperature)
+        wire_effort = _effort_for_the_wire(resolved_model, configured_effort)
+        thinking = _thinking_config(resolved_model)
+    return ResolvedRequestSettings(
+        provider=provider, model=resolved_model, max_tokens=resolved_max + headroom_added,
+        thinking_headroom_added=headroom_added, requested_temperature=requested_temperature,
+        temperature=wire_temperature, effort=wire_effort, effort_configured=configured_effort,
+        thinking=thinking, structured_output=json_schema is not None, cache_system=cache_system)
+
+
 def call_claude(
     user_message: str,
     system_prompt: str = "",
-    injection: str = "",
-    model: str | None = None,
-    max_tokens: int | None = None,
-    return_stop_reason: bool = False,
-    stage: str | None = None,
-    temperature: float | None = None,
-    item_id: str | None = None,
-    cache_system: bool = False,
-    json_schema: dict | None = None,
+    injection: str = "",                  # appended to the system prompt
+    model: str | None = None,             # falls back to the config value
+    max_tokens: int | None = None,        # api backend only (Claude Code applies its own cap)
+    return_stop_reason: bool = False,     # True: return (text, stop_reason) so callers can reject truncated or refused replies
+    stage: str | None = None,             # stage tag written to the cost-log record
+    temperature: float | None = None,     # falls back to the config value
+    item_id: str | None = None,           # the record this call serves, for per-record cost stats
+    cache_system: bool = False,           # api backend only: cache the system prompt; ignored when it is empty
+    json_schema: dict | None = None,      # constrains the output; the return is JSON text that callers must still validate
 ) -> str | tuple[str, str | None]:
-    """Call Claude and return the response text.
-
-    Args:
-        user_message: The user turn content.
-        system_prompt: Optional system prompt.
-        injection: Optional text appended to the system prompt.
-        model: Model override; falls back to config value.
-        max_tokens: Token limit override; falls back to config value. Enforced
-            on the api backend only — Claude Code applies its own output cap,
-            and the pipeline's caps exist to bound per-token API cost, which
-            does not apply to subscription usage.
-        return_stop_reason: if True, return (text, stop_reason) so the caller can
-            reject truncated/refused completions instead of storing them.
-        stage: Pipeline-stage tag written into the cost-log record (e.g.
-            "prompt_draft", "layer4") so spend can be broken down per stage.
-        temperature: Sampling temperature override for this call; falls back to
-            the config `temperature` (1.0 — corpus generation wants diversity).
-        item_id: Id of the pipeline record this call serves (e.g. a prompt_id
-            or response_id; comma-joined ids for a batched call), written into
-            the cost-log record so per-record stats can be looked up later.
-        cache_system: if True (api backend only), send the system prompt as an
-            ephemeral prompt-cache block so repeated calls that share it (e.g. an
-            SDF layer's constitution-laden system prompt) are billed at the ~0.1x
-            cache-read rate after the first. Ignored on claude_code (the CLI
-            manages its own caching) and when the system prompt is empty.
-        json_schema: optional JSON schema (dict) constraining the output. The api
-            backend sends it as output_config.format; claude_code passes it as the
-            SDK's output_format and returns the result's structured_output as JSON
-            text. Either way the return value is JSON text; callers must still
-            validate it. None (default) leaves behaviour exactly as before.
-
-    Returns:
-        The assistant's response text, or (text, stop_reason) when
-        return_stop_reason is True.
-    """
-    resolved_model = model or _config.get("model", "claude-sonnet-5")
-    resolved_max = max_tokens or _config.get("max_tokens", 4000)
-    resolved_temp = temperature if temperature is not None else _config.get("temperature", 1.0)
-    effort = _effort_for(stage)
+    """Call Claude and return the response text (or ``(text, stop_reason)`` when ``return_stop_reason``)."""
+    settings = resolve_request_settings(model, stage, max_tokens, temperature,
+                                        json_schema=json_schema, cache_system=cache_system)
+    resolved_model = settings.model
+    resolved_max = settings.max_tokens
+    resolved_temp = settings.requested_temperature
+    effort = settings.effort_configured
 
     full_system = system_prompt
     if injection:
         full_system = (full_system + "\n\n" + injection).strip()
 
-    # OpenAI and Gemini models go straight to their own APIs whatever the
-    # configured backend (the Claude Code CLI cannot serve them), with the same
-    # return contract. Both reason on every call, as do the adaptive-thinking
-    # Claude models below, so all of them get the thinking headroom.
+    # OpenAI and Gemini models go straight to their own APIs whatever the backend; they reason on every call, as do the adaptive-thinking Claude models below, so all get the thinking headroom.
     from shared import gemini_api, openai_api
-    if (_requires_adaptive_thinking(resolved_model) or openai_api.is_openai_model(resolved_model)
-            or gemini_api.is_gemini_model(resolved_model)):
-        resolved_max += _config.get("thinking_headroom", _DEFAULT_THINKING_HEADROOM)
-    if openai_api.is_openai_model(resolved_model):
+    if settings.provider == "openai":
         text, stop_reason = openai_api.call_openai(
             user_message, full_system, model=resolved_model, max_output_tokens=resolved_max,
-            reasoning_effort=effort or openai_api.DEFAULT_REASONING_EFFORT,
+            reasoning_effort=settings.effort,
             stage=stage, item_id=item_id, json_schema=json_schema)
         return (text, stop_reason) if return_stop_reason else text
-    if gemini_api.is_gemini_model(resolved_model):
+    if settings.provider == "gemini":
         text, stop_reason = gemini_api.call_gemini(
             user_message, full_system, model=resolved_model, max_output_tokens=resolved_max,
             effort=effort, stage=stage, item_id=item_id, json_schema=json_schema)
@@ -808,13 +726,8 @@ def call_claude(
     _attempt_state.thinking_text = None
     started = time.monotonic()
 
-    # Backend routing. "auto" prefers the subscription (claude_code) and falls
-    # back to the api key when it can't serve the call:
-    #   - empty-system calls (the DAD baseline arm) always go to the api, so the
-    #     plain-model condition stays exact (claude_code would substitute a
-    #     neutral system prompt);
-    #   - once demoted (sdk missing, CLI missing, usage window exhausted, or a
-    #     persistently failing CLI), the rest of the run is served by the api.
+    # Backend routing: "auto" prefers claude_code and falls back to the api key when it cannot serve the call.
+    # Empty-system calls (the DAD baseline arm) always use the api so the plain-model condition stays exact; once demoted, the rest of the run is served by the api.
     use_cc = _backend == "claude_code"
     if _backend == "auto":
         if _cc_demoted is None and not _sdk_importable():
@@ -822,10 +735,7 @@ def call_claude(
         use_cc = _cc_demoted is None and bool(full_system)
 
     if use_cc:
-        # The Claude Code CLI exposes no sampling-temperature control, so a
-        # non-default temperature cannot be honored on this backend. The config
-        # default (1.0) matches normal sampling, so only deliberate overrides
-        # warrant the warning.
+        # The Claude Code CLI has no temperature control, so only a deliberate non-default temperature warns (the config default 1.0 matches normal sampling).
         global _temperature_warned
         if resolved_temp != 1.0 and not _temperature_warned:
             _temperature_warned = True
@@ -844,11 +754,7 @@ def call_claude(
                 **cc_kwargs,
             )
         except ClaudeCodeRefusal as e:
-            # A content/policy refusal is per-item, not the backend's health:
-            # surface it exactly like the api leg's refusal (empty text,
-            # stop_reason='refusal') so the callers' per-item rejection
-            # machinery handles it. One refused item must never abort a run —
-            # or, under auto, demote the whole backend.
+            # A content/policy refusal is per-item, not backend health: surface it like the api leg's refusal (empty text, stop_reason='refusal'); one refused item must never abort a run or demote an auto backend.
             print(f"  WARNING: claude_code refused this request on policy grounds "
                   f"(model {resolved_model}) — surfaced as stop_reason='refusal'. "
                   f"{str(e).splitlines()[0][:160]}", file=sys.stderr)
@@ -939,10 +845,7 @@ def call_claude(
                cache_read_tokens=getattr(usage, "cache_read_input_tokens", 0) or 0,
                # auto runs demoted to this path are still served by the api
                backend="api")
-    # A completion that stopped for any reason other than end_turn/stop_sequence
-    # is suspect — max_tokens truncates mid-text, refusal yields little or none.
-    # Warn loudly so it isn't silently written into a corpus; callers that build
-    # training records should also reject on stop_reason via return_stop_reason.
+    # A completion that stopped for any reason other than end_turn/stop_sequence is suspect (truncated or refused): warn loudly; training-record callers should also reject via return_stop_reason.
     if response.stop_reason not in ("end_turn", "stop_sequence"):
         print(f"  WARNING: response stop_reason={response.stop_reason!r} "
               f"(model {resolved_model}, max_tokens {resolved_max}) — output may be "

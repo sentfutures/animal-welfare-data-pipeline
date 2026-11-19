@@ -1,30 +1,6 @@
-"""Generic combinatorial-matrix machinery shared by the pipeline composers.
-
-Extracted verbatim from sdf_pipeline/compose_prompts.py (which re-exports it,
-so SDF callers are unchanged) when the DAD pipeline grew its own composer
-(dad_pipeline/compose_scenarios.py). Everything here is pipeline-agnostic:
-parsing a variables.txt file, validating weights, deck-sampling assignments
-whose per-variable shares match the weights by construction, and splitting a
-rendered template into system/user sections.
-
-variables.txt format::
-
-    {varname}  # optional description
-        plain value
-        0.25 :: weighted value
-        0.25 :: [stable_id] weighted value with an ID
-
-An optional ``[id] `` prefix (after the weight, if any) gives a value a stable
-ID: lowercase letters, digits and underscores, starting with a letter. The
-prefix is stripped, so the value text that is rendered and recorded is exactly
-what it would be without it; the IDs are exposed separately by
-``parse_variables_with_ids`` for callers (the SDF deal constraints) that refer
-to values by ID so a value can be reworded without breaking them.
-
-Full-line ``#`` comments and blank lines are ignored anywhere. Weights are
-all-or-nothing within a variable and must sum to 1.0 (within
-WEIGHT_TOLERANCE); an unweighted variable is uniform.
-"""
+"""Pipeline-agnostic combinatorial-matrix machinery: parsing variables.txt, validating weights, deck-sampling with per-variable shares matching the weights, splitting system/user sections.
+variables.txt: ``{varname}  # description`` then values, plain or ``0.25 :: [stable_id] text`` (the ``[id] `` prefix is stripped, lowercase letters, digits, underscores, starting with a letter).
+Weights are all-or-nothing per variable and sum to 1.0 within WEIGHT_TOLERANCE; unweighted is uniform; full-line ``#`` comments and blank lines are ignored."""
 
 from __future__ import annotations
 
@@ -47,14 +23,7 @@ USER_MARKER = "=== USER PROMPT ==="
 def parse_variables_with_ids(
     path: Path, reserved: frozenset[str] | set[str] = frozenset()
 ) -> tuple[dict[str, list[tuple[str, float | None]]], dict[str, list[str | None]]]:
-    """Parse variables.txt into ({name: [(value, weight-or-None), ...]},
-    {name: [id-or-None, ...]}) — the second parallel to the first.
-
-    ``reserved`` names are composer-injected slots that must NOT be defined in
-    the file — defining one raises, pointing the author at the composer. A
-    value starting with ``[`` must carry a well-formed ``[id] `` prefix; IDs
-    must be unique within a variable.
-    """
+    """``({name: [(value, weight-or-None)]}, {name: [id-or-None]})``. ``reserved`` names (composer-injected slots) must not be defined; a value starting with ``[`` needs a well-formed ``[id] `` prefix, unique within the variable."""
     parsed: dict[str, list[tuple[str, float | None]]] = {}
     ids: dict[str, list[str | None]] = {}
     current: str | None = None
@@ -107,10 +76,7 @@ def parse_variables_with_ids(
 def parse_variables(
     path: Path, reserved: frozenset[str] | set[str] = frozenset()
 ) -> dict[str, list[tuple[str, float | None]]]:
-    """Parse variables.txt into {name: [(value, weight-or-None), ...]}.
-
-    Any ``[id] `` prefixes are stripped (see parse_variables_with_ids for the IDs).
-    """
+    """``parse_variables_with_ids`` without the ids (``[id] `` prefixes stripped)."""
     return parse_variables_with_ids(path, reserved)[0]
 
 
@@ -161,11 +127,7 @@ def split_weights(
 
 
 def template_placeholders(template: str) -> list[str]:
-    """Format-field names in first-appearance order, deduplicated.
-
-    Uses string.Formatter, i.e. exactly what str.format will substitute —
-    stray literal braces surface here as the same error rendering would hit.
-    """
+    """Format-field names in first-appearance order, via string.Formatter (stray braces fail here as rendering would)."""
     names: list[str] = []
     for _, field, spec, conversion in string.Formatter().parse(template):
         if field is None:
@@ -210,12 +172,7 @@ def deck_sample(
 
 
 def split_sections(rendered: str) -> tuple[str | None, str]:
-    """Split a rendered prompt into (system, user) on the section markers.
-
-    A file without markers is a single user prompt (system=None). The markers
-    are display/authoring conventions only — nothing between them is sent to
-    the API as-is; callers pass the pieces as system_prompt and user_message.
-    """
+    """Split a rendered prompt into (system, user) on the section markers; no markers means a user-only prompt (system=None)."""
     if USER_MARKER not in rendered:
         return None, rendered.strip()
     system_part, user_part = rendered.split(USER_MARKER, 1)

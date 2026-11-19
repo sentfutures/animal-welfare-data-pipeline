@@ -5,6 +5,7 @@ PIPELINE_OUTPUT_ROOT redirects all run output into tmp_path so the repo's real
 outputs/ tree (and its `latest` symlinks) is never touched.
 """
 
+import functools
 import hashlib
 import json
 
@@ -15,6 +16,7 @@ import dad_pipeline.run as dad_run
 import sdf_pipeline.run as sdf_run
 from conftest import dad_scenario_plan_reply, dad_scenario_reply
 from shared import utils
+from sdf_step_and_command_line_test_helpers import run_main as run_pipeline_main
 
 N_DAD_PROMPTS = 2  # tiny_config dad.dilemmas.count
 
@@ -26,11 +28,8 @@ def outputs_root(tmp_path, monkeypatch):
     return root
 
 
-def _run_main(monkeypatch, main, config_file, *extra_args):
-    monkeypatch.setattr(
-        "sys.argv", ["run.py", "--config", str(config_file), "--label", "e2e", *extra_args]
-    )
-    main()
+run_sdf_main = functools.partial(run_pipeline_main, main=sdf_run.main, label="e2e")
+run_dad_main = functools.partial(run_pipeline_main, main=dad_run.main, label="e2e")
 
 
 # --- SDF ---------------------------------------------------------------
@@ -57,16 +56,16 @@ def _rewrite_answer(rewrite_needed=False, description="", **overrides):
 def _sdf_dispatch(user_message, **kw):
     if kw["stage"] == "layer1_screen":  # layer 1 screen: removes nothing
         return _screen_answer(user_message, remove=())
-    if kw["stage"] == "layer1_description_rewrite":  # layer 1 description rewrite: declines
+    if kw["stage"] == "layer2_description_rewrite":  # layer 1 description rewrite: declines
         return _rewrite_answer()
-    if kw["stage"] == "layer1_select":  # layer 1 considerations selector: scores every entry 1 (nothing assignable)
+    if kw["stage"] == "layer3_consideration_scoring":  # layer 1 considerations selector: scores every entry 1 (nothing assignable)
         return json.dumps({
             name: [{"label": label, "score": 1, "where_it_arises": ""}
                    for label in schema["items"]["properties"]["label"]["enum"]]
             for name, schema in kw["json_schema"]["properties"].items()})
     # keyed on stage, not max_tokens: the critique and the revise halves share a
     # token cap, so a cap cannot tell them apart.
-    if kw.get("stage") == "layer3_critique":
+    if kw.get("stage") == "layer4_critique":
         return f"<review>Problems with {kw['item_id']}.</review>"
     if kw["max_tokens"] == 6000:  # layer 3: drafting from the spec
         return f"<document>Drafted body for {kw['item_id']}.</document>"
@@ -83,7 +82,7 @@ def _sdf_dispatch(user_message, **kw):
 
 def test_sdf_pipeline_end_to_end_offline(tiny_config_file, outputs_root, stub_claude, monkeypatch):
     calls = stub_claude(_sdf_dispatch)
-    _run_main(monkeypatch, sdf_run.main, tiny_config_file)
+    run_sdf_main(monkeypatch, tiny_config_file)
 
     runs = [d for d in (outputs_root / "sdf" / "runs").iterdir() if d.is_dir()]
     assert len(runs) == 1
@@ -110,13 +109,13 @@ def test_sdf_pipeline_end_to_end_offline(tiny_config_file, outputs_root, stub_cl
     assert len(calls) == 15
     stages = [c["stage"] for c in calls]
     assert stages.count("layer1_screen") == 1
-    assert stages.count("layer1_select") == 2
+    assert stages.count("layer3_consideration_scoring") == 2
     # order: screen before any plan, plans before description rewrites, description rewrites before the selector
     assert stages[0] == "layer1_screen"
-    assert stages.index("layer1_description_rewrite") > max(
-        i for i, stage in enumerate(stages) if stage == "layer1_plan")
-    assert stages.index("layer1_select") > max(
-        i for i, stage in enumerate(stages) if stage == "layer1_description_rewrite")
+    assert stages.index("layer2_description_rewrite") > max(
+        i for i, stage in enumerate(stages) if stage == "layer2_description_write")
+    assert stages.index("layer3_consideration_scoring") > max(
+        i for i, stage in enumerate(stages) if stage == "layer2_description_rewrite")
     assert all(r["considerations_spec"] == "" for r in corpus)
 
 
@@ -129,9 +128,9 @@ def test_sdf_screen_removal_is_dropped_before_drafting(
         return _sdf_dispatch(user_message, **kw)
 
     calls = stub_claude(dispatch)
-    _run_main(monkeypatch, sdf_run.main, tiny_config_file)
+    run_sdf_main(monkeypatch, tiny_config_file)
     run_dir = outputs_root / "sdf" / "latest"
-    rejections = utils.load_jsonl(run_dir / "layer1" / "screen_rejections.jsonl")
+    rejections = utils.load_jsonl(run_dir / "layer1_deal_variables_and_screen" / "screen_rejections.jsonl")
     assert len(rejections) == 1
     corpus = utils.load_jsonl(run_dir / "final" / "sdf_corpus.jsonl")
     assert [r["doc_id"] for r in corpus] == [
@@ -143,72 +142,60 @@ def test_sdf_screen_removal_is_dropped_before_drafting(
     assert len(calls) == 8
     # the removed hand never reached planning, so it never reached the selector
     removed_id = rejections[0]["prompt_id"]
-    assert not any(c["item_id"].startswith(removed_id) for c in calls if c["stage"] == "layer1_select")
+    assert not any(c["item_id"].startswith(removed_id) for c in calls if c["stage"] == "layer3_consideration_scoring")
 
 
 def test_sdf_rewritten_description_and_dealt_value_conflict_reach_layer_2(
     tiny_config_file, outputs_root, stub_claude, monkeypatch
 ):
     def dispatch(user_message, **kw):
-        if kw["stage"] == "layer1_description_rewrite":
+        if kw["stage"] == "layer2_description_rewrite":
             if kw["item_id"] == "matrix_000000":
                 return _rewrite_answer(True, "Rewritten spec for matrix_000000.")
             return _rewrite_answer(dealt_value_conflict=True, conflict_reason="The dealt scale cannot occur.")
         return _sdf_dispatch(user_message, **kw)
 
     calls = stub_claude(dispatch)
-    _run_main(monkeypatch, sdf_run.main, tiny_config_file)
+    run_sdf_main(monkeypatch, tiny_config_file)
     run_dir = outputs_root / "sdf" / "latest"
-    drafts = utils.load_jsonl(run_dir / "layer2" / "drafts.jsonl")
+    drafts = utils.load_jsonl(run_dir / "layer4_draft_critique_and_revise" / "drafts.jsonl")
     assert [d["doc_id"] for d in drafts] == ["matrix_000000"]
     draft_calls = [c for c in calls if c["max_tokens"] == 6000]
     assert "Rewritten spec for matrix_000000." in draft_calls[0]["user_message"]  # layer 2 gets the rewrite
-    assert len(utils.load_jsonl(run_dir / "layer1" / "description_rewrite_rejections.jsonl")) == 1
+    assert len(utils.load_jsonl(run_dir / "layer2_description_write_and_description_rewrite" / "description_rewrite_rejections.jsonl")) == 1
     # planning keeps the planner's own text on disk
-    plans = {p["prompt_id"]: p for p in utils.load_jsonl(run_dir / "layer1" / "plans.jsonl")}
+    plans = {p["prompt_id"]: p for p in utils.load_jsonl(run_dir / "layer2_description_write_and_description_rewrite" / "plans.jsonl")}
     assert plans["matrix_000000"]["description"] == "Spec for matrix_000000."
 
     # resuming at layer 2 re-applies the stored rewrite and drops the conflicted plan, with no layer 1 calls
     resumed = stub_claude([])
-    _run_main(monkeypatch, sdf_run.main, tiny_config_file, "--resume", "--layer", "2")
+    run_sdf_main(monkeypatch, tiny_config_file, "--resume", "--layer", "2")
     assert resumed == []
 
 
 def test_sdf_resume_at_last_layer_makes_no_calls(tiny_config_file, outputs_root, stub_claude, monkeypatch):
     stub_claude(_sdf_dispatch)
-    _run_main(monkeypatch, sdf_run.main, tiny_config_file)
+    run_sdf_main(monkeypatch, tiny_config_file)
 
     calls = stub_claude([])
-    _run_main(monkeypatch, sdf_run.main, tiny_config_file, "--resume", "--layer", "4")
+    run_sdf_main(monkeypatch, tiny_config_file, "--resume", "--layer", "5")
     assert calls == []
     corpus = utils.load_jsonl(outputs_root / "sdf" / "latest" / "final" / "sdf_corpus.jsonl")
     assert len(corpus) == 2
-
-
-def test_sdf_rejects_a_pre_renumber_layer_number(tiny_config_file, stub_claude, monkeypatch):
-    """--layer 5 was the score stage before the renumber and does not exist now.
-
-    Remapping it silently would resume a paid run at the wrong stage — every old
-    number from 3 up names a different stage today — so the CLI refuses it.
-    """
-    calls = stub_claude([])
-    with pytest.raises(SystemExit):
-        _run_main(monkeypatch, sdf_run.main, tiny_config_file, "--resume", "--layer", "5")
-    assert calls == []
 
 
 def test_sdf_human_profile_end_to_end_offline(tiny_config, tmp_path, outputs_root,
                                               stub_claude, monkeypatch):
     """sdf.profile: human runs the same pipeline on the human-welfare content:
     its own run tree, its own prompt snapshot, its principles and failure modes."""
-    from sdf_pipeline import compose_prompts as cp
+    from sdf_pipeline.shared_step_machinery import compose_prompts as cp
     from sdf_pipeline import profiles
 
     human_cfg = {**tiny_config, "sdf": {**tiny_config["sdf"], "profile": "human"}}
     config_file = tmp_path / "config_sdf_human.yaml"
     config_file.write_text(yaml.safe_dump(human_cfg))
     calls = stub_claude(_sdf_dispatch)
-    _run_main(monkeypatch, sdf_run.main, config_file)
+    run_sdf_main(monkeypatch, config_file)
 
     assert not (outputs_root / "sdf").exists()
     runs = [d for d in (outputs_root / "sdf_human" / "runs").iterdir() if d.is_dir()]
@@ -222,9 +209,9 @@ def test_sdf_human_profile_end_to_end_offline(tiny_config, tmp_path, outputs_roo
         profiles.prompts_dir(profiles.get("human")) / "variables.txt")
     human_categories = set(value_ids["sentient_category"].values())
     assert all(r["variables"]["sentient_category"] in human_categories for r in corpus)
-    # layers 2 and 3 were handed the human principles, not the animal ones
-    grounded = [c for c in calls if c["stage"] in ("layer2_draft", "layer3_critique", "layer3_revise")]
-    assert grounded
+    # the draft, critique and revise steps were handed the human principles, not the animal ones
+    grounded = [c for c in calls if c["stage"] in ("layer4_draft", "layer4_critique", "layer4_revise")]
+    assert {c["stage"] for c in grounded} == {"layer4_draft", "layer4_critique", "layer4_revise"}
     assert all("Other people's interests are always in the weighing" in c["system_prompt"]
                for c in grounded)
     assert not any("Sentient beings are inside the moral circle" in c["system_prompt"]
@@ -272,7 +259,7 @@ def _dad_dispatch(user_message, **kw):
 
 def test_dad_pipeline_end_to_end_offline(tiny_config_file, outputs_root, stub_claude, monkeypatch):
     calls = stub_claude(_dad_dispatch)
-    _run_main(monkeypatch, dad_run.main, tiny_config_file)
+    run_dad_main(monkeypatch, tiny_config_file)
 
     runs = [d for d in (outputs_root / "dad" / "runs").iterdir() if d.is_dir()]
     assert len(runs) == 1
@@ -324,7 +311,7 @@ def test_dad_human_profile_end_to_end_offline(tiny_config, tmp_path, outputs_roo
     config_file = tmp_path / "config_human.yaml"
     config_file.write_text(yaml.safe_dump(human_cfg))
     calls = stub_claude(_dad_dispatch)
-    _run_main(monkeypatch, dad_run.main, config_file)
+    run_dad_main(monkeypatch, config_file)
 
     assert not (outputs_root / "dad").exists()
     runs = [d for d in (outputs_root / "dad_human" / "runs").iterdir() if d.is_dir()]
@@ -356,7 +343,7 @@ def test_dad_baseline_disabled_makes_no_baseline_calls(
     config_file.write_text(yaml.safe_dump(config))
 
     calls = stub_claude(_dad_dispatch)
-    _run_main(monkeypatch, dad_run.main, config_file)
+    run_dad_main(monkeypatch, config_file)
 
     run_dir = outputs_root / "dad" / "latest"
     assert not (run_dir / "baseline").exists()
@@ -366,10 +353,10 @@ def test_dad_baseline_disabled_makes_no_baseline_calls(
 
 def test_dad_resume_at_step3_makes_no_calls(tiny_config_file, outputs_root, stub_claude, monkeypatch):
     stub_claude(_dad_dispatch)
-    _run_main(monkeypatch, dad_run.main, tiny_config_file)
+    run_dad_main(monkeypatch, tiny_config_file)
 
     calls = stub_claude([])
-    _run_main(monkeypatch, dad_run.main, tiny_config_file, "--resume", "--step", "3")
+    run_dad_main(monkeypatch, tiny_config_file, "--resume", "--step", "3")
     assert calls == []
     corpus = utils.load_jsonl(outputs_root / "dad" / "latest" / "final" / "dad_corpus.jsonl")
     assert len(corpus) == N_DAD_PROMPTS
@@ -417,7 +404,7 @@ def test_dad_full_run_launches_both_evals(
     tiny_config, outputs_root, stub_claude, monkeypatch, tmp_path, record_subprocess
 ):
     stub_claude(_dad_dispatch)
-    _run_main(monkeypatch, dad_run.main, _evals_on_config(tiny_config, tmp_path))
+    run_dad_main(monkeypatch, _evals_on_config(tiny_config, tmp_path))
 
     run_dir = (outputs_root / "dad" / "latest").resolve()
     assert len(record_subprocess) == 2
@@ -437,7 +424,7 @@ def test_dad_auto_evals_off_launches_nothing(
     # tiny_config sets dad.evals.auto false — the committed default is on,
     # asserted separately on the raw knob below
     stub_claude(_dad_dispatch)
-    _run_main(monkeypatch, dad_run.main, tiny_config_file)
+    run_dad_main(monkeypatch, tiny_config_file)
     assert record_subprocess == []
 
 
@@ -450,7 +437,7 @@ def test_dad_partial_run_skips_evals(
     tiny_config, outputs_root, stub_claude, monkeypatch, tmp_path, record_subprocess
 ):
     stub_claude(_dad_dispatch)
-    _run_main(monkeypatch, dad_run.main, _evals_on_config(tiny_config, tmp_path),
+    run_dad_main(monkeypatch, _evals_on_config(tiny_config, tmp_path),
               "--stop-after", "1")
     assert record_subprocess == []
 
@@ -467,7 +454,7 @@ def test_dad_eval_failure_does_not_fail_the_run(
 
     monkeypatch.setattr(dad_run.subprocess, "run", failing_run)
     stub_claude(_dad_dispatch)
-    _run_main(monkeypatch, dad_run.main, _evals_on_config(tiny_config, tmp_path))
+    run_dad_main(monkeypatch, _evals_on_config(tiny_config, tmp_path))
 
     corpus = utils.load_jsonl(outputs_root / "dad" / "latest" / "final" / "dad_corpus.jsonl")
     assert len(corpus) == N_DAD_PROMPTS

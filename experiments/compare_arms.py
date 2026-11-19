@@ -22,8 +22,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from sdf_pipeline import compose_prompts as cp
-from sdf_pipeline import revision_style
+from sdf_pipeline.shared_step_machinery import compose_prompts as cp
+from sdf_pipeline.shared_step_machinery import revision_style
 from shared import textstats, utils
 
 DIVERSITY_REPORT = "audit/diversity_report.json"

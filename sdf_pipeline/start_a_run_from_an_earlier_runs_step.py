@@ -1,0 +1,294 @@
+"""Start a new SDF run from a chosen step of an earlier run, with selected documents, ready for ``run.py --resume --layer N``.
+It checks everything first and refuses before creating anything; copies the source's own records for the selected documents from every stage file
+written by a step BEFORE the chosen one; and records ``seeded_from`` in the manifest. A ``revision`` override is written into the copied draft records."""
+
+import json
+import os
+from dataclasses import dataclass
+from pathlib import Path
+
+from sdf_pipeline.layer1_deal_variables_and_screen import run_layer as deal_variables_and_screen_layer
+from sdf_pipeline.layer3_consideration_scoring_and_selection import run_layer as consideration_layer
+from sdf_pipeline import pipeline_steps, profiles
+from sdf_pipeline.layer2_description_write_and_description_rewrite import description_rewrite
+from sdf_pipeline.shared_step_machinery.step_record import Run
+from shared import sdf_run_layouts, utils
+
+MANIFEST_FILE_NAME = "run_manifest.json"
+REVISION_OVERRIDE_FOR_EVERY_DOCUMENT = "*"
+
+
+class SeedingRefused(SystemExit):
+    """Seeding was refused; the message says why. Nothing was created."""
+
+
+# Views of the step catalogue (sdf_pipeline/pipeline_steps.py): the steps that can be seeded, by name, in
+# pipeline order, and the reasons the others cannot.
+SEEDABLE_STEPS = {step.name: step for step in pipeline_steps.PIPELINE_STEPS if step.seeds_from}
+UNSEEDABLE_STEPS = {
+    step.name: f"step {step.name!r} cannot be seeded" + (f"; seed from {step.seed_from_instead!r} instead" if step.seed_from_instead else "")
+    for step in pipeline_steps.PIPELINE_STEPS if not step.seeds_from}
+
+
+# Every stage file copied when seeding, with the step that writes it, in pipeline order. A file is copied
+# when the chosen step comes after the step that writes it. Each file is listed once, under the first step that writes it.
+def _stage_files_in_pipeline_order() -> list:
+    listed, seen = [], set()
+    for step in pipeline_steps.PIPELINE_STEPS:
+        for stage_file in step.writes:
+            if (stage_file.folder_key, stage_file.file_name) not in seen:
+                seen.add((stage_file.folder_key, stage_file.file_name))
+                listed.append((step.name, stage_file))
+    return listed
+
+
+def _position_of(step_name: str) -> int:
+    return pipeline_steps.STEP_NAMES_IN_ORDER.index(step_name)
+
+
+@dataclass(frozen=True)
+class SeededRun:
+    run_directory: Path
+    start_layer: int
+    document_ids: list
+    copied_record_counts: dict
+
+
+def _refuse(message: str):
+    raise SeedingRefused(f"Seeding refused: {message}")
+
+
+def resolve_source_run(seed_from: str, runs_root: Path) -> Path:
+    """The source run folder: a value with a path separator is a path; a bare name is a run id here, refused when a same-named folder in the working directory also exists."""
+    candidate = Path(seed_from)
+    is_a_path = any(separator and separator in seed_from for separator in ("/", os.sep, os.altsep))
+    if is_a_path:
+        if candidate.is_dir():
+            return candidate.resolve()
+        _refuse(f"no run folder at {candidate}")
+    by_id = Path(runs_root) / seed_from
+    if by_id.is_dir() and candidate.is_dir():
+        _refuse(f"{seed_from!r} is ambiguous: it names both a folder in the working directory ({candidate.resolve()}) "
+                f"and a run under the runs folder ({by_id}). Pass the path of the one you mean "
+                "(for example ./" + seed_from + " or the full path of the run)")
+    if by_id.is_dir():
+        return by_id
+    if candidate.is_dir():
+        return candidate.resolve()
+    _refuse(f"no run named {seed_from!r} under {runs_root} and no folder of that name in the working directory")
+
+
+def load_revision_overrides(path: Path, document_ids: list) -> dict:
+    """{document id: revision record} from a JSON file mapping document ids (or "*" for every document
+    without its own entry) to revision records (``{"cards": {...}}``)."""
+    try:
+        raw = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        _refuse(f"the revision override file {path} could not be read as JSON ({error})")
+    if not isinstance(raw, dict):
+        _refuse(f"the revision override file {path} must be a JSON object mapping document ids (or \"*\") to revision records")
+    unknown = sorted(key for key in raw if key != REVISION_OVERRIDE_FOR_EVERY_DOCUMENT and key not in document_ids)
+    if unknown:
+        _refuse(f"the revision override file names documents that are not selected: {unknown}")
+    overrides = {}
+    for document_id in document_ids:
+        record = raw.get(document_id, raw.get(REVISION_OVERRIDE_FOR_EVERY_DOCUMENT))
+        if record is None:
+            continue
+        if not isinstance(record, dict) or not isinstance(record.get("cards", {}), dict):
+            _refuse(f"the revision override for {document_id} must be a record like {{\"cards\": {{...}}}}")
+        overrides[document_id] = record
+    return overrides
+
+
+def _records_by_id(stage_directory: Path, file_name: str, id_field: str) -> dict:
+    return {record[id_field]: record for record in utils.load_jsonl(stage_directory / file_name) if id_field in record}
+
+
+def seed_run_from_chosen_step(
+    *, config: dict, source_run: Path, from_step: str, document_ids: list | None, runs_root: Path,
+    label: str, repository_root: Path, use_current_prompts: bool = False,
+    revision_override_path: Path | None = None,
+) -> SeededRun:
+    """Check, then create the seeded run folder (see the module docstring). Raises ``SeedingRefused``
+    before creating anything when the request cannot be met."""
+    if from_step in UNSEEDABLE_STEPS:
+        _refuse(f"{UNSEEDABLE_STEPS[from_step]}. Seedable steps: {', '.join(SEEDABLE_STEPS)}")
+    if from_step not in SEEDABLE_STEPS:
+        _refuse(f"unknown step {from_step!r}. Seedable steps: {', '.join(SEEDABLE_STEPS)}")
+    step = SEEDABLE_STEPS[from_step]
+    source_run = Path(source_run)
+    try:
+        layout = sdf_run_layouts.detect_run_layout(source_run)
+    except sdf_run_layouts.UnknownRunLayoutError as error:
+        _refuse(str(error))
+    if layout not in (sdf_run_layouts.FIVE_NAMED_LAYERS, sdf_run_layouts.FOUR_NUMBERED_LAYERS):
+        _refuse(f"source run {source_run.name} is in the {layout.name.upper()} layout; only runs in the five-layer layout "
+                "(layer1_deal_variables_and_screen to layer5_score_and_final_selection) or the four-layer layout (layer1 to layer4) "
+                "can be seeded from")
+
+    # The snapshot the new run will run with.
+    if use_current_prompts:
+        snapshot_sources = {"prompts": repository_root / "prompts" / profiles.current().PROMPTS_SUBDIR, "constitution": repository_root / "constitution"}
+    else:
+        snapshot_sources = {"prompts": source_run / "inputs" / "prompts", "constitution": source_run / "inputs" / "constitution"}
+        for name, folder in snapshot_sources.items():
+            if not folder.is_dir():
+                _refuse(f"source run {source_run.name} has no frozen inputs/{name} snapshot, which {from_step} needs to run "
+                        "on that run's own templates; pass --use-current-prompts to run on this checkout's prompts instead")
+    prompts_dir = snapshot_sources["prompts"]
+    missing_templates = [name for name in step.required_prompt_files(config, prompts_dir) if not (prompts_dir / name).is_file()]
+    if missing_templates:
+        which = "this checkout's prompts" if use_current_prompts else f"source run {source_run.name}'s frozen prompt snapshot"
+        _refuse(f"{which} lacks {', '.join(missing_templates)}, which step {from_step} needs")
+
+    # Folders by what they hold, in the source's layout; the new run is made in the five-layer layout.
+    stage_directory = {key: utils.sdf_stage_folder(source_run, key) for key in sdf_run_layouts.FOLDER_KEYS}
+    new_run_layout = sdf_run_layouts.FIVE_NAMED_LAYERS
+    step_position = _position_of(from_step)
+    files_to_copy = [(layer_file.folder_key, layer_file.file_name, layer_file.id_field)
+                     for writer, layer_file in _stage_files_in_pipeline_order() if _position_of(writer) < step_position]
+
+    # Which documents: those named, else every document the step has an input record for.
+    input_file = step.seeds_from(Run(config, prompts_dir, stage_directory))
+    input_key, input_file_name, input_id_field = input_file.folder_key, input_file.file_name, input_file.id_field
+    input_records = _records_by_id(stage_directory[input_key], input_file_name, input_id_field)
+    if not input_records:
+        _refuse(f"source run {source_run.name} has no {input_file_name} in {stage_directory[input_key].name} (or it is empty), "
+                f"which step {from_step} reads its documents from")
+    named_by_the_user = document_ids is not None
+    document_ids = list(dict.fromkeys(input_records if document_ids is None else document_ids))
+    if not document_ids:
+        _refuse("no documents selected")
+
+    # An id the source never mentions is unknown; one it mentions but cannot feed this step is missing a record.
+    every_known_id = set()
+    for _, stage_file in _stage_files_in_pipeline_order():
+        every_known_id |= set(_records_by_id(stage_directory[stage_file.folder_key], stage_file.file_name, stage_file.id_field))
+    unknown = [d for d in document_ids if d not in every_known_id]
+    if unknown:
+        _refuse(f"document ids not found in source run {source_run.name}: {unknown}")
+
+    def problems_for(ids):
+        return _required_records_for_step(
+            step, config, prompts_dir, stage_directory, ids, input_records,
+            f"{stage_directory[input_key].name}/{input_file_name}")
+
+    problems = problems_for(document_ids)
+    if problems and not named_by_the_user:
+        # Documents the source run dropped cannot feed the step: leave them out and say why.
+        left_out = {document_id for document_id, _ in problems}
+        document_ids = [d for d in document_ids if d not in left_out]
+        reasons = {}
+        for document_id, reason in problems:
+            reasons.setdefault(reason, set()).add(document_id)
+        print(f"Left out {len(left_out)} of {len(left_out) + len(document_ids)} documents that cannot feed step {from_step}:\n  "
+              + "\n  ".join(f"{len(ids)} x {reason}" for reason, ids in reasons.items()))
+        if not document_ids:
+            _refuse(f"source run {source_run.name} has no document that can feed step {from_step}")
+        problems = problems_for(document_ids)
+    if problems:
+        _refuse(f"source run {source_run.name} cannot feed step {from_step} for the selected documents:\n  "
+                + "\n  ".join(f"{document_id}: {reason}" for document_id, reason in problems))
+
+    revision_overrides = {}
+    if revision_override_path is not None:
+        if from_step not in ("critique", "revise"):
+            _refuse("a revision override sets the voice and length cards the revise call reads, so it can only be given "
+                    f"when seeding at critique or revise, not {from_step}")
+        revision_overrides = load_revision_overrides(revision_override_path, document_ids)
+
+    assignment_is_solved_again = from_step == "consideration_scoring" and consideration_layer.selection_enabled(config)
+    if assignment_is_solved_again:
+        print(f"Notice: the consideration assignment will be solved again over the {len(document_ids)} selected "
+              "document(s), from freshly scored considerations, and may differ from the source run's. "
+              "Rule of thumb: seed at consideration_scoring for a fresh assignment, at draft to keep the source's.")
+
+    # Everything checked: create the run with the pipeline's own function, then copy the records.
+    run_directory = utils.create_run_dir(
+        runs_root, label=label, config=config, snapshot_dirs=snapshot_sources,
+        extra_manifest_fields={sdf_run_layouts.LAYOUT_RECORDED_IN_MANIFEST_KEY: new_run_layout.name})
+    selected = set(document_ids)
+    copied_record_counts = {}
+    for folder_key, file_name, id_field in files_to_copy:
+        records = [r for r in utils.load_jsonl(stage_directory[folder_key] / file_name) if r.get(id_field) in selected]
+        if file_name == "drafts.jsonl" and revision_overrides:
+            records = [{**r, "revision": revision_overrides[r["doc_id"]]} if r["doc_id"] in revision_overrides else r
+                       for r in records]
+        if records:
+            new_folder = new_run_layout.folder_of(run_directory, folder_key)
+            utils.save_jsonl(records, new_folder / file_name)
+            copied_record_counts[f"{new_folder.name}/{file_name}"] = len(records)
+
+    manifest_path = run_directory / MANIFEST_FILE_NAME
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    source_manifest_path = source_run / MANIFEST_FILE_NAME
+    source_manifest = json.loads(source_manifest_path.read_text(encoding="utf-8")) if source_manifest_path.is_file() else {}
+    manifest["seeded_from"] = {
+        "source_run_id": source_run.name,
+        "source_run_directory": str(source_run),
+        "source_git_commit": source_manifest.get("git_commit"),
+        "from_step": from_step,
+        "start_layer": step.layer_in(new_run_layout),
+        "source_run_layout": layout.name.upper(),
+        "document_ids": document_ids,
+        "prompts_and_constitution": "this checkout's current files" if use_current_prompts else "the source run's frozen inputs",
+        "revision_override_document_ids": sorted(revision_overrides),
+        "copied_record_counts": copied_record_counts,
+    }
+    if assignment_is_solved_again:
+        manifest["seeded_from"]["consideration_selection"] = (
+            f"solved again over {len(document_ids)} document(s); may differ from the source run's")
+        manifest["seeded_from"]["consideration_assignment_solved_again_over_document_count"] = len(document_ids)
+    manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    return SeededRun(run_directory, step.layer_in(new_run_layout), document_ids, copied_record_counts)
+
+
+def _required_records_for_step(step, config, prompts_dir, stage_directory, document_ids, input_records, input_location) -> list:
+    """One (document id, reason) per selected document and missing record. Empty when the source can feed the step."""
+    problems = []
+    position = _position_of(step.name)
+    plan_folder, scoring_folder = (stage_directory[key] for key in (
+        sdf_run_layouts.DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE, sdf_run_layouts.CONSIDERATION_SCORING_AND_SELECTION))
+    plans = _records_by_id(plan_folder, "plans.jsonl", "prompt_id")
+
+    def after(step_name):  # the chosen step comes after step_name
+        return position > _position_of(step_name)
+
+    for document_id in document_ids:
+        if document_id not in input_records:
+            problems.append((document_id, f"no record in {input_location}, which step {step.name} reads its documents from"))
+    if step.layer_in(sdf_run_layouts.FOUR_NUMBERED_LAYERS) == 1 and deal_variables_and_screen_layer.reason_screen_is_inactive(config, prompts_dir):
+        prompt_ids = set(_records_by_id(plan_folder, "prompts.jsonl", "prompt_id"))
+        problems += [(d, f"no record in {plan_folder.name}/prompts.jsonl (the screen is off, so planning reads composed prompts)")
+                     for d in document_ids if d not in prompt_ids]
+    if after("description_write") or step.name in ("description_rewrite", "consideration_scoring", "draft"):
+        for document_id in document_ids:
+            plan = plans.get(document_id)
+            if plan is None:
+                problems.append((document_id, f"no plan in {plan_folder.name}/plans.jsonl"))
+            elif not plan.get("description"):
+                problems.append((document_id, "its plan was declared incoherent, so the document is not in the pipeline"))
+    if position > _position_of("description_rewrite") \
+            and not description_rewrite.reason_description_rewrite_is_inactive(config, prompts_dir):
+        results = _records_by_id(plan_folder, description_rewrite.RESULTS_FILENAME, "prompt_id")
+        for document_id in document_ids:
+            if document_id not in results:
+                problems.append((document_id, "no description rewrite result (seeding here would pay for the rewrite again)"))
+            elif results[document_id].get("dealt_value_conflict"):
+                problems.append((document_id, "its description rewrite found a dealt-value conflict, so it was dropped"))
+    if after("consideration_selection") \
+            and not consideration_layer.reason_consideration_selection_is_inactive(config, prompts_dir):
+        catalog = consideration_layer.load_considerations(prompts_dir)
+        selections = _records_by_id(scoring_folder, consideration_layer.SELECTIONS_FILENAME, "prompt_id")
+        eligible = consideration_layer.eligible_plans(
+            config, catalog, [plans[d] for d in document_ids if d in plans and plans[d].get("description")])
+        for plan in eligible:
+            if plan["prompt_id"] not in selections:
+                problems.append((plan["prompt_id"], f"no assigned considerations in "
+                                                 f"{scoring_folder.name}/{consideration_layer.SELECTIONS_FILENAME}"))
+    if step.name in ("critique", "revise"):
+        draft_folder = stage_directory[sdf_run_layouts.DRAFT]
+        drafts = _records_by_id(draft_folder, "drafts.jsonl", "doc_id")
+        problems += [(d, f"no draft in {draft_folder.name}/drafts.jsonl") for d in document_ids if d not in drafts]
+    return problems

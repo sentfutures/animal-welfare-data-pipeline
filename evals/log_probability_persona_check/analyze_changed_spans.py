@@ -94,9 +94,9 @@ def overall_verdict(per_direction_results):
 def build_changed_span_tables(run):
     """Returns (span_table, persona_table, total_table) as DataFrames."""
     setup = run.setup
-    persona_name, pooled_name = setup.persona_name, setup.pooled_control_persona_name
-    control_persona_names = run.persona_names_by_group[setup.control_group]
-    columns_prefix = f"{persona_name}_minus_{setup.control_group}_per_token"
+    persona_name, pooled_name = setup.persona_name, setup.pooled_contrast_persona_name
+    control_persona_names = run.persona_names_by_group[setup.contrast_group]  # topic controls, else same-values controls
+    columns_prefix = f"{persona_name}_minus_{setup.contrast_group}_per_token"
 
     same_values_persona_names = run.persona_names_by_group.get(setup.same_values_group, [])
 
@@ -151,9 +151,9 @@ def build_changed_span_tables(run):
                                                   ascending=[True, False], kind="stable")
     total_table = pd.DataFrame([{
         "document_id": document_id,
-        f"total_log_probability_{persona_name}_minus_{setup.control_group}":
+        f"total_log_probability_{persona_name}_minus_{setup.contrast_group}":
             scores.total_log_probability_by_group[setup.target_group]
-            - scores.total_log_probability_by_group[setup.control_group]}
+            - scores.total_log_probability_by_group[setup.contrast_group]}
         for document_id, scores in run.scores_by_document.items()])
     return span_table, persona_table, total_table
 
@@ -161,7 +161,7 @@ def build_changed_span_tables(run):
 def summarize_changed_spans(run, span_table, total_table):
     """Returns the summary dict: per rewrite direction counts and p-values, plus the changed-span verdicts."""
     setup = run.setup
-    total_column = f"total_log_probability_{setup.persona_name}_minus_{setup.control_group}"
+    total_column = f"total_log_probability_{setup.persona_name}_minus_{setup.contrast_group}"
     total_by_document = dict(zip(total_table.document_id, total_table[total_column]))
     summary = {"model_type": setup.model_type, "model_name": setup.model_name, "model_revision": setup.model_revision,
                "persona_name": setup.persona_name, "run_folder": str(run.run_folder), "directions": {}}
@@ -243,7 +243,7 @@ def write_changed_span_outputs(run, analysis_folder, timestamp):
     label = loading.insert_model_labels
     if len(span_table):
         label(span_table, setup).to_csv(
-            analysis_folder / f"changed_span_{setup.persona_name}_minus_{setup.control_group}_{timestamp}.csv", index=False)
+            analysis_folder / f"changed_span_{setup.persona_name}_minus_{setup.contrast_group}_{timestamp}.csv", index=False)
         label(persona_table, setup).to_csv(analysis_folder / f"changed_span_by_persona_{timestamp}.csv", index=False)
     label(total_table, setup).to_csv(analysis_folder / f"total_log_likelihood_differences_{timestamp}.csv", index=False)
     summary = summarize_changed_spans(run, span_table, total_table)

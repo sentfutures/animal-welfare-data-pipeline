@@ -1,71 +1,7 @@
 #!/usr/bin/env python3
-"""Publish a run's final corpus + audit reports as a Hugging Face dataset.
-
-One repo holds BOTH pipelines' corpora as separate HF "configs" (each gets its
-own selector in the dataset viewer), so a run is staged under its own
-per-pipeline directory rather than at the repo root:
-
-    README.md            <- the dataset card: hand-written, edited on the Hub
-    sdf/  sdf_corpus.jsonl, run_manifest.json, audit/*
-    dad/  dad_corpus.jsonl, run_manifest.json, audit/*
-
-Each dataset dir holds the final corpus jsonl, run_manifest.json for
-provenance, and (if present) every audit/*.{json,jsonl,html} file — globbed
-rather than named so a future run's eval additions/omissions are picked up or
-skipped automatically. Republishing a run clears only ITS OWN
-`<pipeline>/audit/*` on the Hub (delete_patterns), so a file only the previous
-run of that pipeline produced can't linger — while the sibling pipeline's data
-is never touched.
-
-THIS SCRIPT NEVER WRITES THE DATASET CARD. README.md is authored and edited by
-hand on the Hub, and it is deliberately absent from the staging directory:
-upload_folder overwrites every path it finds, so leaving the card unstaged is
-what protects it, and delete_patterns is scoped per pipeline so it never
-matches the card either. This script used to regenerate the card from the audit
-files on every publish; that silently replaced every hand-edit, so the
-generator was removed rather than left behind a flag.
-
-Three things follow from the card living only on the Hub:
-
-  * Its YAML frontmatter carries the `configs:` block, which is the ONLY thing
-    pointing the viewer at sdf/sdf_corpus.jsonl and dad/dad_corpus.jsonl and
-    naming the two configs. It is functional, not decorative, and nothing here
-    regenerates it — see "The dataset card" in evals/README.md for what it must
-    contain and what breaks if a config is renamed.
-  * Its `language:` list is hand-maintained too. NEITHER corpus is
-    English-only: the culture/setting axes deal non-English settings across
-    both, which is why this module computes a language breakdown at staging
-    time (see order_english_first) and prints it. That print is now the only
-    thing telling a publisher what the card ought to declare.
-  * The corpora's licence is declared there and nowhere else. (The pipeline's
-    own code licence is this repo's Apache-2.0 LICENSE. They are separate, and
-    README.md says so.)
-
-Everything a card would have quoted is uploaded as data regardless:
-run_manifest.json (or manifests/<run_id>.json for a combined corpus) and every
-audit/* file the run produced. report_content.json is the one exception — the
-editorial input among the audit files (curated excerpts/translations and
-report-section prose, read by evals/report_sdf.py). It is excluded from the
-upload because it is already fully baked into corpus_report.html, so nothing in
-it would be invisible to a Hub visitor.
-
-Tags are repo-wide, so with more than one dataset in the repo they should be
-prefixed per pipeline (`sdf-v1-…`, `dad-v1-…`) to stay unambiguous.
-
-Usage:
-  REPO=sentientfutures/animal-welfare-training-claude
-  python evals/publish_hf.py --input outputs/sdf/latest --repo-id $REPO --dry-run
-  python evals/publish_hf.py --input outputs/sdf/runs/<run_id> --repo-id $REPO \
-      --tag sdf-v1-fullscale-500-opus5
-  python evals/publish_hf.py --input outputs/dad/runs/<run_id> --repo-id $REPO \
-      --tag dad-v1-archetypes-40
-
-Requires a Hugging Face token with write access to the target repo/org:
-either ``HF_TOKEN`` in .env (checked first; the environment's ``HF_TOKEN`` only
-with --find-dotenv) or a one-time ``huggingface-cli login`` (its cached token
-is the fallback) — --dry-run needs neither and
-makes no network calls.
-"""
+"""Publish a run's final corpus and audit reports as a Hugging Face dataset, staged under ``sdf/`` or ``dad/`` so one repo holds both as separate configs.
+This script never writes the dataset card (hand-edited on the Hub, and it holds the ``configs:`` block); the rules are in ``evals/CLAUDE.md``.
+Usage: ``python evals/publish_hf.py --input outputs/sdf/latest --repo-id $REPO --dry-run`` (``--dry-run`` makes no network calls); tags are repo-wide, so prefix them per pipeline."""
 
 import argparse
 import json
@@ -78,16 +14,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from shared import utils
 from shared.api_keys import (add_api_key_source_flags, apply_api_key_source_flags,
                              hide_environment_value_unless_environment_is_allowed, load_optional_api_key)
-# The one regex that reads a writing language out of a dealt culture/setting
-# card ("China, written in Mandarin Chinese, ..." -> "Mandarin Chinese").
-# Imported rather than copied: it is a contract with the wording in
-# prompts/{sdf,dad}/variables.txt, and a second copy drifts the first time
-# someone rewords a value. evals/ already reaches into pipeline packages for
-# pure helpers this way (audit_dad.py, diversity.py both import from
-# dad_pipeline.id_registry). Cheap: compose_prompts pulls only shared.matrix
-# and shared.entity_pools, and entity_pools imports faker lazily inside a
-# function, so nothing heavy loads.
-from sdf_pipeline.compose_prompts import derive_language
+# The one regex that reads a writing language out of a dealt culture/setting card; imported, not copied, because it is a contract with the wording in prompts/{sdf,dad}/variables.txt.
+# Cheap to import: compose_prompts pulls only shared.matrix and shared.entity_pools.
+from sdf_pipeline.shared_step_machinery.compose_prompts import derive_language
 # The offline composer, not step1_dilemmas: see dad_dealt_cards on why this
 # script must not reach anything that pulls shared.api -> anthropic.
 from dad_pipeline.compose_scenarios import dealt_variables
@@ -95,28 +24,18 @@ from dad_pipeline.compose_scenarios import dealt_variables
 
 CORPUS_FILENAMES = ("sdf_corpus.jsonl", "dad_corpus.jsonl")
 
-# A sidecar this script no longer writes. It held the title/subtitle a
-# generated card used as its section heading, and only existed because the card
-# was rebuilt whole on every publish. `sdf/card_meta.json` is still on the Hub
-# from the last such publish; the delete pattern in main() clears it.
+# Sidecar this script does not write; the delete pattern in main() clears any
+# copy left on the Hub.
 LEGACY_CARD_META_FILENAME = "card_meta.json"
 
-# Ownership marker for a staging directory this script created. stage_run
-# WIPES its staging root, and a mistyped --staging-dir (a sibling run under
-# outputs/*/runs/, say) is an uncommitted, unrecoverable, $50-500 loss — so a
-# non-empty directory is only deletable when this marker proves we made it.
+# Ownership marker for a staging directory this script created: stage_run wipes its staging root, so a non-empty directory is deletable only when the marker proves we made it.
 STAGING_MARKER = ".publish_hf_staging"
-# What a staging root created by an OLDER version of this script can
-# legitimately hold: the two per-pipeline dirs, plus README.md from back when a
-# card was staged. Accepting that shape keeps existing local staging dirs
-# reusable without a manual delete. README.md stays in the set for exactly that
-# reason — a staging dir this version creates never contains one.
+# Entries an existing staging root may hold and still be reusable without a
+# manual delete: the two per-pipeline dirs, plus README.md. A staging dir
+# created by this script never contains README.md.
 STAGING_LEGACY_ENTRIES = {"README.md", "sdf", "dad"}
 
-# Both spellings the corpora actually use: the full name derive_language
-# produces (written into every SDF record by sdf_pipeline/layer4_score.py) and
-# the bare ISO code four early SDF runs carry instead. evals/audit_sdf.py
-# already accepts both when it filters to English-only documents.
+# Both spellings the corpora use: the full name derive_language writes into SDF records, and the bare ISO code four early SDF runs carry (audit_sdf.py accepts both).
 ENGLISH_SPELLINGS = frozenset({"en", "english"})
 
 
@@ -134,34 +53,13 @@ def resolve_corpus_file(input_arg: str) -> tuple[Path, str]:
 
 
 def is_english(language: str | None) -> bool:
-    """True only for a language value we can READ as English.
-
-    Unlike evals/audit_sdf.py's English filter this does NOT default a missing
-    value to English. There a wider net only over-counts a measurement; here
-    the front of the published file is a promise, so a row whose language we
-    cannot read belongs BEHIND the English block rather than in front of it. A
-    corpus where no row at all is readable is handled once and separately, by
-    order_english_first declining to reorder.
-    """
+    """True only for a language value that reads as English; unlike ``audit_sdf.py`` a missing value is NOT English, since the front of the published file is a promise."""
     return str(language or "").strip().lower() in ENGLISH_SPELLINGS
 
 
 def dad_dealt_cards(run_dir: Path) -> dict[str, dict]:
-    """{example_gid: the cards its scenario was dealt} for one DAD run, or {}
-    when the run cannot be read.
-
-    Both published DAD columns that the final corpus predates — `language` and
-    `variables` — are derived from this one map, so they describe the same
-    records or neither of them does. Each step3/rewrites.jsonl record holds the
-    example_gid that reaches the published row AND the scenario_cards it was
-    dealt.
-
-    ONE hop, not two: the same cards also sit on step1/dilemmas.jsonl, but
-    step3 carries them next to the id the published row keeps, so the join
-    needs one file and one key. Checked against the step1 route on all five
-    committed runs — the same answer for all 1,324 records, no misses either
-    way.
-    """
+    """``{example_gid: the cards its scenario was dealt}`` for one DAD run (from step3/rewrites.jsonl), or {} when it cannot be read.
+    The published ``language`` and ``variables`` columns both derive from this one map."""
     path = run_dir / "step3" / "rewrites.jsonl"
     if not path.exists():
         return {}
@@ -177,40 +75,15 @@ def dad_dealt_cards(run_dir: Path) -> dict[str, dict]:
             gid = record.get("example_gid")
             if not gid:
                 continue
-            # `annotation` is the pre-rename spelling of scenario_cards.
-            # dad_pipeline/step1_dilemmas.py's dealt_cards() is the canonical
-            # accessor, deliberately not imported: it pulls shared.api ->
-            # anthropic into a script that makes no model calls. (The
-            # projection dealt_variables applies below has no such dependency,
-            # which is why it lives in the offline composer.)
+            # `annotation` is the old spelling of scenario_cards. dad_pipeline/step1_dilemmas.py's dealt_cards() is not imported: it pulls shared.api -> anthropic into a script that makes no model calls.
             cards = record.get("scenario_cards") or record.get("annotation") or {}
             cards_by_gid[gid] = cards if isinstance(cards, dict) else {}
     return cards_by_gid
 
 
 def dad_languages(cards_by_gid: dict[str, dict]) -> dict[str, str]:
-    """{example_gid: language} for one run's dealt cards, or {} when the run
-    carries no language evidence at all.
-
-    Final DAD records carry no language field, but the run does: a scenario's
-    `cultural_setting` card names the writing language ("China, written in
-    Mandarin Chinese, with Chinese idioms and references"). derive_language
-    reads that clause; the unmarked ~65% slice stores null, has no clause, and
-    falls through to English — which is what those prompts are.
-
-    This is the language the scenario was DEALT, not one detected from the
-    text. Validated by script on the pinned run: none of the rows it calls
-    English carry CJK/Devanagari/Arabic/Hangul, so the error direction is a
-    non-English row landing behind the block, never an unreadable row landing
-    in front of it.
-
-    Returns {} when no record carries a cultural_setting at all (a pre-matrix
-    run such as archetype10). The caller then leaves the corpus order alone
-    rather than declaring every row English on absent evidence — which is why
-    this gate stays PER RUN, and why it cannot be folded into
-    dad_dealt_cards: such a run still has cards worth publishing under
-    `variables`, it just has no language among them.
-    """
+    """``{example_gid: language}`` read from each scenario's ``cultural_setting`` card (unmarked scenarios are English), or {} when no record has one.
+    This is the language dealt, not detected; the gate stays per run so a run without languages keeps its corpus order."""
     languages: dict[str, str] = {}
     any_dealt = False
     for gid, cards in cards_by_gid.items():
@@ -222,40 +95,8 @@ def dad_languages(cards_by_gid: dict[str, dict]) -> dict[str, str]:
 
 
 def order_english_first(corpus_path: Path, language_of) -> dict[str, int] | None:
-    """Rewrite a staged corpus jsonl with its English rows first, returning the
-    {language: count} breakdown measured on the way — or None when it declined
-    to reorder, leaving the file exactly as staged.
-
-    Sorts the RAW LINES. Each line is parsed only to read its language, and the
-    original line — whatever byte form it already has by the time this
-    function runs — is written back unchanged, so this pass itself never
-    reorders a key, reformats a float, or re-escapes non-ASCII — json.dumps
-    defaults to ensure_ascii=True, which would turn most of a non-English
-    corpus into \\uXXXX escapes (flatten_dad_corpus and reorder_sdf_corpus both
-    already pass ensure_ascii=False for exactly that reason, upstream of this
-    function). The published rows are therefore always a permutation of
-    whatever this function was handed. Both corpora are re-keyed before
-    staging now, so that is no longer byte-identical to the run's own
-    final/*.jsonl — but it is still value-identical: the same records, the
-    same values, only column order and (here) row order changed. Checkable by
-    comparing parsed-and-sorted records rather than raw text.
-
-    A STABLE binary partition, not a sort by language: English rows first in
-    their original order, then every other row in its original order. Sorting
-    by language name would make every prefix of the file monolingual rather
-    than just the first screen — worse for anyone streaming the corpus without
-    shuffling, and no better in the viewer.
-
-    Declines (returns None, file untouched) on a blank line, a line that is not
-    a JSON object, or a corpus where no row's language could be read at all.
-    Row order is cosmetic, so an old run we cannot measure is published in the
-    order it was written rather than aborting a publish over it.
-
-    Line terminators are normalised: every written line ends in \\n. That is a
-    correctness requirement, not tidying — a source whose last line lacked a
-    newline would otherwise glue two records onto one line once that line moved
-    out of last place.
-    """
+    """Rewrite a staged corpus jsonl with English rows first (a stable partition of the raw lines, each written back unchanged except a normalised ``\\n`` ending), returning the language counts.
+    Declines (None, file untouched) on a blank or non-object line, or when no row's language is readable."""
     lines = corpus_path.read_text(encoding="utf-8").splitlines()
     if not lines:
         return None
@@ -286,42 +127,15 @@ def order_english_first(corpus_path: Path, language_of) -> dict[str, int] | None
     return counts
 
 
-# Priority order for published SDF columns: the document text and its brief
-# (what a reader came for), then the short scalar metadata, then the widest
-# column (variables), then doc_id last — pure lineage/join bookkeeping that
-# trails everything else, including variables, the same content-then-
-# metadata-then-lineage-then-id shape flatten_dad_corpus uses for the DAD
-# config, so both configs read the same way on the Hub.
+# Published SDF column priority: the text and its brief, short scalar metadata, the widest column (variables), then doc_id (lineage); the same shape as flatten_dad_corpus.
 SDF_COLUMN_ORDER = ["content", "description", "language", "type_name",
-                    "type_id", "register", "scores", "variables", "doc_id"]
+                    "type_id", "register", "scores", "variables", "variable_value_ids",
+                    "doc_id"]
 
 
 def reorder_sdf_corpus(src: Path, dst: Path) -> int:
-    """Write the published form of an SDF corpus: the same records as src, one
-    JSON object per line, with each object's keys reordered to
-    SDF_COLUMN_ORDER instead of sdf_pipeline/layer4_score.py's write order.
-
-    Every SDF_COLUMN_ORDER key present on a record is emitted in that order;
-    anything else on the record — a legacy field like subtype_id or role that
-    predates the current schema, or a future field this list hasn't caught up
-    to — is appended afterward in its original relative order. Nothing is ever
-    dropped: this reorders columns, it does not select them, so an older
-    committed run missing variables/description/type_name still publishes
-    every field it has, just reordered.
-
-    ensure_ascii=False for the same reason flatten_dad_corpus uses it: the
-    default would turn most of a non-English document into \\uXXXX escapes.
-
-    A line that isn't a parseable JSON object (blank, malformed) is written
-    through unchanged rather than aborting the whole publish — column order is
-    cosmetic, the same reasoning order_english_first already applies to row
-    order, just decided per line here since there is no reason for one bad
-    line to block reordering the rest of the file.
-
-    Never writes to src — only dst — so the run's own final/sdf_corpus.jsonl
-    is untouched; only the staged/published copy is reordered. Returns the
-    number of lines written.
-    """
+    """Write the published SDF corpus: ``src``'s records with keys in SDF_COLUMN_ORDER (other keys appended in order, none dropped), ``ensure_ascii=False``; returns the lines written.
+    A line that does not parse is written through unchanged; ``src`` is never modified."""
     n = 0
     with open(src, encoding="utf-8") as fin, open(dst, "w", encoding="utf-8") as fout:
         for line in fin:
@@ -348,61 +162,8 @@ def reorder_sdf_corpus(src: Path, dst: Path) -> int:
 def flatten_dad_corpus(src: Path, dst: Path, languages: dict[str, str] | None = None,
                        cards: dict[str, dict] | None = None,
                        append: bool = False) -> int:
-    """Write the published form of a DAD corpus: one flat record per example
-    (user_prompt, assistant_response, language, variables, example_gid) instead
-    of the training format's messages array, so the Hub viewer shows one
-    readable column per field with no role/content nesting.
-
-    The two text columns lead because they are what a visitor came to read.
-    `language` and `variables` follow for the same reason in reverse — a short
-    language cell and the one nested column cost almost nothing behind two
-    wide text columns, but would push those columns off the viewer's first
-    screen sitting in front of them. `example_gid` trails everything,
-    including `variables` — it is pure lineage/join bookkeeping (still used
-    internally, below, to look up `language` and `variables`), not something
-    a reader needs in front of the content.
-
-    `language` is the language the scenario was DEALT (see dad_languages), not
-    one detected from the text, and it is emitted only when the map is
-    non-empty — a run we cannot measure would otherwise grow a column that is
-    null on every row and reads as broken. A single row that does not join
-    carries null rather than a guessed "English": a visible gap is honest, an
-    invented value is not.
-
-    `variables` is the one nested column and the DAD counterpart of the SDF
-    corpus's own: the whole hand this example's scenario was dealt, so a reader
-    can tell which slice of the matrix a prompt/response pair came from rather
-    than only which language it is in. It follows `language`'s two rules for
-    the same reasons — emitted only when something resolves, null on a row that
-    does not join — and sits second-to-last, ahead of only `example_gid`,
-    because it is the widest cell on the row.
-
-    Both are joined off the run rather than read from the corpus record, even
-    though the record now carries `variables` itself: every committed run
-    predates that field, and one source means the column cannot mean different
-    things on either side of the change.
-
-    That this column is worth carrying, while the old source_run column was
-    not, is not a contradiction: unlike a run id repeated down every row,
-    language carries information no other column holds — which is exactly what
-    a reader needs once the corpus is ordered English-first and a balanced
-    sample has to be rebuilt.
-
-    Deliberately carries NO per-row run column, even when several runs are
-    concatenated into one published corpus (append=True for every run after
-    the first). Row-to-run attribution comes from the repo instead:
-    example_gid is globally unique and content-keyed via the git-tracked
-    dad/id_registry.json, so `git grep <gid> -- outputs/dad/runs` resolves any
-    published row to exactly one committed run dir. Which runs went into a
-    combined corpus is recorded by the per-run manifests staged under
-    manifests/. A repeated run_id string on every row bought nothing that trace
-    doesn't already give, and it dominated the viewer's first screen.
-
-    The run's own final/dad_corpus.jsonl keeps the SFT chat shape — only the
-    staged copy is flattened. A record without a user+assistant string pair
-    aborts the publish rather than uploading a mangled row. Returns the number
-    of records written.
-    """
+    """Write the published DAD corpus: one flat record per example (user_prompt, assistant_response, language, variables, example_gid), with no per-row run column.
+    ``language`` and ``variables`` come from the run's dealt cards, null on a row that does not join; a record without a user and assistant string aborts. Returns the number written."""
     n = 0
     with open(src, encoding="utf-8") as fin, \
          open(dst, "a" if append else "w", encoding="utf-8") as fout:
@@ -438,28 +199,9 @@ def flatten_dad_corpus(src: Path, dst: Path, languages: dict[str, str] | None = 
 
 def stage_run(run_dirs: list[Path], corpus_name: str, staging_dir: Path,
               pipeline_tag: str) -> dict:
-    """Copy the publishable subset of run dir(s) into staging_dir/<pipeline_tag>/.
-
-    The per-pipeline subdirectory is what lets one repo hold both corpora as
-    separate HF configs. Returns a manifest dict of what was staged, used to
-    log what was (or, under --dry-run, would have been) uploaded.
-
-    With ONE run dir the layout is the original single-run shape
-    (run_manifest.json + audit/*). With several (DAD only — enforced in
-    main()), the flattened corpora are concatenated into one jsonl and the
-    per-run files move under run-scoped paths so they can't collide:
-    manifests/<run_id>.json and audit/<run_id>/*. Those per-run manifests are
-    the combined corpus's provenance record — the rows themselves carry no run
-    column (see flatten_dad_corpus).
-    """
-    # Refuse a --staging-dir that equals or contains any run dir, OR either of
-    # the two specific subtrees this function reads from (final/, audit/):
-    # rmtree below would delete data we're about to read before the copy even
-    # runs. Checking only run_dir itself isn't enough — a --staging-dir
-    # pointing at run_dir/final or run_dir/audit directly (an easy typo, since
-    # those are real, well-known subdirectory names on every run) would slip
-    # past a run_dir-only check while still destroying the corpus or audit
-    # reports.
+    """Copy the publishable subset of the run dir(s) into ``staging_dir/<pipeline_tag>/``; returns a manifest dict of what was staged.
+    Several run dirs (DAD only) are concatenated into one corpus, with per-run files under ``manifests/<run_id>.json`` and ``audit/<run_id>/*``."""
+    # Refuse a --staging-dir that equals or contains a run dir, its final/ or its audit/: the rmtree below would delete data about to be read.
     staging_real = staging_dir.resolve()
     for run_dir in run_dirs:
         for guarded, label in (
@@ -473,13 +215,8 @@ def stage_run(run_dirs: list[Path], corpus_name: str, staging_dir: Path,
                     f"— refusing to delete it. Pick a --staging-dir outside the run."
                 )
 
-    # Wipe first: a reused --staging-dir (e.g. re-running after fixing a typo'd
-    # --input) must reflect only THIS run — otherwise leftover files from an
-    # earlier invocation ride along into upload_folder silently mixed with
-    # this run's data. But only if we own it: a non-empty directory this
-    # script didn't create (no STAGING_MARKER, and not a pre-marker legacy
-    # staging shape) is refused rather than wiped — this also makes --dry-run
-    # non-destructive, since stage_run runs before the --dry-run early return.
+    # Wipe first, so a reused --staging-dir reflects only this run; but only a directory this script created (STAGING_MARKER or a legacy staging shape) is wiped, otherwise it is refused.
+    # That also keeps --dry-run non-destructive, since stage_run runs before its early return.
     if staging_dir.exists():
         if not staging_dir.is_dir():
             raise SystemExit(f"--staging-dir {staging_dir} exists and is not a directory.")
@@ -511,14 +248,8 @@ def stage_run(run_dirs: list[Path], corpus_name: str, staging_dir: Path,
                     "manifest_file": None, "audit_files": [], "n_docs": 0,
                     "runs": [], "languages": None}
 
-    # Built BEFORE the loop, because the flatten writes the joined columns as
-    # it goes. Merged across runs since a combined corpus is one published
-    # file; a gid repeated across runs means byte-identical content (the ids
-    # are content-keyed via dad_pipeline/id_registry.py), so whichever run
-    # wins the merge carries the same answer. The language is derived per run,
-    # not from the merged map: its "no evidence, no column" gate is a statement
-    # about one run's cards, and a run that carries none must not be handed a
-    # language because a sibling run had some.
+    # Built before the loop, because the flatten writes the joined columns as it goes; merged across runs (a repeated gid is byte-identical content).
+    # Language is derived per run, not from the merged map: its "no evidence, no column" gate is about one run's cards.
     dad_language_map: dict[str, str] = {}
     dad_cards_map: dict[str, dict] = {}
     if corpus_name == "dad_corpus.jsonl":
@@ -565,18 +296,8 @@ def stage_run(run_dirs: list[Path], corpus_name: str, staging_dir: Path,
                     staged["audit_files"].append(
                         f"{run_id}/{f.name}" if multi else f.name)
 
-    # AFTER the run loop, so a combined DAD corpus is partitioned across the
-    # WHOLE published file rather than once per run. Per-run partitioning would
-    # only put English first if run_dirs[0] happened to hold enough English
-    # rows — on the real input order the viewer's first screen would still turn
-    # non-English part way down. Run order survives inside each language block
-    # (the sort is stable), and nothing published reports row ranges — the
-    # per-run manifests carry counts — so provenance stays true either way.
-    # Both pipelines now publish the language on the row itself — SDF writes it
-    # upstream, DAD gets it from the flatten above — so the ordering reads the
-    # very column a visitor sees. That also makes the decline path fall out for
-    # free: a run with no measurable language emits no column, every row reads
-    # None, and order_english_first leaves the file alone.
+    # After the run loop, so a combined corpus is partitioned once across the whole file (the sort is stable, so run order survives inside each language block).
+    # Both pipelines publish language on the row, so a run with no measurable language emits no column and order_english_first leaves the file alone.
     staged["languages"] = order_english_first(
         corpus_dst, lambda record: record.get("language"))
 
@@ -592,9 +313,7 @@ def _load_json(path: Path) -> dict | None:
 
 
 def _load_hugging_face_token() -> None:
-    """HF_TOKEN is optional: without one huggingface_hub falls back to the cached `huggingface-cli login`
-    token. huggingface_hub reads the token variables from the environment itself, so in the default mode
-    (which never uses the environment) an environment value is removed unless the .env file supplied it."""
+    """``HF_TOKEN`` is optional (the cached ``huggingface-cli login`` token is the fallback); in the default mode an environment value is removed unless the .env file supplied it."""
     if load_optional_api_key("HF_TOKEN") is None:
         hide_environment_value_unless_environment_is_allowed("HF_TOKEN")
     hide_environment_value_unless_environment_is_allowed("HUGGING_FACE_HUB_TOKEN")
@@ -611,11 +330,7 @@ def _upload_folder(folder_path: str, repo_id: str, commit_message: str,
     return HfApi().upload_folder(
         folder_path=folder_path, repo_id=repo_id, repo_type="dataset",
         commit_message=commit_message,
-        # delete_patterns: republishing a run must not leave a PREVIOUS run's
-        # audit files (e.g. one with realism_ablation.json alongside a later
-        # one without it) lingering next to the new corpus. The caller
-        # scopes this to the pipeline being published — a bare "audit/*" would
-        # delete the SIBLING pipeline's audit files on every publish.
+        # delete_patterns: republishing must not leave a previous run's audit files next to the new corpus; the caller scopes it to the published pipeline.
         delete_patterns=delete_patterns,
         # huggingface_hub only ignores .git* and .cache/huggingface by
         # default — a dotfile marker is NOT covered, so without this the
@@ -639,16 +354,7 @@ def merge_state(run_commit: str | None, *, fetch: bool = True) -> dict:
 
 
 def _unmerged_summary(stamp: dict) -> str:
-    """One-line description of an unmerged stamp, for the Hub commit message.
-
-    Names each run's branch and commit, not just its id. This is the only place
-    an unmerged publish is recorded now, so it has to carry what a reader needs
-    to go and look: the id says which rows, the branch and commit say which
-    code. A run's own branch is where the data was GENERATED — distinct from
-    publish_branch, the checkout that uploaded it, which is stated separately
-    because conflating them would credit the corpus to whatever happens to be
-    checked out at publish time.
-    """
+    """One-line description of an unmerged stamp for the Hub commit message, naming each run's branch and commit and, separately, the checkout that published it."""
     parts = []
     if runs := stamp.get("runs"):
         named = ", ".join(
@@ -664,34 +370,8 @@ def _unmerged_summary(stamp: dict) -> str:
 
 def check_merged(run_dirs: list[Path], *, dry_run: bool,
                  allow_unmerged: bool) -> dict | None:
-    """Pre-flight provenance gate. Returns a stamp describing what is NOT backed
-    by merged code, or None when everything checks out:
-
-        {"publish_branch": <branch, only if HEAD isn't verified merged>,
-         "runs": [{"run_id", "branch", "commit"}, ...]}
-
-    Every input run is checked separately, and the stamp NAMES each unverified
-    one. A combined corpus is only as merged as its least-merged run, and a row
-    can be traced to the run — and therefore the code — that produced it, via
-    the repo lookup example_gid supports (see flatten_dad_corpus). Naming each
-    run is what connects that trace to a merge verdict; collapsing them into
-    one would leave a reader able to identify a row's run but not whether that
-    run's code was reviewed.
-
-    Deliberately a warning-plus-confirmation rather than a refusal. The HF write
-    token lives on contributors' laptops, so a hard block wouldn't prevent an
-    unmerged publish — it would push it out of this script, which is the only
-    thing that records provenance at all. What makes the check stick is that
-    _unmerged_summary writes the stamp into the Hub COMMIT MESSAGE, not this
-    terminal warning. The dataset card would be the more visible place, but it
-    is hand-edited on the Hub and this script no longer writes it — and a
-    warning someone can quietly edit away is not a record. A commit message
-    cannot be edited after the fact.
-
-    A dirty tree at run time is reported as context but is never itself a
-    trigger: every real run so far has been dirty, and a warning that fires on
-    every run is one people learn to type straight past.
-    """
+    """Pre-flight provenance gate: ``{"publish_branch", "runs": [{"run_id", "branch", "commit"}]}`` naming everything NOT backed by merged code, or None.
+    A warning plus confirmation, not a refusal; the stamp goes in the Hub commit message. A dirty tree is context, never a trigger."""
     # One fetch for the whole publish: merge_state would otherwise hit the
     # network once per run dir, and every check compares against the same
     # origin/main anyway.
@@ -742,10 +422,7 @@ def check_merged(run_dirs: list[Path], *, dry_run: bool,
     print(f"  {headline}", file=sys.stderr)
     for reason in reasons:
         print(f"    - {reason}", file=sys.stderr)
-    # Notes explain why something is UNKNOWN; printed as caveats rather than
-    # mixed in with the findings, which would read as reasons for the verdict.
-    # Deduplicated: with several runs the same caveat (a stale origin/main, say)
-    # would otherwise repeat once per run.
+    # Notes explain why something is unknown, so print them as caveats apart from the findings, deduplicated across runs.
     for note in dict.fromkeys(n for _, _, s in checked for n in s["notes"]):
         print(f"    (note: {note})", file=sys.stderr)
     print("", file=sys.stderr)
@@ -756,10 +433,7 @@ def check_merged(run_dirs: list[Path], *, dry_run: bool,
     print("  and re-run this on main.", file=sys.stderr)
     print(f"{bar}\n", file=sys.stderr)
 
-    # Attribute the branch each run was GENERATED on, not the one it happens to
-    # be published from — they differ, and the claim being recorded is about the
-    # code behind the corpus. Only v3+ manifests record it, so fall back to the
-    # live checkout for every run predating that.
+    # Attribute the branch each run was generated on, not the publishing checkout; only v3+ manifests record it, so older runs fall back to the live checkout.
     stamp: dict = {
         "runs": [
             {"run_id": m.get("run_id") or rd.name,
@@ -881,11 +555,7 @@ def main() -> None:
             n_en = sum(n for name, n in by_count if is_english(name))
             others = ", ".join(f"{name} {n}" for name, n in by_count
                                if not is_english(name))
-            # Rows whose language could not be read sort behind the English
-            # block as well, but they are NOT evidence of a non-English
-            # corpus — they are evidence of a run that recorded no card
-            # (archetype10 is the committed example). Counting them into the
-            # language tally would misreport both numbers, so name them apart.
+            # Rows with an unreadable language sort behind the English block but are evidence of a run that recorded no card (archetype10), not of a non-English corpus, so name them apart.
             unmeasured = staged["n_docs"] - sum(n for _, n in by_count)
             note = (f"  Ordered English first: {n_en} of {staged['n_docs']} "
                     f"rows lead, then {others or '(none)'}")
@@ -894,23 +564,14 @@ def main() -> None:
                          f"and sort behind the block too")
             print(note)
             if others:
-                # The card's `language:` list used to be derived from exactly
-                # this breakdown. It is hand-maintained now, and a card that
-                # declares English over a corpus that is 19% not is a false
-                # claim on a public dataset — so the numbers a publisher needs
-                # are put in front of them at the moment they'd have to act.
+                # The card's `language:` list is hand-maintained, so put the numbers a publisher needs in front of them when they must act (a card declaring English over a 19% non-English corpus is a false claim).
                 print("  The card's `language:` list is hand-maintained on the "
                       "Hub — check it still covers the above.")
         else:
             print("  Not reordered: no readable language on these records — "
                   "publishing in the order the run wrote them.")
 
-        # run_names (plural) is main's combined-publish naming; the unmerged
-        # marker rides on the end of it rather than replacing it. This is where
-        # an unmerged publish is recorded durably — see check_merged — so it is
-        # built before the --dry-run return and previewed there. A preview that
-        # showed the terminal warning but not the record it would leave behind
-        # would be showing the half that doesn't last.
+        # run_names is main's combined-publish naming; the unmerged marker is appended. This is where an unmerged publish is durably recorded, so it is built before the --dry-run return and previewed there.
         commit_message = f"Publish {pipeline_tag}: {run_names}"
         if unmerged:
             # Visible in the repo's commit history, not just this terminal.
@@ -933,21 +594,8 @@ def main() -> None:
             folder_path=str(staging_dir),
             repo_id=args.repo_id,
             commit_message=commit_message,
-            # Scoped to THIS pipeline — a bare "audit/*" would delete the
-            # sibling's audit files on every publish. README.md matches none of
-            # these patterns and is never staged, so the Hub's card is neither
-            # overwritten nor deleted.
-            #
-            # card_meta.json is a sidecar this script no longer writes (it fed
-            # the removed card generator). Nothing is staged at that path any
-            # more, so the deletion is no longer suppressed by an add and the
-            # next publish of a pipeline clears its orphan — sdf/ has one on the
-            # Hub, dad/ does not. Drop this pattern once that publish happens.
-            # run_manifest.json and manifests/* are both listed so a publish
-            # that switches layout (single-run <-> combined) clears the OTHER
-            # layout's manifest file(s) — upload_folder drops any deletion
-            # whose path is also being added, so the layout actually staged
-            # always survives its own pattern.
+            # Scoped to this pipeline (a bare "audit/*" would delete the sibling's files); README.md matches no pattern and is never staged.
+            # Both manifest patterns are listed so a layout switch (single-run <-> combined) clears the other layout's manifest; a path also being added survives its own pattern.
             delete_patterns=[f"{pipeline_tag}/audit/*",
                              f"{pipeline_tag}/run_manifest.json",
                              f"{pipeline_tag}/manifests/*",

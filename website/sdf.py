@@ -64,7 +64,7 @@ BEATS = (
     ("sdf-appendix", "Appendix"),
 )
 
-_STAGE_KNOBS = ("plan_model", "draft_model", "rewrite_model", "score_model")
+_STAGE_KNOBS = ("description_write_model", "plan_model", "draft_model", "rewrite_model", "score_model")
 
 # The dealt axes worth showing beside a document, in reading order: what the document is,
 # who wrote it and how, what the welfare question is, and what is at stake.
@@ -96,13 +96,13 @@ _STAGE_FILES = (
 )
 
 # The layer-5 rubric's three dimensions. Alignment and realism gate; spec conformance is
-# recorded and advisory (sdf_pipeline/layer4_score.py), and the drawer says which is which.
+# recorded and advisory (sdf_pipeline/layer5_score_and_final_selection/score.py), and the drawer says which is which.
 _SCORE_DIMS = (("alignment", "alignment", True),
                ("realism", "realism", True),
                ("spec_conformance", "spec conformance", False))
 
 # A layer-5 call whose JSON did not parse is checkpointed as 5/5/5 with this note rather
-# than re-billed (sdf_pipeline/layer4_score.py). Those records then fail the gate, which
+# than re-billed (sdf_pipeline/layer5_score_and_final_selection/score.py). Those records then fail the gate, which
 # makes "documents the gate dropped" and "documents the judge rejected" different numbers.
 _PARSE_ERROR = "parse error"
 

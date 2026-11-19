@@ -11,7 +11,7 @@ import math
 import pytest
 
 from experiments import compare_arms as ca
-from sdf_pipeline import revision_style
+from sdf_pipeline.shared_step_machinery import revision_style
 
 
 def row(arm, *, ratio=None, pass_rate=1.0, length=None):
@@ -162,11 +162,7 @@ class TestMarkdown:
         assert "min_vendi_gain" in table and "Success criteria" in table
 
     def test_the_vendi_cell_carries_the_resample_spread(self):
-        """The key renamed from ci_lo/ci_hi to boot_lo/boot_hi + spread.
-
-        Nothing caught the drift because the cell degrades silently: a block
-        with neither key renders a bare score, which looks fine.
-        """
+        """The cell shows the score, ratio and resample spread from boot_lo/boot_hi/spread, never the endpoints."""
         rows = [row("control")]
         rows[0]["vendi"] = {"score": 15.4, "ratio": 0.322, "boot_lo": 11.0,
                             "boot_hi": 13.9, "spread": 2.9}
@@ -178,7 +174,7 @@ class TestMarkdown:
         assert "11.0" not in table and "13.9" not in table
 
     def test_a_pre_rename_block_still_renders_a_spread(self):
-        """external_baseline.py still writes the old key pair."""
+        """A block with the ci_lo/ci_hi key pair still renders a spread."""
         rows = [row("control")]
         rows[0]["vendi"] = {"score": 15.4, "ratio": 0.322, "ci_lo": 11.0, "ci_hi": 13.9}
         ca.verdicts(rows, {}, "control")

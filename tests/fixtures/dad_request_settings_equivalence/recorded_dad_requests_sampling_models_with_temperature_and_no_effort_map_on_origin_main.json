@@ -1,0 +1,1151 @@
+{
+ "format_version": 1,
+ "recorded_from": "pipeline code at commit cc64a74519a0ef7b5bad1fff1b13a097ae28c0ad (clean); origin/main is cc64a74519a0ef7b5bad1fff1b13a097ae28c0ad",
+ "python_files_differing_from_origin_main_when_recorded": [],
+ "regeneration_rule": "The recorded files are rewritten only by `python scripts/regenerate_dad_request_settings_equivalence_recorded_requests.py` run against an unmodified origin/main checkout, in the same pull request as an intended change to a DAD request; a pull request that only refactors never rewrites them.",
+ "cases": {
+  "sampling_models_with_temperature_and_no_effort_map__backend_api": {
+   "configuration": "sampling_models_with_temperature_and_no_effort_map",
+   "backend": "api",
+   "config": {
+    "backend": "api",
+    "model": "claude-sonnet-4-6",
+    "max_tokens": 3000,
+    "temperature": 0.6,
+    "workers": 1,
+    "thinking_headroom": 5000,
+    "dad": {
+     "scenario_model": "claude-sonnet-4-6",
+     "scenario_refusal_fallback_model": "claude-haiku-4-5",
+     "prompt_draft_model": "claude-sonnet-4-6",
+     "prompt_gate_model": "claude-haiku-4-5",
+     "prompt_refine_model": "claude-sonnet-4-6",
+     "response_scope_model": "claude-sonnet-4-6",
+     "scope_refusal_fallback_model": "claude-haiku-4-5",
+     "response_draft_model": "claude-opus-4-6",
+     "constitution_rewrite_model": "claude-opus-4-6",
+     "baseline": {"enabled": true},
+     "evals": {"auto": false},
+     "dilemmas": {"count": 2, "batch_size": 2, "id_start": 1, "seed_path": null, "scenario_seed": 7, "gate": true, "refine": true},
+     "responses": {"per_prompt": 1}
+    },
+    "language_distribution": {"en": 1.0},
+    "outputs": {"cost_log": "<cost log path>"}
+   },
+   "final_example_count": 2,
+   "client_constructions": [
+    {
+     "route": "anthropic",
+     "settings": {"api_key_supplied": true}
+    }
+   ],
+   "requests": [
+    {
+     "stage": "baseline_response",
+     "item_ordinal": 0,
+     "attempt": 1,
+     "route": "anthropic",
+     "wire": {
+      "model": "claude-sonnet-4-6",
+      "max_tokens": 4000,
+      "messages": [
+       {"role": "user", "content": "sha256:eefffb5db9378e52677b9407bb94662c7a3d42c576ac4d0b3a97424f13f109a9 (28 characters)"}
+      ],
+      "temperature": 0.6,
+      "thinking": {"type": "disabled"},
+      "system": {"text_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "character_count": 0, "blocks": null}
+     }
+    },
+    {
+     "stage": "baseline_response",
+     "item_ordinal": 1,
+     "attempt": 1,
+     "route": "anthropic",
+     "wire": {
+      "model": "claude-sonnet-4-6",
+      "max_tokens": 4000,
+      "messages": [
+       {"role": "user", "content": "sha256:6b74f08f0cee994878fbbf6ee824e8f6f729ccde99955e6b78a9e474a96c9eb2 (28 characters)"}
+      ],
+      "temperature": 0.6,
+      "thinking": {"type": "disabled"},
+      "system": {"text_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "character_count": 0, "blocks": null}
+     }
+    },
+    {
+     "stage": "constitution_rewrite",
+     "item_ordinal": 0,
+     "attempt": 1,
+     "route": "anthropic",
+     "wire": {
+      "model": "claude-opus-4-6",
+      "max_tokens": 4000,
+      "messages": [
+       {"role": "user", "content": "sha256:7f9455f5b6998e4c8a98166aa2607de6ae0e9085bc40abd66f4025cd002f7217 (74 characters)"}
+      ],
+      "temperature": 0.6,
+      "thinking": {"type": "disabled"},
+      "system": {"text_sha256": "2e140cacc967adc2a1cf9c0ff8e4a951061c0675f5e07644fd4f670b79e1b37f", "character_count": 18489, "blocks": null}
+     }
+    },
+    {
+     "stage": "constitution_rewrite",
+     "item_ordinal": 1,
+     "attempt": 1,
+     "route": "anthropic",
+     "wire": {
+      "model": "claude-opus-4-6",
+      "max_tokens": 4000,
+      "messages": [
+       {"role": "user", "content": "sha256:ab25ecb9484bbf3a993ff02f12f77fef774569b7170321d78973dfa08c505e03 (74 characters)"}
+      ],
+      "temperature": 0.6,
+      "thinking": {"type": "disabled"},
+      "system": {"text_sha256": "2e140cacc967adc2a1cf9c0ff8e4a951061c0675f5e07644fd4f670b79e1b37f", "character_count": 18489, "blocks": null}
+     }
+    },
+    {
+     "stage": "prompt_draft",
+     "item_ordinal": 0,
+     "attempt": 1,
+     "route": "anthropic",
+     "wire": {
+      "model": "claude-sonnet-4-6",
+      "max_tokens": 4000,
+      "messages": [
+       {"role": "user", "content": "sha256:91ed3af61768ea28de06aad58f38c605ad8ae2c41cf413841826bb8243a37908 (625 characters)"}
+      ],
+      "temperature": 0.6,
+      "thinking": {"type": "disabled"},
+      "system": {"text_sha256": "5d7afd0129ab77b7b7368bdd4bcba8102b2eb4ce94b9e9975e439f556f27d886", "character_count": 2070, "blocks": null}
+     }
+    },
+    {
+     "stage": "prompt_draft",
+     "item_ordinal": 1,
+     "attempt": 1,
+     "route": "anthropic",
+     "wire": {
+      "model": "claude-sonnet-4-6",
+      "max_tokens": 4000,
+      "messages": [
+       {"role": "user", "content": "sha256:7fac56803a25649306d27c82df4794e0bf1d765d0cdc2113bac3ce95f390223a (617 characters)"}
+      ],
+      "temperature": 0.6,
+      "thinking": {"type": "disabled"},
+      "system": {"text_sha256": "5d7afd0129ab77b7b7368bdd4bcba8102b2eb4ce94b9e9975e439f556f27d886", "character_count": 2070, "blocks": null}
+     }
+    },
+    {
+     "stage": "prompt_gate",
+     "item_ordinal": 0,
+     "attempt": 1,
+     "route": "anthropic",
+     "wire": {
+      "model": "claude-haiku-4-5",
+      "max_tokens": 1000,
+      "messages": [
+       {"role": "user", "content": "sha256:f4ff6569467d4842c73ba1909aed06d7e69ec8c35132cfac873b492a75404041 (1102 characters)"}
+      ],
+      "temperature": 0.6,
+      "thinking": {"type": "disabled"},
+      "system": {"text_sha256": "b6f53409d8352f88820c19c15ba8d1eeb3d21ca2cfd831b794854dc37460f520", "character_count": 4348, "blocks": null}
+     }
+    },
+    {
+     "stage": "prompt_gate",
+     "item_ordinal": 1,
+     "attempt": 1,
+     "route": "anthropic",
+     "wire": {
+      "model": "claude-haiku-4-5",
+      "max_tokens": 1000,
+      "messages": [
+       {"role": "user", "content": "sha256:669974b6c2ac397c031a67698831470b5027b57d173c4655f287d24f47e8866d (1080 characters)"}
+      ],
+      "temperature": 0.6,
+      "thinking": {"type": "disabled"},
+      "system": {"text_sha256": "b6f53409d8352f88820c19c15ba8d1eeb3d21ca2cfd831b794854dc37460f520", "character_count": 4348, "blocks": null}
+     }
+    },
+    {
+     "stage": "prompt_refine",
+     "item_ordinal": 0,
+     "attempt": 1,
+     "route": "anthropic",
+     "wire": {
+      "model": "claude-sonnet-4-6",
+      "max_tokens": 4000,
+      "messages": [
+       {"role": "user", "content": "sha256:5a8909aa3dc9546afc1e54b44c985cfc5e13aa16736de958e6fa011edb39abbf (1636 characters)"}
+      ],
+      "temperature": 0.6,
+      "thinking": {"type": "disabled"},
+      "system": {"text_sha256": "bc7425ef484cb2c059eb44d5276fbf3a88ac4a42318cce400cd4ed90e5602f32", "character_count": 3434, "blocks": null}
+     }
+    },
+    {
+     "stage": "prompt_refine",
+     "item_ordinal": 1,
+     "attempt": 1,
+     "route": "anthropic",
+     "wire": {
+      "model": "claude-sonnet-4-6",
+      "max_tokens": 4000,
+      "messages": [
+       {"role": "user", "content": "sha256:f4d6b3a160e2c013095fe7fe5a320a1a7632b85ff9f74a60bcbd3106dcba7287 (1570 characters)"}
+      ],
+      "temperature": 0.6,
+      "thinking": {"type": "disabled"},
+      "system": {"text_sha256": "bc7425ef484cb2c059eb44d5276fbf3a88ac4a42318cce400cd4ed90e5602f32", "character_count": 3434, "blocks": null}
+     }
+    },
+    {
+     "stage": "response_draft",
+     "item_ordinal": 0,
+     "attempt": 1,
+     "route": "anthropic",
+     "wire": {
+      "model": "claude-opus-4-6",
+      "max_tokens": 3000,
+      "messages": [
+       {"role": "user", "content": "sha256:4507d64324082ebe2a99264438267fa81463230545f28ca9631fc8bbb4caa452 (4094 characters)"}
+      ],
+      "temperature": 0.6,
+      "thinking": {"type": "disabled"},
+      "system": {"text_sha256": "447b63d312cfe941b39b90702249c028775b24df7937fa0718ffbadf204a5e6c", "character_count": 3715, "blocks": null}
+     }
+    },
+    {
+     "stage": "response_draft",
+     "item_ordinal": 1,
+     "attempt": 1,
+     "route": "anthropic",
+     "wire": {
+      "model": "claude-opus-4-6",
+      "max_tokens": 3000,
+      "messages": [
+       {"role": "user", "content": "sha256:1495173fff3f8a607ab63ace8771cd0d9035a3c47b580ffd4eb92b2c8c9ff54d (4111 characters)"}
+      ],
+      "temperature": 0.6,
+      "thinking": {"type": "disabled"},
+      "system": {"text_sha256": "447b63d312cfe941b39b90702249c028775b24df7937fa0718ffbadf204a5e6c", "character_count": 3715, "blocks": null}
+     }
+    },
+    {
+     "stage": "response_scope",
+     "item_ordinal": 0,
+     "attempt": 1,
+     "route": "anthropic",
+     "wire": {
+      "model": "claude-sonnet-4-6",
+      "max_tokens": 3000,
+      "messages": [
+       {"role": "user", "content": "sha256:884a5e9c7244633b0c3db94e9d4702820f959d9258aea829c22bd2fbaa4078ce (42 characters)"}
+      ],
+      "temperature": 0.6,
+      "thinking": {"type": "disabled"},
+      "system": {"text_sha256": "a69583459fb9bbedfff191dc3bf3b7b88d0d3372045ba2005779bc1fc61a59cc", "character_count": 2701, "blocks": null}
+     }
+    },
+    {
+     "stage": "response_scope",
+     "item_ordinal": 1,
+     "attempt": 1,
+     "route": "anthropic",
+     "wire": {
+      "model": "claude-sonnet-4-6",
+      "max_tokens": 3000,
+      "messages": [
+       {"role": "user", "content": "sha256:b16706bf4e82706bb61b4bf1c99bf9eacfbf5be938c41bc03080f644e2d593c1 (42 characters)"}
+      ],
+      "temperature": 0.6,
+      "thinking": {"type": "disabled"},
+      "system": {"text_sha256": "a69583459fb9bbedfff191dc3bf3b7b88d0d3372045ba2005779bc1fc61a59cc", "character_count": 2701, "blocks": null}
+     }
+    },
+    {
+     "stage": "response_select",
+     "item_ordinal": 0,
+     "attempt": 1,
+     "route": "anthropic",
+     "wire": {
+      "model": "claude-sonnet-4-6",
+      "max_tokens": 3000,
+      "messages": [
+       {"role": "user", "content": "sha256:fb19c4cf5f9e472c841dccbd2a1449e71079218e9b1185fce1272607538cf9af (683 characters)"}
+      ],
+      "temperature": 0.6,
+      "thinking": {"type": "disabled"},
+      "system": {"text_sha256": "982fb3883ed775346cf09dfadee30f284150e485c457b815b5a48ab5d6a2b9f4", "character_count": 17827, "blocks": null}
+     }
+    },
+    {
+     "stage": "response_select",
+     "item_ordinal": 1,
+     "attempt": 1,
+     "route": "anthropic",
+     "wire": {
+      "model": "claude-sonnet-4-6",
+      "max_tokens": 3000,
+      "messages": [
+       {"role": "user", "content": "sha256:de19a685c965f7bc8a89a801ad78313c2b276a7165ba557d686c0133967451a8 (683 characters)"}
+      ],
+      "temperature": 0.6,
+      "thinking": {"type": "disabled"},
+      "system": {"text_sha256": "982fb3883ed775346cf09dfadee30f284150e485c457b815b5a48ab5d6a2b9f4", "character_count": 17827, "blocks": null}
+     }
+    },
+    {
+     "stage": "scenario_plan",
+     "item_ordinal": 0,
+     "attempt": 1,
+     "route": "anthropic",
+     "wire": {
+      "model": "claude-sonnet-4-6",
+      "max_tokens": 4000,
+      "messages": [
+       {"role": "user", "content": "sha256:f2635c45257730eaffe72f9f8aa2649511e912339999d7ee51fb0896e8fcc532 (3607 characters)"}
+      ],
+      "temperature": 0.6,
+      "thinking": {"type": "disabled"},
+      "system": {"text_sha256": "76a38f69f04ebdb5a7e14a96d4ca814ccadab554e8cec22987cd1cf5223a49a4", "character_count": 474, "blocks": null}
+     }
+    },
+    {
+     "stage": "scenario_plan",
+     "item_ordinal": 1,
+     "attempt": 1,
+     "route": "anthropic",
+     "wire": {
+      "model": "claude-sonnet-4-6",
+      "max_tokens": 4000,
+      "messages": [
+       {"role": "user", "content": "sha256:5e9be7e3086b498efa2d45a8fae1d3f014d63a6ad38a3b9dc9259a6b1081af7f (3746 characters)"}
+      ],
+      "temperature": 0.6,
+      "thinking": {"type": "disabled"},
+      "system": {"text_sha256": "76a38f69f04ebdb5a7e14a96d4ca814ccadab554e8cec22987cd1cf5223a49a4", "character_count": 474, "blocks": null}
+     }
+    }
+   ]
+  },
+  "sampling_models_with_temperature_and_no_effort_map__backend_claude_code": {
+   "configuration": "sampling_models_with_temperature_and_no_effort_map",
+   "backend": "claude_code",
+   "config": {
+    "backend": "claude_code",
+    "model": "claude-sonnet-4-6",
+    "max_tokens": 3000,
+    "temperature": 0.6,
+    "workers": 1,
+    "thinking_headroom": 5000,
+    "dad": {
+     "scenario_model": "claude-sonnet-4-6",
+     "scenario_refusal_fallback_model": "claude-haiku-4-5",
+     "prompt_draft_model": "claude-sonnet-4-6",
+     "prompt_gate_model": "claude-haiku-4-5",
+     "prompt_refine_model": "claude-sonnet-4-6",
+     "response_scope_model": "claude-sonnet-4-6",
+     "scope_refusal_fallback_model": "claude-haiku-4-5",
+     "response_draft_model": "claude-opus-4-6",
+     "constitution_rewrite_model": "claude-opus-4-6",
+     "baseline": {"enabled": true},
+     "evals": {"auto": false},
+     "dilemmas": {"count": 2, "batch_size": 2, "id_start": 1, "seed_path": null, "scenario_seed": 7, "gate": true, "refine": true},
+     "responses": {"per_prompt": 1}
+    },
+    "language_distribution": {"en": 1.0},
+    "outputs": {"cost_log": "<cost log path>"}
+   },
+   "final_example_count": 2,
+   "client_constructions": [],
+   "requests": [
+    {
+     "stage": "baseline_response",
+     "item_ordinal": 0,
+     "attempt": 1,
+     "route": "claude_code",
+     "wire": {
+      "model": "claude-sonnet-4-6",
+      "system": {"text_sha256": "117d2b72aea07cdbeeea8f8d822e04e4ae63a06f246a9e4497a2125f6fb2d73b", "character_count": 79, "blocks": null},
+      "messages": [
+       {"role": "user", "content": "sha256:eefffb5db9378e52677b9407bb94662c7a3d42c576ac4d0b3a97424f13f109a9 (28 characters)"}
+      ],
+      "thinking": {"type": "disabled"},
+      "effort": null,
+      "output_format": null,
+      "tools": [],
+      "max_turns": 1,
+      "setting_sources": [],
+      "permission_mode": "default",
+      "env": {"ANTHROPIC_API_KEY": "", "ANTHROPIC_AUTH_TOKEN": ""}
+     }
+    },
+    {
+     "stage": "baseline_response",
+     "item_ordinal": 1,
+     "attempt": 1,
+     "route": "claude_code",
+     "wire": {
+      "model": "claude-sonnet-4-6",
+      "system": {"text_sha256": "117d2b72aea07cdbeeea8f8d822e04e4ae63a06f246a9e4497a2125f6fb2d73b", "character_count": 79, "blocks": null},
+      "messages": [
+       {"role": "user", "content": "sha256:6b74f08f0cee994878fbbf6ee824e8f6f729ccde99955e6b78a9e474a96c9eb2 (28 characters)"}
+      ],
+      "thinking": {"type": "disabled"},
+      "effort": null,
+      "output_format": null,
+      "tools": [],
+      "max_turns": 1,
+      "setting_sources": [],
+      "permission_mode": "default",
+      "env": {"ANTHROPIC_API_KEY": "", "ANTHROPIC_AUTH_TOKEN": ""}
+     }
+    },
+    {
+     "stage": "constitution_rewrite",
+     "item_ordinal": 0,
+     "attempt": 1,
+     "route": "claude_code",
+     "wire": {
+      "model": "claude-opus-4-6",
+      "system": {"text_sha256": "2e140cacc967adc2a1cf9c0ff8e4a951061c0675f5e07644fd4f670b79e1b37f", "character_count": 18489, "blocks": null},
+      "messages": [
+       {"role": "user", "content": "sha256:7f9455f5b6998e4c8a98166aa2607de6ae0e9085bc40abd66f4025cd002f7217 (74 characters)"}
+      ],
+      "thinking": {"type": "disabled"},
+      "effort": null,
+      "output_format": null,
+      "tools": [],
+      "max_turns": 1,
+      "setting_sources": [],
+      "permission_mode": "default",
+      "env": {"ANTHROPIC_API_KEY": "", "ANTHROPIC_AUTH_TOKEN": ""}
+     }
+    },
+    {
+     "stage": "constitution_rewrite",
+     "item_ordinal": 1,
+     "attempt": 1,
+     "route": "claude_code",
+     "wire": {
+      "model": "claude-opus-4-6",
+      "system": {"text_sha256": "2e140cacc967adc2a1cf9c0ff8e4a951061c0675f5e07644fd4f670b79e1b37f", "character_count": 18489, "blocks": null},
+      "messages": [
+       {"role": "user", "content": "sha256:ab25ecb9484bbf3a993ff02f12f77fef774569b7170321d78973dfa08c505e03 (74 characters)"}
+      ],
+      "thinking": {"type": "disabled"},
+      "effort": null,
+      "output_format": null,
+      "tools": [],
+      "max_turns": 1,
+      "setting_sources": [],
+      "permission_mode": "default",
+      "env": {"ANTHROPIC_API_KEY": "", "ANTHROPIC_AUTH_TOKEN": ""}
+     }
+    },
+    {
+     "stage": "prompt_draft",
+     "item_ordinal": 0,
+     "attempt": 1,
+     "route": "claude_code",
+     "wire": {
+      "model": "claude-sonnet-4-6",
+      "system": {"text_sha256": "5d7afd0129ab77b7b7368bdd4bcba8102b2eb4ce94b9e9975e439f556f27d886", "character_count": 2070, "blocks": null},
+      "messages": [
+       {"role": "user", "content": "sha256:91ed3af61768ea28de06aad58f38c605ad8ae2c41cf413841826bb8243a37908 (625 characters)"}
+      ],
+      "thinking": {"type": "disabled"},
+      "effort": null,
+      "output_format": null,
+      "tools": [],
+      "max_turns": 1,
+      "setting_sources": [],
+      "permission_mode": "default",
+      "env": {"ANTHROPIC_API_KEY": "", "ANTHROPIC_AUTH_TOKEN": ""}
+     }
+    },
+    {
+     "stage": "prompt_draft",
+     "item_ordinal": 1,
+     "attempt": 1,
+     "route": "claude_code",
+     "wire": {
+      "model": "claude-sonnet-4-6",
+      "system": {"text_sha256": "5d7afd0129ab77b7b7368bdd4bcba8102b2eb4ce94b9e9975e439f556f27d886", "character_count": 2070, "blocks": null},
+      "messages": [
+       {"role": "user", "content": "sha256:7fac56803a25649306d27c82df4794e0bf1d765d0cdc2113bac3ce95f390223a (617 characters)"}
+      ],
+      "thinking": {"type": "disabled"},
+      "effort": null,
+      "output_format": null,
+      "tools": [],
+      "max_turns": 1,
+      "setting_sources": [],
+      "permission_mode": "default",
+      "env": {"ANTHROPIC_API_KEY": "", "ANTHROPIC_AUTH_TOKEN": ""}
+     }
+    },
+    {
+     "stage": "prompt_gate",
+     "item_ordinal": 0,
+     "attempt": 1,
+     "route": "claude_code",
+     "wire": {
+      "model": "claude-haiku-4-5",
+      "system": {"text_sha256": "b6f53409d8352f88820c19c15ba8d1eeb3d21ca2cfd831b794854dc37460f520", "character_count": 4348, "blocks": null},
+      "messages": [
+       {"role": "user", "content": "sha256:f4ff6569467d4842c73ba1909aed06d7e69ec8c35132cfac873b492a75404041 (1102 characters)"}
+      ],
+      "thinking": {"type": "disabled"},
+      "effort": null,
+      "output_format": null,
+      "tools": [],
+      "max_turns": 1,
+      "setting_sources": [],
+      "permission_mode": "default",
+      "env": {"ANTHROPIC_API_KEY": "", "ANTHROPIC_AUTH_TOKEN": ""}
+     }
+    },
+    {
+     "stage": "prompt_gate",
+     "item_ordinal": 1,
+     "attempt": 1,
+     "route": "claude_code",
+     "wire": {
+      "model": "claude-haiku-4-5",
+      "system": {"text_sha256": "b6f53409d8352f88820c19c15ba8d1eeb3d21ca2cfd831b794854dc37460f520", "character_count": 4348, "blocks": null},
+      "messages": [
+       {"role": "user", "content": "sha256:669974b6c2ac397c031a67698831470b5027b57d173c4655f287d24f47e8866d (1080 characters)"}
+      ],
+      "thinking": {"type": "disabled"},
+      "effort": null,
+      "output_format": null,
+      "tools": [],
+      "max_turns": 1,
+      "setting_sources": [],
+      "permission_mode": "default",
+      "env": {"ANTHROPIC_API_KEY": "", "ANTHROPIC_AUTH_TOKEN": ""}
+     }
+    },
+    {
+     "stage": "prompt_refine",
+     "item_ordinal": 0,
+     "attempt": 1,
+     "route": "claude_code",
+     "wire": {
+      "model": "claude-sonnet-4-6",
+      "system": {"text_sha256": "bc7425ef484cb2c059eb44d5276fbf3a88ac4a42318cce400cd4ed90e5602f32", "character_count": 3434, "blocks": null},
+      "messages": [
+       {"role": "user", "content": "sha256:5a8909aa3dc9546afc1e54b44c985cfc5e13aa16736de958e6fa011edb39abbf (1636 characters)"}
+      ],
+      "thinking": {"type": "disabled"},
+      "effort": null,
+      "output_format": null,
+      "tools": [],
+      "max_turns": 1,
+      "setting_sources": [],
+      "permission_mode": "default",
+      "env": {"ANTHROPIC_API_KEY": "", "ANTHROPIC_AUTH_TOKEN": ""}
+     }
+    },
+    {
+     "stage": "prompt_refine",
+     "item_ordinal": 1,
+     "attempt": 1,
+     "route": "claude_code",
+     "wire": {
+      "model": "claude-sonnet-4-6",
+      "system": {"text_sha256": "bc7425ef484cb2c059eb44d5276fbf3a88ac4a42318cce400cd4ed90e5602f32", "character_count": 3434, "blocks": null},
+      "messages": [
+       {"role": "user", "content": "sha256:f4d6b3a160e2c013095fe7fe5a320a1a7632b85ff9f74a60bcbd3106dcba7287 (1570 characters)"}
+      ],
+      "thinking": {"type": "disabled"},
+      "effort": null,
+      "output_format": null,
+      "tools": [],
+      "max_turns": 1,
+      "setting_sources": [],
+      "permission_mode": "default",
+      "env": {"ANTHROPIC_API_KEY": "", "ANTHROPIC_AUTH_TOKEN": ""}
+     }
+    },
+    {
+     "stage": "response_draft",
+     "item_ordinal": 0,
+     "attempt": 1,
+     "route": "claude_code",
+     "wire": {
+      "model": "claude-opus-4-6",
+      "system": {"text_sha256": "447b63d312cfe941b39b90702249c028775b24df7937fa0718ffbadf204a5e6c", "character_count": 3715, "blocks": null},
+      "messages": [
+       {"role": "user", "content": "sha256:4507d64324082ebe2a99264438267fa81463230545f28ca9631fc8bbb4caa452 (4094 characters)"}
+      ],
+      "thinking": {"type": "disabled"},
+      "effort": null,
+      "output_format": null,
+      "tools": [],
+      "max_turns": 1,
+      "setting_sources": [],
+      "permission_mode": "default",
+      "env": {"ANTHROPIC_API_KEY": "", "ANTHROPIC_AUTH_TOKEN": ""}
+     }
+    },
+    {
+     "stage": "response_draft",
+     "item_ordinal": 1,
+     "attempt": 1,
+     "route": "claude_code",
+     "wire": {
+      "model": "claude-opus-4-6",
+      "system": {"text_sha256": "447b63d312cfe941b39b90702249c028775b24df7937fa0718ffbadf204a5e6c", "character_count": 3715, "blocks": null},
+      "messages": [
+       {"role": "user", "content": "sha256:1495173fff3f8a607ab63ace8771cd0d9035a3c47b580ffd4eb92b2c8c9ff54d (4111 characters)"}
+      ],
+      "thinking": {"type": "disabled"},
+      "effort": null,
+      "output_format": null,
+      "tools": [],
+      "max_turns": 1,
+      "setting_sources": [],
+      "permission_mode": "default",
+      "env": {"ANTHROPIC_API_KEY": "", "ANTHROPIC_AUTH_TOKEN": ""}
+     }
+    },
+    {
+     "stage": "response_scope",
+     "item_ordinal": 0,
+     "attempt": 1,
+     "route": "claude_code",
+     "wire": {
+      "model": "claude-sonnet-4-6",
+      "system": {"text_sha256": "a69583459fb9bbedfff191dc3bf3b7b88d0d3372045ba2005779bc1fc61a59cc", "character_count": 2701, "blocks": null},
+      "messages": [
+       {"role": "user", "content": "sha256:884a5e9c7244633b0c3db94e9d4702820f959d9258aea829c22bd2fbaa4078ce (42 characters)"}
+      ],
+      "thinking": {"type": "disabled"},
+      "effort": null,
+      "output_format": null,
+      "tools": [],
+      "max_turns": 1,
+      "setting_sources": [],
+      "permission_mode": "default",
+      "env": {"ANTHROPIC_API_KEY": "", "ANTHROPIC_AUTH_TOKEN": ""}
+     }
+    },
+    {
+     "stage": "response_scope",
+     "item_ordinal": 1,
+     "attempt": 1,
+     "route": "claude_code",
+     "wire": {
+      "model": "claude-sonnet-4-6",
+      "system": {"text_sha256": "a69583459fb9bbedfff191dc3bf3b7b88d0d3372045ba2005779bc1fc61a59cc", "character_count": 2701, "blocks": null},
+      "messages": [
+       {"role": "user", "content": "sha256:b16706bf4e82706bb61b4bf1c99bf9eacfbf5be938c41bc03080f644e2d593c1 (42 characters)"}
+      ],
+      "thinking": {"type": "disabled"},
+      "effort": null,
+      "output_format": null,
+      "tools": [],
+      "max_turns": 1,
+      "setting_sources": [],
+      "permission_mode": "default",
+      "env": {"ANTHROPIC_API_KEY": "", "ANTHROPIC_AUTH_TOKEN": ""}
+     }
+    },
+    {
+     "stage": "response_select",
+     "item_ordinal": 0,
+     "attempt": 1,
+     "route": "claude_code",
+     "wire": {
+      "model": "claude-sonnet-4-6",
+      "system": {"text_sha256": "982fb3883ed775346cf09dfadee30f284150e485c457b815b5a48ab5d6a2b9f4", "character_count": 17827, "blocks": null},
+      "messages": [
+       {"role": "user", "content": "sha256:fb19c4cf5f9e472c841dccbd2a1449e71079218e9b1185fce1272607538cf9af (683 characters)"}
+      ],
+      "thinking": {"type": "disabled"},
+      "effort": null,
+      "output_format": null,
+      "tools": [],
+      "max_turns": 1,
+      "setting_sources": [],
+      "permission_mode": "default",
+      "env": {"ANTHROPIC_API_KEY": "", "ANTHROPIC_AUTH_TOKEN": ""}
+     }
+    },
+    {
+     "stage": "response_select",
+     "item_ordinal": 1,
+     "attempt": 1,
+     "route": "claude_code",
+     "wire": {
+      "model": "claude-sonnet-4-6",
+      "system": {"text_sha256": "982fb3883ed775346cf09dfadee30f284150e485c457b815b5a48ab5d6a2b9f4", "character_count": 17827, "blocks": null},
+      "messages": [
+       {"role": "user", "content": "sha256:de19a685c965f7bc8a89a801ad78313c2b276a7165ba557d686c0133967451a8 (683 characters)"}
+      ],
+      "thinking": {"type": "disabled"},
+      "effort": null,
+      "output_format": null,
+      "tools": [],
+      "max_turns": 1,
+      "setting_sources": [],
+      "permission_mode": "default",
+      "env": {"ANTHROPIC_API_KEY": "", "ANTHROPIC_AUTH_TOKEN": ""}
+     }
+    },
+    {
+     "stage": "scenario_plan",
+     "item_ordinal": 0,
+     "attempt": 1,
+     "route": "claude_code",
+     "wire": {
+      "model": "claude-sonnet-4-6",
+      "system": {"text_sha256": "76a38f69f04ebdb5a7e14a96d4ca814ccadab554e8cec22987cd1cf5223a49a4", "character_count": 474, "blocks": null},
+      "messages": [
+       {"role": "user", "content": "sha256:f2635c45257730eaffe72f9f8aa2649511e912339999d7ee51fb0896e8fcc532 (3607 characters)"}
+      ],
+      "thinking": {"type": "disabled"},
+      "effort": null,
+      "output_format": null,
+      "tools": [],
+      "max_turns": 1,
+      "setting_sources": [],
+      "permission_mode": "default",
+      "env": {"ANTHROPIC_API_KEY": "", "ANTHROPIC_AUTH_TOKEN": ""}
+     }
+    },
+    {
+     "stage": "scenario_plan",
+     "item_ordinal": 1,
+     "attempt": 1,
+     "route": "claude_code",
+     "wire": {
+      "model": "claude-sonnet-4-6",
+      "system": {"text_sha256": "76a38f69f04ebdb5a7e14a96d4ca814ccadab554e8cec22987cd1cf5223a49a4", "character_count": 474, "blocks": null},
+      "messages": [
+       {"role": "user", "content": "sha256:5e9be7e3086b498efa2d45a8fae1d3f014d63a6ad38a3b9dc9259a6b1081af7f (3746 characters)"}
+      ],
+      "thinking": {"type": "disabled"},
+      "effort": null,
+      "output_format": null,
+      "tools": [],
+      "max_turns": 1,
+      "setting_sources": [],
+      "permission_mode": "default",
+      "env": {"ANTHROPIC_API_KEY": "", "ANTHROPIC_AUTH_TOKEN": ""}
+     }
+    }
+   ]
+  },
+  "sampling_models_with_temperature_and_no_effort_map__backend_auto": {
+   "configuration": "sampling_models_with_temperature_and_no_effort_map",
+   "backend": "auto",
+   "config": {
+    "backend": "auto",
+    "model": "claude-sonnet-4-6",
+    "max_tokens": 3000,
+    "temperature": 0.6,
+    "workers": 1,
+    "thinking_headroom": 5000,
+    "dad": {
+     "scenario_model": "claude-sonnet-4-6",
+     "scenario_refusal_fallback_model": "claude-haiku-4-5",
+     "prompt_draft_model": "claude-sonnet-4-6",
+     "prompt_gate_model": "claude-haiku-4-5",
+     "prompt_refine_model": "claude-sonnet-4-6",
+     "response_scope_model": "claude-sonnet-4-6",
+     "scope_refusal_fallback_model": "claude-haiku-4-5",
+     "response_draft_model": "claude-opus-4-6",
+     "constitution_rewrite_model": "claude-opus-4-6",
+     "baseline": {"enabled": true},
+     "evals": {"auto": false},
+     "dilemmas": {"count": 2, "batch_size": 2, "id_start": 1, "seed_path": null, "scenario_seed": 7, "gate": true, "refine": true},
+     "responses": {"per_prompt": 1}
+    },
+    "language_distribution": {"en": 1.0},
+    "outputs": {"cost_log": "<cost log path>"}
+   },
+   "final_example_count": 2,
+   "client_constructions": [
+    {
+     "route": "anthropic",
+     "settings": {"api_key_supplied": true}
+    }
+   ],
+   "requests": [
+    {
+     "stage": "baseline_response",
+     "item_ordinal": 0,
+     "attempt": 1,
+     "route": "anthropic",
+     "wire": {
+      "model": "claude-sonnet-4-6",
+      "max_tokens": 4000,
+      "messages": [
+       {"role": "user", "content": "sha256:eefffb5db9378e52677b9407bb94662c7a3d42c576ac4d0b3a97424f13f109a9 (28 characters)"}
+      ],
+      "temperature": 0.6,
+      "thinking": {"type": "disabled"},
+      "system": {"text_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "character_count": 0, "blocks": null}
+     }
+    },
+    {
+     "stage": "baseline_response",
+     "item_ordinal": 1,
+     "attempt": 1,
+     "route": "anthropic",
+     "wire": {
+      "model": "claude-sonnet-4-6",
+      "max_tokens": 4000,
+      "messages": [
+       {"role": "user", "content": "sha256:6b74f08f0cee994878fbbf6ee824e8f6f729ccde99955e6b78a9e474a96c9eb2 (28 characters)"}
+      ],
+      "temperature": 0.6,
+      "thinking": {"type": "disabled"},
+      "system": {"text_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "character_count": 0, "blocks": null}
+     }
+    },
+    {
+     "stage": "constitution_rewrite",
+     "item_ordinal": 0,
+     "attempt": 1,
+     "route": "claude_code",
+     "wire": {
+      "model": "claude-opus-4-6",
+      "system": {"text_sha256": "2e140cacc967adc2a1cf9c0ff8e4a951061c0675f5e07644fd4f670b79e1b37f", "character_count": 18489, "blocks": null},
+      "messages": [
+       {"role": "user", "content": "sha256:7f9455f5b6998e4c8a98166aa2607de6ae0e9085bc40abd66f4025cd002f7217 (74 characters)"}
+      ],
+      "thinking": {"type": "disabled"},
+      "effort": null,
+      "output_format": null,
+      "tools": [],
+      "max_turns": 1,
+      "setting_sources": [],
+      "permission_mode": "default",
+      "env": {"ANTHROPIC_API_KEY": "", "ANTHROPIC_AUTH_TOKEN": ""}
+     }
+    },
+    {
+     "stage": "constitution_rewrite",
+     "item_ordinal": 1,
+     "attempt": 1,
+     "route": "claude_code",
+     "wire": {
+      "model": "claude-opus-4-6",
+      "system": {"text_sha256": "2e140cacc967adc2a1cf9c0ff8e4a951061c0675f5e07644fd4f670b79e1b37f", "character_count": 18489, "blocks": null},
+      "messages": [
+       {"role": "user", "content": "sha256:ab25ecb9484bbf3a993ff02f12f77fef774569b7170321d78973dfa08c505e03 (74 characters)"}
+      ],
+      "thinking": {"type": "disabled"},
+      "effort": null,
+      "output_format": null,
+      "tools": [],
+      "max_turns": 1,
+      "setting_sources": [],
+      "permission_mode": "default",
+      "env": {"ANTHROPIC_API_KEY": "", "ANTHROPIC_AUTH_TOKEN": ""}
+     }
+    },
+    {
+     "stage": "prompt_draft",
+     "item_ordinal": 0,
+     "attempt": 1,
+     "route": "claude_code",
+     "wire": {
+      "model": "claude-sonnet-4-6",
+      "system": {"text_sha256": "5d7afd0129ab77b7b7368bdd4bcba8102b2eb4ce94b9e9975e439f556f27d886", "character_count": 2070, "blocks": null},
+      "messages": [
+       {"role": "user", "content": "sha256:91ed3af61768ea28de06aad58f38c605ad8ae2c41cf413841826bb8243a37908 (625 characters)"}
+      ],
+      "thinking": {"type": "disabled"},
+      "effort": null,
+      "output_format": null,
+      "tools": [],
+      "max_turns": 1,
+      "setting_sources": [],
+      "permission_mode": "default",
+      "env": {"ANTHROPIC_API_KEY": "", "ANTHROPIC_AUTH_TOKEN": ""}
+     }
+    },
+    {
+     "stage": "prompt_draft",
+     "item_ordinal": 1,
+     "attempt": 1,
+     "route": "claude_code",
+     "wire": {
+      "model": "claude-sonnet-4-6",
+      "system": {"text_sha256": "5d7afd0129ab77b7b7368bdd4bcba8102b2eb4ce94b9e9975e439f556f27d886", "character_count": 2070, "blocks": null},
+      "messages": [
+       {"role": "user", "content": "sha256:7fac56803a25649306d27c82df4794e0bf1d765d0cdc2113bac3ce95f390223a (617 characters)"}
+      ],
+      "thinking": {"type": "disabled"},
+      "effort": null,
+      "output_format": null,
+      "tools": [],
+      "max_turns": 1,
+      "setting_sources": [],
+      "permission_mode": "default",
+      "env": {"ANTHROPIC_API_KEY": "", "ANTHROPIC_AUTH_TOKEN": ""}
+     }
+    },
+    {
+     "stage": "prompt_gate",
+     "item_ordinal": 0,
+     "attempt": 1,
+     "route": "claude_code",
+     "wire": {
+      "model": "claude-haiku-4-5",
+      "system": {"text_sha256": "b6f53409d8352f88820c19c15ba8d1eeb3d21ca2cfd831b794854dc37460f520", "character_count": 4348, "blocks": null},
+      "messages": [
+       {"role": "user", "content": "sha256:f4ff6569467d4842c73ba1909aed06d7e69ec8c35132cfac873b492a75404041 (1102 characters)"}
+      ],
+      "thinking": {"type": "disabled"},
+      "effort": null,
+      "output_format": null,
+      "tools": [],
+      "max_turns": 1,
+      "setting_sources": [],
+      "permission_mode": "default",
+      "env": {"ANTHROPIC_API_KEY": "", "ANTHROPIC_AUTH_TOKEN": ""}
+     }
+    },
+    {
+     "stage": "prompt_gate",
+     "item_ordinal": 1,
+     "attempt": 1,
+     "route": "claude_code",
+     "wire": {
+      "model": "claude-haiku-4-5",
+      "system": {"text_sha256": "b6f53409d8352f88820c19c15ba8d1eeb3d21ca2cfd831b794854dc37460f520", "character_count": 4348, "blocks": null},
+      "messages": [
+       {"role": "user", "content": "sha256:669974b6c2ac397c031a67698831470b5027b57d173c4655f287d24f47e8866d (1080 characters)"}
+      ],
+      "thinking": {"type": "disabled"},
+      "effort": null,
+      "output_format": null,
+      "tools": [],
+      "max_turns": 1,
+      "setting_sources": [],
+      "permission_mode": "default",
+      "env": {"ANTHROPIC_API_KEY": "", "ANTHROPIC_AUTH_TOKEN": ""}
+     }
+    },
+    {
+     "stage": "prompt_refine",
+     "item_ordinal": 0,
+     "attempt": 1,
+     "route": "claude_code",
+     "wire": {
+      "model": "claude-sonnet-4-6",
+      "system": {"text_sha256": "bc7425ef484cb2c059eb44d5276fbf3a88ac4a42318cce400cd4ed90e5602f32", "character_count": 3434, "blocks": null},
+      "messages": [
+       {"role": "user", "content": "sha256:5a8909aa3dc9546afc1e54b44c985cfc5e13aa16736de958e6fa011edb39abbf (1636 characters)"}
+      ],
+      "thinking": {"type": "disabled"},
+      "effort": null,
+      "output_format": null,
+      "tools": [],
+      "max_turns": 1,
+      "setting_sources": [],
+      "permission_mode": "default",
+      "env": {"ANTHROPIC_API_KEY": "", "ANTHROPIC_AUTH_TOKEN": ""}
+     }
+    },
+    {
+     "stage": "prompt_refine",
+     "item_ordinal": 1,
+     "attempt": 1,
+     "route": "claude_code",
+     "wire": {
+      "model": "claude-sonnet-4-6",
+      "system": {"text_sha256": "bc7425ef484cb2c059eb44d5276fbf3a88ac4a42318cce400cd4ed90e5602f32", "character_count": 3434, "blocks": null},
+      "messages": [
+       {"role": "user", "content": "sha256:f4d6b3a160e2c013095fe7fe5a320a1a7632b85ff9f74a60bcbd3106dcba7287 (1570 characters)"}
+      ],
+      "thinking": {"type": "disabled"},
+      "effort": null,
+      "output_format": null,
+      "tools": [],
+      "max_turns": 1,
+      "setting_sources": [],
+      "permission_mode": "default",
+      "env": {"ANTHROPIC_API_KEY": "", "ANTHROPIC_AUTH_TOKEN": ""}
+     }
+    },
+    {
+     "stage": "response_draft",
+     "item_ordinal": 0,
+     "attempt": 1,
+     "route": "claude_code",
+     "wire": {
+      "model": "claude-opus-4-6",
+      "system": {"text_sha256": "447b63d312cfe941b39b90702249c028775b24df7937fa0718ffbadf204a5e6c", "character_count": 3715, "blocks": null},
+      "messages": [
+       {"role": "user", "content": "sha256:4507d64324082ebe2a99264438267fa81463230545f28ca9631fc8bbb4caa452 (4094 characters)"}
+      ],
+      "thinking": {"type": "disabled"},
+      "effort": null,
+      "output_format": null,
+      "tools": [],
+      "max_turns": 1,
+      "setting_sources": [],
+      "permission_mode": "default",
+      "env": {"ANTHROPIC_API_KEY": "", "ANTHROPIC_AUTH_TOKEN": ""}
+     }
+    },
+    {
+     "stage": "response_draft",
+     "item_ordinal": 1,
+     "attempt": 1,
+     "route": "claude_code",
+     "wire": {
+      "model": "claude-opus-4-6",
+      "system": {"text_sha256": "447b63d312cfe941b39b90702249c028775b24df7937fa0718ffbadf204a5e6c", "character_count": 3715, "blocks": null},
+      "messages": [
+       {"role": "user", "content": "sha256:1495173fff3f8a607ab63ace8771cd0d9035a3c47b580ffd4eb92b2c8c9ff54d (4111 characters)"}
+      ],
+      "thinking": {"type": "disabled"},
+      "effort": null,
+      "output_format": null,
+      "tools": [],
+      "max_turns": 1,
+      "setting_sources": [],
+      "permission_mode": "default",
+      "env": {"ANTHROPIC_API_KEY": "", "ANTHROPIC_AUTH_TOKEN": ""}
+     }
+    },
+    {
+     "stage": "response_scope",
+     "item_ordinal": 0,
+     "attempt": 1,
+     "route": "claude_code",
+     "wire": {
+      "model": "claude-sonnet-4-6",
+      "system": {"text_sha256": "a69583459fb9bbedfff191dc3bf3b7b88d0d3372045ba2005779bc1fc61a59cc", "character_count": 2701, "blocks": null},
+      "messages": [
+       {"role": "user", "content": "sha256:884a5e9c7244633b0c3db94e9d4702820f959d9258aea829c22bd2fbaa4078ce (42 characters)"}
+      ],
+      "thinking": {"type": "disabled"},
+      "effort": null,
+      "output_format": null,
+      "tools": [],
+      "max_turns": 1,
+      "setting_sources": [],
+      "permission_mode": "default",
+      "env": {"ANTHROPIC_API_KEY": "", "ANTHROPIC_AUTH_TOKEN": ""}
+     }
+    },
+    {
+     "stage": "response_scope",
+     "item_ordinal": 1,
+     "attempt": 1,
+     "route": "claude_code",
+     "wire": {
+      "model": "claude-sonnet-4-6",
+      "system": {"text_sha256": "a69583459fb9bbedfff191dc3bf3b7b88d0d3372045ba2005779bc1fc61a59cc", "character_count": 2701, "blocks": null},
+      "messages": [
+       {"role": "user", "content": "sha256:b16706bf4e82706bb61b4bf1c99bf9eacfbf5be938c41bc03080f644e2d593c1 (42 characters)"}
+      ],
+      "thinking": {"type": "disabled"},
+      "effort": null,
+      "output_format": null,
+      "tools": [],
+      "max_turns": 1,
+      "setting_sources": [],
+      "permission_mode": "default",
+      "env": {"ANTHROPIC_API_KEY": "", "ANTHROPIC_AUTH_TOKEN": ""}
+     }
+    },
+    {
+     "stage": "response_select",
+     "item_ordinal": 0,
+     "attempt": 1,
+     "route": "claude_code",
+     "wire": {
+      "model": "claude-sonnet-4-6",
+      "system": {"text_sha256": "982fb3883ed775346cf09dfadee30f284150e485c457b815b5a48ab5d6a2b9f4", "character_count": 17827, "blocks": null},
+      "messages": [
+       {"role": "user", "content": "sha256:fb19c4cf5f9e472c841dccbd2a1449e71079218e9b1185fce1272607538cf9af (683 characters)"}
+      ],
+      "thinking": {"type": "disabled"},
+      "effort": null,
+      "output_format": null,
+      "tools": [],
+      "max_turns": 1,
+      "setting_sources": [],
+      "permission_mode": "default",
+      "env": {"ANTHROPIC_API_KEY": "", "ANTHROPIC_AUTH_TOKEN": ""}
+     }
+    },
+    {
+     "stage": "response_select",
+     "item_ordinal": 1,
+     "attempt": 1,
+     "route": "claude_code",
+     "wire": {
+      "model": "claude-sonnet-4-6",
+      "system": {"text_sha256": "982fb3883ed775346cf09dfadee30f284150e485c457b815b5a48ab5d6a2b9f4", "character_count": 17827, "blocks": null},
+      "messages": [
+       {"role": "user", "content": "sha256:de19a685c965f7bc8a89a801ad78313c2b276a7165ba557d686c0133967451a8 (683 characters)"}
+      ],
+      "thinking": {"type": "disabled"},
+      "effort": null,
+      "output_format": null,
+      "tools": [],
+      "max_turns": 1,
+      "setting_sources": [],
+      "permission_mode": "default",
+      "env": {"ANTHROPIC_API_KEY": "", "ANTHROPIC_AUTH_TOKEN": ""}
+     }
+    },
+    {
+     "stage": "scenario_plan",
+     "item_ordinal": 0,
+     "attempt": 1,
+     "route": "claude_code",
+     "wire": {
+      "model": "claude-sonnet-4-6",
+      "system": {"text_sha256": "76a38f69f04ebdb5a7e14a96d4ca814ccadab554e8cec22987cd1cf5223a49a4", "character_count": 474, "blocks": null},
+      "messages": [
+       {"role": "user", "content": "sha256:f2635c45257730eaffe72f9f8aa2649511e912339999d7ee51fb0896e8fcc532 (3607 characters)"}
+      ],
+      "thinking": {"type": "disabled"},
+      "effort": null,
+      "output_format": null,
+      "tools": [],
+      "max_turns": 1,
+      "setting_sources": [],
+      "permission_mode": "default",
+      "env": {"ANTHROPIC_API_KEY": "", "ANTHROPIC_AUTH_TOKEN": ""}
+     }
+    },
+    {
+     "stage": "scenario_plan",
+     "item_ordinal": 1,
+     "attempt": 1,
+     "route": "claude_code",
+     "wire": {
+      "model": "claude-sonnet-4-6",
+      "system": {"text_sha256": "76a38f69f04ebdb5a7e14a96d4ca814ccadab554e8cec22987cd1cf5223a49a4", "character_count": 474, "blocks": null},
+      "messages": [
+       {"role": "user", "content": "sha256:5e9be7e3086b498efa2d45a8fae1d3f014d63a6ad38a3b9dc9259a6b1081af7f (3746 characters)"}
+      ],
+      "thinking": {"type": "disabled"},
+      "effort": null,
+      "output_format": null,
+      "tools": [],
+      "max_turns": 1,
+      "setting_sources": [],
+      "permission_mode": "default",
+      "env": {"ANTHROPIC_API_KEY": "", "ANTHROPIC_AUTH_TOKEN": ""}
+     }
+    }
+   ]
+  }
+ }
+}

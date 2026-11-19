@@ -13,16 +13,11 @@ from datetime import datetime, UTC
 
 import yaml
 
+from shared import sdf_run_layouts
+
 
 def parallel_map(fn, items: list, workers: int):
-    """Map fn over items with a thread pool, yielding results in input order.
-
-    fn must be side-effect free (API call + parsing only): because results come
-    back in input order, callers can zip() them with items and keep all file
-    writes and checkpoint marks on their own thread. If a call ultimately fails,
-    the exception surfaces here; items already yielded are safely checkpointed
-    and --resume picks up the rest.
-    """
+    """Map fn over items with a thread pool, yielding in input order; fn must be side-effect free so callers keep file writes on their own thread."""
     if workers <= 1 or len(items) <= 1:
         yield from map(fn, items)
         return
@@ -34,12 +29,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
 def repo_relative(path: str | Path) -> str:
-    """A path rendered relative to the repo root, for values that get WRITTEN
-    into reports and manifests. An absolute path bakes the machine it ran on
-    (a home directory, a username) into files that are committed and, for audit
-    reports, published — so anything inside the repo is recorded as
-    "outputs/dad/runs/..." instead. A path outside the repo keeps only its file
-    or directory name, since its parent directories say nothing about the run."""
+    """A path relative to the repo root, for values written to reports and manifests (an absolute path would bake in the machine); outside the repo only the name is kept."""
     resolved = Path(path).expanduser().resolve()
     try:
         return str(resolved.relative_to(REPO_ROOT))
@@ -53,78 +43,62 @@ def ensure_dir(path: str | Path) -> Path:
     return p
 
 
-# ---------------------------------------------------------------- SDF layout
-#
-# The SDF layers were renumbered from 1-2/3/4/5 to 1/2/3/4 (composition and
-# planning had been counted as two layers when only one call is made). Runs
-# made before the renumber keep the old directory names, and they are read by
-# the viewer, evals/report_sdf.py and the handoff page, so both layouts have to
-# resolve.
-#
-# The two layouts OVERLAP rather than merely differ: old "layer3" holds drafts
-# while new "layer3" holds rewrites, and old "layer4" holds rewrites while new
-# "layer4" holds scores. A resolver that tried the new directory name first and
-# fell back to the old one would therefore read an old run's drafts as its
-# rewrites. So resolution keys off the OUTPUT FILE, whose basename is unique per
-# stage, and a stage directory alone is only ever resolved for writing.
-_SDF_STAGE_DIRS = {1: ("layer1", "layer12"), 2: ("layer2", "layer3"),
-                   3: ("layer3", "layer4"), 4: ("layer4", "layer5")}
+# ---- SDF layout ----
+# A run's stage folders are named by its layout (``shared/sdf_run_layouts.py``) and found by folder KEY, never by trying a name and falling back;
+# the layouts are told apart by folder names (the pre-renumber and four-layer ones overlap on ``layer3``/``layer4``; ``layer12`` separates them).
 
-# stage key -> (layer number, output filename)
-_SDF_STAGE_FILES = {"dealt": (1, "prompts.jsonl"), "plan": (1, "plans.jsonl"),
-                    "draft": (2, "drafts.jsonl"), "rewrite": (3, "rewrites.jsonl"),
-                    "score": (4, "scores.jsonl")}
+# stage key -> (folder key, output filename)
+_SDF_STAGE_FILES = {"dealt": (sdf_run_layouts.DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE, "prompts.jsonl"),
+                    "plan": (sdf_run_layouts.DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE, "plans.jsonl"),
+                    "draft": (sdf_run_layouts.DRAFT, "drafts.jsonl"),
+                    "rewrite": (sdf_run_layouts.CRITIQUE_AND_REVISE, "rewrites.jsonl"),
+                    "score": (sdf_run_layouts.SCORE, "scores.jsonl")}
+
+
+def sdf_layout_of_run(run_dir: str | Path) -> sdf_run_layouts.SdfRunLayout:
+    """The layout of a run folder: told by its folder names, else its manifest's record, else (a folder
+    with neither: a run not created yet) the five-layer layout every new run uses."""
+    run = Path(run_dir)
+    layout = sdf_run_layouts.layout_of_run_folder(run)
+    if layout is None and (run / "run_manifest.json").is_file():
+        manifest = json.loads((run / "run_manifest.json").read_text(encoding="utf-8"))
+        layout = sdf_run_layouts.layout_of_run_folder(run, manifest)
+    return layout or sdf_run_layouts.FIVE_NAMED_LAYERS
+
+
+def sdf_stage_folder(run_dir: str | Path, folder_key: str) -> Path:
+    """The folder of one kind of SDF stage file (a ``sdf_run_layouts`` folder key) in the run's own layout,
+    for reading and writing."""
+    return sdf_layout_of_run(run_dir).folder_of(run_dir, folder_key)
 
 
 def sdf_stage_dir(run_dir: str | Path, layer: int) -> Path:
-    """The directory for one SDF layer, honouring a pre-renumber run's layout.
-
-    The layout is decided ONCE for the whole run, not per layer, because the two
-    naming schemes overlap: a pre-renumber run already contains a "layer4" (its
-    rewrites), so asking "does layer4 exist?" when resolving layer 4 — the score
-    stage, which such a run keeps in "layer5" — answers yes for the wrong
-    directory and a resume would write scores over rewrites. Only "layer12"
-    appears in the old scheme and never in the new one, so it is the marker.
-    """
-    run = Path(run_dir)
-    new, old = _SDF_STAGE_DIRS[layer]
-    return run / (old if (run / "layer12").is_dir() else new)
+    """The folder of ``--layer`` number ``layer`` of the run, in the run's own layout (1 to 5 in the
+    five-layer layout, 1 to 4 in the four-layer one). Where the layout has two folders for a layer, the first."""
+    layout = sdf_layout_of_run(run_dir)
+    if layer not in layout.layer_numbers:
+        raise KeyError(layer)
+    return layout.folder_of(run_dir, layout.folder_key_of_layer(layer))
 
 
-# Layer number -> (current template name, pre-renumber template name).
-_SDF_TEMPLATES = {1: ("layer1.txt", "layers1-2.txt"), 2: ("layer2.txt", "layer3.txt"),
-                  3: ("layer3.txt", "layer4.txt"), 4: ("layer4.txt", "layer5.txt")}
+def sdf_stage_dir_of_existing_run(run_dir: str | Path, layer: int) -> Path:
+    """``sdf_stage_dir`` for reading a run in any layout."""
+    return sdf_stage_dir(run_dir, layer)
+
+
+_SDF_TEMPLATES = {1: "layer1.txt", 2: "layer2.txt", 4: "layer4.txt"}
 
 
 def sdf_template_path(prompts_dir: str | Path, layer: int) -> Path:
-    """One layer's prompt template, honouring a pre-renumber snapshot.
-
-    Each run freezes its templates into inputs/prompts/, so --resume on a run
-    started before the renumber must read that run's own OLD filenames. The old
-    names overlap the new ones (old layer3.txt is the draft template, new
-    layer3.txt is the rewrite template), so the layout is decided once for the
-    whole directory rather than per file: only a pre-renumber snapshot contains
-    ``layers1-2.txt``, and that file is the marker.
-    """
-    d = Path(prompts_dir)
-    new, old = _SDF_TEMPLATES[layer]
-    return d / (old if (d / "layers1-2.txt").exists() else new)
+    """One layer's prompt template (a run's frozen snapshot or ``prompts/sdf``). The template file names do not
+    change with the layers; ``layer`` is the number in their names (1 deal, 2 draft, 4 score; layer 3's templates are named by the critique and revise steps)."""
+    return Path(prompts_dir) / _SDF_TEMPLATES[layer]
 
 
 def sdf_stage_file(run_dir: str | Path, stage: str) -> Path:
-    """Path to one SDF stage's output jsonl, honouring a pre-renumber layout.
-
-    ``stage`` is one of dealt/plan/draft/rewrite/score — named, not numbered,
-    because the numbers moved and the names did not. Falls back to the old
-    location only if the file is actually there; otherwise returns the current
-    path, so a missing-file message names the layout in use today.
-    """
-    layer, filename = _SDF_STAGE_FILES[stage]
-    new, old = _SDF_STAGE_DIRS[layer]
-    run = Path(run_dir)
-    if not (run / new / filename).exists() and (run / old / filename).exists():
-        return run / old / filename
-    return run / new / filename
+    """Path to one SDF stage's output jsonl in the run's layout (read-only); ``stage`` is dealt/plan/draft/rewrite/score, named because numbers differ between layouts."""
+    folder_key, filename = _SDF_STAGE_FILES[stage]
+    return sdf_stage_folder(run_dir, folder_key) / filename
 
 
 def save_jsonl(data: list[dict], path: str | Path, append: bool = False) -> None:
@@ -157,31 +131,8 @@ def load_jsonl(path: str | Path) -> list[dict]:
 
 
 def extract_json(text: str):
-    """Parse the JSON value in a model response, tolerating surrounding chatter.
-
-    Models occasionally wrap their JSON in markdown fences or add prose before
-    or after it ("Here are the subtypes: [...] Let me know if..."), which bare
-    json.loads rejects ("Extra data" / "Expecting value") — crashing a paid run
-    on an otherwise usable response. This tries a full parse from every `[`/`{`
-    in the text and returns the longest value that parses, so a short bracketed
-    aside in the preamble can't shadow the real payload.
-
-    Raises json.JSONDecodeError when no complete JSON value is present — and
-    also when the payload itself is broken: truncated by max_tokens, or
-    malformed mid-array (missing/trailing comma, both common LLM slip-ups).
-    A broken container usually contains smaller values that do parse, and
-    salvaging such a fragment would feed the caller a wrong-shaped result
-    (a dict where a list was expected, with elements silently dropped)
-    instead of a clean parse error. The unifying signal: a failed parse
-    whose consumed region fully contains a successfully parsed candidate is
-    a real payload that broke partway — candidates inside or after it are
-    its fragments and are disqualified, while a complete value found before
-    it (a genuine payload followed by broken chatter) is still returned.
-
-    strict=False: literal control characters inside string values (raw
-    newlines/tabs) are tolerated — the way prose-heavy JSON at temperature 1.0
-    most often goes invalid, and the historical cause of silently empty scopes.
-    """
+    """Parse the JSON value in a model response, tolerating surrounding chatter: the longest value that parses from any ``[``/``{``.
+    Raises JSONDecodeError when none parses, and when the payload broke partway (its fragments are disqualified, never returned); ``strict=False`` tolerates raw control characters."""
     decoder = json.JSONDecoder(strict=False)
     candidates = []  # (start, end, value)
     failures = []  # (start, position where the parse gave up)
@@ -207,14 +158,7 @@ def extract_json(text: str):
 
 
 def salvage_json_objects(text: str) -> list:
-    """Extract top-level {...} objects one at a time via brace matching, so a
-    truncated or trailing-garbage array/stream still yields its complete
-    objects. strict=False matches extract_json's control-char tolerance, so a
-    salvageable object isn't dropped for a literal newline inside a string.
-
-    This is the last-resort recovery the recover=True paths below share (and
-    that step-1 dilemma parsing relies on) — a model slip that breaks the outer
-    container but leaves individual objects intact still yields usable data."""
+    """Complete top-level ``{...}`` objects by brace matching, for a truncated or garbage-trailed stream (the ``recover=True`` last resort)."""
     objs, depth, start, in_str, esc = [], 0, None, False, False
     for i, ch in enumerate(text):
         if in_str:
@@ -243,15 +187,7 @@ def salvage_json_objects(text: str) -> list:
 
 
 def extract_json_object(text: str, recover: bool = False) -> dict:
-    """extract_json narrowed to an object. A wrong-shaped value raises
-    json.JSONDecodeError so shape failures join parse failures on the caller's
-    existing error path, instead of crashing later with AttributeError when
-    .get() hits a list.
-
-    recover=True adds the step-1 salvage fallback: when the container is broken
-    (truncated/trailing garbage) or the value isn't an object, take the first
-    complete top-level {...} object via salvage_json_objects. The strict default
-    coerces nothing, preserving the clean parse/shape error."""
+    """``extract_json`` narrowed to an object (a wrong shape raises JSONDecodeError); ``recover=True`` takes the first complete object via ``salvage_json_objects``."""
     try:
         value = extract_json(text)
     except json.JSONDecodeError:
@@ -266,15 +202,7 @@ def extract_json_object(text: str, recover: bool = False) -> dict:
 
 
 def extract_json_array(text: str, recover: bool = False) -> list:
-    """extract_json narrowed to an array; wrong shape raises json.JSONDecodeError
-    (see extract_json_object).
-
-    recover=True adds two model-slip fallbacks, for callers that would rather
-    salvage than lose a paid response (evals, step 1): an array wrapped in a
-    single-key object — {"reasons": [...]}, a common judge slip — is unwrapped
-    to its array, and a broken/truncated container yields its complete top-level
-    {...} objects via salvage_json_objects. The strict default coerces nothing,
-    preserving extract_json's no-wrong-shape guarantee."""
+    """``extract_json`` narrowed to an array (a wrong shape raises JSONDecodeError); ``recover=True`` unwraps a single-key object holding the array and salvages complete objects from a broken container."""
     try:
         value = extract_json(text)
     except json.JSONDecodeError:
@@ -290,11 +218,8 @@ def extract_json_array(text: str, recover: bool = False) -> list:
         if len(lists) == 1:
             return lists[0]
         # A brackets-dropped object STREAM ('{...},\n{...},...' — no opening
-        # '[', sometimes no commas): extract_json legitimately parses ONE of
-        # those objects, so the except-branch salvage above never runs and a
-        # fully recoverable reply was being discarded. Observed live at ~14% of
-        # eval judge calls in one paid pass (11 of 79), every one of this shape.
-        # Salvaging here reads the whole stream.
+        # '[', sometimes no commas): extract_json parses ONE of those objects,
+        # so the except-branch salvage above never runs; salvage here reads the whole stream.
         if (objs := salvage_json_objects(text)) and len(objs) > 1:
             return objs
     raise json.JSONDecodeError("JSON value is not an array", text, 0)
@@ -308,13 +233,7 @@ def load_prompt(path: str | Path, **kwargs) -> str:
 
 
 def looks_like_transcript_echo(text: str) -> bool:
-    """True when a generation came back wrapped in a transcript replay
-    ("USER: <message>\\nASSISTANT: <reply>") instead of the reply alone —
-    observed live from a step-3 rewrite call. Such output must never become a
-    training record; callers treat it like a truncated reply (skip without
-    checkpointing so --resume retries). Deliberately narrow: only a role
-    marker at the very start of the text counts, so advice that merely
-    mentions "USER:" mid-reply is not flagged."""
+    """True when a generation starts with a role marker ("USER:"), i.e. a transcript replay; callers skip it without checkpointing so ``--resume`` retries."""
     return bool(re.match(r"\s*(USER|ASSISTANT|HUMAN)\s*:", text[:40]))
 
 
@@ -324,14 +243,7 @@ _PROMPT_SPLIT_MARKER = "===USER==="
 
 
 def load_split_prompt(path: str | Path, **kwargs) -> tuple[str, str]:
-    """Load a two-part prompt template as (system, user).
-
-    The system half and the user half are separated by a line equal to
-    `===USER===`. Each half is formatted with the same kwargs — a half simply
-    ignores any placeholder it does not contain. A template with NO marker
-    returns ("", <whole formatted template>): callers and pre-split run
-    snapshots that predate the split still send a user-only prompt with an
-    empty system prompt, identical to load_prompt's behaviour."""
+    """Load a two-part template as (system, user), split on a line equal to ``===USER===``; no marker gives ("", whole formatted template)."""
     text = Path(path).read_text(encoding="utf-8")
     lines = text.splitlines()
     system_part, user_part = "", text
@@ -366,13 +278,7 @@ def new_run_id(label: str) -> str:
 
 
 def _git_status() -> tuple[str | None, str | None, bool, list[str]]:
-    """Return (short_commit, branch, dirty, dirty_files) for the repo, or
-    (None, None, False, []) outside git.
-
-    branch is the literal "HEAD" on a detached checkout (CI's actions/checkout
-    leaves one), so it records where the run came from without pretending a
-    detached HEAD is a branch name.
-    """
+    """``(short_commit, branch, dirty, dirty_files)``, or ``(None, None, False, [])`` outside git; branch is "HEAD" on a detached checkout."""
     cwd = Path(__file__).parent
     try:
         commit = subprocess.run(
@@ -400,13 +306,7 @@ _FETCH_TIMEOUT_S = 20
 
 def _git(*args: str, cwd: Path | None = None,
          timeout: int | None = None) -> subprocess.CompletedProcess:
-    """Run a git command in the repo. A non-zero returncode is the caller's to
-    inspect, not an exception — so git failing is never itself fatal.
-
-    The one thing that DOES raise: passing timeout= can raise
-    subprocess.TimeoutExpired. Every such call site must handle it (merge_state
-    wraps its one fetch in try/except subprocess.SubprocessError).
-    """
+    """Run a git command in the repo; a non-zero returncode is the caller's to inspect. ``timeout=`` can raise ``subprocess.TimeoutExpired``, which every such call site must handle."""
     return subprocess.run(
         ["git", *args],
         capture_output=True, text=True, encoding="utf-8",
@@ -416,25 +316,8 @@ def _git(*args: str, cwd: Path | None = None,
 
 def merge_state(run_commit: str | None, *, fetch: bool = True,
                 repo: Path | None = None) -> dict:
-    """Merge state of this checkout, and of the commit a run was generated from,
-    relative to origin/main.
-
-    Returns a dict with:
-      branch, head             -- current checkout ("HEAD" if detached)
-      head_merged              -- is HEAD reachable from origin/main?
-      ahead                    -- commits on HEAD not in origin/main (None if unknown)
-      run_commit               -- the commit echoed back, for callers' messages
-      run_commit_merged        -- is run_commit reachable from origin/main?
-      fetched                  -- was origin/main refreshed from the remote?
-      notes                    -- plain-English reasons anything is unknown
-
-    Both *_merged fields are None when the answer could not be determined (no
-    repo, no origin/main, a commit this clone has never seen). Callers MUST
-    treat None as NOT merged: an unverifiable provenance claim is not a safe
-    one. `fetch=False` skips the network entirely, at the cost of comparing
-    against a possibly stale origin/main (see the note it records). `repo`
-    overrides which checkout is inspected (defaults to this file's own).
-    """
+    """Merge state of this checkout and of ``run_commit`` relative to origin/main, as a dict (branch, head, head_merged, ahead, run_commit, run_commit_merged, fetched, notes).
+    The ``*_merged`` fields are None when undeterminable and callers MUST treat None as not merged; ``fetch=False`` skips the network (origin/main may be stale)."""
     def git(*args: str, timeout: int | None = None):
         return _git(*args, cwd=repo, timeout=timeout)
 
@@ -498,10 +381,7 @@ def merge_state(run_commit: str | None, *, fetch: bool = True,
 
 
 def _update_latest_symlink(parent: Path, run_dir: Path) -> None:
-    """Point parent/latest at run_dir. Symlinks on Windows need Developer Mode
-    or elevation (WinError 1314), so fall back to a directory junction (no
-    privilege required), and failing that warn and continue — the pointer is a
-    convenience; resolve_run_dir orders runs by directory name, not this link."""
+    """Point parent/latest at run_dir, falling back to a directory junction on Windows, then to a warning (``resolve_run_dir`` does not use the link)."""
     link = parent / "latest"
     # lexists also catches broken symlinks and junctions, which exists() misses.
     if os.path.lexists(link):
@@ -528,13 +408,10 @@ def create_run_dir(
     label: str,
     config: dict,
     snapshot_dirs: dict[str, Path] | None = None,
+    extra_manifest_fields: dict | None = None,
 ) -> Path:
-    """Create a new run directory with a manifest, and point the `latest` symlink at it.
-
-    snapshot_dirs maps name -> source directory; each is copied into
-    run_dir/inputs/<name> so the run stays reproducible even after the
-    source files (prompt templates, constitution) change.
-    """
+    """Create a run directory with a manifest and point ``latest`` at it. ``extra_manifest_fields`` are added as given;
+    ``snapshot_dirs`` ({name: source}) are copied into ``inputs/<name>`` so the run stays reproducible."""
     runs_root = Path(runs_root)
     run_id = new_run_id(label)
     run_dir = runs_root / run_id
@@ -561,6 +438,7 @@ def create_run_dir(
         "inputs_snapshot": bool(snapshot_dirs),
         "model": config.get("model"),
         "config": config,
+        **(extra_manifest_fields or {}),
     }
     with open(run_dir / "run_manifest.json", "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=2)
@@ -570,9 +448,7 @@ def create_run_dir(
 
 
 def resolve_constitution_dir(prompts_dir: str | Path) -> Path | None:
-    """If prompts_dir is a run's input snapshot (.../inputs/prompts), return the
-    sibling inputs/constitution dir; otherwise None (callers fall back to the
-    repo's live constitution/)."""
+    """The sibling ``inputs/constitution`` of a run's ``inputs/prompts`` snapshot, else None (callers use the live ``constitution/``)."""
     prompts_dir = Path(prompts_dir)
     if prompts_dir.name == "prompts" and prompts_dir.parent.name == "inputs":
         candidate = prompts_dir.parent / "constitution"
@@ -585,17 +461,8 @@ _RUN_DIR_TS_RE = re.compile(r"^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}_")
 
 
 def resolve_run_dir(runs_root: str | Path, run_id: str | None = None) -> Path:
-    """Find an existing run directory: by ID if given, otherwise the most recent.
-
-    An explicit run_id that names no directory under runs_root is an error,
-    not a fallback: the call raises SystemExit naming the missing run_id and
-    runs_root, rather than quietly resuming the latest run.
-
-    "Most recent" considers only pipeline-created dirs (timestamp-prefixed
-    names). Hand-made dirs (e.g. local_* scratch runs) sort after every
-    timestamp lexicographically and would otherwise hijack every bare
-    --resume; they remain reachable explicitly via --run-id.
-    """
+    """An existing run directory: ``run_id`` if given (a missing one raises SystemExit, no fallback), else the latest pipeline-created one.
+    Hand-made ``local_*`` directories are ignored for "latest" and stay reachable by ``--run-id``."""
     runs_root = Path(runs_root)
     if run_id:
         run_dir = runs_root / run_id
@@ -611,14 +478,7 @@ def resolve_run_dir(runs_root: str | Path, run_id: str | None = None) -> Path:
 
 
 def warn_if_backend_changed(run_dir: str | Path, live_config: dict) -> None:
-    """On --resume, warn if the live config's `backend` differs from the one the
-    run started with (recorded in run_manifest.json).
-
-    Switching mid-run is allowed — flipping to `api` after hitting the
-    claude_code usage limit is the documented recovery — but it mixes generation
-    semantics and cost accounting within one run, so surface it rather than
-    letting it happen silently.
-    """
+    """On ``--resume``, warn if the config's ``backend`` differs from the run's recorded one (allowed, but it mixes cost accounting)."""
     manifest_path = Path(run_dir) / "run_manifest.json"
     if not manifest_path.is_file():
         return

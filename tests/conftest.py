@@ -1,29 +1,5 @@
-"""Shared fixtures for the offline test suite.
-
-Four independent layers guarantee tests can NEVER call the Anthropic API or
-spawn the Claude Code CLI:
-
-1. pytest-socket (``--disable-socket`` in pyproject.toml) blocks all network
-   access at the socket level.
-2. Every test runs with a fake ``ANTHROPIC_API_KEY``, overriding any real key
-   that the repo's .env would supply (the repo root is also pointed at an empty folder).
-3. ``shared.api._call_with_retry`` is replaced with a function that raises, so
-   an unstubbed ``call_claude`` on the api backend fails loudly before touching
-   tenacity/anthropic.
-4. ``shared.api._call_claude_code_with_retry`` is replaced the same way, so the
-   claude_code backend can never spawn the CLI — which would bill a real
-   contributor subscription — from a test.
-
-Pipeline tests stub one level higher via ``stub_claude``, which patches
-``shared.api.call_claude`` — the single chokepoint every pipeline module uses.
-Never patch below ``call_claude``: if a real ``anthropic`` retryable error ever
-reached the real ``_call_with_retry``, tenacity would sleep 4-60s per attempt.
-
-The OpenAI embeddings seam (``shared/embeddings.py``, used by the diversity
-eval) is guarded the same layered way: ``_openai_guard`` fakes the key, resets
-module globals, and blocks ``_embed_with_retry``; tests stub the chokepoint
-``shared.embeddings.embed_texts`` via ``stub_embeddings``.
-"""
+"""Shared fixtures for the offline test suite. Tests can never call the API or spawn the Claude Code CLI: sockets are disabled, a fake key overrides the real one, and
+``_call_with_retry`` and ``_call_claude_code_with_retry`` raise. Stub at ``shared.api.call_claude`` (``stub_claude``), never below it, or tenacity sleeps; embeddings are stubbed at ``shared.embeddings.embed_texts``."""
 
 import json
 import random
@@ -53,23 +29,14 @@ def dad_scenario_plan_reply(user_message: str) -> str:
 
 
 def dad_scenario_reply(user_message: str) -> str:
-    """Echo a conforming step-1b reply for a rendered step1b_dilemmas.txt
-    prompt: the drafted user message inside <user_prompt> tags (the template's
-    output contract). Length is no longer measured or enforced, so a fixed
-    reply suffices. Kept here because both the step-level and e2e DAD tests
-    dispatch on it."""
+    """A conforming step-1b reply for a rendered step1b_dilemmas.txt prompt: the drafted user message inside <user_prompt> tags."""
     return ("<user_prompt>Drafted user message from the scenario description. "
             "The situation keeps going with believable texture.</user_prompt>")
 
 
 @pytest.fixture(autouse=True)
 def _seed_rng():
-    """Reseed the global RNG before every test so runs are repeatable.
-
-    Note: seeding does NOT make draws deterministic across worker threads
-    (parallel_map interleaves them) — a test that needs exact draws in a
-    parallel stage must inject its own rng (e.g. sample_language(dist, rng=...)).
-    """
+    """Reseed the global RNG before every test (draws are still not deterministic across worker threads; inject an rng for that)."""
     random.seed(0)
 
 
@@ -113,11 +80,7 @@ def _api_guard(monkeypatch):
 
     monkeypatch.setattr(api, "_call_with_retry", _blocked)
 
-    # The claude_code backend's seam spawns the real `claude` CLI as a
-    # subprocess, which pytest-socket's --disable-socket cannot block (it only
-    # patches the in-process socket module). Block it here too so a test that
-    # flips _backend to "claude_code" without stubbing this fails fast in-process
-    # rather than launching a real CLI. Tests exercising the backend override it.
+    # The claude_code seam spawns the real `claude` CLI, which --disable-socket cannot block; block it here so a test that flips _backend without stubbing this fails in-process.
     def _blocked_cc(*args, **kwargs):
         raise AssertionError(
             "claude_code backend invoked during tests — "
@@ -195,12 +158,7 @@ def _gemini_guard(monkeypatch):
 
 @pytest.fixture
 def stub_openai_responses(monkeypatch):
-    """Factory that replaces shared.openai_api._create_response with a recording stub.
-
-    ``install(responses)`` takes a callable ``(request_arguments) -> response`` or a
-    list of responses consumed in order; build responses with ``openai_response``.
-    Returns the list of recorded request-argument dicts.
-    """
+    """Factory replacing ``shared.openai_api._create_response`` with a recording stub: ``install(responses)`` takes a callable or a list; returns the recorded request arguments."""
 
     def install(responses):
         calls = []
@@ -239,15 +197,7 @@ def openai_response():
 
 @pytest.fixture
 def stub_embeddings(monkeypatch):
-    """Factory that replaces shared.embeddings.embed_texts with a recording stub.
-
-    ``install()`` gives every distinct text a deterministic unit vector (rng
-    seeded from the text's crc32), so identical texts embed identically —
-    enough for behavioral tests. Pass ``vectors`` (text -> array) to pin exact
-    geometry (e.g. orthogonal groups). Returns the list of recorded calls
-    ({"texts", "model"}) so tests can assert what was embedded — and, for
-    cache/resume tests, that nothing was.
-    """
+    """Factory replacing ``shared.embeddings.embed_texts`` with a recording stub: ``install()`` gives each distinct text a deterministic unit vector (``vectors`` pins exact geometry); returns the recorded calls."""
 
     def install(dim: int = 8, vectors: dict | None = None):
         calls = []
@@ -276,13 +226,7 @@ def stub_embeddings(monkeypatch):
 
 @pytest.fixture
 def stub_claude(monkeypatch):
-    """Factory that replaces shared.api.call_claude with a recording stub.
-
-    ``install(responses)`` accepts either a list of response strings (consumed
-    FIFO) or a callable ``(user_message, **kwargs) -> str`` for dispatching on
-    prompt content. Returns the list of recorded calls (dicts of the call's
-    keyword arguments) so tests can assert on the observable API contract.
-    """
+    """Factory replacing ``shared.api.call_claude`` with a recording stub: ``install(responses)`` takes a list (FIFO) or ``(user_message, **kwargs) -> str``; returns the recorded calls."""
 
     def install(responses):
         calls = []
@@ -305,8 +249,7 @@ def stub_claude(monkeypatch):
                 "json_schema": json_schema,
             })
             if queue is None:
-                # json_schema is passed only by schema-constrained callers, so
-                # dispatchers written before it existed keep working unchanged.
+                # json_schema is passed only by schema-constrained callers.
                 extra = {"json_schema": json_schema} if json_schema is not None else {}
                 result = responses(
                     user_message,
@@ -359,17 +302,7 @@ def fake_message():
 
 @pytest.fixture
 def stub_hf(monkeypatch):
-    """Factory that replaces evals.publish_hf's three Hub-API chokepoints
-    (_create_repo/_upload_folder/_create_tag) with recording stubs, so tests
-    never import huggingface_hub or touch the network.
-
-    ``install()`` returns the list of recorded calls; pass ``raise_on_call=True``
-    to make every call raise instead — used to assert --dry-run makes none.
-
-    It was five: _list_repo_files and _download_file went with the dataset-card
-    generator, which read the sibling pipeline's metadata back off the Hub to
-    rebuild its section. Publishing is now write-only.
-    """
+    """Factory replacing ``evals.publish_hf``'s three Hub-API chokepoints with recording stubs; ``install(raise_on_call=True)`` makes every call raise (to assert --dry-run makes none)."""
 
     def install(raise_on_call: bool = False):
         from evals import publish_hf
@@ -443,7 +376,7 @@ def tiny_config(tmp_path):
                 # echoes back) are identical run to run
                 "scenario_seed": 7,
                 # both 1c/1d toggles explicit: the composer refuses configs
-                # that set exactly one (the era-migration ambiguity guard)
+                # that set exactly one
                 "gate": True,
                 "refine": True,
             },
@@ -456,6 +389,14 @@ def tiny_config(tmp_path):
         "language_distribution": {"en": 1.0},
         "outputs": {"cost_log": str(tmp_path / "cost_log.jsonl")},
     }
+
+
+@pytest.fixture
+def stage_dir(tmp_path):
+    """An empty directory standing in for one run's layer1 stage folder."""
+    directory = tmp_path / "layer1"
+    directory.mkdir()
+    return directory
 
 
 @pytest.fixture

@@ -1,4 +1,4 @@
-"""Tests for sdf_pipeline/compose_prompts.py (offline, no API)."""
+"""Tests for sdf_pipeline/shared_step_machinery/compose_prompts.py (offline, no API)."""
 
 import json
 import random
@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from sdf_pipeline import compose_prompts as cp
+from sdf_pipeline.shared_step_machinery import compose_prompts as cp
 from sdf_pipeline import profiles
 from shared import entity_pools, utils
 from shared import matrix as _matrix
@@ -124,7 +124,7 @@ def test_split_sections():
 
 def test_module_defaults_point_at_real_files():
     """The standalone CLI's default paths must exist — a template rename that
-    misses these constants breaks `python sdf_pipeline/compose_prompts.py`
+    misses these constants breaks `python sdf_pipeline/shared_step_machinery/compose_prompts.py`
     while every pipeline test (which passes explicit paths) stays green."""
     for default in (cp.DEFAULT_TEMPLATE, cp.DEFAULT_VARIABLES, cp.DEFAULT_PREAMBLE,
                     cp.DEFAULT_DEAL_CONSTRAINTS):
@@ -163,19 +163,16 @@ def test_real_templates_render_with_canonical_loader():
     assert "VARIABLE-BLOCK" in l3_user  # the dealt variables reach the drafter
     assert "{" not in l3_user
 
-    # layer 4 is a two-part file: everything static (constitution, principles,
-    # the nine checks, the failure-modes checklist) lives in the SYSTEM section; the USER section holds only
+    # the critique is a two-part file: everything static (constitution, principles,
+    # the review checks, the failure-modes checklist) lives in the SYSTEM section; the USER section holds only
     # the closing judgment text and the two variable blocks, spec then document.
     l4_system, l4_user = cp.split_sections(utils.load_prompt(
-        REPO_ROOT / "prompts" / "sdf" / "layer3.txt",
+        REPO_ROOT / "prompts" / "sdf" / "layer3a_critique.txt",
         constitution_claude="CC",
         constitution_principles="CP",
         failure_modes="FM",
         document_description="DESC",
         document="DOC",
-        # the revision-stage slots, empty as in the control arm
-        style_directives="",
-        length_directive="",
         considerations_spec="SPEC-BLOCK",
         variable_lines="VARIABLE-BLOCK",
     ))
@@ -183,7 +180,7 @@ def test_real_templates_render_with_canonical_loader():
         < l4_system.index("<constitution_principles>") < l4_system.index("CP") \
         < l4_system.index("TEACH WHY") < l4_system.index("HOUSE STYLE") \
         < l4_system.index("<failure_modes>") < l4_system.index("FM")
-    assert l4_user.index("DESC") < l4_user.index("VARIABLE-BLOCK") < l4_user.index("DOC") < l4_user.index("<improved_document>")
+    assert l4_user.index("DESC") < l4_user.index("VARIABLE-BLOCK") < l4_user.index("DOC") < l4_user.index("<review>")
     assert "SPEC-BLOCK" in l4_user
     assert "{" not in l4_system and "{" not in l4_user
 
@@ -311,7 +308,7 @@ def test_real_template_axes_match_real_variables():
         assert values[axis], axis
     # Every plan placeholder must have values.
     assert set(plan_axes) <= set(values)
-    # reasoning_featured is no longer dealt: the selector (layer1_select_considerations)
+    # reasoning_featured is not dealt: the selector (layer1_select_considerations)
     # picks considerations after the plan, and only the drafter receives the result.
     assert "reasoning_featured" not in values
     assert "reasoning_featured" not in plan_axes

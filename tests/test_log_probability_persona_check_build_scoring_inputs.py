@@ -357,3 +357,106 @@ def test_qwen3_instruct_run_records_the_chat_template_keyword_arguments(build):
     run_folder = build("--model-name", "Qwen/Qwen3-32B", "--model-revision", "9216db5781bf21249d130ec9da846c4624c16137",
                        "--dry-run")
     assert run_folder is None
+
+
+# ---------------------------------------------------------------- real user message as the user turn
+
+REAL_USER_MESSAGES = [
+    "My neighbour's dog barks all night.  Should I call the council? {not_a_slot} 50% of the time I just give up.\n\nThanks",
+    "I run a small farm; is it wrong to sell the calves?",
+    "Line one\nLine two with a trailing question?"]
+REAL_MESSAGE_DIRECTORY_NAME = "generation_prompt_real_user_message"
+
+
+@pytest.fixture
+def real_message_corpus_path(tmp_path):
+    path = tmp_path / "real_message_corpus" / "answers.jsonl"
+    utils.save_jsonl([{"doc_id": f"answer_{index}", "content": SHORT_DOCUMENT_TEXTS[index], "language": "English",
+                       "variables": {"user_message": message, "stage": "stage_2"}}
+                      for index, message in enumerate(REAL_USER_MESSAGES)], path)
+    return path
+
+
+def test_default_generation_prompt_directory_is_unchanged(build):
+    default_run = build()
+    explicit_run = build("--generation-prompt-directory", "generation_prompt",
+                         "--run-folder-label", "explicit_default_directory")
+    default_documents = (default_run / "scoring_inputs" / "documents.jsonl").read_bytes()
+    assert default_documents == (explicit_run / "scoring_inputs" / "documents.jsonl").read_bytes()
+    assert (default_run / "scoring_inputs" / "conditions.jsonl").read_bytes() == (
+        explicit_run / "scoring_inputs" / "conditions.jsonl").read_bytes()
+    assert load_only_run_configuration(default_run)["prompt_file_sha256"] == load_only_run_configuration(
+        explicit_run)["prompt_file_sha256"]
+    first = json.loads(default_documents.decode("utf-8").splitlines()[0])
+    assert first["generation_prompt"].startswith("Write a document from a world where AI assistants are in everyday use")
+
+
+def test_real_user_message_directory_renders_the_message_verbatim_and_is_hashed(build, real_message_corpus_path):
+    run_folder = build("--generation-prompt-directory", REAL_MESSAGE_DIRECTORY_NAME,
+                       input_path=real_message_corpus_path)
+    documents = utils.load_jsonl(run_folder / "scoring_inputs" / "documents.jsonl")
+    assert [document["generation_prompt"] for document in documents] == REAL_USER_MESSAGES
+    configuration = load_only_run_configuration(run_folder)
+    template_key = f"{REAL_MESSAGE_DIRECTORY_NAME}/document_generation_prompt_template.txt"
+    assert configuration["prompt_file_sha256"][template_key] == persona_sets.sha256_of_file(
+        persona_sets.PERSONA_CHECKS_PROMPT_DIRECTORY / REAL_MESSAGE_DIRECTORY_NAME
+        / "document_generation_prompt_template.txt")
+    assert not any(key.endswith("in_universe_facts_shared_by_all_documents.txt")
+                   for key in configuration["prompt_file_sha256"])
+    assert "generation_prompt/document_generation_prompt_template.txt" not in configuration["prompt_file_sha256"]
+
+
+def test_default_template_cannot_build_a_corpus_that_only_has_a_user_message(build, real_message_corpus_path):
+    with pytest.raises(KeyError, match="missing variables"):
+        build(input_path=real_message_corpus_path)
+
+
+def test_real_user_message_run_refuses_a_document_without_a_user_message(build, corpus_path):
+    with pytest.raises(KeyError, match="user_message"):
+        build("--generation-prompt-directory", REAL_MESSAGE_DIRECTORY_NAME)
+
+
+def test_resume_refuses_a_different_generation_prompt_directory(build, real_message_corpus_path):
+    run_folder = build("--generation-prompt-directory", REAL_MESSAGE_DIRECTORY_NAME,
+                       input_path=real_message_corpus_path)
+    with pytest.raises((RuntimeError, KeyError)):
+        build("--resume-folder", str(run_folder), input_path=real_message_corpus_path)
+
+
+# ---------------------------------------------------------------- only some rewordings of a persona
+
+def test_only_rewordings_odd_keeps_odd_indices_of_the_named_persona_and_records_them(build):
+    run_folder = build("--only-personas", "preachy,proportionate_welfare", "--only-rewordings", "preachy=odd")
+    conditions = utils.load_jsonl(run_folder / "scoring_inputs" / "conditions.jsonl")
+    preachy = [c["rewording_index"] for c in conditions if c["persona_name"] == "preachy"]
+    assert preachy == list(range(1, 30, 2)) and len(preachy) == 15
+    assert len([c for c in conditions if c["persona_name"] == "proportionate_welfare"]) == 5
+    assert len(conditions) == 21 and conditions[0]["condition_id"] == "generic"
+    subset = load_only_run_configuration(run_folder)["condition_subset"]
+    assert subset["only_rewordings"] == {"preachy": "odd"}
+    assert subset["kept_rewording_indices_by_persona"]["preachy"] == preachy
+    assert subset["kept_condition_ids"] == [c["condition_id"] for c in conditions]
+    assert load_only_run_configuration(run_folder)["number_of_conditions"] == 21
+
+
+def test_only_rewordings_accepts_explicit_indices_even_and_several_personas(build):
+    run_folder = build("--only-rewordings", "preachy=2,4", "--only-rewordings", "proportionate_welfare=even")
+    conditions = utils.load_jsonl(run_folder / "scoring_inputs" / "conditions.jsonl")
+    assert [c["rewording_index"] for c in conditions if c["persona_name"] == "preachy"] == [2, 4]
+    assert [c["rewording_index"] for c in conditions if c["persona_name"] == "proportionate_welfare"] == [2, 4]
+    assert len(conditions) == 72 - 28 - 3
+
+
+@pytest.mark.parametrize("argument, message", [
+    ("preachy", "expects PERSONA"), ("preachy=", "expects PERSONA"), ("preachy=first", "not odd, even"),
+    ("preachy=1,1", "twice"), ("preachy=99", "no rewording indices"), ("nobody=odd", "no conditions")])
+def test_only_rewordings_rejects_bad_selections(build, argument, message):
+    with pytest.raises((SystemExit, ValueError), match=message):
+        build("--only-rewordings", argument)
+
+
+def test_default_has_no_rewording_subset_and_resume_with_a_different_subset_is_refused(build):
+    assert load_only_run_configuration(build())["condition_subset"] is None
+    run_folder = build("--only-rewordings", "preachy=odd", "--run-folder-label", "odd_rewordings_run")
+    with pytest.raises(RuntimeError, match="differ"):
+        build("--only-rewordings", "preachy=even", "--resume-folder", str(run_folder))

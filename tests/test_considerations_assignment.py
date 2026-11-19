@@ -5,9 +5,9 @@ import random
 
 import pytest
 
-from sdf_pipeline import considerations_assignment as assignment
-from sdf_pipeline.considerations_assignment import AssignmentLimits, assign_considerations, coverage_report
-from sdf_pipeline.considerations_catalog import Consideration, ConsiderationCatalog, EPISTEMIC_LIST, MORAL_LIST
+from sdf_pipeline.shared_step_machinery import considerations_assignment as assignment
+from sdf_pipeline.shared_step_machinery.considerations_assignment import AssignmentLimits, assign_considerations, coverage_report
+from sdf_pipeline.shared_step_machinery.considerations_catalog import Consideration, ConsiderationCatalog, EPISTEMIC_LIST, MORAL_LIST
 
 
 def make_catalog(moral=("M1", "M2"), epistemic=("E1", "E2"), digital=()):

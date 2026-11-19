@@ -76,9 +76,7 @@ PAYLOAD = [{"subtype_name": "River survey"}, {"subtype_name": "Coastal survey"}]
 
 
 class TestExtractJson:
-    """Model responses wrap JSON in fences or surround it with prose; a paid
-    run must not crash on an otherwise usable response (a live claude_code run
-    died at layer 2 with "Extra data" from a trailing sentence)."""
+    """extract_json tolerates fences and surrounding prose around a usable JSON response."""
 
     def test_clean_json_passes_through(self):
         assert utils.extract_json(json.dumps(PAYLOAD)) == PAYLOAD
@@ -128,14 +126,14 @@ class TestExtractJson:
     def test_complete_payload_survives_truncated_trailing_chatter(self):
         # max_tokens can cut the response mid-sentence *after* the payload has
         # already closed; a dangling bracket in that chatter must not discard
-        # the good parse (review finding on #59).
+        # the good parse.
         assert utils.extract_json('[{"a": 1}]\n\nThanks for the {') == [{"a": 1}]
         assert utils.extract_json(json.dumps(PAYLOAD) + '\nAlso note ["unclosed') == PAYLOAD
 
     def test_malformed_array_raises_instead_of_returning_fragment(self):
         # Missing/trailing commas are common LLM slip-ups; the broken array
-        # must raise like plain json.loads did, not silently return its first
-        # inner object as a dict (second review finding on #59).
+        # must raise like plain json.loads, not silently return its first
+        # inner object as a dict.
         with pytest.raises(json.JSONDecodeError):
             utils.extract_json('[{"a": 1} {"b": 2}]')  # missing comma
         with pytest.raises(json.JSONDecodeError):
@@ -150,7 +148,7 @@ class TestExtractJson:
     # --- recover=True: the shared JSON salvage the eval + step-1 both use ---
 
     def test_strict_default_still_refuses_wrong_shape(self):
-        # recover defaults off; the strict no-coerce guarantee is unchanged
+        # recover defaults off; strict mode never coerces
         with pytest.raises(json.JSONDecodeError):
             utils.extract_json_array('{"reasons": ["a", "b"]}')
         with pytest.raises(json.JSONDecodeError):
@@ -429,8 +427,7 @@ class TestLooksLikeTranscriptEcho:
         assert not utils.looks_like_transcript_echo("")
 
 def test_resolve_run_dir_ignores_handmade_local_dirs(tmp_path):
-    """A local_* scratch dir sorts after every timestamp name; bare --resume
-    must still pick the newest pipeline-created run (the 2026-07-11 incident)."""
+    """A local_* scratch dir sorts after every timestamp name; bare --resume still picks the newest pipeline-created run."""
     (tmp_path / "2026-07-10_09-00_dev").mkdir()
     (tmp_path / "2026-07-11_20-06_matrix100").mkdir()
     (tmp_path / "local_2026-07-11_scratch").mkdir()
@@ -442,13 +439,13 @@ def test_resolve_run_dir_ignores_handmade_local_dirs(tmp_path):
 
 # --- SDF layer renumber compatibility ----------------------------------
 #
-# The layers were renumbered 1-2/3/4/5 -> 1/2/3/4. The layouts OVERLAP: old
-# layer3 holds drafts, new layer3 holds rewrites. These pin that a pre-renumber
-# run is never read through the new meaning of a name it shares.
+# Two run layouts exist (layer12/3/4/5 and layer1/2/3/4) and share directory names:
+# layer3 holds drafts in the first and rewrites in the second. A run is never read
+# through the other layout's meaning of a shared name.
 
 class TestSdfStageFile:
     def _old_run(self, tmp_path):
-        """A run dir in the pre-renumber layout."""
+        """A run dir in the layer12/3/4/5 layout."""
         for d, f in (("layer12", "plans.jsonl"), ("layer12", "prompts.jsonl"),
                      ("layer3", "drafts.jsonl"), ("layer4", "rewrites.jsonl"),
                      ("layer5", "scores.jsonl")):
@@ -472,8 +469,7 @@ class TestSdfStageFile:
         assert utils.sdf_stage_file(run, "score") == run / "layer5" / "scores.jsonl"
 
     def test_an_old_runs_drafts_are_never_read_as_its_rewrites(self, tmp_path):
-        """layer3/ is drafts in an old run and rewrites in a new one. A resolver
-        that matched on directory alone would return the drafts here."""
+        """A resolver matching on directory name alone would return layer3 drafts as rewrites."""
         run = self._old_run(tmp_path)
         assert utils.sdf_stage_file(run, "rewrite").name == "rewrites.jsonl"
         assert "layer3" not in utils.sdf_stage_file(run, "rewrite").parts
@@ -484,31 +480,53 @@ class TestSdfStageFile:
         assert utils.sdf_stage_file(run, "rewrite") == run / "layer3" / "rewrites.jsonl"
         assert utils.sdf_stage_file(run, "score") == run / "layer4" / "scores.jsonl"
 
-    def test_an_empty_run_reports_through_the_current_layout(self, tmp_path):
-        assert utils.sdf_stage_file(tmp_path, "score") == tmp_path / "layer4" / "scores.jsonl"
+    def test_an_empty_run_reports_through_the_five_named_layers_layout(self, tmp_path):
+        assert utils.sdf_stage_file(tmp_path, "score") == tmp_path / "layer5_score_and_final_selection" / "scores.jsonl"
 
-    def test_stage_dir_writes_beside_a_resumed_old_runs_own_dirs(self, tmp_path):
+    def test_the_reader_resolves_an_old_runs_stage_directories(self, tmp_path):
+        run = self._old_run(tmp_path)
+        assert utils.sdf_stage_dir_of_existing_run(run, 1) == run / "layer12"
+        assert utils.sdf_stage_dir_of_existing_run(run, 4) == run / "layer5"
+
+    def test_the_reader_resolves_a_current_runs_stage_directories(self, tmp_path):
+        run = self._new_run(tmp_path)
+        assert utils.sdf_stage_dir_of_existing_run(run, 2) == run / "layer2"
+
+    def test_stage_dir_follows_the_layout_of_the_run_it_is_asked_about(self, tmp_path):
         run = self._old_run(tmp_path)
         assert utils.sdf_stage_dir(run, 1) == run / "layer12"
         assert utils.sdf_stage_dir(run, 4) == run / "layer5"
 
-    def test_stage_dir_gives_a_fresh_run_the_new_names(self, tmp_path):
-        assert utils.sdf_stage_dir(tmp_path, 1) == tmp_path / "layer1"
-        assert utils.sdf_stage_dir(tmp_path, 4) == tmp_path / "layer4"
+    def test_stage_dir_of_a_four_numbered_layers_run_keeps_its_folders(self, tmp_path):
+        run = self._new_run(tmp_path)
+        assert utils.sdf_stage_dir(run, 1) == run / "layer1"
+        assert utils.sdf_stage_dir(run, 4) == run / "layer4"
+
+    def test_stage_dir_gives_a_fresh_run_the_five_named_layers_folders(self, tmp_path):
+        assert utils.sdf_stage_dir(tmp_path, 1) == tmp_path / "layer1_deal_variables_and_screen"
+        assert utils.sdf_stage_dir(tmp_path, 2) == tmp_path / "layer2_description_write_and_description_rewrite"
+        assert utils.sdf_stage_dir(tmp_path, 3) == tmp_path / "layer3_consideration_scoring_and_selection"
+        assert utils.sdf_stage_dir(tmp_path, 4) == tmp_path / "layer4_draft_critique_and_revise"
+        assert utils.sdf_stage_dir(tmp_path, 5) == tmp_path / "layer5_score_and_final_selection"
+
+    def test_a_five_named_layers_run_resolves_every_stage_file(self, tmp_path):
+        for folder, file_name in (("layer2_description_write_and_description_rewrite", "plans.jsonl"),
+                                  ("layer4_draft_critique_and_revise", "drafts.jsonl"),
+                                  ("layer4_draft_critique_and_revise", "rewrites.jsonl"),
+                                  ("layer5_score_and_final_selection", "scores.jsonl")):
+            (tmp_path / folder).mkdir(exist_ok=True)
+            (tmp_path / folder / file_name).write_text('{"a": 1}\n', encoding="utf-8")
+        assert utils.sdf_stage_file(tmp_path, "plan") == tmp_path / "layer2_description_write_and_description_rewrite" / "plans.jsonl"
+        assert utils.sdf_stage_file(tmp_path, "draft") == tmp_path / "layer4_draft_critique_and_revise" / "drafts.jsonl"
+        assert utils.sdf_stage_file(tmp_path, "rewrite") == tmp_path / "layer4_draft_critique_and_revise" / "rewrites.jsonl"
+        assert utils.sdf_stage_file(tmp_path, "score") == tmp_path / "layer5_score_and_final_selection" / "scores.jsonl"
 
 
 class TestSdfTemplatePath:
-    def test_a_pre_renumber_snapshot_reads_its_own_template_names(self, tmp_path):
-        for n in ("layers1-2.txt", "layer3.txt", "layer4.txt", "layer5.txt"):
-            (tmp_path / n).write_text("x", encoding="utf-8")
-        assert utils.sdf_template_path(tmp_path, 1).name == "layers1-2.txt"
-        assert utils.sdf_template_path(tmp_path, 2).name == "layer3.txt"
-        assert utils.sdf_template_path(tmp_path, 3).name == "layer4.txt"
-        assert utils.sdf_template_path(tmp_path, 4).name == "layer5.txt"
+    def test_the_current_template_names_are_returned_without_looking_at_the_folder(self, tmp_path):
+        assert [utils.sdf_template_path(tmp_path, n).name for n in (1, 2, 4)] == [
+            "layer1.txt", "layer2.txt", "layer4.txt"]
 
-    def test_a_current_snapshot_reads_the_new_names(self, tmp_path):
-        for n in ("layer1.txt", "layer2.txt", "layer3.txt", "layer4.txt"):
-            (tmp_path / n).write_text("x", encoding="utf-8")
+    def test_a_pre_renumber_snapshot_is_not_given_its_old_names(self, tmp_path):
+        (tmp_path / "layers1-2.txt").write_text("x", encoding="utf-8")
         assert utils.sdf_template_path(tmp_path, 1).name == "layer1.txt"
-        assert utils.sdf_template_path(tmp_path, 2).name == "layer2.txt"
-        assert utils.sdf_template_path(tmp_path, 4).name == "layer4.txt"

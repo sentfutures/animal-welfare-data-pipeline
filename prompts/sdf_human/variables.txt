@@ -236,7 +236,7 @@
 # ==========================================================================
 # REVISION VARIABLES. How the document is WRITTEN — its voice and its length.
 # Dealt from the same deck as everything above, but rendered by
-# sdf_pipeline/revision_style.py into layer 3's revise prompt, never into
+# sdf_pipeline/shared_step_machinery/revision_style.py into layer 3's revise prompt, never into
 # layer1.txt or layer2.txt, so a revision card cannot reach the spec and be
 # mistaken for something the document is supposed to be about. The list is
 # compose_prompts.REVISION_AXES; tests/test_compose_prompts.py fails if a name

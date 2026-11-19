@@ -48,16 +48,16 @@ def persona_check_configuration(include_same_values_control=True, pass_criteria=
             "pass_criteria": copy.deepcopy(DEFAULT_PASS_CRITERIA if pass_criteria is None else pass_criteria)}
 
 
-def build_conditions(include_same_values_control=True):
-    conditions = [
-        {"condition_id": "no_system_prompt", "condition_group": "no_system_prompt", "persona_name": "no_system_prompt",
-         "rewording_index": None, "system_prompt": None},
+def build_conditions(include_same_values_control=True, include_topic_control=True, include_no_system_prompt=True):
+    conditions = ([{"condition_id": "no_system_prompt", "condition_group": "no_system_prompt",
+                    "persona_name": "no_system_prompt", "rewording_index": None, "system_prompt": None}]
+                  if include_no_system_prompt else []) + [
         {"condition_id": "generic", "condition_group": "generic", "persona_name": "generic", "rewording_index": None,
          "system_prompt": "You are an AI assistant."}]
     for index in range(1, 4):
         conditions.append({"condition_id": f"{PERSONA_NAME}__rewording_{index:02d}", "condition_group": PERSONA_NAME,
                            "persona_name": PERSONA_NAME, "rewording_index": index, "system_prompt": "x"})
-    for persona in TOPIC_CONTROL_PERSONAS:
+    for persona in (TOPIC_CONTROL_PERSONAS if include_topic_control else []):
         for index in range(1, 3):
             conditions.append({"condition_id": f"{persona}__rewording_{index:02d}", "condition_group": TOPIC_CONTROL_GROUP,
                                "persona_name": persona, "rewording_index": index, "system_prompt": "x"})
@@ -77,13 +77,14 @@ def write_jsonl_records(path, records):
 
 def build_synthetic_scored_run_folder(run_folder, seed=0, include_same_values_control=True, rewrites_per_direction=2,
                                       neutral_rewrites_shift=0.0, model_type="instruct", pass_criteria=None,
-                                      outlier_rewording_condition_id=None, shifts_mirrored_for_outlier=True):
+                                      outlier_rewording_condition_id=None, shifts_mirrored_for_outlier=True,
+                                      include_topic_control=True, include_no_system_prompt=True):
     """Returns {"documents": {document_id: {"kind", ...}}, "condition_ids": [...]}. Source documents are
     `elevated` (the persona raises the log probability of a 32-token span by 0.3 in every target rewording) or
     `null`. A rewrite inserts 20 new tokens at position 70: a toward rewrite raises them by +0.4 for the target
     persona, an away rewrite by -0.4, a neutral rewrite by `neutral_rewrites_shift`."""
     generator = np.random.default_rng(seed)
-    conditions = build_conditions(include_same_values_control)
+    conditions = build_conditions(include_same_values_control, include_topic_control, include_no_system_prompt)
     condition_ids = [condition["condition_id"] for condition in conditions]
     target_rows = [i for i, c in enumerate(conditions) if c["condition_group"] == PERSONA_NAME]
     generic_row = condition_ids.index("generic")
@@ -152,5 +153,9 @@ def build_synthetic_scored_run_folder(run_folder, seed=0, include_same_values_co
         "persona_set": {"name": "sycophancy_for_tests", "configuration": configuration},
         "pass_criteria": configuration["pass_criteria"],
         "document_selection": {"corpus_path": "no_such_corpus.jsonl", "extra_documents_files": []}}
+    if not (include_topic_control and include_no_system_prompt):  # a persona-subset run, as build_scoring_inputs records it
+        run_configuration["condition_subset"] = {
+            "only_personas": None, "generic_always_kept": True,
+            "number_of_conditions_in_full_persona_set": 17, "kept_condition_ids": condition_ids}
     (run_folder / "run_configuration_2026-01-01_00-00.json").write_text(json.dumps(run_configuration), encoding="utf-8")
     return {"documents": planted, "condition_ids": condition_ids}

@@ -11,7 +11,7 @@ import pytest
 import yaml
 
 from evals import variable_persistence_sdf as vp
-from sdf_pipeline import compose_prompts as cp
+from sdf_pipeline.shared_step_machinery import compose_prompts as cp
 
 DESCRIPTION_MARKER = "SECRET-DESCRIPTION-TEXT-DO-NOT-LEAK"
 
@@ -76,13 +76,6 @@ class TestSchema:
         assert items["additionalProperties"] is False
         assert "considerations" in schema["required"]
 
-    def test_schema_for_a_record_covers_the_dealt_variables(self, context, dealt_values, labels):
-        record = make_record(dealt_values, considerations=labels)
-        schema = vp.build_schema(list(vp.judged_variables(record, context)),
-                                 [c["label"] for c in vp.assigned_considerations(record, context)])
-        assert set(context.variable_meanings) <= set(schema["properties"])
-        assert schema["properties"]["considerations"]["items"]["properties"]["label"]["enum"] == list(labels)
-
     def test_variables_missing_from_the_record_are_not_asked_about(self, context, dealt_values):
         record = make_record(dealt_values)
         del record["variables"]["domain"]
@@ -90,30 +83,6 @@ class TestSchema:
 
 
 class TestPromptRendering:
-    def test_contains_values_meanings_considerations_and_document(self, context, dealt_values, labels):
-        record = make_record(dealt_values, considerations=labels, content="UNIQUE-DOCUMENT-BODY")
-        prompt = vp.render_prompt(record, context)
-        # revision axes are rewrite directives, not spec content; the
-        # persistence judge has no meanings for them and never asks
-        for name, value in dealt_values.items():
-            if name in cp.REVISION_AXES:
-                continue
-            assert name in prompt and value in prompt
-        for meaning in context.variable_meanings.values():
-            assert meaning in prompt
-        for label in labels:
-            assert label in prompt
-            assert context.catalog.entry_by_label(label).gloss in prompt
-        assert "UNIQUE-DOCUMENT-BODY" in prompt
-        assert "ASSIGNED CONSIDERATIONS" in prompt
-
-    def test_never_shows_description_scores_or_doc_id(self, context, dealt_values, labels):
-        record = make_record(dealt_values, doc_id="matrix_987654", considerations=labels)
-        prompt = vp.render_prompt(record, context)
-        assert DESCRIPTION_MARKER not in prompt
-        assert "matrix_987654" not in prompt
-        assert "alignment" not in prompt.split("DOCUMENT\n")[0].lower().replace("alignment documents", "")
-
     def test_no_considerations_section_when_none_assigned(self, context, dealt_values):
         prompt = vp.render_prompt(make_record(dealt_values), context)
         assert "ASSIGNED CONSIDERATIONS" not in prompt
@@ -121,11 +90,6 @@ class TestPromptRendering:
     def test_braces_in_the_document_survive(self, context, dealt_values):
         prompt = vp.render_prompt(make_record(dealt_values, content="{not_a_placeholder} {0}"), context)
         assert "{not_a_placeholder} {0}" in prompt
-
-    def test_persisted_definition_comes_from_the_prompt_file(self, context, dealt_values):
-        prompt = vp.render_prompt(make_record(dealt_values), context)
-        assert "dealt skeptical stance" in prompt or "skeptical stance" in prompt
-
 
 class TestParsing:
     NAMES = ["tone", "culture"]

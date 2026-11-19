@@ -1,28 +1,6 @@
 #!/usr/bin/env python3
-"""Build the self-contained HTML corpus report for an SDF run.
-
-Reads the run dir plus whatever eval reports exist beside it and emits one
-standalone HTML file: no external CSS, JS, fonts, or images (the Artifact CSP
-blocks every external host, and the file has to survive being downloaded and
-opened offline). Charts are inline SVG generated here; the only JS is a tooltip
-handler and the table-view toggles.
-
-Colors follow the dataviz reference palette, declared once as CSS custom
-properties per role and re-declared for dark mode under both the media query
-and the [data-theme] scope so a viewer's toggle wins either way.
-
-It reads whatever eval reports exist in ``<run>/audit/`` and silently omits the
-sections it has no data for, so it works on a run with only the offline audit as
-well as on one with the full paid set. Two inputs are per-run editorial rather
-than measured: ``report_content.json`` carries the title, the curated excerpts
-(with translations and a one-line reason each) and the prose for the weaknesses
-and method sections; ``vendi_curve.json`` carries the measured saturation points
-and fitted coefficients for the scaling projection.
-
-Usage:
-    python evals/report_sdf.py <run_dir> <run_dir>/audit/report_content.json \\
-        <run_dir>/audit/corpus_report.html
-"""
+"""Build the self-contained HTML corpus report for an SDF run: one standalone file (no external CSS, JS, fonts or images; inline SVG charts, light and dark palettes).
+It reads the eval reports in ``<run>/audit/`` and omits sections without data; ``report_content.json`` (title, excerpts, prose) and ``vendi_curve.json`` are per-run editorial inputs."""
 import collections
 import json
 import re
@@ -33,8 +11,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from sdf_pipeline import layer1_description_rewrite, layer1_screen, layer1_select_considerations  # noqa: E402
+from sdf_pipeline.layer1_deal_variables_and_screen import run_layer as deal_variables_and_screen_layer  # noqa: E402
+from sdf_pipeline.compatibility_with_runs_made_by_earlier_code.renamed_model_settings import model_setting  # noqa: E402
+from sdf_pipeline.layer3_consideration_scoring_and_selection import run_layer as consideration_scoring_and_selection_layer  # noqa: E402
+from sdf_pipeline import pipeline_steps  # noqa: E402
 from shared import utils  # noqa: E402
+from sdf_pipeline.layer2_description_write_and_description_rewrite import description_rewrite  # noqa: E402
 
 RUN = Path(sys.argv[1])
 EXCERPTS = Path(sys.argv[2])
@@ -207,12 +189,7 @@ def histogram(counts, *, labels=None, width=760, height=170, color=None, xlabel=
 
 def linechart_log(series, *, width=760, height=300, xlabel="", ylabel="",
                   xticks=None, yticks=None):
-    """Measured-vs-projected curve on a log x-axis.
-
-    series: [{"label", "points":[(x,y)…], "color", "dashed":bool}]. Log x because
-    the fit is in log space and a linear axis would squash the measured range
-    against the origin.
-    """
+    """Measured-vs-projected curve on a log x-axis; ``series``: ``[{"label", "points", "color", "dashed"}]``."""
     import math
     left, right, top, bottom = 52, 92, 14, 40
     xs = [x for s in series for x, _ in s["points"]]
@@ -287,9 +264,9 @@ def excerpt_block(e):
 cfg = manifest.get("config", {}) or {}
 sdf_cfg = cfg.get("sdf", {}) or {}
 models = {
-    "plan": sdf_cfg.get("plan_model") or cfg.get("model", "?"),
+    "plan": model_setting(sdf_cfg, "description_write_model") or cfg.get("model", "?"),
     "draft": sdf_cfg.get("draft_model") or cfg.get("model", "?"),
-    "rewrite": sdf_cfg.get("rewrite_model") or cfg.get("model", "?"),
+    "rewrite": sdf_cfg.get("revise_model") or sdf_cfg.get("rewrite_model") or cfg.get("model", "?"),
     "score": sdf_cfg.get("score_model") or cfg.get("model", "?"),
 }
 comp = (audit.get("composition") or {})
@@ -323,11 +300,11 @@ A(stat(f"{clean_frac:.0%}" if clean_frac is not None else "—",
 A("</div></section>")
 
 # ---- layer-1 implausibility screen (absent on runs made before it existed)
-screen = layer1_screen.load_screen_outputs(RUN)
+screen = deal_variables_and_screen_layer.load_screen_outputs(RUN)
 if screen is not None:
-    screen_rows = layer1_screen.removal_rate_rows(screen)
-    screen_round_rows = layer1_screen.round_rows(screen)
-    shift_rows = layer1_screen.share_shift_rows(screen)
+    screen_rows = deal_variables_and_screen_layer.removal_rate_rows(screen)
+    screen_round_rows = deal_variables_and_screen_layer.round_rows(screen)
+    shift_rows = deal_variables_and_screen_layer.share_shift_rows(screen)
     screened_n, removed_n = len(screen["screened_ids"]), len(screen["removed"])
     leftover_n = len(screen["leftover_ids"])
     corpus_rate = removed_n / screened_n if screened_n else 0.0
@@ -366,9 +343,9 @@ if screen is not None:
     A("</section>")
 
 # ---- layer-1 description rewrite (absent on runs made before it existed)
-rewrite_outputs = layer1_description_rewrite.load_description_rewrite_outputs(RUN)
+rewrite_outputs = description_rewrite.load_description_rewrite_outputs(RUN)
 if rewrite_outputs is not None:
-    rewrite_shares = layer1_description_rewrite.rewrite_share_rows(plans, rewrite_outputs)
+    rewrite_shares = description_rewrite.rewrite_share_rows(plans, rewrite_outputs)
     checked_n = rewrite_shares["checked"]
     A("<section id='description-rewrite'><h2>Description rewrite</h2>")
     A("<p>After planning, each description was checked for plausibility, for conformance to every dealt "
@@ -394,9 +371,9 @@ if rewrite_outputs is not None:
     A("</section>")
 
 # ---- layer-1 considerations selector (absent on runs made before it existed)
-considerations_outputs = layer1_select_considerations.load_considerations_outputs(RUN)
+considerations_outputs = consideration_scoring_and_selection_layer.load_considerations_outputs(RUN)
 if considerations_outputs is not None:
-    coverage = layer1_select_considerations.corpus_coverage_report(considerations_outputs, corpus)
+    coverage = consideration_scoring_and_selection_layer.corpus_coverage_report(considerations_outputs, corpus)
     coverage_total = coverage["eligible_documents"]
     A("<section id='considerations'><h2>Considerations</h2>")
     A("<p>After the description rewrite, a selector scored every consideration on an ordered moral list and "
@@ -806,11 +783,7 @@ if pats:
       "shows all 9 to be See-also lists or casual sign-offs rather than truncations. Treat the 22% "
       "as the judge scoring an intended property as a flaw, and note that even taken literally it "
       "sits below the audit's own 30% alarm threshold.</p>")
-    # Both figures in the note above are typed, not read from the audit, so they are a
-    # measurement frozen at the time of writing rather than a description of whatever run
-    # this report is being built for. The mechanical count has since moved; say so here
-    # rather than restating it, because the close reading behind it is a human judgement
-    # that cannot be re-derived.
+    # Both figures in the note above are typed, not read from the audit: a measurement frozen when written, which the mechanical count has since moved.
     A("<p class='muted'>Both figures above were measured on run "
       "<code>2026-07-25_15-57_fullscale-500-opus5</code> and are quoted as they stood then. "
       "The mechanical check has since been narrowed &mdash; a sign-off, letterhead or See-also "
@@ -830,14 +803,15 @@ for para in excerpts.get("weakness_notes", []):
 A("</section>")
 
 # ---- method
-stage_cost = collections.Counter()
+stage_cost = collections.Counter()   # by the five-layer layout's tag, so runs made in either layout line up
 for c in costs:
-    stage_cost[c.get("stage", "?")] += 1
+    stage_cost[pipeline_steps.canonical_stage_tag(c.get("stage", "?"))] += 1
 A("<section id='method'><h2>How this corpus was produced, and what to distrust</h2>")
 A(table(["stage", "model", "calls logged"],
-        [[esc(k), f"<code>{esc(models[k])}</code>", stage_cost.get(
-            {"plan": "layer1_plan", "draft": "layer2_draft",
-             "rewrite": "layer3_rewrite", "score": "layer4_score"}[k], 0)]
+        [[esc(k), f"<code>{esc(models[k])}</code>", sum(stage_cost.get(tag, 0) for tag in {
+            "plan": ("layer2_description_write",), "draft": ("layer4_draft",), "score": ("layer5_score",),
+            # a run made with the one-call revision logged its rewrite calls under the third tag
+            "rewrite": ("layer4_critique", "layer4_revise", "layer4_critique_and_revise_in_one_call")}[k])]
          for k in ("plan", "draft", "rewrite", "score")]))
 for para in excerpts.get("method_notes", []):
     A(f"<p>{esc(para)}</p>")

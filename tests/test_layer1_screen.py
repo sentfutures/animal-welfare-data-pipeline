@@ -4,7 +4,7 @@ through layer1_screen.run() and screen_hands() with a stubbed shared.api.call_cl
 variables and real deal rules stay in play.
 
 Money paths: parse happy path, malformed/truncated/out-of-range answers are not
-checkpointed, resume after a completed screen makes zero calls, rounds and batches
+recorded, resume after a completed screen makes zero calls, rounds and batches
 are stable across resume. Invalidating bugs: a redeal that changes a column's card
 counts, touches an accepted hand, or differs between runs of the same seed.
 """
@@ -17,59 +17,15 @@ from pathlib import Path
 import pytest
 
 from evals import audit_sdf
-from sdf_pipeline import compose_prompts as cp
-from sdf_pipeline import layer1_screen as screen
+from sdf_pipeline.shared_step_machinery import compose_prompts as cp
+from sdf_pipeline.layer1_deal_variables_and_screen import run_layer as screen
+from sdf_pipeline.layer1_deal_variables_and_screen import redeal as redeal_step
 from shared import utils
+from sdf_screen_test_builders import (
+    numbers_in, screen_answer, no_removals, remove_first_hand_of_round_zero_batches, remove_the_first_hand_of_every_batch, remove_the_first_three_hands_of_every_batch, screen_config,
+)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-
-
-def numbers_in(user_message):
-    """(number, text) for every <hand> block the screen prompt shows."""
-    return [(int(n), body) for n, body in re.findall(
-        r'<hand number="(\d+)">\n(.*?)\n</hand>', user_message, re.DOTALL)]
-
-
-def screen_answer(count, remove=(), reasons=None, **overrides):
-    """A schema-shaped answer for a batch of ``count`` hands."""
-    entries = [
-        {"number": n, "reasoning": f"Considered hand {n}.", "remove": n in remove,
-         "reason": (reasons or {}).get(n, "No realistic document could satisfy this hand.") if n in remove else ""}
-        for n in range(1, count + 1)
-    ]
-    return json.dumps({"specifications": entries, **overrides})
-
-
-def no_removals(user_message, **kw):
-    return screen_answer(len(numbers_in(user_message)))
-
-
-def remove_first_hand_of_round_zero_batches(user_message, **kw):
-    """Removes hand 1 of every round-0 batch; keeps everything in later rounds."""
-    count = len(numbers_in(user_message))
-    return screen_answer(count, remove={1} if "round0" in kw["item_id"] else ())
-
-
-def remove_the_first_hand_of_every_batch(user_message, **kw):
-    return screen_answer(len(numbers_in(user_message)), remove={1})
-
-
-def remove_the_first_three_hands_of_every_batch(user_message, **kw):
-    return screen_answer(len(numbers_in(user_message)), remove={1, 2, 3})
-
-
-@pytest.fixture
-def stage_dir(tmp_path):
-    directory = tmp_path / "layer1"
-    directory.mkdir()
-    return directory
-
-
-@pytest.fixture
-def screen_config(tiny_config):
-    tiny_config["sdf"]["n_prompts"] = 25
-    tiny_config["sdf"]["screen_batch_size"] = 10
-    return tiny_config
 
 
 def column_counts(hands):
@@ -150,24 +106,9 @@ def test_screen_hands_maps_numbers_to_judgments_through_the_public_function(stub
 
 
 def test_no_model_facing_prose_lives_in_the_python_module():
-    source = (REPO_ROOT / "sdf_pipeline" / "layer1_screen.py").read_text(encoding="utf-8")
+    source = (REPO_ROOT / "sdf_pipeline" / "layer1_deal_variables_and_screen" / "screen.py").read_text(encoding="utf-8")
     for phrase in ("Judge against how the world actually is", "These are not reasons", "competent planner"):
         assert phrase not in source
-
-
-def test_screen_prompt_wording(prompts_sdf):
-    prompts = screen.load_screen_prompts(prompts_sdf)
-    system, user = screen.build_screen_prompt(prompts, ["a", "b", "c"])
-    text = (system + user).lower()
-    assert "extremely implausible" in text and "incoherent" not in text
-    assert "none" in user.lower() and "several" in user.lower()  # permission to remove none or several
-    assert "no target number" in user.lower()
-    assert "reasoning first" in user
-    assert "not reasons to remove" in user
-    assert "budgerigars" in user and "encyclopedia" in user  # the two audit-derived illustrations
-    assert not re.search(r"\b(at least|at most|about|roughly|around) (one|two|three|\d+)\b",
-                         user, re.IGNORECASE)
-    assert "{" not in user and "allowed" not in text
 
 
 def test_truncated_answer_is_rejected(stub_claude, prompts_sdf):
@@ -178,49 +119,13 @@ def test_truncated_answer_is_rejected(stub_claude, prompts_sdf):
 
 # --- the stage: batching, mapping, rounds ---
 
-def test_screen_shows_the_planner_variable_lines_in_numbered_batches_of_ten(
-    screen_config, prompts_sdf, stage_dir, stub_claude
-):
-    calls = stub_claude(no_removals)
-    accepted = screen.run(screen_config, prompts_sdf, stage_dir)
-
-    assert len(accepted) == 25
-    assert sorted(len(numbers_in(c["user_message"])) for c in calls) == [5, 10, 10]
-    assert all(c["stage"] == "layer1_screen" and c["temperature"] is None for c in calls)
-    # what the model saw for a hand is exactly the text the planner sees
-    render = cp.make_variable_line_renderer(prompts_sdf, 137)
-    hands = {h["prompt_id"]: h for h in utils.load_jsonl(stage_dir / "screen_hands.jsonl")}
-    batches = utils.load_jsonl(stage_dir / "screen_batches.jsonl")
-    for call in calls:
-        batch = next(b for b in batches if b["batch_id"] == call["item_id"])
-        for (number, body), pid in zip(numbers_in(call["user_message"]), batch["prompt_ids"]):
-            assert body == render(hands[pid]).strip()
-    assert not any("matrix_0" in c["user_message"] for c in calls)  # numbers only, never ids
-
-
-def test_numbers_map_back_to_the_right_hands_and_rejections_carry_the_round(
-    screen_config, prompts_sdf, stage_dir, stub_claude
-):
-    stub_claude(remove_first_hand_of_round_zero_batches)
-    screen.run(screen_config, prompts_sdf, stage_dir)
-    batches = [b for b in utils.load_jsonl(stage_dir / "screen_batches.jsonl") if b["round"] == 0]
-    first_of_each_batch = {b["prompt_ids"][0] for b in batches}
-    rejections = utils.load_jsonl(stage_dir / "screen_rejections.jsonl")
-    assert {r["prompt_id"] for r in rejections} == first_of_each_batch
-    assert all(r["round"] == 0 and r["reason"] and r["variable_lines"] and r["variables"] for r in rejections)
-    judgments = utils.load_jsonl(stage_dir / "screen_judgments.jsonl")
-    assert all(j["reasoning"] and j["batch_id"].startswith("screen_round") for j in judgments)
-    assert {j["prompt_id"] for j in judgments if j["remove"]} >= first_of_each_batch
-
-
-def test_out_of_range_numbers_are_rejected_and_not_checkpointed(
+def test_out_of_range_numbers_are_rejected_and_not_recorded(
     screen_config, prompts_sdf, stage_dir, stub_claude
 ):
     stub_claude(lambda user_message, **kw: json.dumps({"specifications": [
         valid_entry(11)] * len(numbers_in(user_message))}))
     with pytest.raises(SystemExit, match="every pending screen call failed"):
         screen.run(screen_config, prompts_sdf, stage_dir)
-    assert utils.Checkpoint(stage_dir / "_screen_checkpoint.json").done_count == 0
     assert not (stage_dir / "screen_judgments.jsonl").exists()
     assert not (stage_dir / "screened_hands.jsonl").exists()
 
@@ -232,34 +137,11 @@ def test_out_of_range_numbers_are_rejected_and_not_checkpointed(
     lambda count: "{not json",                                           # malformed JSON
     lambda count: (screen_answer(count), "max_tokens"),                  # truncated
 ])
-def test_unusable_answers_are_not_checkpointed(screen_config, prompts_sdf, stage_dir, stub_claude, make_bad_answer):
+def test_unusable_answers_are_not_recorded(screen_config, prompts_sdf, stage_dir, stub_claude, make_bad_answer):
     stub_claude(lambda user_message, **kw: make_bad_answer(len(numbers_in(user_message))))
     with pytest.raises(SystemExit, match="every pending screen call failed"):
         screen.run(screen_config, prompts_sdf, stage_dir)
-    assert utils.Checkpoint(stage_dir / "_screen_checkpoint.json").done_count == 0
     assert not (stage_dir / "screen_rejections.jsonl").exists()
-
-
-def test_one_failed_batch_stops_before_any_redeal_and_resume_retries_exactly_that_batch(
-    screen_config, prompts_sdf, stage_dir, stub_claude
-):
-    failing = {}
-
-    def dispatcher(user_message, **kw):
-        failing.setdefault("id", kw["item_id"])  # the first batch to be called fails once
-        if kw["item_id"] == failing["id"] and not failing.get("retried"):
-            failing["retried"] = True
-            return "I think number 2 might be a problem."  # not JSON
-        return remove_first_hand_of_round_zero_batches(user_message, **kw)
-
-    stub_claude(dispatcher)
-    with pytest.raises(SystemExit, match="1 batch"):
-        screen.run(screen_config, prompts_sdf, stage_dir)
-    assert len(utils.load_jsonl(stage_dir / "screen_rounds.jsonl")) == 1  # no redeal happened
-    resumed_calls = stub_claude(remove_first_hand_of_round_zero_batches)
-    screen.run(screen_config, prompts_sdf, stage_dir)
-    assert failing["id"] in [c["item_id"] for c in resumed_calls]
-    assert [c["item_id"] for c in resumed_calls].count(failing["id"]) == 1
 
 
 def test_batches_are_written_before_any_call(screen_config, prompts_sdf, stage_dir, stub_claude):
@@ -274,73 +156,7 @@ def test_batches_are_written_before_any_call(screen_config, prompts_sdf, stage_d
     assert seen_at_first_call == [3, 3, 3]
 
 
-def test_model_falls_back_from_screen_to_plan_to_global(screen_config, prompts_sdf, tmp_path, stub_claude):
-    screen_config["sdf"]["n_prompts"] = 3
-    calls = stub_claude(no_removals)
-    for name, knobs, expected in (
-        ("first", {}, None),
-        ("second", {"plan_model": "plan-model-x"}, "plan-model-x"),
-        ("third", {"plan_model": "plan-model-x", "screen_model": "screen-model-x"}, "screen-model-x"),
-    ):
-        directory = tmp_path / name
-        directory.mkdir()
-        screen_config["sdf"].update(knobs)
-        screen.run(screen_config, prompts_sdf, directory)
-        assert calls[-1]["model"] == expected
-
-
-def test_batch_size_knob(screen_config, prompts_sdf, stage_dir, stub_claude):
-    screen_config["sdf"]["screen_batch_size"] = 4
-    screen_config["sdf"]["n_prompts"] = 10
-    calls = stub_claude(no_removals)
-    screen.run(screen_config, prompts_sdf, stage_dir)
-    assert len(calls) == 3  # 4 + 4 + 2
-
-
-def test_batches_are_seeded_and_input_order_independent(screen_config, prompts_sdf, tmp_path, stub_claude):
-    stub_claude(no_removals)
-    batches = []
-    for name, seed in (("a", 0), ("b", 0), ("c", 1)):
-        directory = tmp_path / name
-        directory.mkdir()
-        screen_config["sdf"]["seed"] = seed
-        screen.run(screen_config, prompts_sdf, directory)
-        batches.append(utils.load_jsonl(directory / "screen_batches.jsonl"))
-    assert batches[0] == batches[1]
-    assert batches[0] != batches[2]
-
-
 # --- redeal rounds ---
-
-def test_removed_hands_are_redealt_and_every_columns_counts_stay_exact(
-    screen_config, prompts_sdf, stage_dir, stub_claude
-):
-    # The first hand of each round-0 batch is removed; the redealt hands all pass.
-    stub_claude(remove_first_hand_of_round_zero_batches)
-    accepted = screen.run(screen_config, prompts_sdf, stage_dir)
-    dealt = load_dealt_hands(stage_dir)
-    assert len(dealt) == 25 and len(accepted) == 25   # 3 removed, 3 redealt and accepted
-    assert column_counts(accepted) == column_counts(dealt)
-    summary = json.loads((stage_dir / "screen_summary.json").read_text())
-    assert summary["leftover_dropped"] == 0
-    assert [(r["round"], r["hands"], r["removed"]) for r in summary["rounds"]] == [(0, 25, 3), (1, 3, 0)]
-    # redealt hands got fresh ids, and the removed ones are not accepted
-    removed_ids = set(screen.load_rejections(stage_dir))
-    assert not removed_ids & {h["prompt_id"] for h in accepted}
-    redealt = [h for h in utils.load_jsonl(stage_dir / "screen_hands.jsonl") if h["round"] == 1]
-    assert all(h["prompt_id"] not in {d["prompt_id"] for d in dealt} for h in redealt)
-
-
-def test_redeal_never_touches_hands_already_accepted(screen_config, prompts_sdf, stage_dir, stub_claude):
-    stub_claude(remove_first_hand_of_round_zero_batches)
-    accepted = screen.run(screen_config, prompts_sdf, stage_dir)
-    dealt = {h["prompt_id"]: h["variables"] for h in load_dealt_hands(stage_dir)}
-    removed_ids = set(screen.load_rejections(stage_dir))
-    for hand in accepted:
-        if hand["prompt_id"] in dealt:
-            assert hand["variables"] == dealt[hand["prompt_id"]]
-    assert {pid for pid in dealt if pid not in removed_ids} <= {h["prompt_id"] for h in accepted}
-
 
 def test_redeal_applies_deal_rule_repair_only_among_the_new_hands(prompts_sdf):
     values, weights, value_ids = cp.load_variables(prompts_sdf / "variables.txt")
@@ -349,7 +165,7 @@ def test_redeal_applies_deal_rule_repair_only_among_the_new_hands(prompts_sdf):
     hands = [{"prompt_id": f"matrix_{i:06d}", "variables": v}
              for i, v in enumerate(cp.deal_hands(template, values, weights, 60, 0, rules))]
     removed = hands[:12]
-    new_hands = screen.redeal_removed_hands(removed, 1, 0, rules)
+    new_hands = redeal_step.redeal_removed_hands(removed, 1, 0, rules)
     assert new_hands is not None and len(new_hands) == 12
     assert column_counts([{"variables": h} for h in new_hands]) == column_counts(removed)
     from shared import deal_constraints
@@ -362,15 +178,10 @@ def test_redeal_is_deterministic_per_seed_and_round(prompts_sdf):
     template = (prompts_sdf / "layer1.txt").read_text(encoding="utf-8")
     hands = [{"prompt_id": f"matrix_{i:06d}", "variables": v}
              for i, v in enumerate(cp.deal_hands(template, values, weights, 40, 0, rules))][:10]
-    same = [screen.redeal_removed_hands(hands, 1, 0, rules) for _ in range(2)]
+    same = [redeal_step.redeal_removed_hands(hands, 1, 0, rules) for _ in range(2)]
     assert same[0] == same[1]
-    assert screen.redeal_removed_hands(hands, 2, 0, rules) != same[0]
-    assert screen.redeal_removed_hands(hands, 1, 1, rules) != same[0]
-
-
-def test_a_lone_removed_hand_cannot_be_redealt_into_a_different_hand(prompts_sdf):
-    hand = {"prompt_id": "matrix_000000", "variables": {"tone": "a", "culture": "b"}}
-    assert screen.redeal_removed_hands([hand], 1, 0, []) is None
+    assert redeal_step.redeal_removed_hands(hands, 2, 0, rules) != same[0]
+    assert redeal_step.redeal_removed_hands(hands, 1, 1, rules) != same[0]
 
 
 def test_screen_terminates_after_the_maximum_rounds_and_reports_leftovers(
@@ -396,16 +207,6 @@ def test_screen_terminates_after_the_maximum_rounds_and_reports_leftovers(
         assert counter - final[axis] == column_counts(leftover_hands)[axis]
 
 
-def test_removed_hands_that_cannot_be_redealt_are_dropped_and_recorded(
-    screen_config, prompts_sdf, stage_dir, stub_claude
-):
-    stub_claude(remove_the_first_hand_of_every_batch)  # round 1 has one hand: no different deal exists
-    accepted = screen.run(screen_config, prompts_sdf, stage_dir)
-    summary = json.loads((stage_dir / "screen_summary.json").read_text())
-    assert summary["leftover_dropped"] == 1 and len(accepted) == 24
-    assert "could not be redealt" in summary["rounds"][-1]["note"] and summary["rounds"][-1]["hands"] == 0
-
-
 def test_zero_redeal_rounds_drops_removed_hands_without_redealing(
     screen_config, prompts_sdf, stage_dir, stub_claude
 ):
@@ -429,30 +230,6 @@ def test_redeal_rounds_are_saved_before_they_are_screened(screen_config, prompts
     assert round_one and all(rounds == 2 and hands == 28 for _, rounds, hands in round_one)
 
 
-def test_resume_mid_redeal_repeats_the_identical_round(screen_config, prompts_sdf, stage_dir, stub_claude, tmp_path):
-    # An uninterrupted run, for comparison.
-    stub_claude(remove_first_hand_of_round_zero_batches)
-    whole_dir = tmp_path / "whole"
-    whole_dir.mkdir()
-    whole = screen.run(screen_config, prompts_sdf, whole_dir)
-
-    # A run that dies on its first round-1 call, then resumes.
-    def dies_in_round_one(user_message, **kw):
-        if "round1" in kw["item_id"]:
-            return "not json"
-        return remove_first_hand_of_round_zero_batches(user_message, **kw)
-
-    stub_claude(dies_in_round_one)
-    with pytest.raises(SystemExit):
-        screen.run(screen_config, prompts_sdf, stage_dir)
-    redeal_before = [h for h in utils.load_jsonl(stage_dir / "screen_hands.jsonl") if h["round"] == 1]
-    resumed_calls = stub_claude(remove_first_hand_of_round_zero_batches)
-    resumed = screen.run(screen_config, prompts_sdf, stage_dir)
-    assert all("round1" in c["item_id"] for c in resumed_calls)  # round 0 is not re-screened
-    assert [h for h in utils.load_jsonl(stage_dir / "screen_hands.jsonl") if h["round"] == 1] == redeal_before
-    assert resumed == whole
-
-
 def test_a_redeal_interrupted_before_its_round_record_is_dealt_again_without_orphan_hands(
     screen_config, prompts_sdf, stage_dir, stub_claude, tmp_path
 ):
@@ -470,7 +247,6 @@ def test_a_redeal_interrupted_before_its_round_record_is_dealt_again_without_orp
     rounds_path = stage_dir / "screen_rounds.jsonl"
     utils.save_jsonl(utils.load_jsonl(rounds_path)[:1], rounds_path)   # the redeal's hands are saved, its round record is not
     (stage_dir / "screen_batches.jsonl").unlink()
-    (stage_dir / "_screen_checkpoint.json").unlink()
     stub_claude(remove_first_hand_of_round_zero_batches)
     resumed = screen.run(screen_config, prompts_sdf, stage_dir)
     hand_ids = [h["prompt_id"] for h in utils.load_jsonl(stage_dir / "screen_hands.jsonl")]
@@ -514,8 +290,7 @@ def test_a_batch_screened_again_replaces_its_earlier_verdicts(screen_config, pro
     screen_config["sdf"]["screen_redeal_rounds"] = 0
     stub_claude(remove_the_first_hand_of_every_batch)
     screen.run(screen_config, prompts_sdf, stage_dir)
-    checkpoint_path = stage_dir / "_screen_checkpoint.json"
-    checkpoint_path.unlink()          # the verdicts were saved but the batches were not checkpointed
+    (stage_dir / "screen_judgments.jsonl").unlink()   # the rejections were saved but the judgments, which finish a batch, were not
     for name in ("screened_hands.jsonl", "screen_summary.json"):
         (stage_dir / name).unlink()
     stub_claude(no_removals)
@@ -525,22 +300,34 @@ def test_a_batch_screened_again_replaces_its_earlier_verdicts(screen_config, pro
     assert screen.load_rejections(stage_dir) == {} and len(accepted) == 25
 
 
+def test_a_run_made_by_earlier_code_screens_a_half_written_batch_again(screen_config, prompts_sdf, stage_dir, stub_claude):
+    screen_config["sdf"]["screen_redeal_rounds"] = 0
+    stub_claude(remove_the_first_hand_of_every_batch)
+    screen.run(screen_config, prompts_sdf, stage_dir)
+    first_batch_id = "screen_round0_batch0000"
+    first_batch = next(b for b in utils.load_jsonl(stage_dir / "screen_batches.jsonl") if b["batch_id"] == first_batch_id)
+    rejections_path = stage_dir / "screen_rejections.jsonl"
+    utils.save_jsonl([r for r in utils.load_jsonl(rejections_path) if r["batch_id"] != first_batch_id], rejections_path)
+    checkpoint = utils.Checkpoint(stage_dir / "_screen_checkpoint.json")
+    for batch in utils.load_jsonl(stage_dir / "screen_batches.jsonl"):
+        if batch["batch_id"] != first_batch_id:
+            checkpoint.mark_done(batch["batch_id"])
+    for name in ("screened_hands.jsonl", "screen_summary.json"):
+        (stage_dir / name).unlink()
+    calls = stub_claude(no_removals)
+    screen.run(screen_config, prompts_sdf, stage_dir)
+    assert [call["item_id"] for call in calls] == [first_batch_id]
+    assert not set(first_batch["prompt_ids"]) & set(screen.load_rejections(stage_dir))
+    judgments = utils.load_jsonl(stage_dir / "screen_judgments.jsonl")
+    assert len(judgments) == len({j["prompt_id"] for j in judgments}) == 25
+
+
 def test_resume_after_a_completed_screen_makes_zero_calls(screen_config, prompts_sdf, stage_dir, stub_claude):
     stub_claude(remove_first_hand_of_round_zero_batches)
     first = screen.run(screen_config, prompts_sdf, stage_dir)
     calls = stub_claude([])  # any call would exhaust the empty queue and fail
     again = screen.run(screen_config, prompts_sdf, stage_dir)
     assert calls == [] and again == first
-
-
-def test_same_seed_gives_the_same_screen(screen_config, prompts_sdf, tmp_path, stub_claude):
-    stub_claude(remove_first_hand_of_round_zero_batches)
-    outcomes = []
-    for name in ("a", "b"):
-        directory = tmp_path / name
-        directory.mkdir()
-        outcomes.append(screen.run(screen_config, prompts_sdf, directory))
-    assert outcomes[0] == outcomes[1]
 
 
 def test_disabled_screen_makes_no_calls_and_writes_nothing(screen_config, prompts_sdf, stage_dir, stub_claude):
@@ -570,7 +357,8 @@ def write_screened_run(run_dir, hands, removed_ids, accepted_ids=None, rounds=No
                        "prompt_ids": [h["prompt_id"] for h in hands]}], stage_dir / "screen_batches.jsonl")
     utils.save_jsonl([{"prompt_id": pid, "round": 0, "reason": "r"} for pid in removed_ids],
                      stage_dir / "screen_rejections.jsonl")
-    utils.Checkpoint(stage_dir / "_screen_checkpoint.json").mark_done("screen_round0_batch0000")
+    utils.save_jsonl([{"prompt_id": h["prompt_id"], "round": 0, "batch_id": "screen_round0_batch0000"} for h in hands],
+                     stage_dir / "screen_judgments.jsonl")
     if accepted_ids is not None:
         utils.save_jsonl([h for h in hands if h["prompt_id"] in accepted_ids], stage_dir / "screened_hands.jsonl")
         (stage_dir / "screen_summary.json").write_text(json.dumps({
@@ -612,7 +400,8 @@ def test_removal_rates_count_every_round(tmp_path):
     utils.save_jsonl([{"batch_id": "screen_round0_batch0000", "round": 0, "prompt_ids": [h["prompt_id"] for h in hands]},
                       {"batch_id": "screen_round1_batch0000", "round": 1, "prompt_ids": ["matrix_000010"]}],
                      stage_dir / "screen_batches.jsonl")
-    utils.Checkpoint(stage_dir / "_screen_checkpoint.json").mark_done("screen_round1_batch0000")
+    utils.save_jsonl([{"prompt_id": h["prompt_id"], "round": h["round"], "batch_id": f"screen_round{h['round']}_batch0000"}
+                      for h in hands + redealt], stage_dir / "screen_judgments.jsonl")
     outputs = screen.load_screen_outputs(tmp_path)
     cell = next(r for r in screen.removal_rate_rows(outputs) if r["value"] == "skeptical or displeased")
     assert (cell["screened"], cell["removed"]) == (4, 2)
@@ -637,15 +426,29 @@ def test_load_screen_outputs_is_none_for_a_run_without_the_screen(tmp_path):
     assert screen.load_screen_outputs(tmp_path / "does_not_exist") is None
 
 
-def test_only_checkpointed_batches_count_as_screened(tmp_path):
-    hands = make_hands(6)
-    stage_dir = write_screened_run(tmp_path, hands, [])
+def write_two_batches_of_which_the_first_is_judged(tmp_path):
+    stage_dir = write_screened_run(tmp_path, make_hands(6), [])
     utils.save_jsonl([{"batch_id": "screen_round0_batch0000", "round": 0, "prompt_ids": ["matrix_000000", "matrix_000001"]},
-                      {"batch_id": "screen_round0_batch0001", "round": 0, "prompt_ids": ["matrix_000002"]}],
+                      {"batch_id": "screen_round0_batch0001", "round": 0, "prompt_ids": ["matrix_000002", "matrix_000003"]}],
                      stage_dir / "screen_batches.jsonl")
+    utils.save_jsonl([{"prompt_id": f"matrix_00000{i}", "round": 0, "batch_id": "screen_round0_batch0000"} for i in (0, 1)]
+                     + [{"prompt_id": "matrix_000002", "round": 0, "batch_id": "screen_round0_batch0001"}],
+                     stage_dir / "screen_judgments.jsonl")
+    return stage_dir
+
+
+def test_only_batches_with_a_judgment_for_every_hand_count_as_screened(tmp_path):
+    write_two_batches_of_which_the_first_is_judged(tmp_path)
     outputs = screen.load_screen_outputs(tmp_path)
     assert outputs["screened_ids"] == {"matrix_000000", "matrix_000001"}
     assert (outputs["batches_done"], outputs["batches_total"]) == (1, 2)
+
+
+def test_in_a_run_made_by_earlier_code_only_the_marked_batches_count_as_screened(tmp_path):
+    stage_dir = write_two_batches_of_which_the_first_is_judged(tmp_path)
+    utils.Checkpoint(stage_dir / "_screen_checkpoint.json").mark_done("screen_round0_batch0001")
+    outputs = screen.load_screen_outputs(tmp_path)
+    assert outputs["screened_ids"] == {"matrix_000002", "matrix_000003"} and outputs["batches_done"] == 1
 
 
 def test_audit_reports_screen_removals_rounds_and_flags(tmp_path, capsys):

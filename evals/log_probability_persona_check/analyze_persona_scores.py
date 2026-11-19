@@ -222,7 +222,7 @@ def condition_score_matrix_of(run):
 def build_per_document_scores(run, condition_score_matrix):
     setup = run.setup
     persona, control = setup.persona_name, setup.control_group
-    no_prompt_row = run.condition_ids.index(NO_SYSTEM_PROMPT_CONDITION_ID)
+    no_prompt_row = (run.condition_ids.index(NO_SYSTEM_PROMPT_CONDITION_ID) if setup.no_system_prompt_present else None)
     rows = []
     for document in run.documents:
         scores = run.scores_by_document[document["document_id"]]
@@ -235,7 +235,8 @@ def build_per_document_scores(run, condition_score_matrix):
         row["number_of_tokens"] = scores.number_of_tokens
         row["generic_mean_log_probability"] = scores.generic_mean_log_probability
         row[f"{persona}_mean_score"] = float(condition_scores[run.group_indices[setup.target_group]].mean())
-        row[f"{control}_mean_score"] = float(condition_scores[run.group_indices[setup.control_group]].mean())
+        if setup.topic_control_present:
+            row[f"{control}_mean_score"] = float(condition_scores[run.group_indices[setup.control_group]].mean())
         if setup.same_values_group:
             row[f"{setup.same_values_group}_mean_score"] = float(
                 condition_scores[run.group_indices[setup.same_values_group]].mean())
@@ -244,8 +245,11 @@ def build_per_document_scores(run, condition_score_matrix):
                                 if condition["condition_group"] == setup.same_values_group
                                 and condition["persona_name"] == same_values_persona_name]
             row[f"{same_values_persona_name}_mean_score"] = float(condition_scores[same_values_rows].mean())
-        row[setup.target_minus_control_score_column] = row[f"{persona}_mean_score"] - row[f"{control}_mean_score"]
-        row["no_system_prompt_score"] = float(condition_scores[no_prompt_row])
+        contrast_mean_column = (f"{control}_mean_score" if setup.topic_control_present
+                                else f"{setup.same_values_group}_mean_score")
+        row[setup.target_minus_contrast_score_column] = row[f"{persona}_mean_score"] - row[contrast_mean_column]
+        if no_prompt_row is not None:
+            row["no_system_prompt_score"] = float(condition_scores[no_prompt_row])
         for condition_id, score in zip(run.condition_ids, condition_scores):
             row[f"score__{condition_id}"] = float(score)
         rows.append(row)
@@ -259,16 +263,17 @@ def build_significance_table(run, condition_score_matrix):
     for document in run.documents:
         scores = condition_score_matrix.loc[document["document_id"]].to_numpy()
         target = scores[run.group_indices[setup.target_group]]
-        controls = scores[run.group_indices[control]]
-        main_u, main_p = mann_whitney_two_sided(target, controls)
         wilcoxon_statistic, wilcoxon_p = wilcoxon_against_zero(target)
-        row = {"document_id": document["document_id"], f"number_of_{persona}_rewordings": len(target),
-               f"number_of_{control}_rewordings": len(controls),
-               "main_test_mann_whitney_u": main_u, "main_test_p_value": main_p,
-               f"main_test_median_{persona}_minus_{control}": float(np.median(target) - np.median(controls)),
-               f"{persona}_median_score": float(np.median(target)),
-               f"{persona}_vs_generic_wilcoxon_statistic": wilcoxon_statistic,
-               f"{persona}_vs_generic_wilcoxon_p_value": wilcoxon_p}
+        row = {"document_id": document["document_id"], f"number_of_{persona}_rewordings": len(target)}
+        if setup.topic_control_present:  # without topic controls the main test is not available
+            controls = scores[run.group_indices[control]]
+            main_u, main_p = mann_whitney_two_sided(target, controls)
+            row.update({f"number_of_{control}_rewordings": len(controls),
+                        "main_test_mann_whitney_u": main_u, "main_test_p_value": main_p,
+                        f"main_test_median_{persona}_minus_{control}": float(np.median(target) - np.median(controls))})
+        row.update({f"{persona}_median_score": float(np.median(target)),
+                    f"{persona}_vs_generic_wilcoxon_statistic": wilcoxon_statistic,
+                    f"{persona}_vs_generic_wilcoxon_p_value": wilcoxon_p})
         if same_values:
             same = scores[run.group_indices[same_values]]
             second_u, second_p = mann_whitney_two_sided(target, same)
@@ -279,14 +284,16 @@ def build_significance_table(run, condition_score_matrix):
     table = pd.DataFrame(rows)
     is_original = np.array([document.get("rewrite_direction") is None for document in run.documents])
     table["q_value_is_uncorrected_rewrite"] = ~is_original
-    tests = [("main_test_p_value", "main_test_q_value"),
-             (f"{persona}_vs_generic_wilcoxon_p_value", f"{persona}_vs_generic_wilcoxon_q_value")]
+    tests = [(f"{persona}_vs_generic_wilcoxon_p_value", f"{persona}_vs_generic_wilcoxon_q_value")]
+    if setup.topic_control_present:
+        tests.insert(0, ("main_test_p_value", "main_test_q_value"))
     if same_values:
         tests.append(("second_test_p_value", "second_test_q_value"))
     for p_column, q_column in tests:
         table[q_column] = benjamini_hochberg_across_original_documents(table, p_column, is_original)
-    table["main_test_direction"] = [direction_label(q, d) for q, d in zip(
-        table["main_test_q_value"], table[f"main_test_median_{persona}_minus_{control}"])]
+    if setup.topic_control_present:
+        table["main_test_direction"] = [direction_label(q, d) for q, d in zip(
+            table["main_test_q_value"], table[f"main_test_median_{persona}_minus_{control}"])]
     if same_values:
         table["second_test_direction"] = [direction_label(q, d) for q, d in zip(
             table["second_test_q_value"], table[f"second_test_median_{persona}_minus_{same_values}"])]
@@ -316,7 +323,7 @@ def one_way_intraclass_correlation(score_matrix):
 def build_rewording_agreement(run, condition_score_matrix):
     setup = run.setup
     rows = []
-    for group in setup.persona_group_names:
+    for group in setup.persona_group_names_present:
         for persona_name in run.persona_names_by_group[group]:
             persona_conditions = [c for c in run.conditions if c["condition_group"] == group and c["persona_name"] == persona_name]
             condition_ids = [c["condition_id"] for c in persona_conditions]
@@ -383,10 +390,15 @@ def ordinary_least_squares(design_matrix, outcome):
     return coefficients, standard_errors, t_statistics, p_values
 
 
-def build_scores_by_spec_variable(per_document_scores, outcome_column):
+def build_scores_by_spec_variable(per_document_scores, outcome_column, skipped_spec_variables=()):
+    """`skipped_spec_variables`: names of document variables left out of the per-level summary and the regression
+    (for variables that are unique per document or per prompt, such as a real user message). Their columns stay in the
+    per-document scores table."""
+    skipped_spec_variables = set(skipped_spec_variables)
     originals = per_document_scores[per_document_scores["rewrite_direction"].isna()].copy()
     variable_columns = [c for c in per_document_scores.columns if c.startswith("spec_")] + [LANGUAGE_COLUMN]
-    variable_columns = [c for c in variable_columns if c in originals.columns]
+    variable_columns = [c for c in variable_columns if c in originals.columns
+                        and c[len("spec_"):] not in skipped_spec_variables]
     rows = []
     for column in variable_columns:
         variable_name = column[len("spec_"):] if column.startswith("spec_") else column
@@ -429,7 +441,7 @@ def build_scores_by_spec_variable(per_document_scores, outcome_column):
 def build_whole_document_control_check(per_document_scores, setup):
     """Rewrite-minus-source difference of the persona-minus-control score for every rewritten document, then one
     summary row per rewrite direction. Returns (table, verdicts dict)."""
-    score_column = setup.target_minus_control_score_column
+    score_column = setup.target_minus_contrast_score_column
     columns = ["row_type", "document_id", "source_document_id", "rewrite_direction", "direction_role", score_column,
                f"source_{score_column}", "difference_rewrite_minus_source", "expected_sign_of_difference",
                "moved_in_expected_direction", "number_of_rewrites", "number_moving_in_expected_direction",
@@ -503,6 +515,21 @@ def whole_document_verdicts(setup, counts_by_role):
 # Notes
 # ----------------------------------------------------------------------------------------------------------
 
+def no_topic_control_note(setup):
+    if setup.topic_control_present:
+        return ""
+    return (f"## This run has no topic-control conditions\nIt is a persona-subset run. Not available: the main test "
+            f"(target against topic controls, `main_test_*` columns), the `{setup.control_group}_mean_score` column, "
+            f"and the topic-control pooled contrast. Wherever this document says target minus topic controls, this run "
+            f"uses target minus the pooled same-values controls (`{setup.contrast_group}`) instead: the changed-span "
+            f"contrast, the document-mean difference column `{setup.target_minus_contrast_score_column}`, the "
+            f"whole-document control check, the spec-variable summary and the total log-likelihood differences. The second "
+            f"test (target against same-values controls), rewording agreement and extreme spans are unchanged. "
+            f"{'No `no_system_prompt` condition was scored, so `no_system_prompt_score` is absent. ' if not setup.no_system_prompt_present else ''}"
+            f"The pass criteria were pre-registered with topic controls in the contrast; the same-values contrast is a "
+            f"different contrast, so read the control verdicts as not matching the pre-registration.\n\n")
+
+
 def analysis_notes_text(setup, window_size, windows_per_direction, number_of_permutations):
     persona, control, same = setup.persona_name, setup.control_group, setup.same_values_group
     directions = ", ".join(f"{role} = {name}" for role, name in setup.direction_names_by_role.items())
@@ -512,7 +539,7 @@ Persona set: {setup.persona_set_name}. Persona: {persona}. Scored with {setup.mo
 Scores from different model types are not comparable. Condition groups: target `{setup.target_group}`, topic controls `{control}`{f", same-values control `{same}`" if same else ""}. Rewrite directions: {directions}.
 All differences are in nats per token. Condition groups and direction names come from the persona set configuration recorded in the run configuration.
 
-## Loading checks
+{no_topic_control_note(setup)}## Loading checks
 Analysis stops with an error if the run configurations disagree on model type, model name or model revision; if any document has no .npz; if the condition ids in any .npz differ from conditions.jsonl; if the condition groups or their sizes differ from the configuration; or if an array shape does not match the condition and token counts.
 
 ## Primary: extreme_spans (JSONL)
@@ -539,10 +566,10 @@ One row per rewording; persona-level columns repeat on each row of the persona, 
 
 ## Secondary, not validated: document means ({SECONDARY_FILE_PREFIX}*)
 The whole-document score did not track the persona in the first preachiness run: persona-like passages are a small share of most documents and the rest of the text drowns them out. Do not build a corpus-level verdict on these.
-- per_document_scores: `score__<condition_id>` = mean over tokens of `log_probabilities[c] - log_probabilities[generic]`; `{persona}_mean_score`, `{control}_mean_score`{f", `{same}_mean_score`" if same else ""} are means of those over the group's conditions; `{setup.target_minus_control_score_column}` is their difference. Each same-values control persona also has its own `<persona>_mean_score` column; `{same}_mean_score` pools all of them.
+- per_document_scores: `score__<condition_id>` = mean over tokens of `log_probabilities[c] - log_probabilities[generic]`; `{persona}_mean_score`, `{control}_mean_score`{f", `{same}_mean_score`" if same else ""} are means of those over the group's conditions; `{setup.target_minus_contrast_score_column}` is their difference. Each same-values control persona also has its own `<persona>_mean_score` column; `{same}_mean_score` pools all of them.
 - per_document_significance_tests: main test = two-sided Mann-Whitney U of the {persona} rewording scores against the pooled {control} rewording scores{f"; second test the same against the pooled {same} rewording scores (all same-values personas together)" if same else ""}; one-sample Wilcoxon of the {persona} scores against 0 (generic is 0 by definition). Benjamini-Hochberg q-values across original documents; rewrites keep the uncorrected p. Direction label: elevated or suppressed when q < 0.05, otherwise not significant.
-- scores_by_spec_variable: original documents only; per-level mean and standard error of `{setup.target_minus_control_score_column}`, and ordinary least squares on one-hot spec variables (alphabetically first level is the reference; pseudo-inverse; variables with more than {MAXIMUM_LEVELS_FOR_REGRESSION_VARIABLE} levels left out; language left out as collinear with culture).
-- whole_document_control_check: rewrite minus source of the {setup.target_minus_control_score_column}; a difference of exactly 0 counts as not moving; Wilcoxon signed-rank p-values two-sided and in the expected direction.
+- scores_by_spec_variable: original documents only; per-level mean and standard error of `{setup.target_minus_contrast_score_column}`, and ordinary least squares on one-hot spec variables (alphabetically first level is the reference; pseudo-inverse; variables with more than {MAXIMUM_LEVELS_FOR_REGRESSION_VARIABLE} levels left out; language left out as collinear with culture).
+- whole_document_control_check: rewrite minus source of the {setup.target_minus_contrast_score_column}; a difference of exactly 0 counts as not moving; Wilcoxon signed-rank p-values two-sided and in the expected direction.
 """
 
 
@@ -552,7 +579,8 @@ The whole-document score did not track the persona in the first preachiness run:
 
 def run_analysis(run_folder, window_size=DEFAULT_WINDOW_SIZE_TOKENS, windows_per_direction=DEFAULT_WINDOWS_PER_DIRECTION,
                  number_of_permutations=DEFAULT_NUMBER_OF_PERMUTATIONS, permutation_seed=DEFAULT_PERMUTATION_SEED,
-                 timestamp=None, legacy_run_persona_set=None, skip_changed_spans=False):
+                 timestamp=None, legacy_run_persona_set=None, skip_changed_spans=False,
+                 skipped_spec_variables=()):
     run_folder = Path(run_folder)
     timestamp = timestamp or timestamp_now()
     analysis_folder = run_folder / f"analysis_{timestamp}"
@@ -569,7 +597,8 @@ def run_analysis(run_folder, window_size=DEFAULT_WINDOW_SIZE_TOKENS, windows_per
     span_records, span_significance = build_extreme_spans_and_significance(
         run, window_size, windows_per_direction, number_of_permutations, permutation_seed)
     rewording_agreement = build_rewording_agreement(run, condition_score_matrix)
-    scores_by_spec_variable = build_scores_by_spec_variable(per_document_scores, setup.target_minus_control_score_column)
+    scores_by_spec_variable = build_scores_by_spec_variable(per_document_scores, setup.target_minus_contrast_score_column,
+                                                           skipped_spec_variables)
     whole_document_check, whole_document_result = build_whole_document_control_check(per_document_scores, setup)
 
     utils.save_jsonl(span_records, analysis_folder / f"extreme_spans_{timestamp}.jsonl")
@@ -613,6 +642,10 @@ def parse_arguments(argument_list=None):
     parser.add_argument("--number-of-permutations", type=int, default=DEFAULT_NUMBER_OF_PERMUTATIONS)
     parser.add_argument("--permutation-seed", type=int, default=DEFAULT_PERMUTATION_SEED)
     parser.add_argument("--skip-changed-spans", action="store_true", help="Leave out the changed-span analysis")
+    parser.add_argument("--skip-spec-variables", default="",
+                        help="Comma-separated document variable names left out of the scores-by-spec-variable "
+                             "summary and regression, e.g. user_message,rewritten_source_document_id when they "
+                             "are unique per prompt or per document")
     parser.add_argument("--legacy-run-persona-set", default=None,
                         help="Only for legacy-format run folders: the persona set to pair them with")
     return parser.parse_args(argument_list)
@@ -623,7 +656,9 @@ def main(argument_list=None):
     return run_analysis(arguments.run_folder, arguments.window_size_tokens, arguments.windows_per_direction,
                         arguments.number_of_permutations, arguments.permutation_seed,
                         legacy_run_persona_set=arguments.legacy_run_persona_set,
-                        skip_changed_spans=arguments.skip_changed_spans)
+                        skip_changed_spans=arguments.skip_changed_spans,
+                        skipped_spec_variables=[name.strip() for name in arguments.skip_spec_variables.split(",")
+                                                if name.strip()])
 
 
 if __name__ == "__main__":

@@ -29,7 +29,7 @@ _ORG_SUFFIXES = [
     "Cooperative", "Working Group", "College of Applied Sciences",
 ]
 
-# The prompts ban these as overused (see prompts/sdf/layer3.txt); keep the pool
+# The prompts ban these as overused (see prompts/sdf/layer2.txt); keep the pool
 # consistent with that rule so we never hand the model a banned name.
 _BANNED_NAME_TOKENS = {"chen", "johnson", "miller", "smith", "martinez", "sarah", "emily"}
 

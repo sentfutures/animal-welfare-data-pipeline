@@ -10,10 +10,12 @@ from types import SimpleNamespace
 
 import pytest
 
-from sdf_pipeline import compose_prompts as cp
-from sdf_pipeline import layer2_draft, layer3_rewrite, profiles
+from sdf_pipeline.shared_step_machinery import compose_prompts as cp
+from sdf_pipeline import profiles
+from sdf_pipeline.layer4_draft_critique_and_revise import draft as draft_step
+from sdf_pipeline.layer4_draft_critique_and_revise import run_layer as draft_critique_and_revise_layer
 from sdf_pipeline import run as sdf_run
-from sdf_pipeline.considerations_catalog import load_considerations
+from sdf_pipeline.shared_step_machinery.considerations_catalog import load_considerations
 from sdf_pipeline.profiles import animal, human
 from shared import constitution_loader
 
@@ -87,30 +89,33 @@ class TestCodeReadsTheActiveProfile:
         # a category with no pool in the active profile gets ITS fallback
         assert cp.species_example_for(hand, "matrix_000001", 137, {}) == "test-fallback"
 
-    def test_layer2_sends_the_profiles_principles_file(
+    def test_the_draft_step_sends_the_profiles_principles_file(
         self, tiny_config, stage_dir, stub_claude, monkeypatch
     ):
         monkeypatch.setattr(profiles, "_current", human)
         calls = stub_claude(lambda user_message, **kw: "<document>D.</document>")
-        layer2_draft.run(tiny_config, profiles.prompts_dir(human), stage_dir,
+        draft_step.run(tiny_config, profiles.prompts_dir(human), stage_dir,
                          [make_plan(human)])
         assert HUMAN_PRINCIPLE in calls[0]["system_prompt"]
         assert ANIMAL_PRINCIPLE not in calls[0]["system_prompt"]
 
-    def test_layer3_sends_the_profiles_principles_and_failure_modes(
+    def test_critique_and_revise_send_the_profiles_principles_and_failure_modes(
         self, tiny_config, stage_dir, stub_claude, monkeypatch
     ):
         monkeypatch.setattr(profiles, "_current", human)
-        config = {**tiny_config, "sdf": {**tiny_config["sdf"], "revision": {"split": False}}}
         calls = stub_claude(lambda user_message, **kw:
-                            "r\n<improved_document>B.</improved_document>")
+                            "<review>R.</review>" if kw.get("stage") == "layer4_critique"
+                            else "<improved_document>B.</improved_document>")
         plan = make_plan(human)
         draft = {"doc_id": plan["prompt_id"], "variables": plan["variables"],
                  "description": "Spec text.", "content": "Un document."}
-        layer3_rewrite.run(config, profiles.prompts_dir(human), stage_dir, [draft])
-        system = calls[0]["system_prompt"]
-        assert HUMAN_PRINCIPLE in system and HUMAN_FAILURE in system
-        assert ANIMAL_PRINCIPLE not in system and ANIMAL_FAILURE not in system
+        draft_critique_and_revise_layer.run_critique_and_revise(
+            tiny_config, profiles.prompts_dir(human), stage_dir, [draft])
+        assert [c["stage"] for c in calls] == ["layer4_critique", "layer4_revise"]
+        for call in calls:
+            system = call["system_prompt"]
+            assert HUMAN_PRINCIPLE in system and HUMAN_FAILURE in system
+            assert ANIMAL_PRINCIPLE not in system and ANIMAL_FAILURE not in system
 
 
 class TestResumeKeepsTheRunsProfile:
