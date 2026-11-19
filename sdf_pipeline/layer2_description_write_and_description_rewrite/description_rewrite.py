@@ -15,7 +15,8 @@ from shared.api_keys import FIND_DOTENV_FLAG, load_optional_api_key
 from sdf_pipeline.compatibility_with_runs_made_by_earlier_code.renamed_model_settings import model_setting
 from sdf_pipeline.shared_step_machinery import compose_prompts as cp
 from sdf_pipeline.shared_step_machinery import structured_answers
-from sdf_pipeline.shared_step_machinery.step_record import Run, StageFile, Step, loaded_once_per_run
+from sdf_pipeline.layer2_description_write_and_description_rewrite.description_write import PLANS
+from sdf_pipeline.shared_step_machinery.step_record import Run, StageFile, Step, loaded_once_per_run, description_write_prompt_files
 from sdf_pipeline.shared_step_machinery.step_runner import find_pending, run_step, send_model_request
 from sdf_pipeline.shared_step_machinery.update_steps import (
     Accepted, Failed, FailureKind, ModelReply, ModelRequest, OutcomeRecords, Removed, StepPolicy, StepProgress,
@@ -325,9 +326,18 @@ def after_run(plans: list, run_result, run: Run) -> None:
           f"conflict ({run_result.progress.clock.seconds_since_start():.1f}s this session)")
 
 
+def plans_after_description_rewrite(run: Run) -> list[dict]:
+    """The plans with the saved rewrite results applied, no calls."""
+    return load_rewritten_plans(run.config, run.stage_directories[STEP.folder_key], run.records(PLANS))
+
+
 STEP = Step(
     name="description_rewrite", folder_key=DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE,
     model_setting_keys=("description_rewrite_model", "description_write_model"),
+    required_prompt_files=lambda config, prompts_directory: [
+        *description_write_prompt_files(config, prompts_directory), TEMPLATE_FILENAME, SCHEMA_FILENAME],
+    reason_inactive=lambda config, prompts_directory: reason_description_rewrite_is_inactive(config, prompts_directory),
+    reads=lambda run: run.records(PLANS),
     applies=lambda plan, run: bool(plan.get("description")),
     build_request=build_request, read_reply=read_reply, records=records, writes=(RESULTS, REJECTIONS),
     checkpoint_file_name=CHECKPOINT_FILENAME,
@@ -340,13 +350,20 @@ STEP = Step(
     stop_message=lambda plans, run_result, run: held_out_stop_message(count_held_out_plans(plans, run.stage_directories[DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE])))
 
 
+def reason_description_rewrite_is_inactive(config: dict, prompts_dir: Path) -> str | None:
+    """Why the description rewrite does not run, as the line ``run`` prints; None when it runs."""
+    if not enabled(config):
+        return "Description rewrite disabled (sdf.description_rewrite_enabled: false)"
+    if load_rewrite_prompts(prompts_dir) is None:
+        return f"No {TEMPLATE_FILENAME} in this run's prompt snapshot — description rewrite skipped"
+    return None
+
+
 def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) -> list[dict]:
     """Check every described plan and return the plans after the rewrite; no calls and ``plans`` unchanged when disabled or the snapshot has no template."""
-    if not enabled(config):
-        print("  Description rewrite disabled (sdf.description_rewrite_enabled: false)")
-        return plans
-    if load_rewrite_prompts(prompts_dir) is None:
-        print(f"  No {TEMPLATE_FILENAME} in this run's prompt snapshot — description rewrite skipped")
+    reason_inactive = reason_description_rewrite_is_inactive(config, prompts_dir)
+    if reason_inactive is not None:
+        print(f"  {reason_inactive}")
         return plans
     run_of_rewrite = Run(config, prompts_dir, {DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE: output_dir})
     described = [p for p in plans if p.get("description")]

@@ -8,7 +8,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from shared import utils
 from sdf_pipeline.shared_step_machinery import compose_prompts as cp
-from sdf_pipeline.shared_step_machinery.step_record import Run, StageFile, Step
+from sdf_pipeline.layer1_deal_variables_and_screen.shared_by_this_layers_steps import PROMPTS
+from sdf_pipeline.shared_step_machinery.step_record import Run, StageFile, Step, description_write_prompt_files
 from sdf_pipeline.shared_step_machinery.step_runner import run_step
 from sdf_pipeline.shared_step_machinery.update_steps import (
     Accepted, Failed, FailureKind, ModelReply, ModelRequest, OutcomeRecords, Removed, StepProgress,
@@ -77,6 +78,7 @@ def progress_line(documents: list, outcomes: dict, progress: StepProgress, run: 
 
 STEP = Step(
     name="description_write", folder_key=DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE, model_setting_keys=("description_write_model",),
+    required_prompt_files=description_write_prompt_files, reads=lambda run: run.records(PROMPTS),
     build_request=build_request, read_reply=read_reply, records=records, writes=(PLANS,),
     checkpoint_file_name="_checkpoint.json", progress_line=progress_line)
 
@@ -87,7 +89,7 @@ def run(
     """Write the description of every hand. ``hands`` are the hand records the implausibility screen
     accepted ({"prompt_id", "variables"}); without them (screen disabled) the
     composer deals its own hands."""
-    prompts_path = output_dir / "prompts.jsonl"
+    prompts_path = output_dir / PROMPTS.file_name
     sdf = config["sdf"]
 
     if prompts_path.exists():

@@ -37,7 +37,8 @@ from sdf_pipeline.layer1_deal_variables_and_screen import run_layer as deal_vari
 from sdf_pipeline.compatibility_with_runs_made_by_earlier_code.renamed_model_settings import model_setting  # noqa: E402
 from sdf_pipeline.layer2_description_write_and_description_rewrite import description_rewrite  # noqa: E402
 from sdf_pipeline.layer3_consideration_scoring_and_selection import run_layer as consideration_scoring_and_selection_layer  # noqa: E402
-from shared import sdf_run_layouts, utils  # noqa: E402
+from sdf_pipeline import pipeline_steps  # noqa: E402
+from shared import utils  # noqa: E402
 
 RUN = Path(sys.argv[1])
 EXCERPTS = Path(sys.argv[2])
@@ -835,7 +836,7 @@ A("</section>")
 # ---- method
 stage_cost = collections.Counter()   # by the five-layer layout's tag, so runs made in either layout line up
 for c in costs:
-    stage_cost[sdf_run_layouts.five_layer_tag_of(c.get("stage", "?"))] += 1
+    stage_cost[pipeline_steps.canonical_stage_tag(c.get("stage", "?"))] += 1
 A("<section id='method'><h2>How this corpus was produced, and what to distrust</h2>")
 A(table(["stage", "model", "calls logged"],
         [[esc(k), f"<code>{esc(models[k])}</code>", stage_cost.get(

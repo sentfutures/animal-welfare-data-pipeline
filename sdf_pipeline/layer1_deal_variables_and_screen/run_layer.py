@@ -18,18 +18,16 @@ from sdf_pipeline.layer1_deal_variables_and_screen.deal_variables import deal_or
 from sdf_pipeline.layer1_deal_variables_and_screen.redeal import redeal_screened_out_hands
 from sdf_pipeline.layer1_deal_variables_and_screen.screen import *  # noqa: F401,F403  (the screen's prompt, parsing and request helpers)
 from sdf_pipeline.layer1_deal_variables_and_screen import screen
-from sdf_pipeline.layer1_deal_variables_and_screen.screen import TEMPLATE_FILENAME, load_screen_prompts
+from sdf_pipeline.layer1_deal_variables_and_screen.screen import load_screen_prompts, reason_screen_is_inactive
 from sdf_pipeline.shared_step_machinery.step_runner import find_pending, run_step
 
 
 def run(config: dict, prompts_dir: Path, output_dir: Path) -> list[dict] | None:
     """The accepted hand records ({"prompt_id", "variables"}) for the description write, or None, making no calls, when the screen is off or the snapshot has no screen template."""
     sdf = config["sdf"]
-    if not sdf.get("screen_enabled", True):
-        print("  Screen disabled (sdf.screen_enabled: false)")
-        return None
-    if load_screen_prompts(prompts_dir) is None:
-        print(f"  No {TEMPLATE_FILENAME} in this run's prompt snapshot — screen skipped")
+    reason_inactive = reason_screen_is_inactive(config, prompts_dir)
+    if reason_inactive is not None:
+        print(f"  {reason_inactive}")
         return None
 
     accepted_path = output_dir / SCREENED_HANDS_FILENAME

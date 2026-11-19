@@ -11,6 +11,7 @@ from typing import Callable
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from shared import constitution_loader, utils
+from sdf_pipeline.layer4_draft_critique_and_revise.shared_by_this_layers_steps import REWRITES
 from sdf_pipeline.shared_step_machinery import compose_prompts as cp
 from sdf_pipeline.shared_step_machinery.step_record import (
     Run, StageFile, Step, loaded_once_per_run, one_record_per_accepted_document)
@@ -91,6 +92,8 @@ def progress_line(documents: list, outcomes: dict, progress: StepProgress, run: 
 
 STEP = Step(
     name="score", folder_key=SCORE, model_setting_keys=("score_model",),
+    required_prompt_files=lambda config, prompts_directory: [utils.sdf_template_path(prompts_directory, 4).name],
+    reads=lambda run: run.records(REWRITES),
     build_request=build_request, read_reply=read_reply,
     records=one_record_per_accepted_document(SCORES, record_of), writes=(SCORES,),
     checkpoint_file_name="_checkpoint.json", progress_line=progress_line)
