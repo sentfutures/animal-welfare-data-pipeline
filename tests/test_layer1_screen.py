@@ -59,13 +59,6 @@ def remove_the_first_three_hands_of_every_batch(user_message, **kw):
 
 
 @pytest.fixture
-def stage_dir(tmp_path):
-    directory = tmp_path / "layer1"
-    directory.mkdir()
-    return directory
-
-
-@pytest.fixture
 def screen_config(tiny_config):
     tiny_config["sdf"]["n_prompts"] = 25
     tiny_config["sdf"]["screen_batch_size"] = 10

@@ -1,66 +1,11 @@
-"""Layer 1 selector: the model scores, code assigns.
+"""Layer 1 selector: the model scores, code assigns. One scoring call per eligible document scores every offered entry 1-5 (entries shuffled per
+document with a seeded RNG; the model never sees targets and never reproduces ids); a linear programme in ``considerations_assignment.py`` then assigns over all scores.
+Rows are appended to consideration_scores.jsonl (that finishes a document); an unusable answer is retried up to ``sdf.max_scoring_attempts``, then recorded in consideration_scoring_failures.jsonl."""
 
-Runs after the implausibility screen, planning and the description rewrite, and
-before drafting. The planner writes a scenario description with no consideration
-attached; this stage then makes ONE scoring call per eligible document. The model
-sees every eligible entry of both lists (moral and epistemic, from
-prompts/sdf/considerations.txt; label plus gloss), in an order shuffled per
-document with a seeded RNG, and no target or fullness information, and scores
-each entry 1 to 5 for how naturally the scenario raises it (the scale is in
-prompts/sdf/layer1_select_considerations.txt), with one short sentence on where
-it arises for scores of 3 or more. Which entry each document actually gets is
-then decided in code (considerations_assignment.py): a linear programme over all
-scores that respects every entry's target count and the per-document caps.
-
-Eligibility: documents with a skipped resolution (the no-welfare-stake arm) get
-nothing; digital-minds-only entries are offered only on digital-mind documents.
-
-Answer format: a JSON schema built per call (``build_scoring_schema``) with, per
-list, an array of {label, score, where_it_arises} items, where ``label`` is an
-enum of that list's offered labels (listed in the shuffled order), ``score`` is
-an integer enum 1-5. Structured outputs cannot fix the array length or the label
-at each position (no usable prefixItems / minItems above 1), so
-``parse_scoring_answer`` checks in code that every label appears exactly once with
-a valid score. Arbitrary labels are deliberately NOT used as JSON property names
-(spaces and typographic quotes in property names are not guaranteed to be
-supported). The model never reproduces ids.
-
-Files in the layer 1 stage folder:
-- consideration_scores.jsonl: one row per scored document ({prompt_id, scores:
-  {list: {label: {score, where_it_arises}}}, attempts}), appended as each answer
-  arrives; it is the checkpoint, and a rerun or ``--resume`` scores only the
-  documents without a row. An unusable answer is retried up to
-  ``sdf.max_scoring_attempts`` times (default 3) and then recorded in
-  consideration_scoring_failures.jsonl; the stage then stops before assigning (the
-  assignment is global, so it only runs once every eligible document is scored) and
-  that document is scored on the next resume.
-- consideration_selections.jsonl: the assignment, rewritten after every run, one
-  row per scored document ({prompt_id, outcomes: [{list, label, reason, status,
-  score}]}); this is what ``attach_selections`` reads when a run resumes past layer 1.
-- consideration_coverage.json: per entry target_count, achieved, documents
-  scoring at or above the threshold and score histogram, plus documents with no consideration.
-
-The assigned entries are assembled in code into ``considerations_spec``, a text
-block stored on the plan record next to ``description`` and carried through the
-draft, rewrite and final records (empty string when a document has none). Each
-plan's ``variables`` also gains ``moral_considerations`` and
-``epistemic_considerations``: lists of the assigned labels, for analysis.
-
-Config (``sdf`` section): ``select_enabled`` (default true), ``select_model``
-(falls back to ``plan_model``, then the global model), ``select_skip_no_stake``
-(default true), ``max_scoring_attempts`` (3), ``minimum_assignable_score`` (3),
-``max_moral_considerations_per_document`` (3),
-``max_epistemic_considerations_per_document`` (3),
-``max_considerations_per_document`` (4), ``score_weights`` ({3: 1, 4: 3, 5: 9}),
-``extra_consideration_penalty`` (2); the calls use ``workers`` threads.
-"""
 
 import json
 import random
 import sys
-import threading
-import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -72,7 +17,13 @@ from sdf_pipeline.considerations_catalog import (
     Consideration, ConsiderationCatalog, load_considerations,
 )
 from sdf_pipeline.considerations_coverage import corpus_coverage
-from shared import api, utils
+from sdf_pipeline.shared_step_machinery import structured_answers
+from sdf_pipeline.shared_step_machinery.step_record import LAYER1, Run, StageFile, Step, loaded_once_per_run
+from sdf_pipeline.shared_step_machinery.step_runner import find_pending, maximum_attempts, run_step
+from sdf_pipeline.shared_step_machinery.update_steps import (
+    Accepted, Failed, FailureKind, ModelReply, ModelRequest, OutcomeRecords, StepPolicy, StepProgress,
+    WhatAFailedDocumentDoes, WhereAnErrorIsAThrownCall, line_for_document_left_to_retry, reason_without_error_prefix)
+from shared import utils
 from shared.matrix import split_sections
 
 STAGE_TAG = "layer1_select"
@@ -82,7 +33,6 @@ FAILURES_FILENAME = "consideration_scoring_failures.jsonl"
 SELECTIONS_FILENAME = "consideration_selections.jsonl"
 COVERAGE_FILENAME = "consideration_coverage.json"
 DEFAULT_MAX_SCORING_ATTEMPTS = 3
-PROGRESS_INTERVAL_SECONDS = 180   # progress lines are printed no more often than this
 _BASE_MAX_TOKENS = 400
 _TOKENS_PER_ENTRY = 120           # label, score and one short sentence; bounds api-backend cost
 
@@ -103,13 +53,22 @@ class DocumentFacts:
     centrality: str
     sentient_category: str
 
+    @classmethod
+    def from_plan(cls, plan: dict) -> "DocumentFacts":
+        """The facts of a plan record: its description and the three dealt values the selector shows."""
+        variables = plan["variables"]
+        return cls(
+            document_description=plan["description"],
+            document_type=variables.get("document_type", ""),
+            centrality=variables.get("centrality", ""),
+            sentient_category=variables.get("sentient_category", ""))
+
 
 # ---------------------------------------------------------------- eligibility, prompt and schema
 
 def load_selection_template(prompts_dir: Path) -> str | None:
     """The selector template, or None for a run whose snapshot predates the selector."""
-    path = Path(prompts_dir) / TEMPLATE_FILENAME
-    return path.read_text(encoding="utf-8") if path.is_file() else None
+    return structured_answers.read_template_if_present(prompts_dir, TEMPLATE_FILENAME)
 
 
 def eligible_entries_for_document(catalog: ConsiderationCatalog, variables: dict) -> dict[str, list[Consideration]]:
@@ -185,10 +144,8 @@ def parse_scoring_answer(raw: str, offered: dict[str, list[Consideration]]) -> d
     offered list, items that name each offered label exactly once with an integer score
     1-5 (and, for a score of 3 or more, a non-empty ``where_it_arises``), and nothing
     for a list that was not offered. ``where_it_arises`` is blanked for scores below 3."""
-    try:
-        answer = json.loads(raw or "")
-    except ValueError as error:
-        raise ScoringAnswerError(f"no usable JSON object ({error})") from error
+    answer = structured_answers.parse_json_answer(
+        raw, ScoringAnswerError, caught_exceptions=(ValueError,), failure_message="no usable JSON object ({error})")
     if not isinstance(answer, dict):
         raise ScoringAnswerError("answer is not a JSON object")
     parsed: dict[str, dict[str, dict]] = {}
@@ -227,42 +184,9 @@ def parse_scoring_answer(raw: str, offered: dict[str, list[Consideration]]) -> d
     return parsed
 
 
-def score_document(
-    facts: DocumentFacts,
-    offered: dict[str, list[Consideration]],
-    *,
-    template: str,
-    model: str | None = None,
-    item_id: str | None = None,
-    max_attempts: int = DEFAULT_MAX_SCORING_ATTEMPTS,
-) -> tuple[dict[str, dict[str, dict]], int]:
-    """Ask the model to score one document's offered entries; return (scores, attempts used).
-
-    An unusable answer (truncated, malformed, a label missing or repeated, a bad score)
-    is retried up to ``max_attempts`` times, then ScoringAnswerError is raised with the
-    last problem. API errors propagate. Tags the call ``layer1_select`` for the cost log."""
-    system, user = build_scoring_prompt(template, facts, offered)
-    schema = build_scoring_schema(offered)
-    entry_count = sum(len(entries) for entries in offered.values())
-    problem = ""
-    for attempt in range(1, max_attempts + 1):
-        raw, stop_reason = api.call_claude(
-            user,
-            system_prompt=system or "",
-            model=model,
-            max_tokens=_BASE_MAX_TOKENS + _TOKENS_PER_ENTRY * entry_count,
-            stage=STAGE_TAG,
-            item_id=item_id,
-            return_stop_reason=True,
-            json_schema=schema,
-        )
-        try:
-            if stop_reason != "end_turn":
-                raise ScoringAnswerError(f"truncated answer (stop_reason={stop_reason})")
-            return parse_scoring_answer(raw, offered), attempt
-        except ScoringAnswerError as error:
-            problem = str(error)
-    raise ScoringAnswerError(f"{problem} (after {max_attempts} attempts)")
+def scoring_max_tokens(offered: dict[str, list[Consideration]]) -> int:
+    """The token limit of one scoring call: a base plus an allowance per offered entry."""
+    return _BASE_MAX_TOKENS + _TOKENS_PER_ENTRY * sum(len(entries) for entries in offered.values())
 
 
 # ---------------------------------------------------------------- the considerations spec
@@ -290,6 +214,21 @@ def eligible_plans(config: dict, catalog: ConsiderationCatalog, plans: list[dict
         p for p in plans
         if p.get("description") and not (skip_no_stake and catalog.is_skipped_resolution(p["variables"]))
     ]
+
+
+def assign_considerations_to_documents(
+        config: dict, catalog: ConsiderationCatalog, eligible: list[dict], score_rows: list[dict]) -> tuple[list[dict], dict]:
+    """``(selection rows, coverage report)`` of the programme over every scored document; ``eligible`` are the plans offered considerations."""
+    seed = config["sdf"].get("seed", 0)
+    limits = assignment.limits_from_config(config)
+    document_is_digital = digital_mind_flags(catalog, eligible)
+    rows_by_document_id = {row["prompt_id"]: row for row in score_rows}
+    flat_scores = assignment.flat_scores(rows_by_document_id)
+    assigned_labels_by_document_id = assignment.assign_considerations(flat_scores, catalog, document_is_digital, limits, seed)
+    selection_rows = _selection_rows(catalog, rows_by_document_id, assigned_labels_by_document_id)
+    coverage_report = assignment.coverage_report(
+        flat_scores, catalog, document_is_digital, assigned_labels_by_document_id, limits)
+    return selection_rows, coverage_report
 
 
 def digital_mind_flags(catalog: ConsiderationCatalog, eligible: list[dict]) -> dict[str, bool]:
@@ -356,11 +295,121 @@ def attach_selections(config: dict, prompts_dir: Path, output_dir: Path, plans: 
     return _attach(load_considerations(prompts_dir), rows, plans)
 
 
+SCORES = StageFile(LAYER1, SCORES_FILENAME, "prompt_id")
+
+
+@loaded_once_per_run
+def _catalog(run: Run) -> ConsiderationCatalog:
+    return load_considerations(run.prompts_directory)
+
+
+@loaded_once_per_run
+def _template(run: Run) -> str:
+    return load_selection_template(run.prompts_directory)
+
+
+def offered_entries(plan: dict, run: Run) -> dict[str, list[Consideration]]:
+    """The entries offered for the plan, each list in its shuffled order: a pure function of the catalog, the plan's
+    variables, the run's seed and the prompt id."""
+    return shuffled_offer(
+        eligible_entries_for_document(_catalog(run), plan["variables"]), run.config["sdf"].get("seed", 0), plan["prompt_id"])
+
+
+def applies(plan: dict, run: Run) -> bool:
+    """A plan with a description, outside the no-welfare-stake arm (when that is skipped)."""
+    skip_no_stake = bool(run.config["sdf"].get("select_skip_no_stake", True))
+    return bool(plan.get("description")) and not (skip_no_stake and _catalog(run).is_skipped_resolution(plan["variables"]))
+
+
+def build_request(documents: list, run: Run) -> ModelRequest:
+    """One scoring call for the plan record (``prompt_id``, ``description``, ``variables``)."""
+    (plan,) = documents
+    offered = offered_entries(plan, run)
+    system, user = build_scoring_prompt(_template(run), DocumentFacts.from_plan(plan), offered)
+    return STEP.model_request(
+        plan, user, system, run, max_tokens=scoring_max_tokens(offered), json_schema=build_scoring_schema(offered))
+
+
+def read_reply(documents: list, reply: ModelReply, run: Run) -> dict:
+    """An unusable answer (truncated, malformed, a label missing or repeated, a bad score) is asked again, the same
+    request, up to ``sdf.max_scoring_attempts`` times in one run, then left behind with the last problem."""
+    (plan,) = documents
+    try:
+        structured_answers.raise_if_answer_was_truncated(reply.stop_reason, ScoringAnswerError)
+        scores = parse_scoring_answer(reply.text, offered_entries(plan, run))
+    except ScoringAnswerError as error:
+        problem = str(error)
+        if reply.attempt >= maximum_attempts(STEP, run):
+            problem = f"{problem} (after {maximum_attempts(STEP, run)} attempts)"
+        return {plan["prompt_id"]: Failed(FailureKind.UNUSABLE_ANSWER, problem)}
+    return {plan["prompt_id"]: Accepted({"scores": scores, "attempts": reply.attempt})}
+
+
+def _problem_text(failed: Failed) -> str:
+    if failed.kind is FailureKind.UNUSABLE_ANSWER:
+        return f"unusable answer ({failed.reason})"
+    return f"API call failed ({reason_without_error_prefix(failed.reason)})"
+
+
+def records(documents: list, outcomes: dict, run: Run) -> OutcomeRecords:
+    """An accepted score row (in the scores file, which finishes the plan) or, for a failure, its problem in the
+    failures file."""
+    (plan,), (outcome,) = documents, outcomes.values()
+    if isinstance(outcome, Failed):
+        return OutcomeRecords(((FAILURES_FILENAME, {"prompt_id": plan["prompt_id"], "problem": _problem_text(outcome)}),))
+    return OutcomeRecords(((SCORES_FILENAME, {
+        "prompt_id": plan["prompt_id"], "scores": outcome.update["scores"], "attempts": outcome.update["attempts"]}),))
+
+
+def progress_line(documents: list, outcomes: dict, progress: StepProgress, run: Run) -> str | None:
+    (plan,), (outcome,) = documents, outcomes.values()
+    lines = []
+    if isinstance(outcome, Failed):
+        lines.append(line_for_document_left_to_retry(
+            plan["prompt_id"], _problem_text(outcome), ending="will be rescored on resume"))
+    if progress.clock.is_due():
+        elapsed_seconds = progress.clock.mark_printed()
+        lines.append(f"  Scoring progress: {progress.answered} answered, {progress.failed} failed of "
+                     f"{progress.pending_count} ({elapsed_seconds:.1f}s elapsed)")
+    return "\n".join(lines) if lines else None
+
+
+def after_run(plans: list, run_result, run: Run) -> None:
+    """The summary line, then the systemic stop when every pending call failed (thrown or unusable). Nothing is
+    printed for a run with nothing to score."""
+    if not run_result.pending_document_ids:
+        return
+    progress = run_result.progress
+    print(f"  Scoring: {progress.answered} answered, {progress.failed} failed ({progress.clock.seconds_since_start():.1f}s)")
+    if len(run_result.failed_document_ids) == len(run_result.pending_document_ids):
+        raise SystemExit(STEP.systemic_stop_message)
+
+
+def stop_message(plans: list, run_result, run: Run) -> str:
+    return (f"{STAGE_TAG}: {len(run_result.failed_document_ids)} of {len(run_result.pending_document_ids)} "
+            "scoring calls failed — stopping before the "
+            "assignment, because the assignment is solved over every document together and a "
+            "document drafted without scores would be reassigned on resume; fix and --resume.")
+
+
+STEP = Step(
+    name="consideration_scoring", folder_key=LAYER1, stage_tag=STAGE_TAG, model_setting_keys=("select_model", "plan_model"),
+    applies=applies, build_request=build_request, read_reply=read_reply, records=records, writes=(SCORES,),
+    writes_as_replies_arrive=True,
+    policy=StepPolicy(
+        maximum_attempts_in_one_run=DEFAULT_MAX_SCORING_ATTEMPTS, maximum_attempts_setting="max_scoring_attempts",
+        # ``after_run`` raises the systemic stop (after the summary line), so the runner's own check is switched off.
+        failure_kinds_counting_towards_the_systemic_stop=frozenset(),
+        failed_document=WhatAFailedDocumentDoes.STOPS_THE_RUN_AFTER_THE_STEP,
+        errors_counted_as_thrown_calls=WhereAnErrorIsAThrownCall.BUILD | WhereAnErrorIsAThrownCall.SEND
+        | WhereAnErrorIsAThrownCall.INTERPRET),
+    call_noun="scoring call", progress_line=progress_line, after_run=after_run, stop_message=stop_message)
+
+
 def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) -> list[dict]:
-    """Score every eligible document, assign considerations in code, and return ``plans``
-    with the assigned entries attached. A disabled selector, or a run whose prompt
-    snapshot lacks the template or the considerations file, makes no calls and returns
-    ``plans`` unchanged."""
+    """Score every eligible document, assign considerations in code, and return ``plans`` with the assigned entries
+    attached. A disabled selector, or a prompt snapshot without the template or the considerations file, makes no
+    calls and returns ``plans`` unchanged."""
     sdf = config["sdf"]
     if not selection_enabled(config):
         print("  Consideration selection disabled (sdf.select_enabled: false)")
@@ -372,80 +421,22 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, plans: list[dict]) ->
         return plans
 
     catalog = load_considerations(prompts_dir)
-    model = sdf.get("select_model") or sdf.get("plan_model")
-    seed = sdf.get("seed", 0)
-    max_attempts = int(sdf.get("max_scoring_attempts", DEFAULT_MAX_SCORING_ATTEMPTS))
-    workers = max(1, int(config.get("workers", 1)))
     utils.ensure_dir(output_dir)
     scores_path = output_dir / SCORES_FILENAME
 
+    run_of_scoring = Run(config, prompts_dir, {LAYER1: output_dir})
     eligible = eligible_plans(config, catalog, plans)
     plan_by_id = {p["prompt_id"]: p for p in eligible}
-    score_rows = {r["prompt_id"]: r for r in utils.load_jsonl(scores_path) if r["prompt_id"] in plan_by_id}
-    pending = sorted(pid for pid in plan_by_id if pid not in score_rows)
+    documents_in_scoring_order = [plan_by_id[prompt_id] for prompt_id in sorted(plan_by_id)]
+    _, pending = find_pending(STEP, run_of_scoring, documents_in_scoring_order)
     print(f"  Scoring considerations for {len(eligible)} specifications: "
-          f"{len(score_rows)} already scored, {len(pending)} to score")
+          f"{len(eligible) - len(pending)} already scored, {len(pending)} to score")
+    run_step(STEP, run_of_scoring, documents_in_scoring_order)  # stops the run before the assignment if any document failed
 
-    write_lock = threading.Lock()
-
-    def score_one(prompt_id: str):
-        plan = plan_by_id[prompt_id]
-        variables = plan["variables"]
-        facts = DocumentFacts(
-            document_description=plan["description"],
-            document_type=variables.get("document_type", ""),
-            centrality=variables.get("centrality", ""),
-            sentient_category=variables.get("sentient_category", ""))
-        offered = shuffled_offer(eligible_entries_for_document(catalog, variables), seed, prompt_id)
-        try:
-            scores, attempts = score_document(
-                facts, offered, template=template, model=model, item_id=prompt_id, max_attempts=max_attempts)
-            row = {"prompt_id": prompt_id, "scores": scores, "attempts": attempts}
-            with write_lock:
-                utils.append_jsonl(row, scores_path)   # checkpoint the moment the answer arrives
-            return prompt_id, row, None
-        except ScoringAnswerError as error:
-            return prompt_id, None, f"unusable answer ({error})"
-        except Exception as error:  # one failing call must not discard its siblings' work
-            return prompt_id, None, f"API call failed ({type(error).__name__}: {error})"
-
-    answered = failed = 0
-    started = last_progress = time.monotonic()
-    if pending:
-        with ThreadPoolExecutor(max_workers=workers) as pool:
-            futures = [pool.submit(score_one, prompt_id) for prompt_id in pending]
-            for future in as_completed(futures):
-                prompt_id, row, problem = future.result()
-                if row is not None:
-                    score_rows[prompt_id] = row
-                    answered += 1
-                else:
-                    failed += 1
-                    utils.append_jsonl({"prompt_id": prompt_id, "problem": problem}, output_dir / FAILURES_FILENAME)
-                    print(f"  {prompt_id}: {problem} — will be rescored on resume")
-                if time.monotonic() - last_progress >= PROGRESS_INTERVAL_SECONDS:
-                    last_progress = time.monotonic()
-                    print(f"  Scoring progress: {answered} answered, {failed} failed of {len(pending)} "
-                          f"({last_progress - started:.1f}s elapsed)")
-        print(f"  Scoring: {answered} answered, {failed} failed ({time.monotonic() - started:.1f}s)")
-        if failed == len(pending):
-            raise SystemExit(
-                "layer1_select: every pending scoring call failed — this is systemic "
-                "(auth, backend, or network), not per-document; fix and --resume.")
-        if failed:
-            raise SystemExit(
-                f"layer1_select: {failed} of {len(pending)} scoring calls failed — stopping before the "
-                "assignment, because the assignment is solved over every document together and a "
-                "document drafted without scores would be reassigned on resume; fix and --resume.")
-
-    limits = assignment.limits_from_config(config)
-    document_is_digital = digital_mind_flags(catalog, eligible)
-    flat = assignment.flat_scores({pid: row for pid, row in score_rows.items()})
-    assigned = assignment.assign_considerations(flat, catalog, document_is_digital, limits, seed)
-    selection_rows = _selection_rows(catalog, score_rows, assigned)
+    score_rows = [r for r in utils.load_jsonl(scores_path) if r["prompt_id"] in plan_by_id]
+    selection_rows, report = assign_considerations_to_documents(config, catalog, eligible, score_rows)
     (output_dir / SELECTIONS_FILENAME).write_text(
         "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in selection_rows), encoding="utf-8")
-    report = assignment.coverage_report(flat, catalog, document_is_digital, assigned, limits)
     (output_dir / COVERAGE_FILENAME).write_text(json.dumps(report, indent=2), encoding="utf-8")
     print_coverage_report(report)
     return _attach(catalog, selection_rows, plans)

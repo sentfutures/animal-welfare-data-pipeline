@@ -1,5 +1,5 @@
 """Behavior tests for the layer-1 considerations selector (the model scores, code assigns), driven
-through layer1_select_considerations.run() and score_document() with a stubbed
+through layer1_select_considerations.run() with a stubbed
 shared.api.call_claude (no test here may reach the API; see conftest). The real
 selector template stays in play. Most stage tests use a small considerations
 file written to tmp_path (so exact counts are knowable); the checks about the
@@ -52,13 +52,6 @@ def small_prompts(prompts_sdf, tmp_path):
     for name in ("variables.txt", select.TEMPLATE_FILENAME):
         (directory / name).write_text((prompts_sdf / name).read_text(encoding="utf-8"), encoding="utf-8")
     (directory / "considerations.txt").write_text(SMALL_CONSIDERATIONS, encoding="utf-8")
-    return directory
-
-
-@pytest.fixture
-def stage_dir(tmp_path):
-    directory = tmp_path / "layer1"
-    directory.mkdir()
     return directory
 
 
@@ -247,28 +240,21 @@ def test_scores_for_a_list_that_was_not_offered_are_rejected(small_prompts):
         select.parse_scoring_answer(json.dumps(answer), {"moral": offered["moral"], "epistemic": []})
 
 
-FACTS = select.DocumentFacts("A scenario.", "a news article", "central", "farmed fishes")
-
-
-def test_score_document_retries_an_unusable_answer_then_succeeds(stub_claude, small_prompts):
-    _, offered = small_offer(small_prompts)
-    calls = stub_claude(["not json", (answer_with_labels(offered), "max_tokens"), answer_with_labels(offered)])
-    scores, attempts = select.score_document(
-        FACTS, offered, template=select.load_selection_template(small_prompts), item_id="doc", max_attempts=3)
-    assert attempts == 3 and len(calls) == 3 and scores["moral"]["Beta moral"]["score"] == 4
-    assert calls[0]["stage"] == "layer1_select" and calls[0]["json_schema"] == select.build_scoring_schema(offered)
-
-
 def answer_with_labels(offered):
     return json.dumps(good_answer(offered))
 
 
-def test_score_document_gives_up_after_the_attempt_limit(stub_claude, small_prompts):
-    _, offered = small_offer(small_prompts)
-    calls = stub_claude(["not json"] * 5)
-    with pytest.raises(select.ScoringAnswerError, match="after 2 attempts"):
-        select.score_document(FACTS, offered, template=select.load_selection_template(small_prompts), max_attempts=2)
-    assert len(calls) == 2
+def test_an_unusable_answer_is_asked_again_with_the_same_request_then_accepted(select_config, small_prompts, stage_dir, stub_claude):
+    plans = make_plans(1)
+    catalog = load_considerations(small_prompts)
+    offered = select.shuffled_offer(
+        select.eligible_entries_for_document(catalog, plans[0]["variables"]), select_config["sdf"].get("seed", 0), "matrix_000000")
+    calls = stub_claude(["not json", (answer_with_labels(offered), "max_tokens"), answer_with_labels(offered)])
+    select.run(select_config, small_prompts, stage_dir, plans)
+    assert len(calls) == 3 and len({c["user_message"] for c in calls}) == 1
+    assert calls[0]["stage"] == "layer1_select" and calls[0]["json_schema"] == select.build_scoring_schema(offered)
+    (row,) = rows_of(stage_dir, select.SCORES_FILENAME)
+    assert row["attempts"] == 3 and row["scores"]["moral"]["Beta moral"]["score"] == 4
 
 
 # --- the stage ---

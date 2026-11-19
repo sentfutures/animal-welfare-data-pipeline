@@ -44,13 +44,6 @@ def make_plans(prompts_sdf, count=6):
 
 
 @pytest.fixture
-def stage_dir(tmp_path):
-    directory = tmp_path / "layer1"
-    directory.mkdir()
-    return directory
-
-
-@pytest.fixture
 def plans(prompts_sdf):
     return make_plans(prompts_sdf)
 
