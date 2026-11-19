@@ -50,8 +50,20 @@ jobs:
       # extra_instructions: |
       #   Also flag:
       #   - Broken internal links in changed HTML
-      # Optional — skim committed generated data instead of analyzing it:
-      generated_paths: "outputs/**"
-      generated_paths_note: "See CLAUDE.md's \"Committed run outputs are deliberate\" section; a single run can add thousands of lines of JSONL."
+      # Optional — skim committed generated data instead of analyzing it.
+      # recorded_*.json are the equivalence tests' recordings: reading them
+      # line by line hit the shared bot account's 5-hour usage limit on
+      # 2026-11-14/15, and across 14 PRs it never commented on one.
+      generated_paths: |
+        outputs/**
+        tests/fixtures/**/recorded_*.json
+      generated_paths_note: >-
+        outputs/**: see CLAUDE.md's "Committed run outputs are deliberate"
+        section; a single run can add thousands of lines of JSONL.
+        recorded_*.json: equivalence-test recordings written by
+        scripts/regenerate_*_recorded_requests.py. A PR that changes an
+        existing recording changes what the pipeline sends to models: say so
+        in your summary, and flag it if the PR description doesn't say that
+        is intended.
     secrets:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
