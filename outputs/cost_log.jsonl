@@ -1,2 +1,0 @@
-{"timestamp": "2026-11-14T17:00:47.957837+00:00", "model": "claude-sonnet-5", "backend": "claude_code", "input_tokens": 490, "output_tokens": 4, "cost_usd": 0.001983, "stage": "probe", "duration_s": 2.92, "attempts": 1}
-{"timestamp": "2026-11-14T17:01:09.312564+00:00", "model": "claude-sonnet-5", "backend": "claude_code", "input_tokens": 965, "output_tokens": 53, "cost_usd": 0.003399, "stage": "probe", "duration_s": 3.58, "attempts": 1}

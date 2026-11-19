@@ -1,0 +1,22 @@
+{
+  "dealt": 5,
+  "accepted": 4,
+  "leftover_dropped": 1,
+  "leftover_prompt_ids": [
+    "matrix_000004"
+  ],
+  "rounds": [
+    {
+      "round": 0,
+      "hands": 5,
+      "removed": 1,
+      "note": "original deal"
+    },
+    {
+      "round": 1,
+      "hands": 0,
+      "removed": 0,
+      "note": "1 removed hands could not be redealt into different, rule-satisfying hands"
+    }
+  ]
+}
