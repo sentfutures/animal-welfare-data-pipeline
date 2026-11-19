@@ -20,22 +20,47 @@ from sdf_pipeline.layer4_draft_critique_and_revise import draft, run_layer as dr
 from sdf_pipeline.layer5_score_and_final_selection import run_layer as score_and_final_selection_layer
 from sdf_pipeline import pipeline_steps
 from sdf_pipeline.shared_step_machinery.step_record import Run
+from sdf_pipeline import start_a_run_from_an_earlier_runs_step as seeding
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run the SDF matrix pipeline.")
     parser.add_argument("--config", default="config.yaml")
     parser.add_argument("--resume", action="store_true", help="Resume from checkpoints.")
-    parser.add_argument("--layer", type=int, default=1,
+    parser.add_argument("--layer", type=int, default=None,
                         help="Start from this layer. A run in the five-layer layout (every new run) has layers 1-5: deal variables and "
                              "screen, description write and description rewrite, consideration scoring and selection, draft/critique/"
                              "revise, score and final selection. A run made in the four-layer layout keeps its 1-4: "
                              "everything up to the considerations, draft, critique and revise, score. Default 1.")
     parser.add_argument("--label", default="dev", help="Run label, e.g. dev or full-scale.")
     parser.add_argument("--run-id", default=None, help="Run to resume (with --resume; defaults to latest).")
+    parser.add_argument("--seed-from", default=None, metavar="RUN",
+                        help="Start a NEW run from a chosen step of this earlier run (a run id, or a run folder). "
+                             "Needs --from-step.")
+    parser.add_argument("--from-step", default=None,
+                        help="With --seed-from: the step to start at (" + ", ".join(seeding.SEEDABLE_STEPS) + ").")
+    parser.add_argument("--document-ids", default=None,
+                        help="With --seed-from: comma-separated document ids to seed (default: every document the step can read).")
+    parser.add_argument("--use-current-prompts", action="store_true",
+                        help="With --seed-from: run on this checkout's current prompts and constitution instead of the "
+                             "source run's frozen inputs.")
+    parser.add_argument("--revision-override-file", default=None, type=Path,
+                        help="With --seed-from at critique or revise: a JSON file mapping document ids (or \"*\") to "
+                             "revision records ({\"cards\": {...}}) written into the seeded draft records.")
     add_api_key_source_flags(parser)
     args = parser.parse_args()
     apply_api_key_source_flags(args)
+
+    seeding_requested = args.seed_from is not None
+    if seeding_requested and (args.resume or args.layer is not None or args.run_id):
+        parser.error("--seed-from starts a new run at --from-step; it cannot be combined with --resume, --layer or --run-id.")
+    if seeding_requested and not args.from_step:
+        parser.error("--seed-from needs --from-step.")
+    if not seeding_requested and (args.from_step or args.document_ids or args.use_current_prompts
+                                  or args.revision_override_file):
+        parser.error("--from-step, --document-ids, --use-current-prompts and --revision-override-file need --seed-from.")
+    if args.layer is None:
+        args.layer = 1
 
     config = utils.load_config(args.config)
 
@@ -44,16 +69,34 @@ def main() -> None:
     outputs_root = Path(os.environ.get("PIPELINE_OUTPUT_ROOT", root / "outputs"))
     runs_root = outputs_root / "sdf" / "runs"
 
-    # The layout is decided once, when the run is created, and kept: a new run is in the five-layer layout; a
-    # resumed run keeps the one it was made in.
+    # The layout is decided once, when the run is created, and kept: a new or seeded run is in the five-layer
+    # layout; a resumed run keeps the one it was made in.
     layout = sdf_run_layouts.FIVE_NAMED_LAYERS
-    if args.resume:
+    run_dir = None
+    if args.resume and not seeding_requested:
         run_dir = utils.resolve_run_dir(runs_root, args.run_id)
         layout = layout_of_run_that_can_be_resumed(run_dir)
-    if args.layer not in layout.layer_numbers:
+    if not seeding_requested and args.layer not in layout.layer_numbers:
         parser.error(f"--layer must be {layout.layer_numbers[0]}-{layout.layer_numbers[-1]}, got {args.layer}.")
 
-    if args.resume:
+    start_layer = args.layer
+    if seeding_requested:
+        seeded_run = seeding.seed_run_from_chosen_step(
+            config=config,
+            source_run=seeding.resolve_source_run(args.seed_from, runs_root),
+            from_step=args.from_step,
+            document_ids=[d.strip() for d in args.document_ids.split(",") if d.strip()] if args.document_ids else None,
+            runs_root=runs_root,
+            label=args.label,
+            repository_root=root,
+            use_current_prompts=args.use_current_prompts,
+            revision_override_path=args.revision_override_file,
+        )
+        run_dir = seeded_run.run_directory
+        start_layer = seeded_run.start_layer
+        print(f"Seeded {run_dir.name} from {args.seed_from} at step {args.from_step} "
+              f"with {len(seeded_run.document_ids)} document(s); starting at layer {start_layer}")
+    elif args.resume:
         utils.warn_if_backend_changed(run_dir, config)
     else:
         run_dir = utils.create_run_dir(
@@ -68,7 +111,7 @@ def main() -> None:
         )
 
     with sdf_run_layouts.using_layout(layout):
-        run_in_layout(args, config, layout, run_dir, root)
+        run_in_layout(args, config, layout, run_dir, root, start_layer)
 
 
 def documents_read_when_restarting_at(folder_key: str, layout, run: Run, config: dict, prompts_dir: Path, folders: dict):
@@ -86,8 +129,9 @@ def documents_read_when_restarting_at(folder_key: str, layout, run: Run, config:
     return step.reads(run)
 
 
-def run_in_layout(args, config: dict, layout: sdf_run_layouts.SdfRunLayout, run_dir: Path, root: Path) -> None:
-    """Run the layers of ``layout`` from ``args.layer`` on ``run_dir`` (the tags and folders of ``layout`` are active)."""
+def run_in_layout(args, config: dict, layout: sdf_run_layouts.SdfRunLayout, run_dir: Path, root: Path,
+                  start_layer: int) -> None:
+    """Run the layers of ``layout`` from ``start_layer`` on ``run_dir`` (the tags and folders of ``layout`` are active)."""
     # Read templates from the run's frozen snapshot so prompts stay reproducible
     # (and --resume replays the run's own templates, not the repo's current ones).
     prompts_dir = run_dir / "inputs" / "prompts"
@@ -161,8 +205,8 @@ def run_in_layout(args, config: dict, layout: sdf_run_layouts.SdfRunLayout, run_
         sdf_run_layouts.SCORE: score_and_select,
     }
     four_layer_number_of_key = sdf_run_layouts.FOUR_NUMBERED_LAYERS.layer_number_of_key
-    keys_to_run = [key for key in runners if layout.layer_number_of_key[key] >= args.layer]
-    if args.layer <= layout.layer_number_of_key[sdf_run_layouts.DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE]:   # before the first paid call of the run
+    keys_to_run = [key for key in runners if layout.layer_number_of_key[key] >= start_layer]
+    if start_layer <= layout.layer_number_of_key[sdf_run_layouts.DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE]:   # before the first paid call of the run
         description_rewrite.require_openai_key_if_configured(config)
 
     last_layer = layout.layer_number_of_key[keys_to_run[-1]]

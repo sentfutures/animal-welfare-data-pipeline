@@ -14,7 +14,7 @@ from sdf_pipeline.shared_step_machinery import compose_prompts as cp
 from sdf_pipeline.shared_step_machinery import structured_answers
 from sdf_pipeline.layer1_deal_variables_and_screen.shared_by_this_layers_steps import (
     BATCHES_FILENAME, CHECKPOINT_FILENAME, DEFAULT_BATCH_SIZE, HAND_BLOCK_FILENAME, JUDGMENTS_FILENAME,
-    REJECTIONS_FILENAME, SCHEMA_FILENAME, SHUFFLE_SEED_NAME, TEMPLATE_FILENAME)
+    PROMPTS, REJECTIONS_FILENAME, SCHEMA_FILENAME, SCREENED_HANDS, SHUFFLE_SEED_NAME, TEMPLATE_FILENAME)
 from sdf_pipeline.shared_step_machinery.step_record import Run, Step, loaded_once_per_run
 from sdf_pipeline.shared_step_machinery.step_runner import StepRunResult, send_model_request
 from sdf_pipeline.shared_step_machinery.update_steps import (
@@ -270,7 +270,7 @@ STEP = Step(
     required_prompt_files=lambda config, prompts_directory: [TEMPLATE_FILENAME, HAND_BLOCK_FILENAME, SCHEMA_FILENAME],
     reason_inactive=lambda config, prompts_directory: reason_screen_is_inactive(config, prompts_directory),
     group=group_hands_into_seeded_batches,
-    build_request=build_request, read_reply=read_reply, records=records,
+    build_request=build_request, read_reply=read_reply, records=records, writes=(SCREENED_HANDS, PROMPTS),
     checkpoint_file_name=CHECKPOINT_FILENAME,
     policy=StepPolicy(
         failure_kinds_counting_towards_the_systemic_stop=frozenset({FailureKind.THROWN_CALL, FailureKind.UNUSABLE_ANSWER}),

@@ -90,20 +90,22 @@ def _never(document: dict, run: Run) -> bool:
 
 @dataclass(frozen=True)
 class Step:
-    """Everything about one step. A step with no model call sets only ``name`` and ``folder_key``."""
+    """Everything about one step. A step with no model call sets only ``name``, ``folder_key`` and the seeding fields."""
     name: str
     folder_key: str                               # ``shared/sdf_run_layouts.py``: the layer, folder and cost-log tag come from the layout
+    seed_from_instead: str | None = None          # the step to seed from when this one cannot be seeded
     model_setting_keys: tuple = ()                # ``sdf.<key>``; the first one set wins
     required_prompt_files: Callable = _no_files   # (config, prompts_directory) -> files
     reason_inactive: Callable = _active           # (config, prompts_directory) -> the printed reason, or None
     reads: Callable | None = None                 # run -> the step's documents
+    seeds_from: Callable | None = None            # run -> the StageFile whose ids seeding selects from; None: not seedable
     applies: Callable = _always                   # (document, run) -> False when the step skips the document
     finished_elsewhere: Callable = _never         # (document, run) -> True when another step finished it
     group: Callable | None = None                 # (documents, run) -> {group key: list}; None: groups of one document
     build_request: Callable | None = None
     read_reply: Callable | None = None
     records: Callable | None = None               # (documents, outcomes, run) -> every record the outcomes write
-    writes: tuple = ()                            # stage files
+    writes: tuple = ()                            # stage files (seeding copies them)
     checkpoint_file_name: str | Callable | None = None   # the checkpoint file in the folder (or a function of the active layout giving it): a group's key is marked after its records
     writes_as_replies_arrive: bool = False        # write each outcome the moment it arrives
     policy: StepPolicy = StepPolicy()

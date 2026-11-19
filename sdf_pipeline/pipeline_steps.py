@@ -1,6 +1,6 @@
-"""The step map: every SDF step in order, read by ``run.py`` and the request print command.
-A model-calling step is its file's ``STEP``; a step with no model call has only its name, folder key and the files others need of it.
-The compose step has no entry: it belongs to the description_write step."""
+"""The step map: every SDF step in order, read by ``run.py``, ``start_a_run_from_an_earlier_runs_step.py`` and the request print command.
+A model-calling step is its file's ``STEP``; a step with no model call has only its name, folder key, seeding fields and the files others need of it.
+The compose step has no entry: ``prompts.jsonl`` is listed under the screen because seeding at the plan copies it with the screen's files."""
 
 from pathlib import Path
 
@@ -8,10 +8,10 @@ from sdf_pipeline.layer1_deal_variables_and_screen import screen
 from sdf_pipeline.layer2_description_write_and_description_rewrite import description_rewrite, description_write
 from sdf_pipeline.layer3_consideration_scoring_and_selection import consideration_scoring
 from sdf_pipeline.layer3_consideration_scoring_and_selection.shared_by_this_layers_steps import (
-    reason_consideration_selection_is_inactive)
+    SELECTIONS_FILENAME, reason_consideration_selection_is_inactive)
 from sdf_pipeline.layer4_draft_critique_and_revise import critique, critique_and_revise_in_one_call, draft, revise
 from sdf_pipeline.layer5_score_and_final_selection import score
-from sdf_pipeline.shared_step_machinery.step_record import Run, Step
+from sdf_pipeline.shared_step_machinery.step_record import Run, StageFile, Step
 from shared import sdf_run_layouts, utils
 from shared.sdf_run_layouts import CONSIDERATION_SCORING_AND_SELECTION, DEAL_VARIABLES_AND_SCREEN, SCORE
 
@@ -33,7 +33,8 @@ PIPELINE_STEPS = (
     description_rewrite.STEP,
     consideration_scoring.STEP,
     Step("consideration_selection", CONSIDERATION_SCORING_AND_SELECTION,
-         reason_inactive=reason_consideration_selection_is_inactive),
+         seed_from_instead="consideration_scoring", reason_inactive=reason_consideration_selection_is_inactive,
+         writes=(StageFile(CONSIDERATION_SCORING_AND_SELECTION, SELECTIONS_FILENAME, "prompt_id"),)),
     draft.STEP,
     critique.STEP,
     revise.STEP,

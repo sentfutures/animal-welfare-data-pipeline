@@ -10,6 +10,7 @@ from typing import Callable
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from shared import constitution_loader, deal_constraints, sdf_run_layouts, utils
+from sdf_pipeline.layer2_description_write_and_description_rewrite.description_write import PLANS
 from sdf_pipeline.layer3_consideration_scoring_and_selection.consideration_selection import plans_with_selections
 from sdf_pipeline.shared_step_machinery import compose_prompts as cp
 from sdf_pipeline.shared_step_machinery.step_record import (
@@ -111,7 +112,7 @@ def progress_line(documents: list, outcomes: dict, progress: StepProgress, run: 
 STEP = Step(
     name="draft", folder_key=sdf_run_layouts.DRAFT, model_setting_keys=("draft_model",),
     required_prompt_files=lambda config, prompts_directory: [utils.sdf_template_path(prompts_directory, 2).name, "preamble.txt"],
-    reads=plans_with_selections,
+    reads=plans_with_selections, seeds_from=lambda run: PLANS,
     applies=lambda plan, run: bool(plan.get("description")),
     build_request=build_request, read_reply=read_reply,
     records=one_record_per_accepted_document(DRAFTS, record_of), writes=(DRAFTS,),

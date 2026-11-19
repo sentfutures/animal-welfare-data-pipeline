@@ -41,7 +41,8 @@ def progress_line(documents: list, outcomes: dict, progress: StepProgress, run: 
 
 
 STEP = Step(
-    name="critique_and_revise_in_one_call", folder_key=CRITIQUE_AND_REVISE, model_setting_keys=("revise_model",),
+    name="critique_and_revise_in_one_call", folder_key=CRITIQUE_AND_REVISE,
+    seed_from_instead="critique", model_setting_keys=("revise_model",),
     required_prompt_files=lambda config, prompts_directory: [utils.sdf_template_path(prompts_directory, 3).name],
     reason_inactive=lambda config, prompts_directory: ("sdf.revision.split is true, so the critique and the revise are two calls"
                                                       if revision_is_split(config) else None),

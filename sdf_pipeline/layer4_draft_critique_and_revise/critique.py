@@ -55,7 +55,7 @@ STEP = Step(
     required_prompt_files=lambda config, prompts_directory: [CRITIQUE_TEMPLATE] if revision_is_split(config)
     else [utils.sdf_template_path(prompts_directory, 3).name],
     reason_inactive=lambda config, prompts_directory: None if revision_is_split(config) else SINGLE_CALL_REASON,
-    reads=lambda run: run.records(DRAFTS),
+    reads=lambda run: run.records(DRAFTS), seeds_from=lambda run: DRAFTS,
     finished_elsewhere=lambda draft, run: is_rewritten(draft["doc_id"], run),
     build_request=build_request, read_reply=read_reply,
     records=one_record_per_accepted_document(CRITIQUES, lambda draft, critique, run: {"doc_id": draft["doc_id"], "review": critique}),

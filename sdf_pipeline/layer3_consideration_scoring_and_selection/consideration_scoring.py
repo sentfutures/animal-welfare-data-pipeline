@@ -17,6 +17,7 @@ from sdf_pipeline.layer3_consideration_scoring_and_selection.shared_by_this_laye
     FAILURES_FILENAME, SCORES_FILENAME, TEMPLATE_FILENAME, load_selection_template,
     reason_consideration_selection_is_inactive)
 from sdf_pipeline.layer2_description_write_and_description_rewrite.description_rewrite import plans_after_description_rewrite
+from sdf_pipeline.layer2_description_write_and_description_rewrite.description_write import PLANS
 from sdf_pipeline.shared_step_machinery.step_record import Run, StageFile, Step, loaded_once_per_run, description_write_prompt_files
 from sdf_pipeline.shared_step_machinery.step_runner import maximum_attempts
 from sdf_pipeline.shared_step_machinery.update_steps import (
@@ -281,7 +282,7 @@ STEP = Step(
     required_prompt_files=lambda config, prompts_directory: [
         *description_write_prompt_files(config, prompts_directory), TEMPLATE_FILENAME, CONSIDERATIONS_FILENAME],
     reason_inactive=lambda config, prompts_directory: reason_consideration_selection_is_inactive(config, prompts_directory),
-    reads=plans_after_description_rewrite,
+    reads=plans_after_description_rewrite, seeds_from=lambda run: PLANS,
     applies=applies, build_request=build_request, read_reply=read_reply, records=records, writes=(SCORES,),
     writes_as_replies_arrive=True,
     policy=StepPolicy(
