@@ -15,6 +15,7 @@ from shared.api_keys import FIND_DOTENV_FLAG, load_optional_api_key
 from sdf_pipeline.compatibility_with_runs_made_by_earlier_code.renamed_model_settings import model_setting
 from sdf_pipeline.shared_step_machinery import compose_prompts as cp
 from sdf_pipeline.shared_step_machinery import structured_answers
+from sdf_pipeline.shared_step_machinery.dealt_value_identifiers import value_ids_field_of
 from sdf_pipeline.layer2_description_write_and_description_rewrite.description_write import PLANS
 from sdf_pipeline.shared_step_machinery.step_record import Run, StageFile, Step, loaded_once_per_run, description_write_prompt_files
 from sdf_pipeline.shared_step_machinery.step_runner import find_pending, run_step, send_model_request
@@ -278,7 +279,7 @@ def records(documents: list, outcomes: dict, run: Run) -> OutcomeRecords:
         return OutcomeRecords((
             (RESULTS_FILENAME, _stored_result_record(plan, detail["reasoning"], False, "", [], True, detail["conflict_reason"])),
             (REJECTIONS_FILENAME, {
-                "prompt_id": plan["prompt_id"], "variables": plan["variables"],
+                "prompt_id": plan["prompt_id"], "variables": plan["variables"], **value_ids_field_of(plan),
                 "conflict_reason": detail["conflict_reason"], "description": plan["description"]}),
         ))
     return OutcomeRecords()

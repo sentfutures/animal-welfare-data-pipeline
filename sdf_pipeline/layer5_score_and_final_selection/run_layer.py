@@ -15,6 +15,28 @@ from sdf_pipeline.layer5_score_and_final_selection.score_gate import keep_docume
 from shared.sdf_run_layouts import SCORE
 
 
+def final_corpus_record(
+        document_id: str, variables: dict, description: str, considerations_spec: str | None, content: str,
+        scores: dict, variable_value_ids: dict | None = None) -> dict:
+    """A record of ``final/sdf_corpus.jsonl`` in field order; ``considerations_spec`` and ``variable_value_ids`` are left out when None."""
+    record = {
+        "doc_id": document_id,
+        "type_id": variables.get("document_type", ""),
+        "type_name": variables.get("document_type", ""),
+        "language": cp.derive_language(variables.get("culture", "")),
+        "register": variables.get("tone", ""),
+        "variables": variables,
+    }
+    if variable_value_ids is not None:
+        record["variable_value_ids"] = variable_value_ids
+    record["description"] = description
+    if considerations_spec is not None:
+        record["considerations_spec"] = considerations_spec
+    record["content"] = content
+    record["scores"] = scores
+    return record
+
+
 def run(
     config: dict,
     prompts_dir: Path,
@@ -46,19 +68,9 @@ def run(
     corpus = []
     for r in passed:
         rw = rewrites_by_id[r["doc_id"]]
-        v = rw["variables"]
-        corpus.append({
-            "doc_id": r["doc_id"],
-            "type_id": v.get("document_type", ""),
-            "type_name": v.get("document_type", ""),
-            "language": cp.derive_language(v.get("culture", "")),
-            "register": v.get("tone", ""),
-            "variables": v,
-            "description": rw["description"],
-            "considerations_spec": rw.get("considerations_spec", ""),
-            "content": rw["content"],
-            "scores": r["scores"],
-        })
+        corpus.append(final_corpus_record(
+            r["doc_id"], rw["variables"], rw["description"], rw.get("considerations_spec", ""),
+            rw["content"], r["scores"], rw.get("variable_value_ids")))
     utils.save_jsonl(corpus, final_path)
 
     low_spec = [r for r in results if r["scores"]["spec_conformance"] < threshold]

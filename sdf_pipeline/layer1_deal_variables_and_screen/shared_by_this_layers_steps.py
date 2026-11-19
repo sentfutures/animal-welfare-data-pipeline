@@ -37,9 +37,12 @@ FLAG_RATE_MULTIPLE = 2.0
 MIN_REMOVED_TO_FLAG = 2
 
 
-def hand_record(prompt_id: str, round_number: int, variables: dict) -> dict:
-    """A hand as screen_hands.jsonl holds it."""
-    return {"prompt_id": prompt_id, "round": round_number, "variables": variables}
+def hand_record(prompt_id: str, round_number: int, variables: dict, value_ids: dict | None = None) -> dict:
+    """A hand as screen_hands.jsonl holds it; ``variable_value_ids`` follows ``variables`` when given."""
+    record = {"prompt_id": prompt_id, "round": round_number, "variables": variables}
+    if value_ids is not None:
+        record["variable_value_ids"] = value_ids
+    return record
 
 
 def load_rejections(output_dir: Path) -> dict[str, dict]:
