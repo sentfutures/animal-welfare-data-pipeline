@@ -4,21 +4,28 @@ Description, variables and considerations come from the draft record."""
 
 from sdf_pipeline.layer4_draft_critique_and_revise.draft import DRAFTS
 from sdf_pipeline.layer4_draft_critique_and_revise.shared_by_this_layers_steps import (
-    CHECKPOINT_FILENAME, CRITIQUES, MAX_TOKENS, REVISE_TEMPLATE, REWRITES, ReviewPromptRenderer, RewrittenText, critique_by_document_id,
-    interpret_rewrite_reply, layer_name_in_messages, revision_is_split, rewrite_progress_line, rewrite_record)
-from sdf_pipeline.shared_step_machinery.step_record import Run, Step, loaded_once_per_run, one_record_per_accepted_document
-from sdf_pipeline.shared_step_machinery.update_steps import (
-    Accepted, Failed, ModelReply, ModelRequest, StepPolicy, StepProgress, WhereAnErrorIsAThrownCall)
+    CRITIQUES, MAX_TOKENS, REVISE_TEMPLATE, REWRITES, ReviewPromptRenderer, RewrittenText, interpret_rewrite_reply,
+    layer_name_in_messages, load_critiques_by_document_id, require_two_call_templates, revision_is_split,
+    rewrite_progress_line, rewrite_record)
+from sdf_pipeline.shared_step_machinery.step_record import (
+    Run, Step, loaded_once_per_run, one_record_per_accepted_document)
+from sdf_pipeline.shared_step_machinery.update_steps import Accepted, Failed, ModelReply, ModelRequest, StepPolicy, StepProgress
 from shared.sdf_run_layouts import CRITIQUE_AND_REVISE
+
+SINGLE_CALL_REASON = ("this configuration (sdf.revision.split: false) revises in one call together with the critique, "
+                      "so there is no separate revise step; seed from 'critique' instead")
 
 
 @loaded_once_per_run
 def _renderer(run: Run) -> ReviewPromptRenderer:
+    require_two_call_templates(run.prompts_directory)
     return ReviewPromptRenderer(run.config, run.prompts_directory, run.prompts_directory / REVISE_TEMPLATE)
 
 
-SINGLE_CALL_REASON = ("this configuration (sdf.revision.split: false) revises in one call together with the critique, "
-                      "so there is no separate revise step; seed from 'critique' instead")
+@loaded_once_per_run
+def critique_by_document_id(run: Run) -> dict:
+    """{doc_id: critique} of the critiques banked in the run's critique and revise folder."""
+    return load_critiques_by_document_id(run.stage_directories[CRITIQUE_AND_REVISE])
 
 
 def build_request(documents: list, run: Run) -> ModelRequest:
@@ -51,8 +58,6 @@ STEP = Step(
     applies=lambda draft, run: draft["doc_id"] in critique_by_document_id(run),
     build_request=build_request, read_reply=read_reply,
     records=one_record_per_accepted_document(REWRITES, lambda draft, update, run: rewrite_record(draft, update)),
-    writes=(REWRITES,), checkpoint_file_name=CHECKPOINT_FILENAME,
-    policy=StepPolicy(
-        failure_kinds_counting_towards_the_systemic_stop=frozenset(),
-        errors_counted_as_thrown_calls=WhereAnErrorIsAThrownCall.BUILD | WhereAnErrorIsAThrownCall.SEND),
+    writes=(REWRITES,),
+    policy=StepPolicy(failure_kinds_counting_towards_the_systemic_stop=frozenset()),
     name_in_messages=layer_name_in_messages, progress_line=progress_line)

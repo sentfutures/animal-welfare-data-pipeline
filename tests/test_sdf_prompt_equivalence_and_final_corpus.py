@@ -1,6 +1,20 @@
-"""Every SDF model request, stage file, checkpoint, stop message and final corpus record on the scenarios equals its recording in ``tests/fixtures/sdf_prompt_equivalence/``.
-A deliberate change regenerates the recordings with ``scripts/regenerate_sdf_prompt_equivalence_recorded_requests.py``; a refactor never does.
-Scenarios are in ``tests/sdf_prompt_equivalence_scenarios.py``, the recording engine in ``tests/sdf_prompt_equivalence_fixture_support.py``."""
+"""SDF prompt-equivalence test, stage-file test and final corpus schema test.
+
+Every request the SDF pipeline sends to a model, on the fixture scenarios run through
+``sdf_pipeline/run.py``, must equal the recorded request in
+``tests/fixtures/sdf_prompt_equivalence/`` (system prompt hash, user message, model, max tokens
+after thinking headroom, reasoning effort, schema and its key order, temperature, caching, thinking
+and every other field that reaches the wire, and the number of calls per stage, including on
+failures, stops, interrupted runs and resumes). The stage files, checkpoints and final corpus must
+keep their recorded fields, field order and values.
+
+A failing comparison means a request or a record changed. If that is deliberate, regenerate the
+recorded files with ``scripts/regenerate_sdf_prompt_equivalence_recorded_requests.py`` in the same
+pull request as the change, and commit them with it. A pull request that only refactors never
+rewrites them. This test never rewrites them. See
+``tests/sdf_prompt_equivalence_fixture_support.py`` for how requests are recorded and
+``tests/sdf_prompt_equivalence_scenarios.py`` for the scenarios.
+"""
 
 import json
 import tempfile

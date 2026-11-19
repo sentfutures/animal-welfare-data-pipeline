@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 from shared import sdf_run_layouts, utils
+from sdf_pipeline.compatibility_with_runs_made_by_earlier_code.checkpoint_marks import marked_as_finished
 from sdf_pipeline.shared_step_machinery.step_record import StageFile
 
 # The shuffles of the screen's batches and of the redeal are seeded with this text (with the run seed and the
@@ -18,7 +19,6 @@ ROUNDS_FILENAME = "screen_rounds.jsonl"
 BATCHES_FILENAME = "screen_batches.jsonl"
 JUDGMENTS_FILENAME = "screen_judgments.jsonl"
 REJECTIONS_FILENAME = "screen_rejections.jsonl"
-CHECKPOINT_FILENAME = "_screen_checkpoint.json"
 SCREENED_HANDS_FILENAME = "screened_hands.jsonl"
 SUMMARY_FILENAME = "screen_summary.json"
 # The accepted hands (what planning reads) and the composed planning prompts. The compose step between the screen and
@@ -45,6 +45,16 @@ def hand_record(prompt_id: str, round_number: int, variables: dict, value_ids: d
     return record
 
 
+def finished_screen_batch_ids(stage_dir: Path) -> set:
+    """The batches whose every hand has a judgment (the judgments are written last, so a batch interrupted while being
+    written is not finished)."""
+    judged_ids: dict = {}
+    for judgment in utils.load_jsonl(stage_dir / JUDGMENTS_FILENAME):
+        judged_ids.setdefault(judgment["batch_id"], set()).add(judgment["prompt_id"])
+    return {batch["batch_id"] for batch in utils.load_jsonl(stage_dir / BATCHES_FILENAME)
+            if judged_ids.get(batch["batch_id"]) == set(batch["prompt_ids"])}
+
+
 def load_rejections(output_dir: Path) -> dict[str, dict]:
     """{prompt_id: rejection record}, de-duplicated."""
     return {r["prompt_id"]: r for r in utils.load_jsonl(output_dir / REJECTIONS_FILENAME)}
@@ -53,20 +63,15 @@ def load_rejections(output_dir: Path) -> dict[str, dict]:
 # ---------------------------------------------------------------- reporting
 
 def load_screen_outputs(run_dir: Path) -> dict | None:
-    """The screen's results for a run, or None when it never ran (older runs,
-    which screened planned descriptions and have no screen_hands.jsonl).
-
-    Returns {"hands": every hand ever dealt, "rounds", "removed": {prompt_id:
-    rejection record}, "screened_ids": ids in a checkpointed batch,
-    "accepted_ids": set or None until the screen finishes, "leftover_ids",
-    "dealt_hands": the round-0 hands, "batches_total", "batches_done"}."""
+    """The screen's results for a run, or None when it never ran (no screen_hands.jsonl); ``accepted_ids`` is None until the screen finishes."""
     stage_dir = utils.sdf_stage_folder(run_dir, sdf_run_layouts.DEAL_VARIABLES_AND_SCREEN)
     hands = utils.load_jsonl(stage_dir / HANDS_FILENAME)
     if not hands:
         return None
     batches = utils.load_jsonl(stage_dir / BATCHES_FILENAME)
-    checkpoint = utils.Checkpoint(stage_dir / CHECKPOINT_FILENAME)
-    done = [b for b in batches if checkpoint.is_done(b["batch_id"])]
+    marks = marked_as_finished("screen", stage_dir)
+    finished_ids = finished_screen_batch_ids(stage_dir) if marks is None else marks
+    done = [b for b in batches if b["batch_id"] in finished_ids]
     accepted = utils.load_jsonl(stage_dir / SCREENED_HANDS_FILENAME)
     summary_path = stage_dir / SUMMARY_FILENAME
     summary = json.loads(summary_path.read_text(encoding="utf-8")) if summary_path.exists() else None
@@ -84,12 +89,8 @@ def load_screen_outputs(run_dir: Path) -> dict | None:
 
 
 def removal_rate_rows(screen: dict, axes: list[str] | None = None) -> list[dict]:
-    """Removal rate per variable value over every screened hand, counting every
-    round (a redealt hand is a fresh hand to screen).
-
-    Each row: variable, value, screened, removed, rate, corpus_rate, flagged
-    (rate above FLAG_RATE_MULTIPLE x the corpus rate with at least
-    MIN_REMOVED_TO_FLAG removals). Sorted flagged first, then by rate."""
+    """Removal rate per variable value over every screened hand (a redealt hand counts afresh), flagged rows first.
+    Flagged: rate above FLAG_RATE_MULTIPLE x the corpus rate with at least MIN_REMOVED_TO_FLAG removals."""
     screened = [h for h in screen["hands"] if h["prompt_id"] in screen["screened_ids"]]
     removed_ids = set(screen["removed"])
     corpus_rate = (sum(h["prompt_id"] in removed_ids for h in screened) / len(screened)) if screened else 0.0
@@ -124,9 +125,7 @@ def round_rows(screen: dict) -> list[dict]:
 
 
 def share_shift_rows(screen: dict) -> list[dict]:
-    """Per variable value, its share of the dealt hands against its share of the
-    accepted hands: the shift caused by the leftover hands dropped after the last
-    round. Empty until the screen has finished. Sorted by absolute shift."""
+    """Per variable value, its share of the dealt hands against the accepted hands (the shift from leftover hands); empty until the screen finishes."""
     if screen["accepted_ids"] is None:
         return []
     dealt = screen["dealt_hands"]

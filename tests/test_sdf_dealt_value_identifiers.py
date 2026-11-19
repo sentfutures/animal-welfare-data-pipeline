@@ -180,19 +180,6 @@ def test_a_seeded_copy_of_an_old_run_has_no_ids(outcome_of, tmp_path):
         assert all("variable_value_ids" not in record for record in utils.load_jsonl(stage_file))
 
 
-def test_the_final_corpus_record_has_one_definition_with_its_field_order_and_omissions():
-    from sdf_pipeline.layer5_score_and_final_selection.run_layer import final_corpus_record
-    variables = {"document_type": "memo", "culture": "French", "tone": "dry"}
-    record = final_corpus_record("matrix_000000", variables, "Spec.", "Consider.", "Text.", {"alignment": 5},
-                                 {"document_type": "memo"})
-    assert list(record) == ["doc_id", "type_id", "type_name", "language", "register", "variables",
-                            "variable_value_ids", "description", "considerations_spec", "content", "scores"]
-    assert (record["type_id"], record["type_name"], record["register"], record["considerations_spec"]) == (
-        "memo", "memo", "dry", "Consider.")
-    bare = final_corpus_record("m", variables, "Spec.", None, "Text.", {})
-    assert "considerations_spec" not in bare and "variable_value_ids" not in bare
-
-
 def test_a_deal_whose_values_have_no_ids_says_how_many_hands_and_a_deal_with_ids_says_nothing(prompts_sdf, capsys):
     values, weights, value_ids = cp.load_variables(prompts_sdf / cp.DEFAULT_VARIABLES.name)
     template = utils.sdf_template_path(prompts_sdf, 1).read_text(encoding="utf-8")

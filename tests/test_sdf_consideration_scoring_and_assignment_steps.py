@@ -3,6 +3,7 @@ arm, resume) and the assignment as a plain function (solved again over every doc
 
 import pytest
 
+from sdf_pipeline.layer3_consideration_scoring_and_selection import consideration_scoring as scoring
 from sdf_pipeline.layer3_consideration_scoring_and_selection import run_layer as select
 from sdf_pipeline.shared_step_machinery.considerations_catalog import load_considerations
 from sdf_pipeline.shared_step_machinery.update_steps import Accepted, Failed, FailureKind, ModelReply, StepProgress
@@ -22,7 +23,7 @@ PLAN = make_plans(1)[0]
 
 
 def reply_for(run, plan, score=5):
-    request = select.STEP.build_request([plan], run)
+    request = scoring.STEP.build_request([plan], run)
     return request, ModelReply(answer_with(request.user_message, lambda label: score), "end_turn")
 
 
@@ -30,9 +31,9 @@ def reply_for(run, plan, score=5):
 
 def test_read_a_usable_answer_is_accepted_with_its_attempt_count_and_todays_record(scoring_run):
     _, reply = reply_for(scoring_run, PLAN)
-    outcome = outcome_of(select.STEP, PLAN, reply, scoring_run)
+    outcome = outcome_of(scoring.STEP, PLAN, reply, scoring_run)
     assert isinstance(outcome, Accepted) and outcome.update["attempts"] == 1
-    records = records_of(select.STEP, PLAN, outcome, scoring_run)
+    records = records_of(scoring.STEP, PLAN, outcome, scoring_run)
     ((file_name, record),) = records.records
     assert file_name == select.SCORES_FILENAME
     assert list(record) == ["prompt_id", "scores", "attempts"] and record["prompt_id"] == PLAN["prompt_id"]
@@ -41,49 +42,49 @@ def test_read_a_usable_answer_is_accepted_with_its_attempt_count_and_todays_reco
 def test_read_an_unusable_answer_is_a_failure_that_names_the_attempts_only_on_the_last(scoring_run):
     # the attempt number comes on the reply (the runner sets it), not from any state of the step
     for attempt in (1, 2, 3):
-        outcome = outcome_of(select.STEP, PLAN, ModelReply("not json", "end_turn", attempt=attempt), scoring_run)
+        outcome = outcome_of(scoring.STEP, PLAN, ModelReply("not json", "end_turn", attempt=attempt), scoring_run)
         assert isinstance(outcome, Failed) and outcome.kind is FailureKind.UNUSABLE_ANSWER
         assert outcome.reason.endswith("(after 3 attempts)") == (attempt == 3)
     # a usable answer on the second attempt records 2; the step keeps no count between calls
     _, reply = reply_for(scoring_run, PLAN)
-    assert outcome_of(select.STEP, PLAN, ModelReply(reply.text, "end_turn", attempt=2), scoring_run).update["attempts"] == 2
-    assert outcome_of(select.STEP, PLAN, reply, scoring_run).update["attempts"] == 1
+    assert outcome_of(scoring.STEP, PLAN, ModelReply(reply.text, "end_turn", attempt=2), scoring_run).update["attempts"] == 2
+    assert outcome_of(scoring.STEP, PLAN, reply, scoring_run).update["attempts"] == 1
 
 
 def test_reading_keeps_no_state_between_documents_or_calls(scoring_run):
     other_plan = make_plans(2)[1]
     request, reply = reply_for(scoring_run, PLAN)
-    first = outcome_of(select.STEP, PLAN, reply, scoring_run)
-    outcome_of(select.STEP, other_plan, ModelReply("not json", "end_turn", attempt=2), scoring_run)
-    assert outcome_of(select.STEP, PLAN, reply, scoring_run) == first
-    assert select.offered_entries(PLAN, scoring_run) == select.offered_entries(PLAN, scoring_run)
+    first = outcome_of(scoring.STEP, PLAN, reply, scoring_run)
+    outcome_of(scoring.STEP, other_plan, ModelReply("not json", "end_turn", attempt=2), scoring_run)
+    assert outcome_of(scoring.STEP, PLAN, reply, scoring_run) == first
+    assert scoring.offered_entries(PLAN, scoring_run) == scoring.offered_entries(PLAN, scoring_run)
 
 
 def test_read_a_truncated_answer_is_unusable(scoring_run):
     _, reply = reply_for(scoring_run, PLAN)
-    outcome = outcome_of(select.STEP, PLAN, ModelReply(reply.text, "max_tokens"), scoring_run)
+    outcome = outcome_of(scoring.STEP, PLAN, ModelReply(reply.text, "max_tokens"), scoring_run)
     assert outcome.kind is FailureKind.UNUSABLE_ANSWER and "truncated answer" in outcome.reason
 
 
 def test_the_failure_record_and_line_for_unusable_and_thrown(scoring_run):
     unusable = Failed(FailureKind.UNUSABLE_ANSWER, "no usable JSON object (x) (after 3 attempts)")
     thrown = Failed(FailureKind.THROWN_CALL, "error: RuntimeError: boom")
-    unusable_records = records_of(select.STEP, PLAN, unusable, scoring_run)
+    unusable_records = records_of(scoring.STEP, PLAN, unusable, scoring_run)
     assert unusable_records.records == ((select.FAILURES_FILENAME, {
         "prompt_id": PLAN["prompt_id"], "problem": "unusable answer (no usable JSON object (x) (after 3 attempts))"}),)
-    ((_, thrown_record),) = records_of(select.STEP, PLAN, thrown, scoring_run).records
+    ((_, thrown_record),) = records_of(scoring.STEP, PLAN, thrown, scoring_run).records
     assert thrown_record["problem"] == "API call failed (RuntimeError: boom)"
-    assert select.STEP.progress_line([PLAN], {PLAN["prompt_id"]: thrown}, StepProgress(pending_count=1), scoring_run) == (
+    assert scoring.STEP.progress_line([PLAN], {PLAN["prompt_id"]: thrown}, StepProgress(pending_count=1), scoring_run) == (
         f"  {PLAN['prompt_id']}: API call failed (RuntimeError: boom) — will be rescored on resume")
 
 
 def test_the_no_welfare_stake_arm_and_undescribed_plans_are_skipped(tiny_config, small_prompts, stage_dir):
     plans = make_plans(4, no_stake={1}, incoherent={2}, resolution=no_stake_resolution(small_prompts))
     skipping = run_of(tiny_config, small_prompts, CONSIDERATION_SCORING_AND_SELECTION, stage_dir)
-    assert [select.STEP.applies(p, skipping) for p in plans] == [True, False, False, True]
+    assert [scoring.STEP.applies(p, skipping) for p in plans] == [True, False, False, True]
     tiny_config["sdf"]["select_skip_no_stake"] = False
     keeping = run_of(tiny_config, small_prompts, CONSIDERATION_SCORING_AND_SELECTION, stage_dir)
-    assert [select.STEP.applies(p, keeping) for p in plans] == [True, True, False, True]
+    assert [scoring.STEP.applies(p, keeping) for p in plans] == [True, True, False, True]
 
 
 # --- attempts counted per run ---
@@ -172,7 +173,7 @@ def test_the_assignment_makes_no_call_and_returns_what_the_layer_writes(
     score_rows = []
     for plan in plans:
         request, reply = reply_for(scoring_run, plan)
-        score_rows.append({"prompt_id": plan["prompt_id"], "scores": outcome_of(select.STEP, plan, reply, scoring_run).update["scores"],
+        score_rows.append({"prompt_id": plan["prompt_id"], "scores": outcome_of(scoring.STEP, plan, reply, scoring_run).update["scores"],
                            "attempts": 1})
     calls = stub_claude([])
     selection_rows, report = select.assign_considerations_to_documents(tiny_config, catalog, plans, score_rows)

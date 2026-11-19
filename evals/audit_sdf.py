@@ -1,35 +1,7 @@
 #!/usr/bin/env python3
-"""Corpus-level audit for SDF output: composition, redundancy, and templating.
-
-Per-document judges (layer 4, evals/score_sdf.py) cannot see corpus-level
-properties — a corpus can pass every per-doc check and still be 90% one
-register, reuse the same invented name everywhere, or open every piece the
-same way (exactly what an early quality review of this corpus found). This tool reads
-the corpus as a set.
-
-Two tiers:
-
-  Mechanical (default, offline, free): composition spread, length and
-  truncation artifacts, near-duplicate rate (word-shingle cosine — lexical,
-  not semantic), invented-name collapse, stock-phrase frequency, opening-shape
-  clustering, and a first-person register proxy. Each check prints a
-  GOOD/OK/BAD verdict where a threshold is meaningful.
-
-  LLM pattern detection (--patterns, costs API calls): batches documents
-  through prompts/tools/pattern_scan.txt, consolidates the found patterns,
-  then measures each pattern's prevalence across a sample. A pattern is
-  flagged RED only if it is judged a genuine templating defect AND is
-  widespread (>30%) — prevalence alone is not badness (a broad
-  problem-then-response arc is normal writing, not a defect).
-
-Usage:
-  python evals/audit_sdf.py                                  # audits outputs/sdf/latest
-  python evals/audit_sdf.py --input outputs/sdf/runs/<id>    # a specific run dir
-  python evals/audit_sdf.py --input some/corpus.jsonl        # a bare corpus file
-  python evals/audit_sdf.py --patterns                       # + LLM templating scan
-
-Writes audit/audit_report.json under the run dir (or next to the corpus file).
-"""
+"""Corpus-level audit for SDF output: composition, redundancy and templating, read as a set (per-document judges cannot see these).
+Mechanical checks are offline and free (verdicts GOOD/OK/BAD); ``--patterns`` adds an LLM templating scan (paid), flagging RED only a widespread genuine defect.
+Writes ``audit/audit_report.json`` under the run dir (or next to a bare corpus file)."""
 
 import argparse
 import collections
@@ -41,8 +13,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sdf_pipeline.layer1_deal_variables_and_screen import run_layer as deal_variables_and_screen_layer
-from sdf_pipeline.layer2_description_write_and_description_rewrite import description_rewrite
 from sdf_pipeline.layer3_consideration_scoring_and_selection import run_layer as consideration_scoring_and_selection_layer
+from sdf_pipeline.layer2_description_write_and_description_rewrite import description_rewrite
+from evals.sdf_eval_input_resolution import resolve_sdf_input
 from shared import api, textstats, utils
 from shared.api_keys import add_api_key_source_flags, apply_api_key_source_flags
 
@@ -65,29 +38,16 @@ def _fmt(label: str, value: str, verdict: str | None = None, note: str = "") -> 
 
 
 def resolve_input(input_arg: str) -> tuple[list[dict], Path]:
-    """Return (records, report_dir). Accepts a run dir or a JSONL file.
-
-    Composition lives in each record's ``variables`` (the matrix axes) plus the
-    top-level ``type_name``/``language``/``register`` the pipeline derives — so
-    no separate layer-1 type map is loaded."""
-    path = Path(input_arg)
-    if path.is_dir():
-        corpus = path / "final" / "sdf_corpus.jsonl"
-        if not corpus.exists():
-            raise SystemExit(f"No final/sdf_corpus.jsonl under {path}")
-        return utils.load_jsonl(corpus), path / "audit"
-    if not path.exists():
-        raise SystemExit(f"Input not found: {path}")
-    return utils.load_jsonl(path), path.parent / "audit"
+    """``(records, report_dir)`` from a run dir or a JSONL file; composition is read from each record's ``variables`` and derived top-level fields."""
+    resolved = resolve_sdf_input(input_arg)
+    return utils.load_jsonl(resolved.corpus_path_or_exit_with_input_not_found_message()), resolved.audit_parent_directory
 
 
 def run_directory_for_input(input_arg: str) -> Path:
     """The run directory (the one holding layer1/ and final/) for either kind of input: a
     run directory itself, or a corpus .jsonl, which normally sits in the run's final/."""
-    path = Path(input_arg)
-    if path.is_dir():
-        return path
-    return path.parent.parent if path.parent.name == "final" else path.parent
+    resolved = resolve_sdf_input(input_arg)
+    return resolved.run_directory or resolved.input_path.parent
 
 
 # ---------------------------------------------------------------- mechanical checks
@@ -148,8 +108,7 @@ def first_sentence(text: str) -> str:
 
 # Matrix axes worth a corpus-level readout. The deck-sampler fixes their
 # marginals by construction, so this confirms the composition rather than
-# detecting drift — but reading them from each record's `variables` (not a
-# stale layer-1 type map) keeps the readout honest instead of all-"unknown".
+# detecting drift. Read them from each record's `variables`.
 _COMPOSITION_AXES = ("tone", "domain", "centrality")
 
 
@@ -181,14 +140,7 @@ def audit_composition(records: list[dict], report: dict) -> None:
 
 
 def audit_screen(run_dir: Path, report: dict) -> None:
-    """Layer-1 implausibility screen: removals per round, removal rate per variable
-    value across all rounds, and the share shift left by hands dropped after the
-    last redeal round.
-
-    A value removed at more than twice the corpus-wide rate is flagged, so a
-    screen that quietly removes (say) every skeptical or non-English hand is
-    visible. Runs made before the screen existed (or before it moved ahead of
-    planning) have no screen_hands file and are skipped."""
+    """Layer 1 screen: removals per round, removal rate per variable value (flagged above twice the corpus rate) and the share shift from leftover hands; skipped without screen_hands."""
     screen = deal_variables_and_screen_layer.load_screen_outputs(run_dir)
     if screen is None:
         print("LAYER-1 SCREEN\n  (no screen files in this run — it predates the screen or had it disabled)")
@@ -237,9 +189,7 @@ def audit_screen(run_dir: Path, report: dict) -> None:
 
 
 def audit_description_rewrite(run_dir: Path, report: dict) -> None:
-    """Layer-1 description rewrite: the share of descriptions rewritten, per check
-    and per variable value, and the plans dropped for a dealt-value conflict. Runs
-    made before the stage existed are skipped."""
+    """Description rewrite: share rewritten per check and variable value, and plans dropped for a dealt-value conflict; skipped for runs without the stage."""
     outputs = description_rewrite.load_description_rewrite_outputs(run_dir)
     if outputs is None:
         print("LAYER-1 DESCRIPTION REWRITE\n  (no description rewrite files in this run — it predates "
@@ -262,11 +212,7 @@ def audit_description_rewrite(run_dir: Path, report: dict) -> None:
 
 
 def audit_considerations(run_dir: Path, records: list[dict], report: dict) -> None:
-    """Layer-1 considerations selector, measured on the final corpus: per entry, its
-    target share and the share achieved among the documents eligible for it, the
-    share of documents with no consideration, and how many carry two or more from
-    one list. Drafting failures and the score gate shift these after selection.
-    Runs made before the selector have no selection files and are skipped."""
+    """Considerations, on the final corpus: per entry its target and achieved share, the share with none, and documents with two or more from one list; skipped without selection files."""
     outputs = consideration_scoring_and_selection_layer.load_considerations_outputs(run_dir)
     if outputs is None:
         print("CONSIDERATIONS\n  (no selection files in this run — it predates the selector or had it disabled)")
@@ -313,9 +259,7 @@ def audit_length_truncation(records: list[dict], report: dict) -> None:
 
 
 def audit_markdown(records: list[dict], report: dict) -> None:
-    """Markdown gloss is a strong synthetic tell in prose meant to look scraped —
-    with an explicit ban in the prompts, bullets drop to 0% and bold to single
-    digits; a comparison corpus generated without the ban hit 52% bold."""
+    """Markdown share (bullets, bold): a strong synthetic tell in prose meant to look scraped."""
     n = len(records)
     counts = {label: sum(bool(rx.search(r.get("content") or "")) for r in records)
               for label, rx in _MD_CLASSES.items()}
@@ -430,10 +374,8 @@ def audit_openings(records: list[dict], report: dict) -> None:
 def audit_register(records: list[dict], report: dict) -> None:
     rows = []
     for r in records:
-        # The proxy is English-only. Final corpora label language with the full
-        # name ("English", via derive_language); accept the "en" code too so
-        # legacy/test records still count. (Matching only "en" silently skipped
-        # every real doc, disabling this check on production runs.)
+        # The proxy is English-only. Corpora label language with the full name
+        # ("English", via derive_language); accept the "en" code too.
         if str(r.get("language", "English")).lower() not in ("en", "english"):
             continue
         text = r.get("content") or ""
@@ -447,10 +389,7 @@ def audit_register(records: list[dict], report: dict) -> None:
         return
     n = len(rows)
     reads = sum(rows)
-    # Corpus-level signal only: what fraction of English docs read first-person.
-    # The matrix has no per-doc first-person/expository register label, so this
-    # reports the corpus fraction without a verdict; stiffly-written casual
-    # genres are caught per document by layer 3's house-style check instead.
+    # Corpus-level signal only (no verdict): the matrix has no per-document register label; stiffly written casual genres are caught per document by the revise house-style check.
     print("REGISTER (heuristic: first-person pronouns + contractions, English docs)")
     print(_fmt("reads first-person", f"{reads} of {n} ({reads / n:.0%})", None,
                "(uniform-draw corpora collapse to ~10% — a real mix has far more)"))
@@ -485,14 +424,6 @@ _PREVALENCE_PROMPT_HEAD = (
 )
 
 
-def _parse_json_block(raw: str):
-    """The scan reply's JSON via the shared hardened parser — fences, prose
-    around the payload, and control characters inside strings all tolerated;
-    raises json.JSONDecodeError when nothing usable is present (callers keep
-    their existing failure handling)."""
-    return utils.extract_json(raw or "")
-
-
 def llm_pattern_scan(records: list[dict], config: dict, report: dict,
                      scan_sample: int, batch_size: int, prevalence_sample: int) -> None:
     prompts_dir = Path(__file__).parent.parent / "prompts" / "tools"
@@ -508,7 +439,7 @@ def llm_pattern_scan(records: list[dict], config: dict, report: dict,
         blob = "\n\n---\n\n".join(t[:1200] for t in batch)
         prompt = utils.load_prompt(prompts_dir / "pattern_scan.txt", documents=blob)
         try:
-            found = _parse_json_block(api.call_claude(user_message=prompt, stage="eval_audit_sdf"))
+            found = utils.extract_json(api.call_claude(user_message=prompt, stage="eval_audit_sdf") or "")
             return [p for p in found if isinstance(p, dict) and p.get("pattern")]
         except Exception as e:
             print(f"    batch scan parse failure ({e}); skipping batch")
@@ -528,8 +459,8 @@ def llm_pattern_scan(records: list[dict], config: dict, report: dict,
         for p in raw_patterns
     )
     try:
-        canonical = _parse_json_block(api.call_claude(user_message=_CONSOLIDATE_PROMPT + listing,
-                                                      stage="eval_audit_sdf"))
+        canonical = utils.extract_json(api.call_claude(user_message=_CONSOLIDATE_PROMPT + listing,
+                                                      stage="eval_audit_sdf") or "")
         canonical = [p for p in canonical if isinstance(p, dict) and p.get("pattern")][:15]
     except Exception as e:
         print(f"   consolidation failed ({e}); reporting raw patterns without prevalence")
@@ -547,7 +478,7 @@ def llm_pattern_scan(records: list[dict], config: dict, report: dict,
     def rate_one(doc: str) -> set[int]:
         prompt = _PREVALENCE_PROMPT_HEAD + plist + "\n\nDOCUMENT:\n" + doc[:1200]
         try:
-            ids = _parse_json_block(api.call_claude(user_message=prompt, stage="eval_audit_sdf"))
+            ids = utils.extract_json(api.call_claude(user_message=prompt, stage="eval_audit_sdf") or "")
             return {i for i in ids if isinstance(i, int) and 0 <= i < len(canonical)}
         except Exception:
             return set()
@@ -582,10 +513,7 @@ PRINCIPLE_COVERAGE_FLOOR = 0.05
 
 def audit_principle_coverage(records: list[dict], config: dict, report: dict,
                              sample: int) -> None:
-    """Judge which distilled constitution principles each sampled document
-    substantively exercises, and flag principles the corpus is starving
-    (composition guidelines require every principle to be exercised by many
-    documents, not just the headline weigh-welfare one)."""
+    """Judge which distilled principles each sampled document exercises, and flag principles the corpus starves."""
     from shared import constitution_loader
 
     principles = constitution_loader.load_principles()
@@ -603,7 +531,7 @@ def audit_principle_coverage(records: list[dict], config: dict, report: dict,
     def rate_one(doc: str) -> set[int] | None:
         prompt = utils.load_prompt(template_path, principles=block, document=doc[:6000])
         try:
-            ids = _parse_json_block(api.call_claude(user_message=prompt, stage="eval_audit_sdf"))
+            ids = utils.extract_json(api.call_claude(user_message=prompt, stage="eval_audit_sdf") or "")
             return {i for i in ids if isinstance(i, int) and i in numbers}
         except Exception:
             return None  # malformed judge output: unrated, not zero-principle

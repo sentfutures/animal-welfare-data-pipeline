@@ -1,11 +1,5 @@
-"""Shared building blocks for the model-judged corpus audits (plausibility_audit_sdf.py and
-shoehorning_audit_sdf.py) and their post-processors.
-
-Holds the resumable JSONL records, run-folder management, strict JSON schema helpers, quote verification,
-timed progress reporting, CSV writing, stratified estimate sample and partial-run folder rule. Model calls go through
-shared/openai_api.py (and so into the repo's cost log and model-call log), keys through
-shared/api_keys.py. See the "Model-judged audits" section of evals/README.md.
-"""
+"""Shared building blocks for the model-judged audits (plausibility, shoehorning) and their post-processors: resumable JSONL records, run folders, strict schemas,
+quote verification, progress, CSV and the partial-run folder rule. Model calls go through shared/openai_api.py; see "Model-judged audits" in evals/README.md."""
 
 import csv
 import difflib
@@ -19,6 +13,7 @@ import unicodedata
 from datetime import datetime
 from pathlib import Path
 
+from evals.sdf_eval_input_resolution import resolve_sdf_input
 from shared import openai_api
 
 # ----------------------------------------------------------------------------
@@ -30,9 +25,7 @@ DEFAULT_INPUT = "outputs/sdf/latest"
 
 def corpus_path_of(input_argument):
     """The sdf_corpus.jsonl an --input names: the file itself, or <run directory>/final/sdf_corpus.jsonl."""
-    path = Path(input_argument)
-    if path.is_dir():
-        path = path / "final" / "sdf_corpus.jsonl"
+    path = resolve_sdf_input(input_argument).corpus_path
     if not path.is_file():
         raise SystemExit(f"Corpus not found: {path}")
     return path
@@ -40,12 +33,7 @@ def corpus_path_of(input_argument):
 
 def run_directory_of(input_argument):
     """The SDF run directory an --input points at (a run directory, or a corpus in <run>/final/), else None."""
-    path = Path(input_argument)
-    if path.is_dir():
-        return path
-    if path.parent.name == "final":
-        return path.parent.parent
-    return None
+    return resolve_sdf_input(input_argument).run_directory
 
 
 # ----------------------------------------------------------------------------
@@ -130,9 +118,7 @@ def choose_run_folder(runs_directory, run_name, resume_folder):
 
 
 def choose_runs_parent_directory(arguments, runs_directory):
-    """Audit rule. Returns (kind_description, parent_directory): full-corpus runs go in the runs
-    directory itself; every partial run (estimate-only, --document-ids, --document-limit) goes into its
-    small_sample_checks subfolder."""
+    """``(kind_description, parent_directory)``: full-corpus runs go in the runs directory, every partial run into its small_sample_checks subfolder."""
     runs_directory = Path(runs_directory)
     partial_reasons = []
     if arguments.estimate_only:
@@ -155,9 +141,7 @@ def write_run_configuration(run_folder, timestamp, configuration):
 
 def check_resume_is_compatible(run_folder, new_configuration, hashes_key="prompt_file_sha256",
                                compared_settings=()):
-    """Raise RuntimeError, saying what changed, if the new configuration differs from any of the run's
-    recorded configurations in a file hash, the corpus hash (when both record one), or any of the
-    named settings."""
+    """Raise RuntimeError, saying what changed, if the new configuration differs from a recorded one in a file hash, the corpus hash or a named setting."""
     configuration_paths = sorted(Path(run_folder).glob("run_configuration_*.json"))
     if not configuration_paths:
         raise RuntimeError(f"No run_configuration file in {run_folder}; cannot verify prompts.")
@@ -231,11 +215,7 @@ def format_duration(seconds):
 
 
 class TimedProgressReporter:
-    """Counts finished tasks and prints/logs elapsed time, rate and remaining-time estimate, at most
-    every few minutes and once at the end.
-
-    `status_suffix_function` returns extra text appended to each line (for example cost so far).
-    """
+    """Counts finished tasks and prints elapsed time, rate and remaining estimate every few minutes; ``status_suffix_function`` adds text to each line."""
 
     def __init__(self, log_path, total_new_tasks, already_done_count=0, status_suffix_function=None,
                  report_interval_seconds=PROGRESS_REPORT_INTERVAL_SECONDS):
@@ -287,10 +267,7 @@ class TimedProgressReporter:
 # ----------------------------------------------------------------------------
 
 def build_strict_object_schema(properties):
-    """Object schema where every property is required and no extras are allowed.
-
-    The order of `properties` is preserved, and with structured outputs it is the generation order.
-    """
+    """Object schema with every property required and no extras; property order is the generation order under structured outputs."""
     return {
         "type": "object",
         "properties": properties,
@@ -349,11 +326,7 @@ def normalize_text(text):
 
 
 def partial_match_score(needle, haystack):
-    """Best partial similarity (0-100) of needle against a needle-length window of haystack.
-
-    A needle at least as long as the haystack is compared with the whole haystack, so a long quote
-    that merely contains a short paragraph never scores as a match for it.
-    """
+    """Best partial similarity (0-100) of needle against a needle-length window of haystack; a needle at least as long as the haystack is compared whole."""
     if not needle:
         return 0.0
     if len(haystack) <= len(needle):
@@ -385,11 +358,7 @@ def split_into_normalized_paragraphs(document_text):
 
 
 def verify_quote(quote, document_text):
-    """Returns (found, exact_substring, fuzzy_score, quote_spans_paragraph_break).
-
-    A quote only counts as found if it matches within a single paragraph of the document. The
-    last value is True when the quote would match only if paragraphs were joined together.
-    """
+    """``(found, exact_substring, fuzzy_score, quote_spans_paragraph_break)``; a quote counts as found only within a single paragraph."""
     normalized_quote = normalize_text(quote)
     paragraphs = split_into_normalized_paragraphs(document_text)
     if normalized_quote and any(normalized_quote in paragraph for paragraph in paragraphs):
@@ -440,10 +409,7 @@ def write_rows_to_csv(path, rows, preferred_columns=()):
             writer.writerow({key: to_csv_value(value) for key, value in row.items()})
 
 
-# ----------------------------------------------------------------------------
-# Usage and cost totals (for progress lines and the run's usage_and_cost_log file; the repo's own
-# cost log, written by shared/openai_api.py per call, stays the record of spend)
-# ----------------------------------------------------------------------------
+# ---- Usage and cost totals (progress lines and the run's usage_and_cost_log file; the repo's cost log stays the record of spend) ----
 
 USAGE_FIELD_NAMES = ["input_tokens", "cached_input_tokens", "output_tokens", "reasoning_tokens"]
 
@@ -518,14 +484,8 @@ class StructuredOutputParseFailure(Exception):
 def request_structured_output(model_name, instructions_text, input_text, schema_name, schema,
                               reasoning_effort, stage, item_id, validate_parsed_result=None,
                               prompt_cache_key=None, maximum_output_tokens=MAXIMUM_OUTPUT_TOKENS):
-    """Call the model through shared.openai_api.call_openai, parse the JSON, validate it, and retry
-    once on a parse or validation failure (a refused or cut-off answer counts as a failure).
-
-    Returns a dict with parsed_result, raw_output_text, usage (summed over attempts), parse_attempts
-    and latency_seconds. Raises StructuredOutputParseFailure if both attempts fail; transport errors
-    propagate (call_openai retries the transient ones itself), carrying the usage of any earlier
-    attempt (see usage_paid_before_transport_failure).
-    """
+    """Call ``shared.openai_api.call_openai``, parse and validate the JSON, retrying once on a parse or validation failure; returns parsed_result, raw_output_text, usage, parse_attempts, latency_seconds.
+    Raises StructuredOutputParseFailure if both attempts fail; transport errors propagate carrying earlier attempts' usage."""
     attempt_usages = []
     last_failure_description = None
     last_raw_output_text = None

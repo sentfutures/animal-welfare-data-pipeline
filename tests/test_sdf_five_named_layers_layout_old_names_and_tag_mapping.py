@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from sdf_pipeline.layer4_draft_critique_and_revise import draft, run_layer as draft_critique_and_revise_layer
+from sdf_pipeline.layer4_draft_critique_and_revise import run_layer as draft_critique_and_revise_layer
 from sdf_pipeline import pipeline_steps
 from sdf_plan_draft_rewrite_and_score_test_builders import make_plan
 from shared import sdf_run_layouts, utils
@@ -91,7 +91,6 @@ def test_a_tag_of_either_layout_maps_to_the_five_layer_tag_and_other_tags_are_le
     for old_tag, new_tag in sdf_run_layouts.STAGE_TAGS_BY_STEP.values():
         assert sdf_run_layouts.five_layer_tag_of(old_tag) == new_tag == sdf_run_layouts.five_layer_tag_of(new_tag)
         assert pipeline_steps.canonical_stage_tag(old_tag) == new_tag == pipeline_steps.canonical_stage_tag(new_tag)
-    assert sdf_run_layouts.five_layer_tag_of("sage_eval_judge") == "sage_eval_judge"
     assert pipeline_steps.canonical_stage_tag("sage_eval_judge") == "sage_eval_judge"
 
 
@@ -130,15 +129,6 @@ def test_every_catalogue_step_has_one_module_named_after_it_in_its_layers_folder
         classes_defined_here = [value for value in vars(module).values()
                                 if isinstance(value, type) and value.__module__ == module.__name__]
         assert classes_defined_here == [], layer_folder_name
-
-
-def test_the_draft_checkpoint_has_its_own_name_where_the_draft_shares_a_folder_with_the_revise():
-    assert FIVE.draft_checkpoint_file_name == "_draft_checkpoint.json"
-    assert FOUR.draft_checkpoint_file_name == "_checkpoint.json"
-    with sdf_run_layouts.using_layout(FIVE):
-        assert draft.STEP.checkpoint_file_name() == "_draft_checkpoint.json"
-    with sdf_run_layouts.using_layout(FOUR):
-        assert draft.STEP.checkpoint_file_name() == "_checkpoint.json"
 
 
 # ------------------------------------------------------------------ the layer 4 driver

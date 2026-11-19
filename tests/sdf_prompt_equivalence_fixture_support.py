@@ -1,6 +1,6 @@
-"""Engine for the SDF prompt equivalence test: runs ``sdf_pipeline/run.py``'s real ``main`` on the scenarios with canned replies
-and records every provider request as sent, plus the config, exit messages, stage files and final corpus; only the regenerate script rewrites the recordings.
-Recorded texts are sha256 and length; a value repeated in a file is stored once, keyed by the path of its first occurrence."""
+"""Engine for the SDF prompt-equivalence test and the final corpus schema test: runs ``sdf_pipeline/run.py``'s real ``main`` on the scenarios with canned replies
+and records every provider request as sent, plus the config, exit messages and stage files; only ``scripts/regenerate_sdf_prompt_equivalence_recorded_requests.py`` rewrites the recordings.
+The recording format (hashed texts, once-stored repeated structures, normalisation) is in ``tests/CLAUDE.md``."""
 
 import hashlib
 import inspect
@@ -62,8 +62,14 @@ STAGE_TAGS_OF_SDF_PIPELINE = (
 # (The committed config.yaml sets no effort for the SDF stage tags; the fixture config sets them
 # all so that the lookup from stage tag to effort is observable. The real-config scenario does not.)
 REASONING_EFFORT_BY_STAGE_TAG = {
-    "layer1_screen": "low", "layer2_description_write": "medium", "layer2_description_rewrite": "high", "layer3_consideration_scoring": "xhigh",
-    "layer4_draft": "max", "layer4_critique": "low", "layer4_revise": "medium", "layer4_critique_and_revise_in_one_call": "high",
+    "layer1_screen": "low",
+    "layer2_description_write": "medium",
+    "layer2_description_rewrite": "high",
+    "layer3_consideration_scoring": "xhigh",
+    "layer4_draft": "max",
+    "layer4_critique": "low",
+    "layer4_revise": "medium",
+    "layer4_critique_and_revise_in_one_call": "high",
     "layer5_score": "xhigh",
 }
 # The same efforts under the four-layer layout's tags.
@@ -563,9 +569,9 @@ def folder_key_of_stage_file(file_name: str) -> str:
         return sdf_run_layouts.DEAL_VARIABLES_AND_SCREEN
     if file_name.startswith("consideration"):
         return sdf_run_layouts.CONSIDERATION_SCORING_AND_SELECTION
-    if file_name.startswith(("prompts", "plans", "description_rewrite", "_description_rewrite")):
+    if file_name.startswith(("prompts", "plans", "description_rewrite")):
         return sdf_run_layouts.DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE
-    if file_name.startswith(("drafts", "_draft")):
+    if file_name.startswith("drafts"):
         return sdf_run_layouts.DRAFT
     if file_name.startswith(("critiques", "rewrites")):
         return sdf_run_layouts.CRITIQUE_AND_REVISE
@@ -580,8 +586,8 @@ def stage_rows(run_directory: Path, file_name: str) -> list:
 
 
 def snapshot_stage_files(run_directory: Path) -> dict:
-    """{relative path: parsed content} of every .jsonl and .json file under layer1..layer4.
-    Checkpoint marks are sorted and their timestamp replaced; files appended in thread order are sorted; the run folder path is replaced."""
+    """{relative path: parsed content} of every .jsonl and .json file under layer1..layer4 (see the
+    module docstring for the normalisation)."""
     snapshot = {}
     run_directory_text = str(run_directory)
     for layer_number in utils.sdf_layout_of_run(run_directory).layer_numbers:

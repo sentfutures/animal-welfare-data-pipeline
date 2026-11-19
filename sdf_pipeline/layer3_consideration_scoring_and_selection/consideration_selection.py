@@ -33,6 +33,16 @@ def digital_mind_flags(catalog: ConsiderationCatalog, eligible: list[dict]) -> d
     return {p["prompt_id"]: catalog.is_digital_mind_document(p["variables"]) for p in eligible}
 
 
+def assemble_considerations_spec(picks: list) -> str:
+    """The text block for later prompts: one line per pick, moral first, each list in catalog order; "" when none."""
+    return "\n".join(
+        f"{entry.label} ({entry.gloss}) — {reason}" if entry.gloss else f"{entry.label} — {reason}"
+        for entry, reason in picks
+    )
+
+
+
+
 def _selection_rows(
     catalog: ConsiderationCatalog, score_rows: dict[str, dict], assigned: dict[str, list[str]],
 ) -> list[dict]:
@@ -88,16 +98,6 @@ def attach_selections(config: dict, prompts_dir: Path, output_dir: Path, plans: 
     if not rows:
         return plans
     return attach_selection_rows(load_considerations(prompts_dir), rows, plans)
-
-
-def assemble_considerations_spec(picks: list) -> str:
-    """The text block handed to later prompts: one line per pick, 'Label (gloss) —
-    the selector's sentence on where it arises', moral picks first and each list
-    in catalog order. Empty string when there are no picks."""
-    return "\n".join(
-        f"{entry.label} ({entry.gloss}) — {reason}" if entry.gloss else f"{entry.label} — {reason}"
-        for entry, reason in picks
-    )
 
 
 def plans_with_selections(run: Run) -> list[dict]:

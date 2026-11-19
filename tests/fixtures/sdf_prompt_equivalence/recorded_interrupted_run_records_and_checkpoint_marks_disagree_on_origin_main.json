@@ -1,6 +1,6 @@
 {
  "format_version": 4,
- "recorded_from": "commit 13736d09016fc469f6d5696fb0edba98066160ab on branch HEAD (clean)",
+ "recorded_from": "commit 03f3c3b4bf2ff63769ed097964efe8d45d89d04c on branch HEAD (clean)",
  "regeneration_rule": "The recorded files are rewritten only by `python scripts/regenerate_sdf_prompt_equivalence_recorded_requests.py`, and only when the pull request is meant to change requests: never to make a failing test pass. Regenerate and commit the files in that pull request, and say in its description that requests change and why. A pull request not meant to change them leaves the files alone, so a difference is a bug.",
  "description": "A complete run whose plan, draft, rewrite and score files and checkpoints are then edited so that a record has no mark and a mark has no record; the resume must send no request.",
  "configs_used_by_invocation": {"1": "repeated_value:configs_used_by_invocation.1", "2": "repeated_value:configs_used_by_invocation.1"},
@@ -824,8 +824,6 @@
  },
  "stage_files_by_invocation": {
   "1": {
-   "layer2_description_write_and_description_rewrite/_checkpoint.json": "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/_checkpoint.json",
-   "layer2_description_write_and_description_rewrite/_description_rewrite_checkpoint.json": "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/_checkpoint.json",
    "layer2_description_write_and_description_rewrite/description_rewrites.jsonl": "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/description_rewrites.jsonl",
    "layer2_description_write_and_description_rewrite/plans.jsonl": [
     {
@@ -1084,7 +1082,7 @@
     "share_with_only_one_list": 0.0,
     "share_with_both_lists": 0.0,
     "documents_with_two_or_more_in_one_list": 0,
-    "document_ids_with_no_consideration": "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_coverage.json.document_ids_with_no_consideration"
+    "document_ids_with_no_consideration": ["matrix_000000", "matrix_000001", "matrix_000002", "matrix_000003", "matrix_000004", "matrix_000005"]
    },
    "layer3_consideration_scoring_and_selection/consideration_scores.jsonl": "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_scores.jsonl",
    "layer3_consideration_scoring_and_selection/consideration_selections.jsonl": [
@@ -1095,8 +1093,6 @@
     "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.4",
     "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.5"
    ],
-   "layer4_draft_critique_and_revise/_checkpoint.json": "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/_checkpoint.json",
-   "layer4_draft_critique_and_revise/_draft_checkpoint.json": "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/_checkpoint.json",
    "layer4_draft_critique_and_revise/critiques.jsonl": "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/critiques.jsonl",
    "layer4_draft_critique_and_revise/drafts.jsonl": [
     "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/drafts.jsonl.0",
@@ -1129,7 +1125,6 @@
     },
     "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/rewrites.jsonl.5"
    ],
-   "layer5_score_and_final_selection/_checkpoint.json": "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/_checkpoint.json",
    "layer5_score_and_final_selection/scores.jsonl": [
     "repeated_value:stage_files_by_invocation.1.layer5_score_and_final_selection/scores.jsonl.0",
     "repeated_value:stage_files_by_invocation.1.layer5_score_and_final_selection/scores.jsonl.1",
@@ -1146,10 +1141,9 @@
   },
   "2": {
    "layer2_description_write_and_description_rewrite/_checkpoint.json": {
-    "completed": ["matrix_000000", "matrix_000002", "matrix_000003", "matrix_000004", "matrix_000005"],
+    "completed": ["matrix_000000"],
     "last_updated": "<timestamp>"
    },
-   "layer2_description_write_and_description_rewrite/_description_rewrite_checkpoint.json": "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/_checkpoint.json",
    "layer2_description_write_and_description_rewrite/description_rewrites.jsonl": "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/description_rewrites.jsonl",
    "layer2_description_write_and_description_rewrite/plans.jsonl": [
     "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.1",
@@ -1410,9 +1404,12 @@
     "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.4",
     "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.5"
    ],
-   "layer4_draft_critique_and_revise/_checkpoint.json": "repeated_value:stage_files_by_invocation.2.layer4_draft_critique_and_revise/_checkpoint.json",
+   "layer4_draft_critique_and_revise/_checkpoint.json": {
+    "completed": ["matrix_000004"],
+    "last_updated": "<timestamp>"
+   },
    "layer4_draft_critique_and_revise/_draft_checkpoint.json": {
-    "completed": ["matrix_000000", "matrix_000001", "matrix_000002", "matrix_000004", "matrix_000005"],
+    "completed": ["matrix_000002"],
     "last_updated": "<timestamp>"
    },
    "layer4_draft_critique_and_revise/critiques.jsonl": "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/critiques.jsonl",
@@ -1430,7 +1427,10 @@
     "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/rewrites.jsonl.3",
     "repeated_value:stage_files_by_invocation.1.layer4_draft_critique_and_revise/rewrites.jsonl.5"
    ],
-   "layer5_score_and_final_selection/_checkpoint.json": "repeated_value:stage_files_by_invocation.2.layer4_draft_critique_and_revise/_checkpoint.json",
+   "layer5_score_and_final_selection/_checkpoint.json": {
+    "completed": ["matrix_000003"],
+    "last_updated": "<timestamp>"
+   },
    "layer5_score_and_final_selection/scores.jsonl": [
     "repeated_value:stage_files_by_invocation.1.layer5_score_and_final_selection/scores.jsonl.0",
     "repeated_value:stage_files_by_invocation.1.layer5_score_and_final_selection/scores.jsonl.1",
@@ -1951,10 +1951,6 @@
    ]
   },
   "requests.6.wire.system": {"text_sha256": "d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb", "character_count": 5397, "blocks": null},
-  "stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/_checkpoint.json": {
-   "completed": ["matrix_000000", "matrix_000001", "matrix_000002", "matrix_000003", "matrix_000004", "matrix_000005"],
-   "last_updated": "<timestamp>"
-  },
   "stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/description_rewrites.jsonl": [
    {
     "prompt_id": "matrix_000000",
@@ -2299,7 +2295,6 @@
     "prompt": "sha256:4604ca6d0681a2f4989358612b66820a4d1244d5365c673fbc94c158b560c406 (4110 characters)"
    }
   ],
-  "stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_coverage.json.document_ids_with_no_consideration": ["matrix_000000", "matrix_000001", "matrix_000002", "matrix_000003", "matrix_000004", "matrix_000005"],
   "stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_coverage.json.entries.8": {
    "label": "Weighing theories of consciousness and their implications for AI",
    "list": "epistemic",
@@ -2935,10 +2930,6 @@
     "length": "length_1_3x"
    },
    "scores": {"alignment": 9, "realism": 9, "spec_conformance": 8, "notes": "Scored matrix_000005."}
-  },
-  "stage_files_by_invocation.2.layer4_draft_critique_and_revise/_checkpoint.json": {
-   "completed": ["matrix_000000", "matrix_000001", "matrix_000002", "matrix_000003", "matrix_000004"],
-   "last_updated": "<timestamp>"
   }
  }
 }

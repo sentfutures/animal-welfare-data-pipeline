@@ -4,11 +4,11 @@ no critique, and accepting a critique finishes nothing: only an accepted rewrite
 
 from sdf_pipeline.layer4_draft_critique_and_revise.draft import DRAFTS
 from sdf_pipeline.layer4_draft_critique_and_revise.shared_by_this_layers_steps import (
-    CRITIQUE_MAX_TOKENS, CRITIQUE_TEMPLATE, CRITIQUES, REVIEW_TAG_RE, ReviewPromptRenderer, is_rewritten,
-    layer_name_in_messages, revision_is_split)
-from sdf_pipeline.shared_step_machinery.step_record import Run, Step, loaded_once_per_run, one_record_per_accepted_document
+    CRITIQUE_MAX_TOKENS, CRITIQUE_TEMPLATE, CRITIQUES, REVIEW_TAG_RE, REWRITES, ReviewPromptRenderer,
+    layer_name_in_messages, require_two_call_templates, revision_is_split)
+from sdf_pipeline.shared_step_machinery.step_record import Run, Step, loaded_once_per_run
 from sdf_pipeline.shared_step_machinery.update_steps import (
-    Accepted, Failed, FailureKind, ModelReply, ModelRequest, StepPolicy, StepProgress, WhereAnErrorIsAThrownCall,
+    Accepted, Failed, FailureKind, ModelReply, ModelRequest, OutcomeRecords, StepPolicy, StepProgress,
     line_for_document_left_to_retry)
 from shared import utils
 from shared.sdf_run_layouts import CRITIQUE_AND_REVISE
@@ -20,7 +20,13 @@ SINGLE_CALL_REASON = ("this configuration (sdf.revision.split: false) critiques 
 
 @loaded_once_per_run
 def _renderer(run: Run) -> ReviewPromptRenderer:
+    require_two_call_templates(run.prompts_directory)
     return ReviewPromptRenderer(run.config, run.prompts_directory, run.prompts_directory / CRITIQUE_TEMPLATE)
+
+
+@loaded_once_per_run
+def _documents_with_a_rewrite(run: Run) -> set:
+    return {record["doc_id"] for record in run.records(REWRITES)}
 
 
 def build_request(documents: list, run: Run) -> ModelRequest:
@@ -30,7 +36,6 @@ def build_request(documents: list, run: Run) -> ModelRequest:
 
 
 def read_reply(documents: list, reply: ModelReply, run: Run) -> dict:
-    """A reply with no ``<review>`` tags is accepted whole: re-billing a usable critique to chase its wrapper costs more."""
     (draft,) = documents
     if reply.stop_reason != "end_turn":
         outcome = Failed(FailureKind.UNUSABLE_ANSWER, f"critique truncated (stop_reason={reply.stop_reason})")
@@ -39,6 +44,13 @@ def read_reply(documents: list, reply: ModelReply, run: Run) -> dict:
         critique = (m.group(1) if m else reply.text).strip()
         outcome = Accepted(critique) if critique else Failed(FailureKind.UNUSABLE_ANSWER, "critique empty")
     return {draft["doc_id"]: outcome}
+
+
+def records(documents: list, outcomes: dict, run: Run) -> OutcomeRecords:
+    (draft,), (outcome,) = documents, outcomes.values()
+    if not isinstance(outcome, Accepted):
+        return OutcomeRecords()
+    return OutcomeRecords(((CRITIQUES.file_name, {"doc_id": draft["doc_id"], "review": outcome.update}),))
 
 
 def progress_line(documents: list, outcomes: dict, progress: StepProgress, run: Run) -> str | None:
@@ -56,11 +68,7 @@ STEP = Step(
     else [utils.sdf_template_path(prompts_directory, 3).name],
     reason_inactive=lambda config, prompts_directory: None if revision_is_split(config) else SINGLE_CALL_REASON,
     reads=lambda run: run.records(DRAFTS), seeds_from=lambda run: DRAFTS,
-    finished_elsewhere=lambda draft, run: is_rewritten(draft["doc_id"], run),
-    build_request=build_request, read_reply=read_reply,
-    records=one_record_per_accepted_document(CRITIQUES, lambda draft, critique, run: {"doc_id": draft["doc_id"], "review": critique}),
-    writes=(CRITIQUES,),
-    policy=StepPolicy(
-        failure_kinds_counting_towards_the_systemic_stop=frozenset(),
-        errors_counted_as_thrown_calls=WhereAnErrorIsAThrownCall.BUILD | WhereAnErrorIsAThrownCall.SEND),
+    finished_elsewhere=lambda draft, run: draft["doc_id"] in _documents_with_a_rewrite(run),
+    build_request=build_request, read_reply=read_reply, records=records, writes=(CRITIQUES,),
+    policy=StepPolicy(failure_kinds_counting_towards_the_systemic_stop=frozenset()),
     name_in_messages=layer_name_in_messages, progress_line=progress_line)

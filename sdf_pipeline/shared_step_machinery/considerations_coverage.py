@@ -1,10 +1,4 @@
-"""Considerations targets and coverage measurement: pure code, no API calls, no files.
-
-``entry_targets`` turns each catalog entry's target share into a document count
-(the assignment in considerations_assignment.py enforces it as a cap).
-``document_coverage_shares`` and ``corpus_coverage`` measure how documents ended
-up covered, the latter on the final corpus records.
-"""
+"""Considerations targets (document counts from target shares) and coverage measurement: pure code, no files."""
 
 from sdf_pipeline.shared_step_machinery.considerations_catalog import (
     LIST_NAMES, MORAL_LIST, ConsiderationCatalog, target_count,
@@ -22,9 +16,7 @@ def entry_targets(catalog: ConsiderationCatalog, eligible_documents: int, digita
 
 
 def document_coverage_shares(per_document_counts: list[dict[str, int]]) -> dict:
-    """How documents are covered, from each document's pick count per list:
-    shares with no consideration from either list, with picks from only one list,
-    and from both, and the number carrying two or more picks from the same list."""
+    """Shares of documents with no pick, one list's picks, both lists' picks, and two or more picks from one list."""
     total = len(per_document_counts)
     none = only_one = both = multiple_in_a_list = 0
     for counts in per_document_counts:
@@ -46,10 +38,7 @@ def document_coverage_shares(per_document_counts: list[dict[str, int]]) -> dict:
 
 
 def corpus_coverage(catalog: ConsiderationCatalog, variables_list: list[dict]) -> dict:
-    """The same report measured on finished documents' ``variables`` (the final
-    corpus), where drafting failures and the score gate have shifted the shares
-    since selection. Documents with a skipped resolution are left out; there is
-    no pass or rejection data here, so those columns are absent."""
+    """The same report on the final corpus's ``variables``; documents with a skipped resolution are left out, pass columns are absent."""
     documents = [v for v in variables_list if not catalog.is_skipped_resolution(v)]
     digital = [v for v in documents if catalog.is_digital_mind_document(v)]
     entries = []

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """SDF matrix pipeline orchestrator: five layers (deal variables and screen; description write and description rewrite; consideration scoring and selection;
 draft, critique and revise; score and final selection), each a folder in ``sdf_pipeline/`` with a driver ``run_layer.py`` and one file per step.
-The layouts are in ``shared/sdf_run_layouts.py``; a run keeps the layout it was created in."""
+The step table and the layouts are in ``sdf_pipeline/CLAUDE.md``; a run keeps the layout it was created in (``shared/sdf_run_layouts.py``)."""
 
 import argparse
 import os
@@ -10,24 +10,26 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from shared import api, costs, sdf_run_layouts, utils
+from shared import api, costs, utils
 from shared.api_keys import add_api_key_source_flags, apply_api_key_source_flags
 from sdf_pipeline.shared_step_machinery.dealt_value_identifiers import RECORDS_VALUE_IDS_MANIFEST_KEY
-from sdf_pipeline.compatibility_with_runs_made_by_earlier_code.layouts_that_can_be_resumed import layout_of_run_that_can_be_resumed
+from shared import sdf_run_layouts
 from sdf_pipeline.layer1_deal_variables_and_screen import run_layer as deal_variables_and_screen_layer
-from sdf_pipeline.layer2_description_write_and_description_rewrite import description_rewrite, description_write
 from sdf_pipeline.layer3_consideration_scoring_and_selection import run_layer as consideration_scoring_and_selection_layer
-from sdf_pipeline.layer4_draft_critique_and_revise import draft, run_layer as draft_critique_and_revise_layer
+from sdf_pipeline.layer4_draft_critique_and_revise import run_layer as draft_critique_and_revise_layer
 from sdf_pipeline.layer5_score_and_final_selection import run_layer as score_and_final_selection_layer
 from sdf_pipeline import pipeline_steps
+from sdf_pipeline.compatibility_with_runs_made_by_earlier_code.layouts_that_can_be_resumed import layout_of_run_that_can_be_resumed
 from sdf_pipeline.shared_step_machinery.step_record import Run
 from sdf_pipeline import start_a_run_from_an_earlier_runs_step as seeding
+from sdf_pipeline.layer2_description_write_and_description_rewrite import description_rewrite, description_write
+from sdf_pipeline.layer4_draft_critique_and_revise import draft
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run the SDF matrix pipeline.")
     parser.add_argument("--config", default="config.yaml")
-    parser.add_argument("--resume", action="store_true", help="Resume from checkpoints.")
+    parser.add_argument("--resume", action="store_true", help="Resume from the stage files.")
     parser.add_argument("--layer", type=int, default=None,
                         help="Start from this layer. A run in the five-layer layout (every new run) has layers 1-5: deal variables and "
                              "screen, description write and description rewrite, consideration scoring and selection, draft/critique/"
@@ -116,7 +118,7 @@ def main() -> None:
         )
 
     with sdf_run_layouts.using_layout(layout):
-        run_in_layout(args, config, layout, run_dir, root, start_layer)
+        run_in_layout(args, config, layout, run_dir, start_layer)
 
 
 def documents_read_when_restarting_at(folder_key: str, layout, run: Run, config: dict, prompts_dir: Path, folders: dict):
@@ -134,15 +136,13 @@ def documents_read_when_restarting_at(folder_key: str, layout, run: Run, config:
     return step.reads(run)
 
 
-def run_in_layout(args, config: dict, layout: sdf_run_layouts.SdfRunLayout, run_dir: Path, root: Path,
-                  start_layer: int) -> None:
+def run_in_layout(args, config: dict, layout: sdf_run_layouts.SdfRunLayout, run_dir: Path, start_layer: int) -> None:
     """Run the layers of ``layout`` from ``start_layer`` on ``run_dir`` (the tags and folders of ``layout`` are active)."""
     # Read templates from the run's frozen snapshot so prompts stay reproducible
     # (and --resume replays the run's own templates, not the repo's current ones).
     prompts_dir = run_dir / "inputs" / "prompts"
     if not prompts_dir.is_dir():
-        prompts_dir = root / "prompts" / "sdf"
-        print("WARNING: run has no inputs/ snapshot (pre-snapshot run); using live prompts/.")
+        raise SystemExit(f"Run {run_dir.name} has no inputs/prompts snapshot, so it cannot be resumed on its own templates.")
 
     api.init(args.config, cost_log_path=run_dir / "cost_log.jsonl")
     # On --resume the run's log already holds the earlier attempt's calls;
@@ -211,10 +211,11 @@ def run_in_layout(args, config: dict, layout: sdf_run_layouts.SdfRunLayout, run_
     }
     four_layer_number_of_key = sdf_run_layouts.FOUR_NUMBERED_LAYERS.layer_number_of_key
     keys_to_run = [key for key in runners if layout.layer_number_of_key[key] >= start_layer]
-    if start_layer <= layout.layer_number_of_key[sdf_run_layouts.DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE]:   # before the first paid call of the run
+    openai_check_layer = layout.layer_number_of_key[sdf_run_layouts.DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE]
+    if start_layer <= openai_check_layer:   # before the first paid call of the run
         description_rewrite.require_openai_key_if_configured(config)
 
-    last_layer = layout.layer_number_of_key[keys_to_run[-1]]
+    layers_with_a_run = sorted({layout.layer_number_of_key[key] for key in keys_to_run})
     last_key_of_layer = {layout.layer_number_of_key[key]: key for key in keys_to_run}
     documents_from_the_step_before = None
     templates_checked_for_group = set()
@@ -228,7 +229,7 @@ def run_in_layout(args, config: dict, layout: sdf_run_layouts.SdfRunLayout, run_
         if documents_from_the_step_before is None and key != sdf_run_layouts.DEAL_VARIABLES_AND_SCREEN:   # restarting here: read the stage files
             documents_from_the_step_before = documents_read_when_restarting_at(key, layout, run, config, prompts_dir, folders)
         documents_from_the_step_before = runners[key](documents_from_the_step_before)
-        if layer != last_layer and last_key_of_layer[layer] == key:
+        if layer != layers_with_a_run[-1] and last_key_of_layer[layer] == key:
             print(f"  Running cost: ${api.get_total_cost():.4f}\n")
 
     costs.report(run_dir / "cost_log.jsonl", title="Run cost (this invocation)",

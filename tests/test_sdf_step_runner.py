@@ -81,18 +81,12 @@ def test_pending_selection_skips_inapplicable_finished_and_marked_by_earlier_cod
     utils.append_jsonl({"doc_id": "b", "content": "old"}, stage_directory / "toy_records.jsonl")
     utils.Checkpoint(stage_directory / "_checkpoint.json").mark_done("c")
     documents = docs("a", "b", "c", "e") + [{"doc_id": "d", "applies": False}]
-    assert pending_ids(tmp_path, documents, toy_step(checkpoint_file_name="_checkpoint.json")) == ["a", "e"]
-    assert pending_ids(tmp_path, documents) == ["a", "c", "e"]   # a step without a checkpoint file ignores marks
+    assert pending_ids(tmp_path, documents) == ["a", "e"]
 
 
-def test_a_step_with_a_checkpoint_file_marks_each_finished_document_after_its_record_and_one_without_writes_none(tmp_path):
-    _, stage_directory = run_toy(tmp_path / "plain", docs("a"))
+def test_a_run_writes_no_checkpoint_file(tmp_path):
+    _, stage_directory = run_toy(tmp_path, docs("a"))
     assert sorted(path.name for path in stage_directory.iterdir()) == ["toy_records.jsonl"]
-    step = toy_step(checkpoint_file_name="_checkpoint.json")
-    send = lambda request: ModelReply("FAIL" if request.item_id == "b" else "REMOVE" if request.item_id == "c" else "ok", "end_turn")  # noqa: E731
-    _, stage_directory = run_toy(tmp_path / "marked", docs("a", "b", "c"), step=step, send=send)
-    assert sorted(path.name for path in stage_directory.iterdir()) == ["_checkpoint.json", "toy_records.jsonl"]
-    assert sorted(utils.Checkpoint(stage_directory / "_checkpoint.json")._completed) == ["a"]   # only a written record finishes a document
 
 
 def test_a_document_another_step_finished_is_not_pending(tmp_path):
@@ -202,7 +196,23 @@ def test_every_request_carries_the_steps_stage_tag_and_requests_differ_by_docume
     seen = []
     run_toy(tmp_path, docs("a", "b"), send=lambda request: (seen.append(request), ModelReply("ok", "end_turn"))[1])
     assert [request.stage for request in seen] == ["toy_stage", "toy_stage"]
-    assert [request.item_id for request in seen] == ["a", "b"]
+    assert len({request.request_hash() for request in seen}) == 2
+
+
+def test_request_hash_changes_with_any_setting():
+    base = ModelRequest(user_message="u", system_prompt="s", model="m", stage="t", item_id="i")
+    variants = [
+        ModelRequest(user_message="u2", system_prompt="s", model="m", stage="t", item_id="i"),
+        ModelRequest(user_message="u", system_prompt="s2", model="m", stage="t", item_id="i"),
+        ModelRequest(user_message="u", system_prompt="s", model="m2", stage="t", item_id="i"),
+        ModelRequest(user_message="u", system_prompt="s", model="m", stage="t2", item_id="i"),
+        ModelRequest(user_message="u", system_prompt="s", model="m", stage="t", item_id="i", max_tokens=5),
+        ModelRequest(user_message="u", system_prompt="s", model="m", stage="t", item_id="i", cache_system=True),
+        ModelRequest(user_message="u", system_prompt="s", model="m", stage="t", item_id="i", temperature=0.0),
+    ]
+    assert len({base.request_hash(), *(v.request_hash() for v in variants)}) == 1 + len(variants)
+    assert base.request_hash() == ModelRequest(user_message="u", system_prompt="s", model="m",
+                                               stage="t", item_id="i").request_hash()
 
 
 def test_send_model_request_passes_only_the_settings_that_are_set(monkeypatch):
@@ -243,7 +253,7 @@ def test_run_returns_existing_records_for_documents_the_step_no_longer_applies_t
         ("b", "old b"), ("d", "old d"), ("a", "new a"), ("c", "new c")]
 
 
-def test_a_step_with_a_group_runs_each_group_in_one_call_and_skips_the_groups_the_checkpoint_marks(tmp_path):
+def test_a_step_with_a_group_runs_each_group_in_one_call_and_skips_the_groups_it_reports_finished(tmp_path):
     requests = []
 
     def group(documents, run):
@@ -259,14 +269,18 @@ def test_a_step_with_a_group_runs_each_group_in_one_call_and_skips_the_groups_th
     def records(documents, outcomes, run):
         return OutcomeRecords((("grouped_records.jsonl", {"group": [d["doc_id"] for d in documents]}),))
 
+    def finished_group_keys(run):
+        written = utils.load_jsonl(run.stage_directories[FOLDER_KEY] / "grouped_records.jsonl")
+        return {f"group_of_{record['group'][0]}" for record in written}
+
     step = toy_step(group=group, build_request=build_request, read_reply=read_reply, records=records,
-                    checkpoint_file_name="_checkpoint.json", progress_line=None)
+                    finished_group_keys=finished_group_keys, progress_line=None)
     documents = docs("a", "b", "c")
     send = lambda request: (requests.append(request.user_message), ModelReply("ok", "end_turn"))[1]  # noqa: E731
     result, stage_directory = run_toy(tmp_path, documents, step=step, send=send)
     assert requests == ["a+b", "c"] and result.pending_document_ids == ["a", "b", "c"]
     assert [r["group"] for r in utils.load_jsonl(stage_directory / "grouped_records.jsonl")] == [["a", "b"], ["c"]]
-    run_toy(tmp_path, documents, step=step, send=send)   # every group is marked under its key
+    run_toy(tmp_path, documents, step=step, send=send)   # every group is finished under its key
     assert requests == ["a+b", "c"]
 
 
@@ -281,10 +295,7 @@ def test_a_group_that_fails_is_reported_whole_and_nothing_is_written_for_it(tmp_
 
 # ---------------------------------------------------------------- the declared exception policy
 
-BUILD_AND_SEND = StepPolicy(errors_counted_as_thrown_calls=WhereAnErrorIsAThrownCall.BUILD | WhereAnErrorIsAThrownCall.SEND)
-
-
-def broken_and_fragile(policy=BUILD_AND_SEND, outcomes_by_document_id=None):
+def broken_and_fragile(policy=StepPolicy(), outcomes_by_document_id=None):
     """A toy step where a document with ``"broken_template": True`` raises in ``build_request`` and a reply
     "EXPLODE" raises in ``read_reply``."""
     step = toy_step(policy, outcomes_by_document_id)
@@ -340,11 +351,6 @@ def test_a_template_broken_for_every_document_stops_the_run_with_no_model_call(t
         run_toy(tmp_path, [{"doc_id": "a", "broken_template": True}, {"doc_id": "b", "broken_template": True}],
                 step=broken_and_fragile(), send=lambda request: sent.append(request) or None)
     assert sent == []
-
-
-def test_by_default_an_error_building_a_request_ends_the_run(tmp_path):
-    with pytest.raises(KeyError, match="missing_placeholder"):
-        run_toy(tmp_path, [{"doc_id": "a", "broken_template": True}], step=broken_and_fragile(StepPolicy()))
 
 
 def test_an_error_in_read_reply_ends_the_run_unless_the_step_declares_it_a_thrown_call(tmp_path):

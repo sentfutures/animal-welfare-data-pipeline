@@ -1,66 +1,7 @@
 """Compose document-plan prompts from a template and a variables file.
 
-EXPERIMENTAL replacement for SDF layer 1: instead of two LLM calls
-generating document types and subtypes, a combinatorial matrix of pre-written
-variables is expanded deterministically. Offline, zero API calls.
-
-Inputs
-------
-- Template (``prompts/sdf/layer1.txt``): plain text with ``{name}``
-  slots — the same Python ``str.format`` syntax as every other pipeline
-  template (rendered the same way ``shared.utils.load_prompt`` does), so
-  literal ``{}`` braces must not appear in the template.
-- Variables (``prompts/sdf/matrix/variables.txt``)::
-
-      {varname}  # optional description
-          plain value
-          0.25 :: weighted value
-
-  Every SDF value must carry a stable ID, ``[id] text`` after the weight (the
-  prefix is stripped before rendering; ``load_variables`` enforces it), which
-  the deal constraints (``deal_constraints.txt``, see shared/deal_constraints.py)
-  use to refer to values.
-
-  Full-line ``#`` comments and blank lines are ignored anywhere. Weights are
-  all-or-nothing within a variable and must sum to 1.0; an unweighted
-  variable is uniform.
-
-``{preamble}`` is reserved: it is injected from ``--preamble`` (default
-``prompts/sdf/matrix/preamble.txt``), never defined in variables.txt. Every other
-placeholder in the template is a matrix axis. variables.txt may also define
-axes the plan template does not render (a downstream-only axis, consumed by a
-later stage's template): these are still deck-sampled and recorded in each record's
-``variables`` so a downstream stage can render them.
-
-Usage
------
-    # Dry run: matrix size, per-variable counts, three sample prompts
-    python sdf_pipeline/shared_step_machinery/compose_prompts.py
-
-    # THE knob for run size: deck-sample exactly N prompts. Per-variable
-    # value shares match the weights by construction (largest-remainder
-    # quotas per variable, each deck shuffled, decks zipped) — no drift.
-    python sdf_pipeline/shared_step_machinery/compose_prompts.py --n-prompts 5000 --seed 0 --out prompts.jsonl
-
-    # Full cartesian product (ignores weights; can be huge — for debugging)
-    python sdf_pipeline/shared_step_machinery/compose_prompts.py --out all_prompts.jsonl
-
-Output records: ``{"prompt_id": ..., "variables": {...}, "system": ..., "prompt": ...}``
-(``variables`` holds only the matrix axes; ``system``/``prompt`` are the two
-sections split on the file's "=== SYSTEM PROMPT ===" / "=== USER PROMPT ==="
-markers — send them as system_prompt and user_message respectively).
-
-Repeated combinations in a sample are allowed by design: drawing one cell
-twice just means two documents from that cell (the old pipeline's
-``documents_per_subtype`` > 1 was the same thing), and generation runs at
-temperature 1.0.
-
-Downstream handoff: the plan call answers the template's questions, then
-emits a self-contained spec under a DOCUMENT DESCRIPTION heading (or replies
-INCOHERENT for an impossible variable combination). ``extract_description()``
-pulls that spec out fail-closed — no heading, no handoff — and the result
-fills the ``{document_description}`` slot of the matrix layer-2 template.
-"""
+Deterministic and offline: the variables matrix is deck-sampled, ``{preamble}`` is reserved and every other template placeholder is a matrix axis; variables.txt may also
+define downstream-only axes, which are still dealt and recorded in ``variables``. The variables.txt format is in ``shared/matrix.py``."""
 
 from __future__ import annotations
 
@@ -79,7 +20,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from shared import deal_constraints, entity_pools  # noqa: E402
 # Generic matrix machinery lives in shared/matrix.py (used by the DAD composer
-# too); re-exported here so existing SDF callers and tests are unchanged.
+# too); re-exported here.
 from shared.matrix import (  # noqa: E402,F401
     SYSTEM_MARKER,
     USER_MARKER,
@@ -101,20 +42,13 @@ DEFAULT_DEAL_CONSTRAINTS = REPO_ROOT / "prompts" / "sdf" / DEAL_CONSTRAINTS_FILE
 
 LANGUAGE_RE = re.compile(r"written in ([^,]+)")
 
-# Placeholders whose values come from the composer, not variables.txt.
-# {preamble} is the corpus preamble file; {fictional_names}/{fictional_orgs}
-# are locale-matched entity-pool samples drawn per prompt from the culture
-# axis (shared/entity_pools.py), so the plan picks names that fit the
-# document's culture and the DOCUMENT DESCRIPTION carries them downstream.
-# {sentient_example} is one concrete species drawn per prompt from the drawn
-# {sentient_category}'s pool (SPECIES_EXAMPLES) — a droppable nudge off the
-# default taxa (salmon/chicken/pig) toward the long tail; the plan is told it
-# may feature a different member of the category instead.
+# Placeholders whose values come from the composer, not variables.txt: {preamble}; locale-matched {fictional_names}/{fictional_orgs} (shared/entity_pools.py);
+# and {sentient_example}, one species per prompt from the drawn category's pool, a droppable nudge toward the long tail.
 RESERVED = {"preamble", "fictional_names", "fictional_orgs", "sentient_example"}
 
-# Axes dealt from variables.txt that steer only how layer 3 REWRITES a document,
+# Axes dealt from variables.txt that steer only how the revise step rewrites a document,
 # never what it is about. No plan or draft template declares a placeholder for
-# them, so they reach layer 3 and nothing else; revision_style.py renders them.
+# them, so they reach the revise step and nothing else; revision_style.py renders them.
 REVISION_AXES = (
     "voice_rhythm", "voice_warmth", "voice_concreteness", "voice_order", "length",
 )
@@ -128,14 +62,8 @@ FALLBACK_NAMES = (
 )
 FALLBACK_ORGS = "invented organisations typical of the locale"
 
-# One concrete example is drawn per prompt from the drawn {sentient_category}'s
-# pool and offered to the plan as a droppable suggestion (see {sentient_example}
-# in RESERVED). Purpose: nudge drafts off the handful of default taxa
-# (salmon/chicken/pig) toward the long tail, without a hard sub-axis draw that
-# would force an ill-fitting species onto every document. Keys are the
-# {sentient_category} value IDs in variables.txt, so a category can be reworded
-# without touching this table — a coverage test
-# (tests/test_compose_prompts.py) fails if any category lacks a pool.
+# One example species per prompt from the drawn {sentient_category}'s pool, offered to the plan as a droppable suggestion (see {sentient_example} in RESERVED).
+# Keys are the category value IDs in variables.txt, so a category can be reworded freely; a coverage test (tests/test_compose_prompts.py) fails if any category lacks a pool.
 SPECIES_EXAMPLES = {
     "farmed_mammals": (
         "pigs", "dairy cattle", "beef cattle", "sheep", "goats", "farmed rabbits",
@@ -154,12 +82,7 @@ SPECIES_EXAMPLES = {
         "black soldier fly larvae", "mealworms", "farmed crickets", "edible land snails",
         "silkworms",
     ),
-    # Wild categories split on harm source (anthropogenic vs. from nature
-    # itself). The species overlap, but each pool leans toward taxa where the
-    # named harm source is salient: human-driven harm (habitat loss, vehicles,
-    # bycatch, culls, rodenticide, pesticides) vs. harm from nature (starvation,
-    # cold, disease, parasitism, predation, drought) — the latter is the wild
-    # animal suffering framing, engaged on its own terms.
+    # Wild categories split on harm source: each pool leans toward taxa where the named source is salient (human-driven: habitat loss, vehicles, culls; nature: starvation, cold, disease, predation).
     "large_wild_human_caused_harm": (
         "African elephants", "humpback whales", "bottlenose dolphins", "red deer",
         "grey seals", "wild boar", "brown bears", "wild macaques", "bison",
@@ -230,7 +153,6 @@ DESCRIPTION_TAG_RE = re.compile(
     r"<document_description>(.*?)</document_description>", re.DOTALL | re.IGNORECASE
 )
 
-# Legacy fallback: plan batches before the tag convention used a heading.
 DESCRIPTION_HEADING_RE = re.compile(
     r"^#{0,4}\s*\**\s*DOCUMENT DESCRIPTION\s*\**\s*:?\s*$", re.MULTILINE | re.IGNORECASE
 )
@@ -255,14 +177,8 @@ def is_incoherent(plan: str) -> bool:
 
 
 def extract_description(plan: str) -> str | None:
-    """Pull the self-contained document-description spec out of a plan response.
-
-    The spec is the text inside <document_description> tags (bounded on both
-    ends, so trailing chatter never rides into the layer-2 prompt); plans from
-    before the tag convention fall back to the DOCUMENT DESCRIPTION heading.
-    Fail-closed: returns None for INCOHERENT plans and for plans with neither
-    marker (malformed output — don't checkpoint it; retry or drop instead).
-    """
+    """The spec inside ``<document_description>`` tags (or under the DOCUMENT DESCRIPTION heading).
+    Fail-closed: None for INCOHERENT plans and plans with neither marker."""
     if is_incoherent(plan):
         return None
     m = DESCRIPTION_TAG_RE.search(plan)
@@ -282,13 +198,7 @@ def derive_language(culture: str) -> str:
 
 
 def record_language(record: dict, default: str | None = "English") -> str | None:
-    """A record's language, from the field if it carries one, else its culture card.
-
-    `default` is what a record carrying neither resolves to. It is "English" for
-    callers that need a language to pick a unit or a bucket, and None for
-    callers that group BY language, where an unknown one must not be silently
-    counted as English.
-    """
+    """A record's language from its field, else its culture card, else ``default`` (None where an unknown language must not count as English)."""
     if record.get("language"):
         return str(record["language"])
     culture = (record.get("variables") or {}).get("culture")
@@ -296,11 +206,7 @@ def record_language(record: dict, default: str | None = "English") -> str | None
 
 
 def revision_cards(variables: dict | None) -> dict[str, str]:
-    """The revision half of a dealt hand, in REVISION_AXES order.
-
-    Absent axes are simply omitted, so a record dealt before these axes existed
-    projects to {} and renders no directive.
-    """
+    """The revision half of a dealt hand in REVISION_AXES order; absent axes are omitted."""
     v = variables or {}
     return {axis: v[axis] for axis in REVISION_AXES if v.get(axis)}
 
@@ -308,11 +214,7 @@ def revision_cards(variables: dict | None) -> dict[str, str]:
 def load_variables(
     path: Path, require_ids: bool = True
 ) -> tuple[dict[str, list[str]], dict[str, list[float]], dict[str, dict[str, str]]]:
-    """(values, weights, value_ids) from an SDF variables file.
-
-    Every value must carry a stable ``[id] `` prefix (``require_ids``), because the
-    deal constraints refer to values by ID; a value without one fails here, naming
-    the variable and the value. ``value_ids`` is {variable: {id: value_text}}."""
+    """``(values, weights, value_ids)`` from an SDF variables file; a value without an ``[id]`` prefix fails, naming it."""
     parsed, ids = _matrix.parse_variables_with_ids(path, reserved=RESERVED)
     value_ids = _matrix.value_ids_by_variable(parsed, ids, require_ids, path.name)
     values, weights = split_weights(parsed)
@@ -323,7 +225,7 @@ def load_deal_rules(
     path: Path | None, value_ids: dict[str, dict[str, str]]
 ) -> list[deal_constraints.DealRule]:
     """Rules from a deal_constraints.txt file. When the file is absent the composer
-    deals exactly as it did before the rules existed, and says so."""
+    deals without rules, and says so."""
     if path is None or not path.is_file():
         print(f"  NOTICE: no deal constraints loaded from {path} — dealing without rules")
         return []
@@ -352,12 +254,7 @@ def species_example_for(
     assignment: dict[str, str], prompt_id: str, entity_seed: int,
     category_ids: dict[str, str] | None = None,
 ) -> str:
-    """The one example species drawn for a hand's sentient_category — a droppable
-    nudge toward the long tail. Deterministic per prompt id and entity seed, so
-    --resume (and the implausibility screen, which shows the same line) re-renders
-    the identical species. ``category_ids`` maps category text to its value ID
-    (default: the repo's variables.txt); a category without an ID or a pool gets
-    SPECIES_FALLBACK."""
+    """The example species for a hand's sentient_category, deterministic per prompt id and entity seed so ``--resume`` and the screen re-render it."""
     category_ids = category_ids if category_ids is not None else default_sentient_category_ids()
     category_id = category_ids.get(assignment.get("sentient_category", ""), "")
     pool = SPECIES_EXAMPLES.get(category_id, ())
@@ -366,9 +263,7 @@ def species_example_for(
 
 
 def hand_axes(template: str, values: dict[str, list[str]]) -> list[str]:
-    """The matrix axes in dealing order: the plan template's axes first, then any
-    downstream-only axis defined in variables.txt. Raises on a template placeholder
-    with no values."""
+    """The matrix axes in dealing order: the plan template's, then downstream-only ones. Raises on a placeholder with no values."""
     plan_axes = matrix_axes(template)
     missing = [n for n in plan_axes if not values.get(n)]
     if missing:
@@ -387,10 +282,7 @@ def deal_hands(
     seed: int = 0,
     deal_rules: list[deal_constraints.DealRule] | None = None,
 ) -> list[dict[str, str]]:
-    """Deck-sample exactly n_prompts hands and apply the swap-repair deal rules
-    (value counts per column stay exactly at the weights). Prints the deal and
-    repair summary. This is the first half of compose_records, exposed so the
-    implausibility screen can run on the hands before any prompt is rendered."""
+    """Deck-sample ``n_prompts`` hands and apply the swap-repair deal rules (value counts stay at the weights); prints the deal summary."""
     deal_rules = deal_rules or []
     axes = hand_axes(template, values)
     total = math.prod(len(values[n]) for n in axes)
@@ -423,13 +315,8 @@ def render_variable_lines(
     entity_seed: int = DEFAULT_ENTITY_SEED,
     category_ids: dict[str, str] | None = None,
 ) -> str:
-    """The variable lines of the planning prompt exactly as the planner sees them
-    for one hand: the stretch of the template from its first to its last line holding a
-    matrix-axis (or example species) placeholder, rendered with the hand's cards, with the deal rules'
-    rendering rules applied (a hand whose rule omits a variable shows no line for
-    it). ``record`` is a hand record, {"prompt_id", "variables"}; the prompt id
-    matters because the example species is drawn per id. ``template`` defaults to
-    the repo's prompts/sdf/layer1.txt (pass a run's snapshot to match that run)."""
+    """The planning prompt's variable lines for one hand, as the planner sees them, with the deal rules' rendering rules applied.
+    ``template`` defaults to the repo's layer1.txt (pass a run's snapshot to match that run)."""
     template = template if template is not None else DEFAULT_TEMPLATE.read_text(encoding="utf-8")
     assignment = record["variables"]
     rendered_template = deal_constraints.render_template_for_hand(template, deal_rules or [], assignment)
@@ -457,13 +344,7 @@ def make_variable_line_renderer(prompts_dir: Path, entity_seed: int = DEFAULT_EN
 
 
 def render_variable_lines_for_template(template_text: str, prompts_dir: Path, config: dict):
-    """A ``record -> variable lines`` function for a later-stage template that
-    carries a ``{variable_lines}`` slot (the drafter, the document rewrite and the
-    judge), built from the run's prompt snapshot so it shows each hand exactly the
-    lines the planner saw, omitted and reworded lines included. A snapshot template
-    without the slot (a run started before the slot existed) gets a function that
-    renders nothing, so ``--resume`` on such a run keeps working; the snapshot's
-    own planning files are then never read."""
+    """A ``record -> variable lines`` function for a template with a ``{variable_lines}`` slot (renders nothing without the slot)."""
     if "{variable_lines}" not in template_text:
         return lambda record: ""
     return make_variable_line_renderer(
@@ -482,34 +363,12 @@ def compose_records(
     hands: list[dict] | None = None,
     value_ids: dict[str, dict[str, str]] | None = None,
 ):
-    """Yield composed prompt records for the whole matrix (n_prompts=None) or a
-    deck sample of exactly n_prompts. Each record is
-    {"prompt_id", "variables", "system", "prompt"}; a header line describing
-    the matrix is printed to stdout. Raises on template/variables mismatches.
-
-    ``deal_rules`` (see shared/deal_constraints.py): swap-repair rules fix the
-    deck-sampled hands by swapping cards within one variable's column (value
-    counts unchanged; full-matrix enumeration filters instead), and rendering
-    rules drop the planning-prompt paragraph of the named variables for
-    matching hands, or swap in reworded lines, while the dealt card stays in
-    the record's ``variables``.
-
-    ``hands`` (hand records, {"prompt_id", "variables"}) renders exactly those
-    hands under their own ids instead of dealing: used once the implausibility
-    screen has accepted a set of hands (ids are then not contiguous).
-
-    ``value_ids`` (from load_variables) lets the example species be looked up by
-    category ID for a variables file other than the repo's.
-    """
+    """Yield ``{"prompt_id", "variables", "system", "prompt"}`` for the whole matrix or a deck sample of ``n_prompts``.
+    ``hands`` renders exactly those hands under their ids instead of dealing; ``deal_rules``: ``shared/deal_constraints.py``."""
     deal_rules = deal_rules or []
     placeholders = template_placeholders(template)
-    # variables.txt is authoritative for the matrix. The axes the plan template
-    # renders come first (template order); any remaining axis defined in
-    # variables.txt is a downstream-only axis — still deck-sampled and recorded
-    # in each record's `variables`, but consumed by a later stage's template
-    # (a later stage's template) rather than the plan prompt, which
-    # ignores it (str.format drops unreferenced kwargs). A variable that no
-    # stage consumes is caught by the template/variables contract test, not here.
+    # variables.txt is authoritative: the plan template's axes come first (template order), then any downstream-only axis (still dealt and recorded in ``variables``, ignored by str.format here).
+    # A variable no stage consumes is caught by the template/variables contract test, not here.
     axes = hand_axes(template, values)
     injected = {}
     if "preamble" in placeholders:
@@ -553,9 +412,7 @@ def compose_records(
     category_ids = sentient_category_ids_by_text(value_ids) if value_ids is not None else None
 
     def species_slot(assignment: dict[str, str], prompt_id: str) -> dict[str, str]:
-        """One concrete example species for the drawn sentient_category — a
-        droppable nudge toward the long tail. Sampled deterministically per
-        prompt (same seed + id -> same species, so --resume re-renders it)."""
+        """One example species for the drawn sentient_category, deterministic per prompt id."""
         if not wants_species:
             return {}
         return {"sentient_example": species_example_for(

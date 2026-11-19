@@ -1,5 +1,5 @@
-"""Layer 2 step: compose the prompt matrix offline, then write each document's description (a description spec, or INCOHERENT; only the description travels on).
-prompts.jsonl is composed once and reloaded on ``--resume``; a reply with no tags or truncated is not recorded, so ``--resume`` retries it."""
+"""Layer 2 step: compose the prompt matrix offline, then plan each document (a description spec or INCOHERENT; only the description travels on).
+prompts.jsonl is composed once and reloaded on ``--resume`` (the run's snapshot is authority); malformed output is not recorded, so ``--resume`` retries it."""
 
 import sys
 from pathlib import Path
@@ -18,6 +18,7 @@ from sdf_pipeline.shared_step_machinery.update_steps import (
     Accepted, Failed, FailureKind, ModelReply, ModelRequest, OutcomeRecords, Removed, StepProgress,
     line_for_document_left_to_retry)
 from shared.sdf_run_layouts import DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE
+
 
 PLANS = StageFile(DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE, "plans.jsonl", "prompt_id")
 
@@ -87,17 +88,15 @@ def _screened_hands_or_prompts(run: Run) -> StageFile:
 
 STEP = Step(
     name="description_write", folder_key=DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE, model_setting_keys=("description_write_model",),
-    required_prompt_files=description_write_prompt_files, reads=lambda run: run.records(PROMPTS), seeds_from=_screened_hands_or_prompts,
-    build_request=build_request, read_reply=read_reply, records=records, writes=(PLANS,),
-    checkpoint_file_name="_checkpoint.json", progress_line=progress_line)
+    required_prompt_files=description_write_prompt_files,
+    reads=lambda run: run.records(PROMPTS), seeds_from=_screened_hands_or_prompts,
+    build_request=build_request, read_reply=read_reply, records=records, writes=(PLANS,), progress_line=progress_line)
 
 
 def run(
     config: dict, prompts_dir: Path, output_dir: Path, hands: list[dict] | None = None
 ) -> list[dict]:
-    """Write the description of every hand. ``hands`` are the hand records the implausibility screen
-    accepted ({"prompt_id", "variables"}); without them (screen disabled) the
-    composer deals its own hands."""
+    """Plan every hand; without ``hands`` (screen disabled) the composer deals its own."""
     prompts_path = output_dir / PROMPTS.file_name
     sdf = config["sdf"]
 

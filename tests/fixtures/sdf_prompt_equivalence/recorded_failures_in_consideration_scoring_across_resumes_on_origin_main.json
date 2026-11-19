@@ -1,6 +1,6 @@
 {
  "format_version": 4,
- "recorded_from": "commit 13736d09016fc469f6d5696fb0edba98066160ab on branch HEAD (clean)",
+ "recorded_from": "commit 03f3c3b4bf2ff63769ed097964efe8d45d89d04c on branch HEAD (clean)",
  "regeneration_rule": "The recorded files are rewritten only by `python scripts/regenerate_sdf_prompt_equivalence_recorded_requests.py`, and only when the pull request is meant to change requests: never to make a failing test pass. Regenerate and commit the files in that pull request, and say in its description that requests change and why. A pull request not meant to change them leaves the files alone, so a difference is a bug.",
  "description": "A thrown scoring call, and a document whose three attempts are all unusable: the run stops before the assignment; the resume scores both.",
  "configs_used_by_invocation": {"1": "repeated_value:configs_used_by_invocation.1", "2": "repeated_value:configs_used_by_invocation.1"},
@@ -410,14 +410,6 @@
  },
  "stage_files_by_invocation": {
   "1": {
-   "layer2_description_write_and_description_rewrite/_checkpoint.json": {
-    "completed": ["matrix_000000", "matrix_000001", "matrix_000002"],
-    "last_updated": "<timestamp>"
-   },
-   "layer2_description_write_and_description_rewrite/_description_rewrite_checkpoint.json": {
-    "completed": ["matrix_000000", "matrix_000001", "matrix_000002"],
-    "last_updated": "<timestamp>"
-   },
    "layer2_description_write_and_description_rewrite/description_rewrites.jsonl": "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/description_rewrites.jsonl",
    "layer2_description_write_and_description_rewrite/plans.jsonl": "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl",
    "layer2_description_write_and_description_rewrite/prompts.jsonl": "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/prompts.jsonl",
@@ -425,14 +417,6 @@
    "layer3_consideration_scoring_and_selection/consideration_scoring_failures.jsonl": "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_scoring_failures.jsonl"
   },
   "2": {
-   "layer2_description_write_and_description_rewrite/_checkpoint.json": {
-    "completed": ["matrix_000000", "matrix_000001", "matrix_000002"],
-    "last_updated": "<timestamp>"
-   },
-   "layer2_description_write_and_description_rewrite/_description_rewrite_checkpoint.json": {
-    "completed": ["matrix_000000", "matrix_000001", "matrix_000002"],
-    "last_updated": "<timestamp>"
-   },
    "layer2_description_write_and_description_rewrite/description_rewrites.jsonl": "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/description_rewrites.jsonl",
    "layer2_description_write_and_description_rewrite/plans.jsonl": "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl",
    "layer2_description_write_and_description_rewrite/prompts.jsonl": "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/prompts.jsonl",
@@ -786,14 +770,6 @@
      ]
     }
    ],
-   "layer4_draft_critique_and_revise/_checkpoint.json": {
-    "completed": ["matrix_000000", "matrix_000001", "matrix_000002"],
-    "last_updated": "<timestamp>"
-   },
-   "layer4_draft_critique_and_revise/_draft_checkpoint.json": {
-    "completed": ["matrix_000000", "matrix_000001", "matrix_000002"],
-    "last_updated": "<timestamp>"
-   },
    "layer4_draft_critique_and_revise/critiques.jsonl": [
     {"doc_id": "matrix_000000", "review": "Problems found in the draft of matrix_000000: the opening is generic."},
     {"doc_id": "matrix_000001", "review": "Problems found in the draft of matrix_000001: the opening is generic."},
@@ -854,10 +830,6 @@
      "content": "sha256:1edaae7302b9aee8dc9be18811f35e7087af75e42253b83a4c7fa0cd9600874f (889 characters)"
     }
    ],
-   "layer5_score_and_final_selection/_checkpoint.json": {
-    "completed": ["matrix_000000", "matrix_000001", "matrix_000002"],
-    "last_updated": "<timestamp>"
-   },
    "layer5_score_and_final_selection/scores.jsonl": [
     {
      "doc_id": "matrix_000000",

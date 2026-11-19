@@ -2,14 +2,14 @@
 
 Reading of each reply shape (accepted, no review tags, unusable, thrown call), the request
 read from the draft record, resume (zero calls for finished work; a failed revise after an accepted
-critique resumes without a new critique call). ``rewrite.run`` is the layer's
+critique resumes without a new critique call). ``draft_critique_and_revise_layer.run`` is the layer's
 entry point (scripts import it); test_sdf_layers.py pins the rest of that.
 """
 
 import pytest
 
-from sdf_pipeline.layer4_draft_critique_and_revise import (
-    critique, critique_and_revise_in_one_call, revise, run_layer as draft_critique_and_revise_layer)
+from sdf_pipeline.layer4_draft_critique_and_revise import critique, critique_and_revise_in_one_call, revise
+from sdf_pipeline.layer4_draft_critique_and_revise import run_layer as draft_critique_and_revise_layer
 from sdf_pipeline.layer4_draft_critique_and_revise.shared_by_this_layers_steps import RewrittenText
 from sdf_pipeline.shared_step_machinery.update_steps import Accepted, Failed, FailureKind
 from sdf_step_and_command_line_test_helpers import outcome_of, reply, run_of
@@ -133,8 +133,11 @@ def test_the_two_call_templates_snapshot_check_keeps_its_message(tiny_config, pr
     snapshot = tmp_path / "old_prompts"
     shutil.copytree(prompts_sdf, snapshot)
     (snapshot / "layer3b_revise.txt").unlink()
-    with pytest.raises(SystemExit, match="layer4_draft_critique_and_revise: layer3b_revise.txt is missing .* sdf.revision.split: false"):
-        draft_critique_and_revise_layer.run_critique_and_revise(split_config(tiny_config), snapshot, stage_dir, [make_draft()])
+    utils.save_jsonl([{"doc_id": "matrix_000000", "review": "P"}], stage_dir / "critiques.jsonl")
+    for step in (critique.STEP, revise.STEP):
+        run = run_of(split_config(tiny_config), snapshot, CRITIQUE_AND_REVISE, stage_dir)
+        with pytest.raises(SystemExit, match="layer3b_revise.txt is missing .* sdf.revision.split: false"):
+            step.build_request([make_draft()], run)
 
 
 # ---------------------------------------------------------------- resume

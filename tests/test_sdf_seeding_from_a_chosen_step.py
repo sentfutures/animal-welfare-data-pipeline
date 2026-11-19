@@ -567,9 +567,7 @@ def test_a_run_in_the_pre_renumber_layout_cannot_be_seeded_from(source_run, conf
 def test_resume_at_a_layer_still_reruns_only_that_layer_and_after_in_the_same_run(
         source_run, config_file, outputs_root, stub_claude, monkeypatch):
     source_directory, _ = source_run
-    score_folder = source_directory / "layer5_score_and_final_selection"
-    (score_folder / "scores.jsonl").unlink()
-    (score_folder / "_checkpoint.json").unlink()
+    (source_directory / "layer5_score_and_final_selection" / "scores.jsonl").unlink()
     known = run_names(outputs_root)
     calls = stub_claude(_dispatch)
     run_main(monkeypatch, config_file, "--resume", "--run-id", source_directory.name, "--layer", "5")

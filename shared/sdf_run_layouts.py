@@ -44,7 +44,6 @@ class SdfRunLayout:
     folder_name_of_key: dict
     layer_number_of_key: dict       # the ``--layer`` number of each folder key
     tag_index: int | None           # which element of STAGE_TAGS_BY_STEP the layout uses
-    draft_checkpoint_file_name: str = "_checkpoint.json"   # the five-layer draft shares its folder with the critique and revise
 
     @property
     def layer_numbers(self) -> tuple:
@@ -81,7 +80,7 @@ FIVE_NAMED_LAYERS = SdfRunLayout(
      DRAFT: "layer4_draft_critique_and_revise", CRITIQUE_AND_REVISE: "layer4_draft_critique_and_revise",
      SCORE: "layer5_score_and_final_selection"},
     {DEAL_VARIABLES_AND_SCREEN: 1, DESCRIPTION_WRITE_AND_DESCRIPTION_REWRITE: 2, CONSIDERATION_SCORING_AND_SELECTION: 3,
-     DRAFT: 4, CRITIQUE_AND_REVISE: 4, SCORE: 5}, 1, "_draft_checkpoint.json")
+     DRAFT: 4, CRITIQUE_AND_REVISE: 4, SCORE: 5}, 1)
 
 FOUR_NUMBERED_LAYERS = SdfRunLayout(
     "four_numbered_layers",

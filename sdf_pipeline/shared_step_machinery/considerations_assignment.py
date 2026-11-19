@@ -1,43 +1,5 @@
-"""Assign considerations to documents from the model's scores: pure code, no API calls.
-
-The selector (layer1_select_considerations.py) has the model score every eligible
-(document, entry) pair from 1 to 5 and nothing else. This module then decides who
-gets what, in code, with one linear programme over both lists:
-
-- Allowed pairs: a (document, entry) pair whose score is at least
-  ``minimum_assignable_score`` and whose entry is eligible for the document
-  (digital-minds-only entries only on digital-mind documents).
-- Hard ceilings: each entry goes to at most its ``target_count`` documents; each
-  document gets at most ``max_moral`` moral entries, at most ``max_epistemic``
-  epistemic entries, and at most ``max_total`` entries across both lists.
-- Objective (one stage), maximise
-      sum over assigned pairs of score_weight[score] + tie_break(pair)
-      - sum over (document, list) of penalty(n),   penalty(n) = p * n * (n - 1) / 2
-  where n is how many considerations the document gets from that list: the k-th
-  consideration from a list (k >= 2) costs (k - 1) * p, so a second one is worth it
-  only when its weight exceeds p, a third only when it exceeds 2p, and so on, and
-  slots whose only candidates would be weak extras stay unfilled. The first
-  consideration from each list is free, so a moral and an epistemic entry on the
-  same document do not penalise each other. The convex penalty is modelled with
-  extra columns y[d, l, k] in [0, 1], k = 1..cap-1, each costing k * p, and the row
-  sum_e x[d, e] - sum_k y[d, l, k] <= 1; costs rise with k so the LP fills the
-  cheap y first and the penalty comes out as exactly p * n(n-1)/2.
-- Tie-break: each pair gets a small value from a sha256 hash of (seed, prompt_id, label),
-  so the result does not depend on the order of documents or keys, and adding an
-  unrelated document leaves the choice between two other tied documents unchanged.
-  See ``_tie_break_values`` for the scale.
-
-Every constraint row is a laminar family over x (entries; per-document totals; per
-(document, list) caps) plus the penalty rows, whose extra columns each have a single
--1 entry, so the matrix stays totally unimodular and the optimum is integral; the
-solution is still rounded, checked for integrality and checked against every
-constraint and the penalty formula. Solved with scipy.optimize.linprog (HiGHS) on
-sparse matrices.
-
-``assign_considerations`` takes the limits as arguments so a saved scores file can
-be re-assigned offline with different thresholds, caps or targets
-(``assign_from_scores_file``).
-"""
+"""Assign considerations to documents from the model's scores: pure code, one linear programme over both lists.
+Rules an editor must keep (details in ``sdf_pipeline/CLAUDE.md``): the objective, the penalty, the tie-break and total unimodularity."""
 
 import hashlib
 import json
@@ -122,21 +84,7 @@ def _allowed_pairs(
 
 
 def _tie_break_values(pairs, seed, limits) -> np.ndarray:
-    """One value per pair from sha256(seed, prompt_id, label), a fraction in [0, 1), so it
-    depends only on the pair and the seed, never on order or on which other documents exist.
-
-    Scale: the values sum to less than ``scale``, and ``scale`` must be below the smallest
-    nonzero difference between two values of the rest of the objective, so the tie-break
-    only ever separates solutions that are exactly tied. With integer weights and an
-    integer penalty the rest of the objective is an integer, so scale = 1 suffices
-    (each value is multiplied by 1 / (pairs + 1)). If any weight or the penalty is not an
-    integer there is no simple bound, so a much smaller scale of 1e-6 is used instead.
-
-    The values are also shifted down by their common upper bound, so each lies in
-    (-bound, 0] with bound = scale / (pairs + 1): a pair whose weight exactly equals the
-    penalty it would incur nets slightly below zero and stays unassigned, which makes
-    "assigned only when the weight exceeds the penalty" strictly true. The shifts sum to
-    less than ``scale`` in magnitude, so they cannot outweigh a real difference."""
+    """A hash-based fraction in [0, 1) per pair, shifted below zero and scaled so it only separates exactly tied solutions."""
     parameters = [*limits.score_weights.values(), limits.extra_consideration_penalty]
     scale = 1.0 if all(float(value).is_integer() for value in parameters) else 1e-6
     values = []
@@ -148,11 +96,7 @@ def _tie_break_values(pairs, seed, limits) -> np.ndarray:
 
 
 def _model_columns_and_rows(pairs, catalog, limits, targets):
-    """Columns: one x per pair, then the penalty columns y[d, l, k] (each in [0, 1], cost k * p).
-    Rows of A x <= b: per entry (its target), per document (the total cap), per (document, list)
-    the hard cap, and per (document, list) with a y column the penalty row
-    sum_e x - sum_k y <= 1. Returns (matrix, bounds, y_costs) with y_costs[i] the cost
-    multiplier k of penalty column i."""
+    """The LP's columns (x per pair, penalty y[d, l, k] at cost k * p) and rows; returns (matrix, bounds, y_costs)."""
     entry_by_label = {entry.label: entry for entry in catalog.all_entries}
     row_of: dict[tuple, int] = {}
     bounds: list[float] = []
@@ -213,13 +157,7 @@ def assign_considerations(
     seed=0,
     targets: dict[str, int] | None = None,
 ) -> dict[str, list[str]]:
-    """{prompt_id: [assigned labels]} (moral entries first, each list in catalog order),
-    with an empty list for documents that get nothing.
-
-    ``scores``: {prompt_id: {label: score 1-5}} for the pairs the model scored.
-    ``document_is_digital``: every eligible document, scored or not (it fixes the
-    target counts, which are shares of the eligible documents). ``targets``
-    overrides the catalog-derived target counts."""
+    """``{prompt_id: [labels]}`` (moral first, catalog order); ``document_is_digital`` covers every eligible document, scored or not."""
     if targets is None:
         targets = entry_targets(catalog, len(document_is_digital), sum(document_is_digital.values()))
     assigned: dict[str, list[str]] = {prompt_id: [] for prompt_id in document_is_digital}

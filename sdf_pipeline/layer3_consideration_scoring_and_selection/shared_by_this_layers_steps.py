@@ -36,7 +36,6 @@ def eligible_plans(config: dict, catalog: ConsiderationCatalog, plans: list[dict
     ]
 
 
-
 def reason_consideration_selection_is_inactive(config: dict, prompts_dir: Path) -> str | None:
     """Why the consideration scoring and assignment do not run, as the line ``run`` prints; None when they run."""
     if not selection_enabled(config):
@@ -62,11 +61,7 @@ def print_coverage_report(report: dict) -> None:
 
 
 def load_considerations_outputs(run_dir: Path) -> dict | None:
-    """The selector's results for a run, or None when it never ran (older runs).
-
-    Returns {"catalog", "rows", "report"}: the catalog loaded from the run's own
-    prompt snapshot, the saved selection rows, and the coverage report written at
-    the end of the layer (None if the stage never finished)."""
+    """``{"catalog", "rows", "report"}`` for a run (catalog from its snapshot; report None if the layer never finished), or None when it never ran."""
     stage_dir = utils.sdf_stage_folder(run_dir, sdf_run_layouts.CONSIDERATION_SCORING_AND_SELECTION)
     rows = utils.load_jsonl(stage_dir / SELECTIONS_FILENAME)
     snapshot = Path(run_dir) / "inputs" / "prompts"

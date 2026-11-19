@@ -1,6 +1,6 @@
 {
  "format_version": 4,
- "recorded_from": "commit 13736d09016fc469f6d5696fb0edba98066160ab on branch HEAD (clean)",
+ "recorded_from": "commit 03f3c3b4bf2ff63769ed097964efe8d45d89d04c on branch HEAD (clean)",
  "regeneration_rule": "The recorded files are rewritten only by `python scripts/regenerate_sdf_prompt_equivalence_recorded_requests.py`, and only when the pull request is meant to change requests: never to make a failing test pass. Regenerate and commit the files in that pull request, and say in its description that requests change and why. A pull request not meant to change them leaves the files alone, so a difference is a bug.",
  "description": "Only sdf.n_prompts (12), sdf.min_score_threshold and sdf.description_write_model: every fallback chain (screen, select, description rewrite to the description write model; draft, rewrite, score to the global model) and every code default (screen batch size and redeal rounds, scoring attempts, seed, entity seed, revision style) is used. The screen removes two hands in each of rounds 0, 1 and 2; one document's scoring answer is unusable twice.",
  "configs_used_by_invocation": {
@@ -1720,10 +1720,6 @@
  },
  "stage_files_by_invocation": {
   "1": {
-   "layer1_deal_variables_and_screen/_screen_checkpoint.json": {
-    "completed": ["screen_round0_batch0000", "screen_round0_batch0001", "screen_round1_batch0000", "screen_round2_batch0000", "screen_round3_batch0000"],
-    "last_updated": "<timestamp>"
-   },
    "layer1_deal_variables_and_screen/screen_batches.jsonl": [
     {
      "batch_id": "screen_round0_batch0000",
@@ -1992,8 +1988,6 @@
     {"prompt_id": "matrix_000016", "variables": "dealt_hand:30a64ed9e2496828", "variable_value_ids": "repeated_value:final_corpora_by_invocation.1.10.variable_value_ids"},
     {"prompt_id": "matrix_000017", "variables": "dealt_hand:24401ddd7523a1e5", "variable_value_ids": "repeated_value:final_corpora_by_invocation.1.11.variable_value_ids"}
    ],
-   "layer2_description_write_and_description_rewrite/_checkpoint.json": "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/_checkpoint.json",
-   "layer2_description_write_and_description_rewrite/_description_rewrite_checkpoint.json": "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/_checkpoint.json",
    "layer2_description_write_and_description_rewrite/description_rewrites.jsonl": [
     {
      "prompt_id": "matrix_000000",
@@ -2951,8 +2945,6 @@
     {"prompt_id": "matrix_000016", "outcomes": "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.2.outcomes"},
     {"prompt_id": "matrix_000017", "outcomes": "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.2.outcomes"}
    ],
-   "layer4_draft_critique_and_revise/_checkpoint.json": "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/_checkpoint.json",
-   "layer4_draft_critique_and_revise/_draft_checkpoint.json": "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/_checkpoint.json",
    "layer4_draft_critique_and_revise/critiques.jsonl": [
     {"doc_id": "matrix_000000", "review": "Problems found in the draft of matrix_000000: the opening is generic."},
     {"doc_id": "matrix_000001", "review": "Problems found in the draft of matrix_000001: the opening is generic."},
@@ -3175,7 +3167,6 @@
      "content": "sha256:a29f2035fa518ee5c0eefcf16c2f9dc7ec01bd278ba1e3ed7920a4726a242621 (893 characters)"
     }
    ],
-   "layer5_score_and_final_selection/_checkpoint.json": "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/_checkpoint.json",
    "layer5_score_and_final_selection/scores.jsonl": [
     {
      "doc_id": "matrix_000000",
@@ -4313,23 +4304,6 @@
    "voice_concreteness": "grounded_in_specific_instances",
    "voice_order": "tightly_signposted",
    "length": "length_1_6x"
-  },
-  "stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/_checkpoint.json": {
-   "completed": [
-    "matrix_000000",
-    "matrix_000001",
-    "matrix_000002",
-    "matrix_000003",
-    "matrix_000005",
-    "matrix_000006",
-    "matrix_000007",
-    "matrix_000008",
-    "matrix_000009",
-    "matrix_000010",
-    "matrix_000016",
-    "matrix_000017"
-   ],
-   "last_updated": "<timestamp>"
   },
   "stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.2.outcomes": [
    {"list": "moral", "label": null, "reason": "", "status": "none"},

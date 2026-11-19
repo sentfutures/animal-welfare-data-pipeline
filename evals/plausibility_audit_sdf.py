@@ -32,7 +32,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from evals.model_judged_audit_support import (  # noqa: E402
-    DEFAULT_INPUT, MAXIMUM_OUTPUT_TOKENS, AppendOnlyJsonlWriter, RunningUsageTotals, StructuredOutputParseFailure,
+    DEFAULT_INPUT, AppendOnlyJsonlWriter, RunningUsageTotals, StructuredOutputParseFailure,
     TimedProgressReporter,
     build_array_schema, build_strict_object_schema, check_resume_is_compatible, choose_run_folder,
     choose_runs_parent_directory, choose_stratified_sample, compute_cost_in_dollars, corpus_path_of,
@@ -126,16 +126,6 @@ class JudgeDefinition:
         self.schema_name = SCHEMA_NAME
 
 
-def build_request_arguments(judge_definition, document_content, reasoning_effort):
-    """The complete payload sent to client.responses.create by shared.openai_api.call_openai.
-    Only instructions and content go in."""
-    return openai_api.build_request_arguments(
-        MODEL_NAME, judge_definition.instructions_text, document_content,
-        max_output_tokens=MAXIMUM_OUTPUT_TOKENS, reasoning_effort=reasoning_effort,
-        json_schema=judge_definition.schema, schema_name=judge_definition.schema_name,
-        prompt_cache_key=judge_definition.schema_name)
-
-
 def is_valid_score(value):
     return isinstance(value, int) and not isinstance(value, bool) and value in SCORE_VALUES
 
@@ -219,10 +209,6 @@ def judge_one_document(judge_definition, document, reasoning_effort):
 # ----------------------------------------------------------------------------
 
 JUDGMENT_FILE_PATTERN = "judgments_*.jsonl"
-
-
-def load_corpus(corpus_path):
-    return read_jsonl(corpus_path)
 
 
 def find_completed_document_ids(run_folder):
@@ -337,11 +323,7 @@ def run_judging(run_folder, timestamp, judge_definition, documents, reasoning_ef
 # ----------------------------------------------------------------------------
 
 def extrapolate_estimate(sample_records, sample_documents, all_documents, error_records=()):
-    """Scale uncached input by content characters, output and cached input by document count.
-
-    Scales are taken over the sample documents that were judged successfully; the tokens of failed
-    attempts count towards the totals, as they are paid for. Returns None if no sample call succeeded.
-    """
+    """Scale uncached input by content characters, output and cached input by document count, over the successfully judged sample (failed attempts count); None if none succeeded."""
     judged_document_ids = {r["doc_id"] for r in sample_records}
     judged_documents = [d for d in sample_documents if d["doc_id"] in judged_document_ids]
     if not judged_documents:

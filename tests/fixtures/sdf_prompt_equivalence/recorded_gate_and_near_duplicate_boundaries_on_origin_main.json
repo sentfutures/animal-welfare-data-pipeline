@@ -1,6 +1,6 @@
 {
  "format_version": 4,
- "recorded_from": "commit 13736d09016fc469f6d5696fb0edba98066160ab on branch HEAD (clean)",
+ "recorded_from": "commit 03f3c3b4bf2ff63769ed097964efe8d45d89d04c on branch HEAD (clean)",
  "regeneration_rule": "The recorded files are rewritten only by `python scripts/regenerate_sdf_prompt_equivalence_recorded_requests.py`, and only when the pull request is meant to change requests: never to make a failing test pass. Regenerate and commit the files in that pull request, and say in its description that requests change and why. A pull request not meant to change them leaves the files alone, so a difference is a bug.",
  "description": "Scores exactly at the threshold on each dimension, one below on each, and near-duplicates just above and just below the 0.90 cull.",
  "configs_used_by_invocation": {
@@ -1129,8 +1129,6 @@
  },
  "stage_files_by_invocation": {
   "1": {
-   "layer2_description_write_and_description_rewrite/_checkpoint.json": "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/_checkpoint.json",
-   "layer2_description_write_and_description_rewrite/_description_rewrite_checkpoint.json": "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/_checkpoint.json",
    "layer2_description_write_and_description_rewrite/description_rewrites.jsonl": [
     {
      "prompt_id": "matrix_000000",
@@ -1598,7 +1596,7 @@
     "share_with_only_one_list": 0.0,
     "share_with_both_lists": 0.0,
     "documents_with_two_or_more_in_one_list": 0,
-    "document_ids_with_no_consideration": "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_coverage.json.document_ids_with_no_consideration"
+    "document_ids_with_no_consideration": ["matrix_000000", "matrix_000001", "matrix_000002", "matrix_000003", "matrix_000004", "matrix_000005", "matrix_000006", "matrix_000007"]
    },
    "layer3_consideration_scoring_and_selection/consideration_scores.jsonl": [
     {
@@ -1852,8 +1850,6 @@
     {"prompt_id": "matrix_000006", "outcomes": "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.0.outcomes"},
     {"prompt_id": "matrix_000007", "outcomes": "repeated_value:stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.0.outcomes"}
    ],
-   "layer4_draft_critique_and_revise/_checkpoint.json": "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/_checkpoint.json",
-   "layer4_draft_critique_and_revise/_draft_checkpoint.json": "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/_checkpoint.json",
    "layer4_draft_critique_and_revise/critiques.jsonl": [
     {"doc_id": "matrix_000000", "review": "Problems found in the draft of matrix_000000: the opening is generic."},
     {"doc_id": "matrix_000001", "review": "Problems found in the draft of matrix_000001: the opening is generic."},
@@ -2004,7 +2000,6 @@
      "content": "sha256:277d6991829905604a65562822dfb8eab9e8639b45568a052c8a3465c0609e2d (889 characters)"
     }
    ],
-   "layer5_score_and_final_selection/_checkpoint.json": "repeated_value:stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/_checkpoint.json",
    "layer5_score_and_final_selection/near_dup_dropped.jsonl": [
     {"doc_id": "matrix_000006", "kept_doc_id": "matrix_000005", "similarity": 0.9583}
    ],
@@ -2560,10 +2555,6 @@
    ]
   },
   "requests.8.wire.system": {"text_sha256": "d0e45169b11979f7c8d017ac4847d3093c7b6508a385f86e2ca47a309b12acfb", "character_count": 5397, "blocks": null},
-  "stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/_checkpoint.json": {
-   "completed": ["matrix_000000", "matrix_000001", "matrix_000002", "matrix_000003", "matrix_000004", "matrix_000005", "matrix_000006", "matrix_000007"],
-   "last_updated": "<timestamp>"
-  },
   "stage_files_by_invocation.1.layer2_description_write_and_description_rewrite/plans.jsonl.3.variable_value_ids": {
    "document_type": "podcast_transcript",
    "culture": "culture_india_hindi",
@@ -2621,7 +2612,6 @@
    "voice_order": "unchanged",
    "length": "unchanged"
   },
-  "stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_coverage.json.document_ids_with_no_consideration": ["matrix_000000", "matrix_000001", "matrix_000002", "matrix_000003", "matrix_000004", "matrix_000005", "matrix_000006", "matrix_000007"],
   "stage_files_by_invocation.1.layer3_consideration_scoring_and_selection/consideration_selections.jsonl.0.outcomes": [
    {"list": "moral", "label": null, "reason": "", "status": "none"},
    {"list": "epistemic", "label": null, "reason": "", "status": "none"}

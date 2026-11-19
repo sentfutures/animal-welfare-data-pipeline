@@ -4,7 +4,7 @@ Documents reach the removal in scored order (earlier runs' scores in ``rewrites`
 from pathlib import Path
 
 from shared import utils
-from sdf_pipeline.shared_step_machinery import compose_prompts as cp
+from sdf_pipeline.shared_step_machinery import compose_prompts
 from sdf_pipeline.shared_step_machinery.step_record import Run
 from sdf_pipeline.shared_step_machinery.step_runner import run_step
 from sdf_pipeline.layer5_score_and_final_selection.near_duplicate_removal import remove_near_duplicates
@@ -23,7 +23,7 @@ def final_corpus_record(
         "doc_id": document_id,
         "type_id": variables.get("document_type", ""),
         "type_name": variables.get("document_type", ""),
-        "language": cp.derive_language(variables.get("culture", "")),
+        "language": compose_prompts.derive_language(variables.get("culture", "")),
         "register": variables.get("tone", ""),
         "variables": variables,
     }
@@ -44,7 +44,6 @@ def run(
     final_dir: Path,
     rewrites: list[dict],
 ) -> list[dict]:
-    """Score, gate and remove near-duplicates from the rewrites and write the final corpus; returns its records."""
     final_path = final_dir / "sdf_corpus.jsonl"
     sdf = config["sdf"]
     threshold = sdf["min_score_threshold"]

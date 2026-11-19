@@ -1,47 +1,7 @@
 #!/usr/bin/env python3
 """Per-variable persistence check for an SDF corpus (paid LLM pass, one call per document).
-
-Each SDF document is planned from a hand of dealt variable values (document type,
-culture, tone, resolution, ...) and, for some documents, assigned considerations.
-This eval asks a judge, for every dealt variable and every assigned consideration,
-whether that value PERSISTED in the finished document: brief reasoning, then a
-yes/no call, returned as typed JSON.
-
-It is deliberately not a conformance check against the document's free-text
-description. The judge is never shown the description (nor the doc_id, scores, or
-the considerations spec, which carries per-document reasons): only the dealt
-values, one line on what each variable means, the assigned considerations (label
-and gloss), and the document text. The definition of "persisted" lives in
-prompts/tools/variable_persistence_judge.txt so it is easy to edit.
-
-Usage
------
-    python evals/variable_persistence_sdf.py --input outputs/sdf/latest
-    python evals/variable_persistence_sdf.py --input outputs/sdf/latest --sample 40 --seed 1
-    python evals/variable_persistence_sdf.py --input outputs/sdf/latest --doc-ids matrix_000003 matrix_000011
-    python evals/variable_persistence_sdf.py --input outputs/sdf/latest --dry-run     # no calls, no key
-    python evals/variable_persistence_sdf.py --input outputs/sdf/latest --resume <folder>
-
-``--input`` is a run directory or a corpus ``sdf_corpus.jsonl``. Outputs go to
-``<run>/audit/variable_persistence_<YYYY-MM-DD_HH-MM>/``, or for ``--sample`` and ``--doc-ids`` runs to
-``<run>/audit/small_sample_checks/variable_persistence_<YYYY-MM-DD_HH-MM>/`` (or ``--output-dir``):
-
-    persistence_judgments_<timestamp>.jsonl        one row per document, appended as each completes
-    per_variable_persistence_summary_<timestamp>.csv
-    failed_persistence_checks_<timestamp>.jsonl    every "no", with doc_id, variable, dealt value, reasoning
-    persistence_cost_log_<timestamp>.jsonl         one row per API call
-    run_configuration_<timestamp>.json             judge prompt and variable-meanings hashes, model, corpus hash
-
-A rerun with ``--resume <folder>`` skips documents already judged; documents whose
-calls failed are retried. A resume is refused if the corpus, the judge prompt, the
-variable-meanings file or the model differs from what the folder recorded (or if the
-folder recorded none).
-
-Config (``sdf`` section): ``variable_persistence_model`` (falls back to
-``score_model``, then ``description_write_model``, then the global ``model``),
-``variable_persistence_max_attempts`` (default 3); the global ``workers`` sets the
-thread pool.
-"""
+The judge sees only the dealt values, what each variable means, the assigned considerations and the document text, never the description; "persisted" is defined in
+prompts/tools/variable_persistence_judge.txt. ``--resume <folder>`` is refused if the corpus, judge prompt, variable-meanings file or model differs."""
 
 import argparse
 import csv
@@ -58,8 +18,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from evals.audit_sdf import resolve_input
 from evals.model_judged_audit_support import (
-    SMALL_SAMPLE_CHECKS_DIRECTORY_NAME, check_resume_is_compatible, corpus_path_of, sha256_of_file,
-    write_run_configuration)
+    SMALL_SAMPLE_CHECKS_DIRECTORY_NAME, check_resume_is_compatible, corpus_path_of, run_directory_of,
+    sha256_of_file, write_run_configuration)
 from sdf_pipeline.shared_step_machinery import compose_prompts as cp
 from sdf_pipeline.compatibility_with_runs_made_by_earlier_code.renamed_model_settings import model_setting
 from sdf_pipeline.shared_step_machinery import considerations_catalog
@@ -131,20 +91,8 @@ def find_prompts_dir(run_directory: Path | None) -> Path:
     return DEFAULT_PROMPTS_DIR
 
 
-def run_directory_of(input_argument: str) -> Path | None:
-    """The run directory an --input points at, if it can be told (a run dir, or a corpus in <run>/final/)."""
-    path = Path(input_argument)
-    if path.is_dir():
-        return path
-    if path.parent.name == "final":
-        return path.parent.parent
-    return None
-
-
 def _load_catalog(prompts_dir: Path):
-    """The considerations catalog (for glosses), from the run's snapshot, else the repo's own file.
-    A snapshot written before a catalog validation rule existed can fail to load; then the repo
-    catalog supplies the glosses, and failing that a label is judged on its label alone (None)."""
+    """The considerations catalog (for glosses) from the run's snapshot, else the repo's file, else None (a label is then judged on its label alone)."""
     for candidate in dict.fromkeys([prompts_dir, DEFAULT_PROMPTS_DIR]):
         try:
             return considerations_catalog.load_considerations(candidate)
@@ -165,10 +113,7 @@ class JudgeContext:
 
 
 def judged_variables(record: dict, context: JudgeContext) -> dict[str, str]:
-    """{variable name: dealt value text} for the variables the judge is asked about: those the
-    record carries with a non-empty value, minus any the deal rules omit from the planning prompt
-    for this hand (an omitted variable was never put to the planner, so it cannot have been asked
-    to persist)."""
+    """``{variable: dealt value text}`` for the variables the judge is asked about: non-empty, minus any the deal rules omit from the planning prompt."""
     dealt = record.get("variables") or {}
     omitted = cp.deal_constraints.render_rule_variables_to_omit(context.deal_rules, dealt)
     return {
@@ -236,9 +181,7 @@ def _verdict_schema() -> dict:
 
 
 def build_schema(variable_names: list[str], consideration_labels: list[str]) -> dict:
-    """The answer schema for one document: one required object per dealt variable (reasoning
-    first, then the call) and, when considerations were assigned, a required array of
-    per-consideration items whose label is restricted to this document's assigned labels."""
+    """The answer schema for one document: a required object per dealt variable (reasoning, then the call) and, with considerations, an array restricted to its assigned labels."""
     properties = {name: _verdict_schema() for name in variable_names}
     if consideration_labels:
         item = _verdict_schema()
@@ -265,9 +208,7 @@ def _checked_verdict(where: str, entry) -> dict:
 
 
 def parse_answer(raw: str, variable_names: list[str], consideration_labels: list[str]) -> tuple[dict, list[dict]]:
-    """Validate the judge's JSON; return ({variable: verdict}, [consideration verdicts in the
-    assigned order]). Raises PersistenceAnswerError on anything unusable: unparseable JSON, a
-    missing variable, a bad verdict, a missing/duplicate/unassigned consideration label."""
+    """Validate the judge's JSON; return ``({variable: verdict}, [consideration verdicts in assigned order])``; raises PersistenceAnswerError on anything unusable."""
     try:
         parsed = utils.extract_json_object(raw)
     except (json.JSONDecodeError, ValueError, TypeError) as error:

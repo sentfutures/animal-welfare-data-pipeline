@@ -1,14 +1,6 @@
 #!/usr/bin/env python3
-"""Post-process a shoehorning audit run folder into one row per occurrence plus a per-item summary.
-
-Offline: makes no model calls.
-
-Joins (offline, never sent to the model) each document's language and variables, verifies each
-quote against the final content, and works out whether the quote was already in the pre-rewrite draft
-(the run's draft stage output, found next to the corpus; --drafts-path overrides).
-
-Usage: python evals/shoehorning_audit_postprocess_sdf.py <run_folder> [--drafts-path <drafts.jsonl>]
-"""
+"""Post-process a shoehorning audit run folder (offline) into one row per occurrence plus a per-item summary: joins each document's language and variables,
+verifies each quote against the final content, and checks whether it was already in the pre-rewrite draft (``--drafts-path`` overrides the run's draft stage output)."""
 
 import argparse
 import json
@@ -23,6 +15,7 @@ from evals.model_judged_audit_support import (  # noqa: E402
 from evals.shoehorning_audit_sdf import (  # noqa: E402
     ALL_PASS_NAMES, INTEGRATION_VALUES, MOTIVATION_VALUES, load_existing_records, parse_pass_items,
     pass_file_path, read_text)
+from evals.sdf_eval_input_resolution import run_directory_of_corpus_file  # noqa: E402
 from shared import utils  # noqa: E402
 
 MOTIVATION_SHOEHORNING_RANK = {"organic": 0, "staged": 1, "unmotivated": 2}
@@ -136,11 +129,7 @@ def most_shoehorned_motivation(occurrences):
 
 
 def build_per_document_rows(records, error_records, documents_by_id, pass_names, item_keys_by_pass):
-    """One row per document with at least one classification or error record.
-
-    An item is only reported present/absent when its pass completed for the document;
-    otherwise its columns are None (never inferred as absent).
-    """
+    """One row per document with a classification or error record; an item is None (never inferred absent) unless its pass completed."""
     records_by_document_and_pass = {(r["doc_id"], r["pass"]): r for r in records}
     attempted_doc_ids = {r["doc_id"] for r in records} | {e["doc_id"] for e in error_records}
     all_item_keys = sorted((key for keys in item_keys_by_pass.values() for key in keys),
@@ -194,12 +183,12 @@ def write_per_document_outputs(run_folder, timestamp, documents_by_id, pass_name
     return jsonl_path, csv_path, rows
 
 
-def default_drafts_path(corpus_path):
-    """The draft stage output of the SDF run the corpus came from (<run>/final/sdf_corpus.jsonl), or None."""
-    corpus_path = Path(corpus_path)
-    if corpus_path.parent.name != "final":
-        return None
-    return utils.sdf_stage_file(corpus_path.parent.parent, "draft")
+def default_drafts_by_id(corpus_path):
+    """``{doc_id: draft record}`` of the SDF run the corpus came from; empty when the corpus is not in a run's ``final/``."""
+    run_directory = run_directory_of_corpus_file(corpus_path)
+    if run_directory is None:
+        return {}
+    return {record["doc_id"]: record for record in utils.load_jsonl(utils.sdf_stage_file(run_directory, "draft"))}
 
 
 def pass_names_of_run(run_folder, records):
@@ -218,12 +207,14 @@ def postprocess_run_folder(run_folder, drafts_path=None):
     corpus_path = configuration["corpus_path"]
     documents_by_id = {d["doc_id"]: d for d in read_jsonl(corpus_path)}
     if drafts_path is None:
-        drafts_path = default_drafts_path(corpus_path)
-    drafts_by_id = ({d["doc_id"]: d for d in read_jsonl(drafts_path)}
-                    if drafts_path is not None and Path(drafts_path).exists() else {})
+        drafts_by_id = default_drafts_by_id(corpus_path)
+        looked_in = f"the draft stage of the run folder around {corpus_path}"
+    else:
+        drafts_by_id = ({d["doc_id"]: d for d in read_jsonl(drafts_path)} if Path(drafts_path).exists() else {})
+        looked_in = str(drafts_path)
     if not drafts_by_id:
         print("No drafts found: every origin_stage will read draft_unavailable "
-              f"(looked for {drafts_path}; pass --drafts-path to point at the draft stage output).")
+              f"(looked in {looked_in}; pass --drafts-path to point at the draft stage output).")
     records = load_existing_records(run_folder)
     pass_names = pass_names_of_run(run_folder, records)
     rows = build_occurrence_rows(records, documents_by_id, drafts_by_id)

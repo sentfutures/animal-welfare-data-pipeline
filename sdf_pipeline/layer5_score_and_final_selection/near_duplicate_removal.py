@@ -4,8 +4,7 @@ from shared import textstats
 
 
 def remove_near_duplicates(records: list[dict], near_duplicate_threshold) -> tuple[list[dict], list[dict]]:
-    """``(records kept, records dropped as {"doc_id", "kept_doc_id", "similarity"})``, keeping the first of each pair in the
-    order given; a falsy threshold removes nothing."""
+    """``(records kept, records dropped as {"doc_id", "kept_doc_id", "similarity"})``, keeping the first of each pair in the order given; a falsy threshold removes nothing."""
     if not near_duplicate_threshold or len(records) < 2:
         return records, []
     _, dropped_entries = textstats.near_dup_filter([record["content"] for record in records], near_duplicate_threshold)

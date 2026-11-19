@@ -13,34 +13,15 @@ import json
 import pytest
 
 from evals import audit_sdf
-from sdf_pipeline.shared_step_machinery import compose_prompts as cp
 from sdf_pipeline.layer2_description_write_and_description_rewrite import description_rewrite as rewrite
 from shared import utils
-
-
-def answer(rewrite_needed=False, description="", checks=("plausibility_organisation",), conflict=False,
-           conflict_reason="", **overrides):
-    changes = [{"check": c, "reason": f"Fixed under {c}."} for c in checks] if rewrite_needed else []
-    return json.dumps({
-        "reasoning": "Read it against the dealt values.", "rewrite_needed": rewrite_needed,
-        "rewritten_description": description, "changes": changes,
-        "dealt_value_conflict": conflict, "conflict_reason": conflict_reason, **overrides})
+from sdf_description_rewrite_test_builders import (
+    answer, make_plans,
+)
 
 
 def description_in(user_message):
     return user_message.split("<description>\n")[1].split("\n</description>")[0]
-
-
-def make_plans(prompts_sdf, count=6):
-    template = (prompts_sdf / "layer1.txt").read_text(encoding="utf-8")
-    values, weights, value_ids = cp.load_variables(prompts_sdf / "variables.txt")
-    rules = cp.load_deal_rules(prompts_sdf / "deal_constraints.txt", value_ids)
-    hands = cp.hand_records(cp.deal_hands(template, values, weights, count, 0, rules))
-    return [
-        {"prompt_id": h["prompt_id"], "variables": h["variables"], "plan": "…",
-         "description": f"Original description {i}.", "incoherent": False}
-        for i, h in enumerate(hands)
-    ]
 
 
 @pytest.fixture
@@ -133,81 +114,6 @@ def test_the_answer_schema_names_every_check_the_report_counts(prompts_sdf):
 
 # --- the stage ---
 
-def test_a_decline_passes_the_original_untouched(tiny_config, prompts_sdf, stage_dir, stub_claude, plans):
-    calls = stub_claude(lambda user_message, **kw: answer())
-    kept = rewrite.run(tiny_config, prompts_sdf, stage_dir, plans)
-    assert len(calls) == len(plans)
-    assert kept == plans and all(a is b for a, b in zip(kept, plans))  # the very same records
-    assert all("original_description" not in p and "changes" not in p for p in kept)
-
-
-def test_a_rewrite_replaces_description_and_keeps_the_original_and_changes(
-    tiny_config, prompts_sdf, stage_dir, stub_claude, plans
-):
-    def dispatcher(user_message, **kw):
-        if kw["item_id"] == plans[2]["prompt_id"]:
-            return answer(True, "Rewritten description.", ("plausibility_figures_and_scale", "organisation_naming"))
-        return answer()
-
-    stub_claude(dispatcher)
-    kept = by_id(rewrite.run(tiny_config, prompts_sdf, stage_dir, plans))
-    changed = kept[plans[2]["prompt_id"]]
-    assert changed["description"] == "Rewritten description."
-    assert changed["original_description"] == "Original description 2."
-    assert [c["check"] for c in changed["changes"]] == ["plausibility_figures_and_scale", "organisation_naming"]
-    assert changed["variables"] == plans[2]["variables"]
-    assert kept[plans[0]["prompt_id"]]["description"] == "Original description 0."
-    # plans.jsonl is the planner's output and is never touched; the rewrite is stored beside it
-    stored = by_id(utils.load_jsonl(stage_dir / "description_rewrites.jsonl"))
-    assert stored[plans[2]["prompt_id"]]["original_description"] == "Original description 2."
-    assert len(stored) == len(plans)
-
-
-def test_the_model_sees_the_planners_variable_lines_and_the_description(
-    tiny_config, prompts_sdf, stage_dir, stub_claude, plans
-):
-    calls = stub_claude(lambda user_message, **kw: answer())
-    rewrite.run(tiny_config, prompts_sdf, stage_dir, plans[:2])
-    render = cp.make_variable_line_renderer(prompts_sdf, 137)
-    for call, plan in zip(sorted(calls, key=lambda c: c["item_id"]), plans[:2]):
-        assert render(plan) in call["user_message"]
-        assert description_in(call["user_message"]) == plan["description"]
-
-
-def test_a_dealt_value_conflict_drops_the_plan_and_logs_it(tiny_config, prompts_sdf, stage_dir, stub_claude, plans):
-    doomed = plans[1]["prompt_id"]
-    stub_claude(lambda user_message, **kw: answer(conflict=True, conflict_reason="The dealt scale cannot occur.")
-                if kw["item_id"] == doomed else answer())
-    kept = rewrite.run(tiny_config, prompts_sdf, stage_dir, plans)
-    assert doomed not in {p["prompt_id"] for p in kept} and len(kept) == len(plans) - 1
-    rejections = utils.load_jsonl(stage_dir / "description_rewrite_rejections.jsonl")
-    assert [(r["prompt_id"], r["conflict_reason"]) for r in rejections] == [(doomed, "The dealt scale cannot occur.")]
-    assert rejections[0]["description"] == "Original description 1." and rejections[0]["variables"]
-
-
-def test_incoherent_plans_are_not_sent_and_pass_through(tiny_config, prompts_sdf, stage_dir, stub_claude, plans):
-    plans[3].update(description=None, incoherent=True)
-    calls = stub_claude(lambda user_message, **kw: answer())
-    kept = rewrite.run(tiny_config, prompts_sdf, stage_dir, plans)
-    assert len(calls) == len(plans) - 1 and kept == plans
-
-
-def test_a_malformed_answer_is_not_checkpointed_and_resume_retries_exactly_that_plan(
-    tiny_config, prompts_sdf, stage_dir, stub_claude, plans
-):
-    broken = plans[4]["prompt_id"]
-    stub_claude(lambda user_message, **kw: "not json" if kw["item_id"] == broken else answer())
-    with pytest.raises(SystemExit, match="1 descriptions held out"):
-        rewrite.run(tiny_config, prompts_sdf, stage_dir, plans)
-    checkpoint = utils.Checkpoint(stage_dir / "_description_rewrite_checkpoint.json")
-    assert checkpoint.done_count == len(plans) - 1 and not checkpoint.is_done(broken)
-    assert broken not in by_id(utils.load_jsonl(stage_dir / "description_rewrites.jsonl"))
-    resumed = stub_claude(lambda user_message, **kw: answer(True, "Fixed on retry.", ("organisation_naming",)))
-    kept = by_id(rewrite.run(tiny_config, prompts_sdf, stage_dir, plans))
-    assert [c["item_id"] for c in resumed] == [broken]
-    assert kept[broken]["description"] == "Fixed on retry."
-
-
 def test_a_conflict_with_rewrite_needed_true_is_stored_and_drops_the_plan(
     tiny_config, prompts_sdf, stage_dir, stub_claude, plans
 ):
@@ -244,12 +150,6 @@ def test_a_run_with_no_stored_results_passes_every_plan_through_on_reload(tiny_c
     assert rewrite.load_rewritten_plans(tiny_config, stage_dir, plans) == plans
 
 
-def test_every_call_failing_is_systemic(tiny_config, prompts_sdf, stage_dir, stub_claude, plans):
-    stub_claude(lambda user_message, **kw: "not json")
-    with pytest.raises(SystemExit, match="every pending call failed"):
-        rewrite.run(tiny_config, prompts_sdf, stage_dir, plans)
-
-
 def test_resume_after_a_completed_stage_makes_zero_calls_and_reapplies_results(
     tiny_config, prompts_sdf, stage_dir, stub_claude, plans
 ):
@@ -260,28 +160,6 @@ def test_resume_after_a_completed_stage_makes_zero_calls_and_reapplies_results(
     assert rewrite.run(tiny_config, prompts_sdf, stage_dir, plans) == first
     assert rewrite.load_rewritten_plans(tiny_config, stage_dir, plans) == first
     assert calls == []
-
-
-def test_model_falls_back_from_description_rewrite_to_description_write_to_global(tiny_config, prompts_sdf, tmp_path, stub_claude, plans):
-    calls = stub_claude(lambda user_message, **kw: answer())
-    for name, knobs, expected in (
-        ("first", {}, None),
-        ("second", {"description_write_model": "description-write-model-x"}, "description-write-model-x"),
-        ("third", {"description_write_model": "description-write-model-x", "description_rewrite_model": "rewrite-model-x"}, "rewrite-model-x"),
-    ):
-        directory = tmp_path / name
-        directory.mkdir()
-        tiny_config["sdf"].update(knobs)
-        rewrite.run(tiny_config, prompts_sdf, directory, plans[:1])
-        assert calls[-1]["model"] == expected
-
-
-def test_disabled_stage_makes_no_calls_and_writes_nothing(tiny_config, prompts_sdf, stage_dir, stub_claude, plans):
-    tiny_config["sdf"]["description_rewrite_enabled"] = False
-    calls = stub_claude([])
-    assert rewrite.run(tiny_config, prompts_sdf, stage_dir, plans) == plans
-    assert rewrite.load_rewritten_plans(tiny_config, stage_dir, plans) == plans
-    assert calls == [] and list(stage_dir.iterdir()) == []
 
 
 def test_snapshot_without_the_template_skips_the_stage(tiny_config, tmp_path, stage_dir, stub_claude, plans):
