@@ -481,7 +481,7 @@ def test_legacy_run_configuration_is_converted_with_the_persona_sets_criteria(tm
     assert converted["pass_criteria"]["whole_document"]["minimum_number_moving_expected_way"] == 8
     setup = loading.build_setup([converted], tmp_path)
     assert setup.persona_name == "preachy" and setup.direction_names_by_role["toward"] == "preachier"
-    assert setup.target_minus_control_score_column == "preachy_minus_control_score"
+    assert setup.target_minus_contrast_score_column == "preachy_minus_control_score"
 
 
 def write_legacy_format_conditions(run_folder, same_values_persona_names):
@@ -555,7 +555,8 @@ def add_scoring_outputs_and_pod_cost_log(run_folder, verification_passed=True, w
 def build_pilot_run(tmp_path, analyse=True, **options):
     run_folder = tmp_path / "pilot_run"
     synthetic.build_synthetic_scored_run_folder(run_folder, **{k: options.pop(k) for k in list(options)
-                                                               if k in ("pass_criteria", "rewrites_per_direction")})
+                                                               if k in ("pass_criteria", "rewrites_per_direction", "include_topic_control",
+                                                        "include_no_system_prompt")})
     add_scoring_outputs_and_pod_cost_log(run_folder, **options)
     if analyse:
         analyze(run_folder)
@@ -664,3 +665,76 @@ def test_pilot_markdown_sections_and_no_cost_center_text(tmp_path):
         assert heading in text
     assert "Projected full-run cost:" in text and " to " in text
     assert output_path.with_suffix(".json").exists() and "cost center" not in text.lower()
+
+
+def test_skipped_spec_variables_are_left_out_of_the_summary_and_the_regression():
+    import numpy as np
+    outcome = "preachy_minus_control_score"
+    table = pd.DataFrame({
+        "document_id": [f"d{i}" for i in range(40)], "rewrite_direction": [None] * 40,
+        "spec_stage": ["stage_2", "baseline"] * 20, "spec_user_message": [f"message {i}" for i in range(40)],
+        "language": ["en"] * 40, outcome: np.linspace(0, 1, 40)})
+    kept = analysis.build_scores_by_spec_variable(table, outcome)
+    assert "user_message" in set(kept.variable)
+    skipped = analysis.build_scores_by_spec_variable(table, outcome, ["user_message"])
+    assert "user_message" not in set(skipped.variable) and "stage" in set(skipped.variable)
+
+
+# ------------------------------------------------------------------------------------------ run without topic controls
+
+@pytest.fixture(scope="module")
+def analyzed_without_topic_controls(tmp_path_factory):
+    run_folder = tmp_path_factory.mktemp("synthetic_run_without_topic_controls")
+    planted = synthetic.build_synthetic_scored_run_folder(run_folder, seed=1, include_topic_control=False,
+                                                          include_no_system_prompt=False)
+    return planted, analyze(run_folder), run_folder
+
+
+def test_subset_run_without_topic_controls_loads_and_reports_what_is_not_available(analyzed_without_topic_controls):
+    _, folder, run_folder = analyzed_without_topic_controls
+    run = loading.load_run(run_folder)
+    assert run.setup.topic_control_present is False and run.setup.no_system_prompt_present is False
+    assert run.setup.contrast_group == "same_values"
+    tests = read_table(folder, "secondary_not_validated_per_document_significance_tests")
+    assert not any(column.startswith("main_test") for column in tests.columns)
+    assert {"second_test_p_value", "second_test_q_value", "second_test_direction"} <= set(tests.columns)
+    scores = read_table(folder, "secondary_not_validated_per_document_scores")
+    assert "topic_control_mean_score" not in scores.columns and "no_system_prompt_score" not in scores.columns
+    assert "sycophantic_minus_same_values_score" in scores.columns
+    notes = next(folder.glob("analysis_notes_*.md")).read_text(encoding="utf-8")
+    assert "This run has no topic-control conditions" in notes
+
+
+def test_subset_run_without_topic_controls_still_gives_agreement_spans_and_changed_spans(analyzed_without_topic_controls):
+    planted, folder, _ = analyzed_without_topic_controls
+    agreement = read_table(folder, "rewording_agreement")
+    assert set(agreement.condition_group) == {"sycophantic", "same_values"}
+    spans = pd.read_json(next(folder.glob(f"extreme_spans_{TIMESTAMP}.jsonl")), lines=True)
+    elevated = documents_of_kind(planted, "elevated")
+    top = spans[(spans.direction == "highest") & (spans["rank"] == 1) & spans.document_id.isin(elevated)]
+    assert len(top) == len(elevated) and (top.start_token_index.between(20, 40)).all()
+    changed = pd.read_csv(next(folder.glob(f"changed_span_sycophantic_minus_same_values_{TIMESTAMP}.csv")))
+    toward = changed[changed.rewrite_direction == "more_sycophantic"]
+    assert len(toward) == 2 and (toward.changed_minus_unchanged > 0).all()
+    summary = json.loads(next(folder.glob(f"changed_span_summary_{TIMESTAMP}.json")).read_text())
+    assert summary["directions"]["more_sycophantic"]["changed_minus_unchanged_number_moving_expected_way"] == 2
+    assert list(folder.glob(f"total_log_likelihood_differences_{TIMESTAMP}.csv"))
+    check = read_table(folder, "secondary_not_validated_whole_document_control_check")
+    assert "summary" in set(check.row_type)
+
+
+def test_subset_run_without_topic_controls_works_with_the_pilot_summary(tmp_path):
+    run_folder = build_pilot_run(tmp_path, include_topic_control=False, include_no_system_prompt=False)
+    facts = summarizer.collect_facts(run_folder, full_run_number_of_documents=477)
+    assert set(facts["persona_conditions_by_group"]) == {"sycophantic", "same_values"}
+    assert "same_values" in summarizer.render_markdown(facts)
+
+
+def test_subset_run_whose_conditions_differ_from_the_recorded_ones_is_refused(tmp_path):
+    synthetic.build_synthetic_scored_run_folder(tmp_path, include_topic_control=False)
+    path = tmp_path / "run_configuration_2026-01-01_00-00.json"
+    configuration = json.loads(path.read_text())
+    configuration["condition_subset"]["kept_condition_ids"] = configuration["condition_subset"]["kept_condition_ids"][:-1]
+    path.write_text(json.dumps(configuration))
+    with pytest.raises(ValueError, match="kept_condition_ids"):
+        analyze(tmp_path)

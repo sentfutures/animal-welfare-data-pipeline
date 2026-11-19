@@ -50,6 +50,20 @@ EXTRA_DOCUMENT_REQUIRED_FIELDS = ["document_id", "source_document_id", "rewrite_
 CORPUS_REQUIRED_FIELDS = ["doc_id", "content", "language", "variables"]
 
 
+def resolve_generation_prompt_directory(generation_prompt_argument):
+    """The default generation prompt directory for None; otherwise the given directory, or a folder of that name
+    under prompts/tools/persona_checks/."""
+    default_directory = PERSONA_CHECKS_PROMPT_DIRECTORY / persona_sets.GENERATION_PROMPT_DIRECTORY_NAME
+    if generation_prompt_argument is None:
+        return default_directory
+    candidate = Path(generation_prompt_argument)
+    if candidate.is_dir():
+        return candidate
+    if (PERSONA_CHECKS_PROMPT_DIRECTORY / candidate).is_dir():
+        return PERSONA_CHECKS_PROMPT_DIRECTORY / candidate
+    raise SystemExit(f"--generation-prompt-directory {generation_prompt_argument} is not a directory")
+
+
 def timestamp_now():
     return datetime.now().strftime("%Y-%m-%d_%H-%M")
 
@@ -150,8 +164,9 @@ def collect_prompt_file_hashes(persona_set, model_type, framing_directory, gener
         framing_file_names += persona_sets.BASE_MODEL_FRAMING_FILE_NAMES
     hashes = {}
     for file_name in persona_sets.GENERATION_PROMPT_FILE_NAMES:
-        hashes[f"{persona_sets.GENERATION_PROMPT_DIRECTORY_NAME}/{file_name}"] = sha256_of_file(
-            generation_prompt_directory / file_name)
+        if (generation_prompt_directory / file_name).is_file():  # the facts file is absent for a real-message template
+            hashes[f"{generation_prompt_directory.name}/{file_name}"] = sha256_of_file(
+                generation_prompt_directory / file_name)
     for file_name in framing_file_names:
         hashes[f"{persona_sets.MODEL_TYPE_FRAMING_DIRECTORY_NAME}/{file_name}"] = sha256_of_file(
             framing_directory / file_name)
@@ -233,6 +248,64 @@ def restrict_conditions_to_personas(condition_records, only_personas):
     return [condition for condition in condition_records if condition["persona_name"] in kept_names]
 
 
+def parse_only_rewordings(only_rewordings_arguments):
+    """{persona name: selection} from repeated `PERSONA=SELECTION` values; the selection is `odd`, `even` or a
+    comma-separated list of rewording indices (1-based, as in the conditions' `rewording_index`). Empty list -> None."""
+    if not only_rewordings_arguments:
+        return None
+    selections = {}
+    for argument in only_rewordings_arguments:
+        persona_name, separator, selection = argument.partition("=")
+        persona_name, selection = persona_name.strip(), selection.strip()
+        if not separator or not persona_name or not selection:
+            raise SystemExit(f"--only-rewordings expects PERSONA=odd, PERSONA=even or PERSONA=1,3,5; got {argument!r}")
+        if persona_name in selections:
+            raise SystemExit(f"--only-rewordings names persona {persona_name} twice")
+        if selection not in ("odd", "even"):
+            try:
+                indices = [int(value) for value in selection.split(",")]
+            except ValueError:
+                raise SystemExit(f"--only-rewordings selection {selection!r} is not odd, even or a comma-separated "
+                                 f"list of integers")
+            if len(set(indices)) != len(indices):
+                raise SystemExit(f"--only-rewordings lists a rewording index twice for {persona_name}")
+            selection = indices
+        selections[persona_name] = selection
+    return selections
+
+
+def restrict_conditions_to_selected_rewordings(condition_records, only_rewordings):
+    """Keeps, for each persona named in `only_rewordings`, only the conditions whose `rewording_index` is selected;
+    all other conditions stay. Returns (conditions, {persona: kept rewording indices}). Raises ValueError for an
+    unknown persona, an index the persona does not have, or a selection that keeps nothing."""
+    if only_rewordings is None:
+        return condition_records, None
+    indices_by_persona = {}
+    for condition in condition_records:
+        indices_by_persona.setdefault(condition["persona_name"], []).append(condition["rewording_index"])
+    kept_indices = {}
+    for persona_name, selection in only_rewordings.items():
+        if persona_name not in indices_by_persona:
+            raise ValueError(f"--only-rewordings names {persona_name!r}, which has no conditions in this run; "
+                             f"personas present: {sorted(indices_by_persona)}")
+        available = indices_by_persona[persona_name]
+        if selection == "odd":
+            chosen = [index for index in available if index is not None and index % 2 == 1]
+        elif selection == "even":
+            chosen = [index for index in available if index is not None and index % 2 == 0]
+        else:
+            missing = [index for index in selection if index not in available]
+            if missing:
+                raise ValueError(f"--only-rewordings: {persona_name} has no rewording indices {missing}; it has {available}")
+            chosen = [index for index in available if index in selection]
+        if not chosen:
+            raise ValueError(f"--only-rewordings {persona_name}={selection} keeps no rewordings")
+        kept_indices[persona_name] = chosen
+    return [condition for condition in condition_records
+            if condition["persona_name"] not in kept_indices or condition["rewording_index"] in kept_indices[condition["persona_name"]]
+            ], kept_indices
+
+
 def load_tokenizer_from_local_cache(model_name, model_revision):
     """The model's tokenizer if transformers is installed and the tokenizer files are already in the local
     Hugging Face cache; otherwise None. Never downloads."""
@@ -282,6 +355,13 @@ def parse_arguments(argument_list=None):
                              "the default needs --model-revision too")
     parser.add_argument("--model-revision", default=None,
                         help="Pinned 40-character commit hash of the model repository")
+    parser.add_argument("--generation-prompt-directory", default=None,
+                        help="Folder with the user-turn template (document_generation_prompt_template.txt, plus "
+                             "in_universe_facts_shared_by_all_documents.txt if the template has that slot), as a "
+                             "path or a folder name under prompts/tools/persona_checks/. Default: generation_prompt "
+                             "(the SDF spec-variable template). generation_prompt_real_user_message uses each "
+                             "document's own `user_message` variable verbatim. Its files are hashed into the run "
+                             "configuration under their folder name")
     parser.add_argument("--run-folder-label", default=None,
                         help="Descriptive name for the new run folder; the date and time are appended. Default: "
                              "log_probability_persona_check_<persona set>_<model type>")
@@ -290,6 +370,11 @@ def parse_arguments(argument_list=None):
                              "proportionate_welfare,welfare_care_without_preachiness). Only generic and these "
                              "personas' conditions are scored; no_system_prompt only if named. Default: every "
                              "condition of the persona set. Recorded in the run configuration")
+    parser.add_argument("--only-rewordings", action="append", default=[], metavar="PERSONA=SELECTION",
+                        help="Keep only some rewordings of a persona: PERSONA=odd (rewording indices 1,3,5,...), "
+                             "PERSONA=even, or PERSONA=1,3,5 (explicit indices). May be given for several personas; "
+                             "personas not named keep all their rewordings. Applied after --only-personas. Recorded "
+                             "in the run configuration (condition_subset)")
     parser.add_argument("--resume-folder", default=None, help="Existing run folder to resume")
     parser.add_argument("--document-ids-file", default=None,
                         help="Text file of corpus doc_ids, one per line; only these corpus documents are used")
@@ -305,9 +390,9 @@ def parse_arguments(argument_list=None):
 
 def main(argument_list=None):
     arguments = parse_arguments(argument_list)
-    persona_set = persona_sets.load_persona_set(arguments.persona_set)
+    generation_prompt_directory = resolve_generation_prompt_directory(arguments.generation_prompt_directory)
+    persona_set = persona_sets.load_persona_set(arguments.persona_set, generation_prompt_directory=generation_prompt_directory)
     framing_directory = PERSONA_CHECKS_PROMPT_DIRECTORY / persona_sets.MODEL_TYPE_FRAMING_DIRECTORY_NAME
-    generation_prompt_directory = PERSONA_CHECKS_PROMPT_DIRECTORY / persona_sets.GENERATION_PROMPT_DIRECTORY_NAME
     framing = persona_sets.load_model_type_framing(framing_directory)
     generation_prompt_files = persona_sets.load_generation_prompt_files(generation_prompt_directory)
     model_name, model_revision, model_source = resolve_scoring_model(
@@ -325,8 +410,11 @@ def main(argument_list=None):
     document_records = build_document_records(selected_documents, generation_prompt_files)
     full_condition_records = prompt_rendering.build_condition_records(persona_set, arguments.model_type, framing)
     only_personas = parse_only_personas(arguments.only_personas)
+    only_rewordings = parse_only_rewordings(arguments.only_rewordings)
     try:
         condition_records = restrict_conditions_to_personas(full_condition_records, only_personas)
+        condition_records, kept_rewording_indices = restrict_conditions_to_selected_rewordings(
+            condition_records, only_rewordings)
     except ValueError as error:
         raise SystemExit(str(error))
 
@@ -370,8 +458,10 @@ def main(argument_list=None):
             "number_of_extra_documents": len(extra_documents),
             "document_ids": [record["document_id"] for record in document_records]},
         "number_of_conditions": len(condition_records),
-        "condition_subset": (None if only_personas is None else {
+        "condition_subset": (None if only_personas is None and only_rewordings is None else {
             "only_personas": only_personas, "generic_always_kept": True,
+            **({} if only_rewordings is None else {"only_rewordings": only_rewordings,
+                                                    "kept_rewording_indices_by_persona": kept_rewording_indices}),
             "number_of_conditions_in_full_persona_set": len(full_condition_records),
             "kept_condition_ids": [condition["condition_id"] for condition in condition_records]}),
         "prompt_file_sha256": collect_prompt_file_hashes(persona_set, arguments.model_type, framing_directory,

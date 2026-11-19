@@ -31,6 +31,8 @@ prompts/tools/persona_checks/
   generation_prompt/                      shared by all persona sets
     document_generation_prompt_template.txt       slots: {in_universe_facts} and one slot per document variable
     in_universe_facts_shared_by_all_documents.txt
+  generation_prompt_real_user_message/    alternative, chosen with --generation-prompt-directory
+    document_generation_prompt_template.txt       the single slot {user_message}; no facts file
   <persona_set_name>/
     target_persona_rewordings.txt           one description per line (about 30)
     topic_control_personas.txt              "# persona_name" header, then its rewordings, one per line
@@ -151,9 +153,9 @@ Run configuration fields (resuming appends a further `run_configuration_<timesta
 | `pass_criteria` | copy of `persona_set.configuration.pass_criteria` |
 | `document_selection` | `corpus_path`, `document_ids_file`, `maximum_documents`, `extra_documents_files`, `number_of_corpus_documents`, `number_of_extra_documents`, `document_ids` |
 | `chat_template_keyword_arguments` | Extra `apply_chat_template` arguments used for this model (instruct runs; `{}` for none, Qwen3: `{"enable_thinking": false}`). The scorer refuses to run if its own table gives different ones. |
-| `condition_subset` | `null`, or for a `--only-personas` run `{only_personas, generic_always_kept, number_of_conditions_in_full_persona_set, kept_condition_ids}`. |
+| `condition_subset` | `null`, or for a `--only-personas` and/or `--only-rewordings` run `{only_personas, generic_always_kept, only_rewordings and kept_rewording_indices_by_persona (only with --only-rewordings), number_of_conditions_in_full_persona_set, kept_condition_ids}`. |
 | `number_of_conditions` | |
-| `prompt_file_sha256` | SHA-256 of every file that decides what is scored, keyed by path under `prompts/tools/persona_checks/` (`model_type_framing/...`, `generation_prompt/...`, `<persona set>/{persona_check_configuration.json, target_persona_rewordings.txt, topic_control_personas.txt, same_values_control_personas.txt}`). The four `base_model_*` files are included only for `base` runs. Resuming is refused if any differs. |
+| `prompt_file_sha256` | SHA-256 of every file that decides what is scored, keyed by path under `prompts/tools/persona_checks/` (`model_type_framing/...`, `generation_prompt/...` or the folder given by `--generation-prompt-directory`, `<persona set>/{persona_check_configuration.json, target_persona_rewordings.txt, topic_control_personas.txt, same_values_control_personas.txt}`). The four `base_model_*` files are included only for `base` runs. Resuming is refused if any differs. |
 | `persona_set_file_sha256` | SHA-256 of every file in the persona set folder (informational) |
 | `input_file_sha256` | SHA-256 of the corpus file, the document ids file and each extra documents file |
 | `scoring_input_file_sha256` | SHA-256 of `documents.jsonl` and `conditions.jsonl` |
@@ -188,7 +190,7 @@ Original corpus documents have `rewrite_direction: null` and `source_document_id
 
 ### Persona subset runs and merging
 
-`build_scoring_inputs.py --only-personas a,b` keeps `generic` and the conditions of personas `a` and `b` (names as in the `persona_name` column; `no_system_prompt` only if named), in the full set's order, and records `condition_subset`. The run is built, scored and launched like any other but is not analysable alone (the analysis expects every group of the persona set).
+`build_scoring_inputs.py --only-personas a,b` keeps `generic` and the conditions of personas `a` and `b` (names as in the `persona_name` column; `no_system_prompt` only if named), in the full set's order, and records `condition_subset`. `--only-rewordings PERSONA=odd|even|1,3,5` (repeatable) then keeps only those `rewording_index` values of the named persona. The run is built, scored and launched like any other. The analysis reads it alone if it holds `generic`, the target group and at least one control group: without topic controls, the topic-control main test and `<control>_mean_score` are not available and the target is contrasted with the pooled same-values controls instead (`analysis_notes` says so); without `no_system_prompt` the `no_system_prompt_score` column is absent.
 
 `merge_persona_subset_run_into_full_run.py --base-run-folder B --subset-run-folder S --output-run-folder O [--base-run-legacy-persona-set <name>]` writes a new pipeline-format folder `O` (which must not exist) that `analyze_persona_scores.py` reads unchanged:
 - documents: those of `B`, in its order; all must be in `S` with identical content, generation prompt and document token ids, else the merge is refused (and `O` removed). Documents only in `S` are listed in `merged_from.documents_only_in_subset_run`.
@@ -292,7 +294,7 @@ Written by `analyze_persona_scores.py --run-folder <run folder>` (free, local; n
     analysis_summary_<timestamp>.json                    model labels, counts, window and permutation settings
 ```
 
-`analyze_changed_spans.py --run-folder <run folder> [--analysis-folder <folder>]` runs only the changed-span part (new `analysis_<timestamp>/` unless a folder is given); `analyze_persona_scores.py` runs it too unless `--skip-changed-spans`. Other options: `--window-size-tokens 32`, `--windows-per-direction 3`, `--number-of-permutations 1000`, `--permutation-seed 0`. `--legacy-run-persona-set <name>` is only for run folders written by the legacy version (see below).
+`analyze_changed_spans.py --run-folder <run folder> [--analysis-folder <folder>]` runs only the changed-span part (new `analysis_<timestamp>/` unless a folder is given); `analyze_persona_scores.py` runs it too unless `--skip-changed-spans`. Other options: `--window-size-tokens 32`, `--windows-per-direction 3`, `--number-of-permutations 1000`, `--permutation-seed 0`, `--skip-spec-variables a,b` (document variables left out of the scores-by-spec-variable summary and regression). `--legacy-run-persona-set <name>` is only for run folders written by the legacy version (see below).
 
 Definitions:
 
