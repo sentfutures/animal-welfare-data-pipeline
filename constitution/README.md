@@ -30,7 +30,7 @@ This distillation was produced *from* the two documents above, with the full con
 
 A checklist of twelve recurring animal-welfare reasoning failures (not noticing a stake, mentioning welfare without weighing it, treating species or ecosystems as the unit of welfare, scale-blindness, and so on), each with the general principle it conflicts with and an observed model response where one is documented. It is deliberately written against no particular guiding document, so it applies unchanged when another constitution is swapped in. `load_failure_modes()` returns it verbatim; it is embedded as the `<failure_modes>` block of the SDF layer-3 rewrite prompt. The same twelve failures are the source of the SDF `{failure_mode_avoided}` variable. The DAD step-3 rewrite prompt embeds it the same way, as `{failure_modes}`.
 
-`failure_modes_human.md` is the human-ethics DAD profile's mirror of it, entry by entry, with the people a decision affects in place of the animals; the profile names it as `FAILURE_MODES_FILENAME`. It has no observed model responses yet.
+`failure_modes_human.md` is the human-ethics profile's mirror of it, entry by entry, with the people a decision affects in place of the animals; the DAD and SDF human profiles both name it as `FAILURE_MODES_FILENAME` (for SDF it is the layer-3 `<failure_modes>` block, and the source of the human `{failure_mode_avoided}` axis). It has no observed model responses yet. `constitution_principles_human.csv` likewise grounds both human profiles: the DAD human profile's legacy principles file, and the SDF human profile's live `PRINCIPLES_FILENAME` (rendered into layers 2–3 in place of `constitution_principles.csv`).
 
 ## How the constitution reaches generation calls
 

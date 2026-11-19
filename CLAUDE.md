@@ -126,6 +126,7 @@ One line each; the reasons and detail are in the README named.
 - **Any stage can run on a non-Claude model**: a `gpt-` model name routes to OpenAI, a `gemini-` name to Gemini, from inside `call_claude` (`shared/README.md`).
 - **SDF documents depict a world; they never argue an implanted claim.** Why: `sdf_pipeline/CLAUDE.md`.
 - **Composition by construction**: SDF composition is a deck-sampled weighted matrix, not an LLM call, with deal rules that only rule combinations out (`sdf_pipeline/CLAUDE.md`).
+- **SDF content profiles**: `sdf.profile` (`animal`, the default and original pipeline, or `human`, the control arm) picks the prompt folder, principles, failure modes and runs folder; a run keeps its profile for life, and the SDF evals are still animal-only (`sdf_pipeline/CLAUDE.md`).
 - **Skeptic preservation** is enforced at three stages, and **fictional entities** come from per-culture seeded name pools, so fabrications never attach to real organisations (`sdf_pipeline/CLAUDE.md`).
 - **Corpus-level audit after every run** (`evals/audit_sdf.py`), because per-document judges cannot see corpus properties (`sdf_pipeline/CLAUDE.md`).
 - **DAD construction**: stage 3 is the alignment-critical pass; the response side reads only the shipped user message; final records hold only user and assistant messages (`dad_pipeline/CLAUDE.md`, design in `prompts/dad/README.md`).

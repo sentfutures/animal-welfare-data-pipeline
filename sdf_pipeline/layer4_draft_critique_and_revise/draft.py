@@ -13,6 +13,7 @@ from shared import constitution_loader, deal_constraints, utils
 from shared.sdf_run_layouts import DRAFT
 from sdf_pipeline.layer2_description_write_and_description_rewrite.description_write import PLANS
 from sdf_pipeline.layer3_consideration_scoring_and_selection.consideration_selection import plans_with_selections
+from sdf_pipeline import profiles
 from sdf_pipeline.shared_step_machinery import compose_prompts as cp
 from sdf_pipeline.shared_step_machinery.dealt_value_identifiers import value_ids_field_of
 from sdf_pipeline.shared_step_machinery.step_record import (
@@ -46,7 +47,8 @@ def _inputs(run: Run) -> DraftInputs:
     template_text = utils.sdf_template_path(run.prompts_directory, 2).read_text(encoding="utf-8")
     return DraftInputs(
         constitution_claude=constitution_loader.load_constitution_claude(constitution_dir),
-        principles=constitution_loader.format_principles(constitution_loader.load_principles(constitution_dir)),
+        principles=constitution_loader.format_principles(constitution_loader.load_principles(
+            constitution_dir, filename=profiles.current().PRINCIPLES_FILENAME)),
         preamble=(run.prompts_directory / "preamble.txt").read_text(encoding="utf-8").strip(),
         template_text=template_text,
         template_without_considerations=deal_constraints.drop_template_lines(template_text, ["considerations_spec"]),

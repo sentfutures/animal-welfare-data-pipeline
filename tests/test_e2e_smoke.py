@@ -184,6 +184,40 @@ def test_sdf_resume_at_last_layer_makes_no_calls(tiny_config_file, outputs_root,
     assert len(corpus) == 2
 
 
+def test_sdf_human_profile_end_to_end_offline(tiny_config, tmp_path, outputs_root,
+                                              stub_claude, monkeypatch):
+    """sdf.profile: human runs the same pipeline on the human-welfare content:
+    its own run tree, its own prompt snapshot, its principles and failure modes."""
+    from sdf_pipeline.shared_step_machinery import compose_prompts as cp
+    from sdf_pipeline import profiles
+
+    human_cfg = {**tiny_config, "sdf": {**tiny_config["sdf"], "profile": "human"}}
+    config_file = tmp_path / "config_sdf_human.yaml"
+    config_file.write_text(yaml.safe_dump(human_cfg))
+    calls = stub_claude(_sdf_dispatch)
+    run_sdf_main(monkeypatch, config_file)
+
+    assert not (outputs_root / "sdf").exists()
+    runs = [d for d in (outputs_root / "sdf_human" / "runs").iterdir() if d.is_dir()]
+    assert len(runs) == 1
+    run_dir = runs[0]
+    snapshot = (run_dir / "inputs" / "prompts" / "variables.txt").read_text(encoding="utf-8")
+    assert "0.13 :: [workers]" in snapshot      # the human matrix was frozen, not the animal one
+    corpus = utils.load_jsonl(run_dir / "final" / "sdf_corpus.jsonl")
+    assert len(corpus) == 2
+    _, _, value_ids = cp.load_variables(
+        profiles.prompts_dir(profiles.get("human")) / "variables.txt")
+    human_categories = set(value_ids["sentient_category"].values())
+    assert all(r["variables"]["sentient_category"] in human_categories for r in corpus)
+    # the draft, critique and revise steps were handed the human principles, not the animal ones
+    grounded = [c for c in calls if c["stage"] in ("layer4_draft", "layer4_critique", "layer4_revise")]
+    assert {c["stage"] for c in grounded} == {"layer4_draft", "layer4_critique", "layer4_revise"}
+    assert all("Other people's interests are always in the weighing" in c["system_prompt"]
+               for c in grounded)
+    assert not any("Sentient beings are inside the moral circle" in c["system_prompt"]
+                   for c in grounded)
+
+
 # --- DAD ---------------------------------------------------------------
 
 def _dad_dispatch(user_message, **kw):

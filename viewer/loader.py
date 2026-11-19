@@ -19,13 +19,17 @@ PIPELINES = ("sdf", "dad")
 
 
 def _runs_roots(outputs_root: Path, pipeline: str) -> list[Path]:
-    """Where a pipeline's runs live. DAD runs live under each content
+    """Where a pipeline's runs live. DAD and SDF runs live under each content
     profile's own output folder (outputs/dad/ for the animal profile,
-    outputs/dad_human/ for the human one); they are all DAD runs to the
-    viewer, since every page reads from the run directory itself."""
-    if pipeline != "dad":
+    outputs/dad_human/ for the human one; outputs/sdf/ and outputs/sdf_human/
+    likewise); they are all one pipeline's runs to the viewer, since every
+    page reads from the run directory itself."""
+    if pipeline == "dad":
+        from dad_pipeline import profiles
+    elif pipeline == "sdf":
+        from sdf_pipeline import profiles
+    else:
         return [Path(outputs_root) / pipeline / "runs"]
-    from dad_pipeline import profiles
     subdirs = dict.fromkeys(profiles.get(name).OUTPUT_SUBDIR for name in profiles.PROFILES)
     return [Path(outputs_root) / sub / "runs" for sub in subdirs]
 

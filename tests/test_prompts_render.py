@@ -117,6 +117,13 @@ TEMPLATE_KWARGS += [
     for rel, kwargs in TEMPLATE_KWARGS
     if rel.startswith("dad/") and rel != "dad/step3_score.txt"
 ]
+# The human-welfare SDF profile (prompts/sdf_human/) mirrors every SDF template
+# with the same placeholders — so each renders with the same kwargs.
+TEMPLATE_KWARGS += [
+    (rel.replace("sdf/", "sdf_human/", 1), kwargs)
+    for rel, kwargs in TEMPLATE_KWARGS
+    if rel.startswith("sdf/")
+]
 
 
 @pytest.mark.parametrize("rel_path,kwargs", TEMPLATE_KWARGS, ids=[t[0] for t in TEMPLATE_KWARGS])
@@ -139,8 +146,9 @@ def test_template_renders_with_pipeline_kwargs(rel_path, kwargs):
             assert str(value) in rendered, f"{{{name}}} not substituted in {rel_path}"
 
 
-def test_preamble_loads_verbatim():
-    text = utils.load_prompt(REPO_ROOT / "prompts" / "sdf" / "preamble.txt")
+@pytest.mark.parametrize("prompts_subdir", ["sdf", "sdf_human"])
+def test_preamble_loads_verbatim(prompts_subdir):
+    text = utils.load_prompt(REPO_ROOT / "prompts" / prompts_subdir / "preamble.txt")
     assert text.strip()
 
 

@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from shared import constitution_loader, deal_constraints, sdf_run_layouts, utils
+from sdf_pipeline import profiles
 from sdf_pipeline.shared_step_machinery import compose_prompts as cp
 from sdf_pipeline.shared_step_machinery import revision_style
 from sdf_pipeline.shared_step_machinery.dealt_value_identifiers import value_ids_field_of
@@ -56,9 +57,11 @@ class ReviewPromptRenderer:
         constitution_dir = utils.resolve_constitution_dir(prompts_dir)
         self.constitution_claude = constitution_loader.load_constitution_claude(constitution_dir)
         self.principles = constitution_loader.format_principles(
-            constitution_loader.load_principles(constitution_dir)
+            constitution_loader.load_principles(
+                constitution_dir, filename=profiles.current().PRINCIPLES_FILENAME)
         )
-        self.failure_modes = constitution_loader.load_failure_modes(constitution_dir)
+        self.failure_modes = constitution_loader.load_failure_modes(
+            constitution_dir, filename=profiles.current().FAILURE_MODES_FILENAME)
         # A document with no considerations leaves no trace of them in its prompt.
         self.template_text = template_path.read_text(encoding="utf-8")
         self.template_without_considerations = deal_constraints.drop_template_lines(

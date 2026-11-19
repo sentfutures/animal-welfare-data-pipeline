@@ -9,7 +9,7 @@ from pathlib import Path
 
 from sdf_pipeline.layer1_deal_variables_and_screen import run_layer as deal_variables_and_screen_layer
 from sdf_pipeline.layer3_consideration_scoring_and_selection import run_layer as consideration_layer
-from sdf_pipeline import pipeline_steps
+from sdf_pipeline import pipeline_steps, profiles
 from sdf_pipeline.layer2_description_write_and_description_rewrite import description_rewrite
 from sdf_pipeline.shared_step_machinery.step_record import Run
 from shared import sdf_run_layouts, utils
@@ -129,7 +129,7 @@ def seed_run_from_chosen_step(
 
     # The snapshot the new run will run with.
     if use_current_prompts:
-        snapshot_sources = {"prompts": repository_root / "prompts" / "sdf", "constitution": repository_root / "constitution"}
+        snapshot_sources = {"prompts": repository_root / "prompts" / profiles.current().PROMPTS_SUBDIR, "constitution": repository_root / "constitution"}
     else:
         snapshot_sources = {"prompts": source_run / "inputs" / "prompts", "constitution": source_run / "inputs" / "constitution"}
         for name, folder in snapshot_sources.items():

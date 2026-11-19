@@ -313,6 +313,15 @@ Each has a stage tag in the cost log; the detail is here and in each module's do
   Near-duplicate removal also runs inside the pipeline (step 12, final corpus, via
   `sdf.near_dup_threshold`).
 
+## Content profiles (animal and human)
+Everything domain-specific beyond the prompt files (the per-category example pools behind `{sentient_example}`, and where prompts, principles, failure modes and runs live) is a profile module in `sdf_pipeline/profiles/`, selected by `sdf.profile` (default `animal`, the original pipeline; its species table moved there verbatim as `CATEGORY_EXAMPLES`) and activated by `run.py`. Code reads it through `profiles.current()`; layer 4's draft, critique and revise steps load `profiles.current().PRINCIPLES_FILENAME` / `FAILURE_MODES_FILENAME` instead of the loader defaults, and `--seed-from --use-current-prompts` snapshots the active profile's prompt folder.
+
+A run keeps its profile for life: `--resume`, and `--seed-from` from a run made under another profile, are refused.
+
+The `human` profile (the people a decision affects in place of the animals) mirrors the animal one axis by axis: `prompts/sdf_human/` keeps every axis name, weight and `{placeholder}` identical and swaps only values, ids and prose. It is grounded in `constitution/constitution_principles_human.csv` and `constitution/failure_modes_human.md` (SDF still never uses the charters). Runs live under `outputs/sdf_human/`; `tests/test_sdf_profiles.py` pins the mirror.
+
+**All SDF evals (`audit_sdf.py`, `score_sdf.py`, `compliance_sdf.py`, `welfare_lexicon.py`, the plausibility/shoehorning audits), the viewer's rubric pages, `website/` and `publish_hf.py` still assume the animal profile.** The offline parts of `audit_sdf.py` and `diversity.py` run on a human run pointed at explicitly, but every LLM rubric is animal-worded, and `compliance_sdf.py` has no human source document. The equivalence recordings (`tests/`) cover the animal profile only.
+
 ## The constitution in SDF prompts
 
 The draft, critique and revise templates embed the constitution (and the formatted principles

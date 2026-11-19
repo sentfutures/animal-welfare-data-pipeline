@@ -4,6 +4,7 @@ draft, critique and revise; score and final selection), each a folder in ``sdf_p
 The step table and the layouts are in ``sdf_pipeline/CLAUDE.md``; a run keeps the layout it was created in (``shared/sdf_run_layouts.py``)."""
 
 import argparse
+import json
 import os
 import sys
 from pathlib import Path
@@ -26,6 +27,22 @@ from sdf_pipeline.shared_step_machinery.step_record import Run
 from sdf_pipeline import start_a_run_from_an_earlier_runs_step as seeding
 from sdf_pipeline.layer2_description_write_and_description_rewrite import description_rewrite, description_write
 from sdf_pipeline.layer4_draft_critique_and_revise import draft
+from sdf_pipeline import profiles
+
+
+def _refuse_profile_change(run_dir: Path, name: str) -> None:
+    """A run is one profile for life: resuming it under another would mix two
+    domains' prompts and principles in one corpus. Runs that predate profiles
+    are animal runs."""
+    try:
+        manifest = json.loads((run_dir / "run_manifest.json").read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError):
+        return
+    was = profiles.name_from_config(manifest.get("config") or {})
+    if was != name:
+        raise SystemExit(f"{run_dir.name} was made with SDF profile {was!r}; resuming it "
+                         f"with {name!r} would mix profiles. Use a config with "
+                         f"sdf.profile: {was}.")
 
 
 def main() -> None:
@@ -71,9 +88,12 @@ def main() -> None:
     refuse_configuration_with_one_call_revision(config, args.config)
 
     root = Path(__file__).parent.parent
+    # The content profile (sdf.profile, default "animal") picks the prompt
+    # folder, the principles file and where runs live; the code is shared.
+    profile = profiles.use(profiles.name_from_config(config))
     # PIPELINE_OUTPUT_ROOT redirects all run output (used by the test suite)
     outputs_root = Path(os.environ.get("PIPELINE_OUTPUT_ROOT", root / "outputs"))
-    runs_root = outputs_root / "sdf" / "runs"
+    runs_root = outputs_root / profile.OUTPUT_SUBDIR / "runs"
 
     # The layout is decided once, when the run is created, and kept: a new or seeded run is in the five-layer
     # layout; a resumed run keeps the one it was made in.
@@ -88,9 +108,11 @@ def main() -> None:
 
     start_layer = args.layer
     if seeding_requested:
+        source_run = seeding.resolve_source_run(args.seed_from, runs_root)
+        _refuse_profile_change(source_run, profile.NAME)
         seeded_run = seeding.seed_run_from_chosen_step(
             config=config,
-            source_run=seeding.resolve_source_run(args.seed_from, runs_root),
+            source_run=source_run,
             from_step=args.from_step,
             document_ids=[d.strip() for d in args.document_ids.split(",") if d.strip()] if args.document_ids else None,
             runs_root=runs_root,
@@ -105,13 +127,14 @@ def main() -> None:
               f"with {len(seeded_run.document_ids)} document(s); starting at layer {start_layer}")
     elif args.resume:
         utils.warn_if_backend_changed(run_dir, config)
+        _refuse_profile_change(run_dir, profile.NAME)
     else:
         run_dir = utils.create_run_dir(
             runs_root,
             label=args.label,
             config=config,
             snapshot_dirs={
-                "prompts": root / "prompts" / "sdf",
+                "prompts": root / "prompts" / profile.PROMPTS_SUBDIR,
                 "constitution": root / "constitution",
             },
             # Decided once, here: this run writes dealt value ids into its stage files. A run created

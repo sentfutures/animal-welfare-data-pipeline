@@ -32,6 +32,7 @@ evals:
   judge_model: claude-opus-5  # delivery-quality + welfare-impact judges, showcase, rhetorical-move discovery
 
 sdf:
+  profile: animal                # content profile: sdf_pipeline/profiles/<name>.py + prompts/<its folder>/ (animal = the original pipeline)
   n_prompts: 100                 # documents planned per run, deck-sampled from the variables matrix
   seed: 0                        # deck-sampling seed (same seed + same variables = same sample)
   entity_pool_seed: 137          # seeds the locale-matched fictional people/org name pools
