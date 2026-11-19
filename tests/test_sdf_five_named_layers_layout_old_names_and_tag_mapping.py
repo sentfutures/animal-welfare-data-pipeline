@@ -77,6 +77,8 @@ def test_every_tag_of_the_decision_table_is_the_five_layer_tag_of_its_step():
                 "critique": "layer4_critique", "revise": "layer4_revise",
                 "critique_and_revise_in_one_call": "layer4_critique_and_revise_in_one_call", "score": "layer5_score"}
     assert {name: FIVE.stage_tag(name) for name in expected} == expected
+    # the one-call revision's tag stays in the table for the cost logs of runs made with it, but no step has it
+    del expected["critique_and_revise_in_one_call"]
     assert {entry.name: entry.stage_tag_in(FIVE) for entry in pipeline_steps.PIPELINE_STEPS if entry.makes_model_calls} == expected
 
 

@@ -43,13 +43,12 @@ docstring has the detail.
 | 6 | Consideration scoring (`layer3_consideration_scoring_and_selection/consideration_scoring.py`, tag `layer3_consideration_scoring`) | Each moral and epistemic entry scored 1 to 5 | No |
 | 7 | Consideration selection (`considerations_assignment`, no model; step `consideration_selection`) | Global linear programme assigns entries | No |
 | 8 | Draft (`layer4_draft_critique_and_revise/draft.py`, tag `layer4_draft`) | First full text | No |
-| 9 | Critique (`layer4_draft_critique_and_revise/critique.py`, tag `layer4_critique`; the one-call variant `layer4_draft_critique_and_revise/critique_and_revise_in_one_call.py` has tag `layer4_critique_and_revise_in_one_call`) | A list of problems against eleven review checks | No |
+| 9 | Critique (`layer4_draft_critique_and_revise/critique.py`, tag `layer4_critique`) | A list of problems against eleven review checks | No |
 | 10 | Revise (`layer4_draft_critique_and_revise/revise.py`, tag `layer4_revise`) | Rewritten text, with voice and length directives | No |
 | 11 | Score (`layer5_score_and_final_selection/score.py`, tag `layer5_score`) | Alignment, realism and spec conformance, 1 to 10; a response that fails to parse is recorded as 5/5/5 | No |
 | 12 | Score gate and near-duplicate removal (`layer5_score_and_final_selection/score_gate.py` and `layer5_score_and_final_selection/near_duplicate_removal.py`, no model) | Alignment and realism must each reach 7 (`sdf.min_score_threshold`); near-duplicates above 0.90 (`sdf.near_dup_threshold`) dropped | Yes: below threshold (a 5/5/5 parse-error record falls here), near-duplicate |
 
-Steps 2, 5 and 6 can be switched off by their `sdf.*_enabled` keys, and steps 9 and 10 are one
-call when `sdf.revision.split` is false. A draft, plan, critique, revision or score whose answer
+Steps 2, 5 and 6 can be switched off by their `sdf.*_enabled` keys. A draft, plan, critique, revision or score whose answer
 is unusable is not recorded and is retried on `--resume`; it is not dropped.
 
 ### The step catalogue
@@ -78,8 +77,14 @@ names the step to seed from when it is not.
 The stage tags `layer1_screen` and `layer1_select` are also random seeds; the literal
 `SHUFFLE_SEED_NAME` constants in the screen and scoring modules keep them literal if the tag is ever renamed. Step names:
 `consideration_scoring` (print command and setting `consideration_scoring_model`), `consideration_selection`,
-`critique_and_revise_in_one_call` (print command of the same name), `revise` (setting `revise_model`),
+`critique`, `revise` (setting `revise_model`),
 `score_gate` and `near_duplicate_removal`.
+
+Runs made when the critique and the revise could be one call (`sdf.revision.split: false`, stage tag
+`layer4_critique_and_revise_in_one_call`, template `layer3.txt` in the run's prompt snapshot) are still read: their stage
+files have the same shape, `shared/sdf_run_layouts.py` keeps the tag for their cost logs, and the report counts it. The
+option itself is refused by `compatibility_with_runs_made_by_earlier_code/one_call_revision_removed.py`, in a
+configuration and when resuming such a run before its layer 4 has finished.
 
 Exception policy (`StepPolicy.errors_counted_as_thrown_calls`): an exception in `build_request` or in the model
 call is `Failed(THROWN_CALL, "error: <Type>: <message>")` for the group's documents (printed, logged, retried on

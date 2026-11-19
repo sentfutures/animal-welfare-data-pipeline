@@ -1,3 +1,7 @@
+# A record of a finished experiment; it cannot be rerun. Its control arm sets
+# sdf.revision.split: false, which the pipeline refuses, so experiment.py refuses
+# that arm. The results are in report.md.
+#
 # Does giving the rewriter a target LENGTH, as a multiple of the document's
 # own, change the corpus?
 #

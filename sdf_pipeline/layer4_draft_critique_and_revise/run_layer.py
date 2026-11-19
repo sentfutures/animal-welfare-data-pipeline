@@ -1,6 +1,6 @@
 """Layer 4: the driver ``run`` drafts every plan, then critiques and revises (``run_critique_and_revise`` does the second half on given drafts).
-The critique and the revision are alignment-critical: do not skip or abbreviate them. They are two calls by default
-(layer3a_critique.txt, layer3b_revise.txt); ``sdf.revision.split: false`` pins the single-call layer3.txt."""
+The critique and the revision are alignment-critical: do not skip or abbreviate them. They are two calls
+(layer3a_critique.txt, layer3b_revise.txt)."""
 
 from pathlib import Path
 
@@ -8,11 +8,11 @@ from shared import sdf_run_layouts, utils
 from shared.sdf_run_layouts import CRITIQUE_AND_REVISE
 from sdf_pipeline.layer4_draft_critique_and_revise.shared_by_this_layers_steps import *  # noqa: F401,F403  (the steps' names)
 from sdf_pipeline.layer4_draft_critique_and_revise.shared_by_this_layers_steps import (
-    layer_name_in_messages, require_two_call_templates, revision_is_split)
+    layer_name_in_messages, require_two_call_templates)
 from sdf_pipeline.compatibility_with_runs_made_by_earlier_code.checkpoint_marks import marked_as_finished
 from sdf_pipeline.shared_step_machinery.step_record import Run
 from sdf_pipeline.shared_step_machinery.step_runner import run_step
-from sdf_pipeline.layer4_draft_critique_and_revise import critique, critique_and_revise_in_one_call, draft, revise
+from sdf_pipeline.layer4_draft_critique_and_revise import critique, draft, revise
 from sdf_pipeline.shared_step_machinery.update_steps import systemic_stop_message_for
 
 
@@ -34,17 +34,13 @@ def run_critique_and_revise(config: dict, prompts_dir: Path, output_dir: Path, d
     # The systemic guard counts only THROWN calls, across the critique and revise together: a truncated or empty critique is a per-document content failure and must not look systemic.
     documents_with_thrown_call: set = set()
 
-    if revision_is_split(config):
-        require_two_call_templates(prompts_dir)
-        # A draft is finished, and gets no critique, when its rewrite is already on disk; accepting a
-        # critique marks nothing, because only an accepted rewrite finishes a draft.
-        documents_with_thrown_call.update(run_step(critique.STEP, run_of_layer, drafts).thrown_call_document_ids)
-        # Critiques are banked separately from rewrites (the critique step appended each as it
-        # was accepted): a revise call that fails must not re-bill the critique that fed it.
-        rewrite_step = revise.STEP
-    else:
-        rewrite_step = critique_and_revise_in_one_call.STEP
-    result = run_step(rewrite_step, run_of_layer, drafts)
+    require_two_call_templates(prompts_dir)
+    # A draft is finished, and gets no critique, when its rewrite is already on disk; accepting a
+    # critique marks nothing, because only an accepted rewrite finishes a draft.
+    documents_with_thrown_call.update(run_step(critique.STEP, run_of_layer, drafts).thrown_call_document_ids)
+    # Critiques are banked separately from rewrites (the critique step appended each as it
+    # was accepted): a revise call that fails must not re-bill the critique that fed it.
+    result = run_step(revise.STEP, run_of_layer, drafts)
     documents_with_thrown_call.update(result.thrown_call_document_ids)
 
     if pending_ids and len(documents_with_thrown_call) == len(pending_ids):

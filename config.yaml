@@ -83,7 +83,6 @@ sdf:
   # (prompts/sdf/variables.txt, REVISION VARIABLES section) and steer only the
   # rewrite, never what the document is about.
   revision:
-    split: true          # critique and rewrite as two calls; false = the single-call layer3.txt
     style_mode: axes     # axes = render the dealt voice cards | none = leave the voice alone
     use_length: true     # render the dealt {length} card as a target
 

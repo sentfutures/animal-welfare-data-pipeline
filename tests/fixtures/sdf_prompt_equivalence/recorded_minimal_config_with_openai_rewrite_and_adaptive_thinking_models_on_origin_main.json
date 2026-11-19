@@ -1,6 +1,6 @@
 {
  "format_version": 4,
- "recorded_from": "commit 03f3c3b4bf2ff63769ed097964efe8d45d89d04c on branch HEAD (clean)",
+ "recorded_from": "commit 4f9fbc7be4e335265437523aa484932713813aae on branch HEAD (clean)",
  "regeneration_rule": "The recorded files are rewritten only by `python scripts/regenerate_sdf_prompt_equivalence_recorded_requests.py`, and only when the pull request is meant to change requests: never to make a failing test pass. Regenerate and commit the files in that pull request, and say in its description that requests change and why. A pull request not meant to change them leaves the files alone, so a difference is a bug.",
  "description": "Only the required keys plus an OpenAI rewrite model, a Sonnet 5.5 draft model and an Opus 5.5 rewrite model: the default reasoning effort, the default thinking headroom and the no-stake skip default, on a hand dealt the no-stake resolution; the screen is disabled, so the description write deals the hands and the default seed is read there.",
  "configs_used_by_invocation": {

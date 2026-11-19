@@ -1,14 +1,14 @@
 {
  "format_version": 4,
- "recorded_from": "commit 03f3c3b4bf2ff63769ed097964efe8d45d89d04c on branch HEAD (clean)",
+ "recorded_from": "commit 4f9fbc7be4e335265437523aa484932713813aae on branch HEAD (clean)",
  "regeneration_rule": "The recorded files are rewritten only by `python scripts/regenerate_sdf_prompt_equivalence_recorded_requests.py`, and only when the pull request is meant to change requests: never to make a failing test pass. Regenerate and commit the files in that pull request, and say in its description that requests change and why. A pull request not meant to change them leaves the files alone, so a difference is a bug.",
- "description": "As above with sdf.revision.split false: the single-call revision keeps the temperature.",
+ "description": "Three documents with the fixture's default settings (the audit recordings' current-layout run).",
  "configs_used_by_invocation": {
   "1": {
    "backend": "api",
-   "model": "claude-haiku-4-5",
+   "model": "claude-sonnet-5",
    "max_tokens": 4000,
-   "temperature": 0.5,
+   "temperature": 0.7,
    "workers": 4,
    "thinking_headroom": 5000,
    "effort": {
@@ -32,6 +32,7 @@
     "screen_batch_size": 5,
     "screen_redeal_rounds": 3,
     "description_rewrite_enabled": true,
+    "description_rewrite_model": "gpt-6.1-sol",
     "description_rewrite_reasoning_effort": "low",
     "select_enabled": true,
     "max_scoring_attempts": 3,
@@ -42,7 +43,12 @@
     "score_weights": {"3": 1, "4": 3, "5": 9},
     "extra_consideration_penalty": 2,
     "select_skip_no_stake": true,
-    "revision": {"split": false, "style_mode": "axes", "use_length": true}
+    "revision": {"style_mode": "axes", "use_length": true},
+    "plan_model": "claude-haiku-4-5",
+    "select_model": "claude-sonnet-5",
+    "draft_model": "claude-sonnet-5-5",
+    "rewrite_model": "claude-opus-5-5",
+    "score_model": "claude-haiku-4-5"
    },
    "language_distribution": {"en": 1.0}
   }
@@ -52,18 +58,19 @@
   {
    "route": "anthropic",
    "settings": {"api_key_supplied": true}
+  },
+  {
+   "route": "openai",
+   "settings": {
+    "default_headers": {"Accept-Encoding": "gzip"},
+    "max_retries": 0,
+    "timeout": 300,
+    "api_key_supplied": true
+   }
   }
  ],
  "calls_per_stage_per_invocation": {
-  "1": {
-   "layer1_screen": 1,
-   "layer2_description_rewrite": 3,
-   "layer2_description_write": 3,
-   "layer3_consideration_scoring": 3,
-   "layer4_critique_and_revise_in_one_call": 3,
-   "layer4_draft": 3,
-   "layer5_score": 3
-  }
+  "1": {"layer1_screen": 1, "layer2_description_rewrite": 3, "layer2_description_write": 3, "layer3_consideration_scoring": 3, "layer4_critique": 3, "layer4_draft": 3, "layer4_revise": 3, "layer5_score": 3}
  },
  "requests": [
   {
@@ -78,7 +85,7 @@
     "messages": [
      {"role": "user", "content": "sha256:6ea4361d79fb8f835ed2a3896f96a93582a47bcf31cae087e71c17217b4b5dc2 (7587 characters)"}
     ],
-    "temperature": 0.5,
+    "temperature": 0.7,
     "thinking": {"type": "disabled"},
     "output_config": {
      "effort": "low",
@@ -118,17 +125,15 @@
    "stage": "layer2_description_rewrite",
    "item_id": "matrix_000000",
    "attempt": 1,
-   "route": "anthropic",
+   "route": "openai",
    "wire": {
-    "model": "claude-haiku-4-5",
-    "max_tokens": 8000,
-    "messages": [
-     {"role": "user", "content": "sha256:70a2cfe548235750d6ee3f654cbac4eb3d518de63013e302cae04bae3ed605d5 (7544 characters)"}
-    ],
-    "temperature": 0.5,
-    "thinking": {"type": "disabled"},
-    "output_config": "repeated_value:requests.1.wire.output_config",
-    "system": "repeated_value:requests.1.wire.system"
+    "model": "gpt-6.1-sol",
+    "input": "sha256:70a2cfe548235750d6ee3f654cbac4eb3d518de63013e302cae04bae3ed605d5 (7544 characters)",
+    "max_output_tokens": 8000,
+    "temperature": 1.0,
+    "reasoning": {"effort": "low"},
+    "text": "repeated_value:requests.1.wire.text",
+    "instructions": "repeated_value:requests.1.wire.instructions"
    }
   },
   {
@@ -136,17 +141,15 @@
    "stage": "layer2_description_rewrite",
    "item_id": "matrix_000001",
    "attempt": 1,
-   "route": "anthropic",
+   "route": "openai",
    "wire": {
-    "model": "claude-haiku-4-5",
-    "max_tokens": 8000,
-    "messages": [
-     {"role": "user", "content": "sha256:68ba667cad6735fa8b0f7fc235dbd3667ecf31c4bfda14fb77697d3f9e0c3b0c (7583 characters)"}
-    ],
-    "temperature": 0.5,
-    "thinking": {"type": "disabled"},
-    "output_config": "repeated_value:requests.1.wire.output_config",
-    "system": "repeated_value:requests.1.wire.system"
+    "model": "gpt-6.1-sol",
+    "input": "sha256:68ba667cad6735fa8b0f7fc235dbd3667ecf31c4bfda14fb77697d3f9e0c3b0c (7583 characters)",
+    "max_output_tokens": 8000,
+    "temperature": 1.0,
+    "reasoning": {"effort": "low"},
+    "text": "repeated_value:requests.1.wire.text",
+    "instructions": "repeated_value:requests.1.wire.instructions"
    }
   },
   {
@@ -154,17 +157,15 @@
    "stage": "layer2_description_rewrite",
    "item_id": "matrix_000002",
    "attempt": 1,
-   "route": "anthropic",
+   "route": "openai",
    "wire": {
-    "model": "claude-haiku-4-5",
-    "max_tokens": 8000,
-    "messages": [
-     {"role": "user", "content": "sha256:e829970ee1d1c899ff5134f4b16d3bd53f87df3375cef86149c3f414cabd1651 (7479 characters)"}
-    ],
-    "temperature": 0.5,
-    "thinking": {"type": "disabled"},
-    "output_config": "repeated_value:requests.1.wire.output_config",
-    "system": "repeated_value:requests.1.wire.system"
+    "model": "gpt-6.1-sol",
+    "input": "sha256:e829970ee1d1c899ff5134f4b16d3bd53f87df3375cef86149c3f414cabd1651 (7479 characters)",
+    "max_output_tokens": 8000,
+    "temperature": 1.0,
+    "reasoning": {"effort": "low"},
+    "text": "repeated_value:requests.1.wire.text",
+    "instructions": "repeated_value:requests.1.wire.instructions"
    }
   },
   {
@@ -179,7 +180,7 @@
     "messages": [
      {"role": "user", "content": "sha256:8ab246560f782a28002d4014622ed7d5ca0ee761f3ac43ebc28d430c6031b153 (4079 characters)"}
     ],
-    "temperature": 0.5,
+    "temperature": 0.7,
     "thinking": {"type": "disabled"},
     "output_config": {"effort": "medium"},
     "system": "repeated_value:requests.4.wire.system"
@@ -197,7 +198,7 @@
     "messages": [
      {"role": "user", "content": "sha256:89672fcc6d5ce77d5947269641fb6db803ffc1c3a84f69a985f483ccb4f032d4 (4192 characters)"}
     ],
-    "temperature": 0.5,
+    "temperature": 0.7,
     "thinking": {"type": "disabled"},
     "output_config": {"effort": "medium"},
     "system": "repeated_value:requests.4.wire.system"
@@ -215,7 +216,7 @@
     "messages": [
      {"role": "user", "content": "sha256:07267864eda6ed7084528256327d217983684096995a6b7c0784b80912d10a6c (4111 characters)"}
     ],
-    "temperature": 0.5,
+    "temperature": 0.7,
     "thinking": {"type": "disabled"},
     "output_config": {"effort": "medium"},
     "system": "repeated_value:requests.4.wire.system"
@@ -228,12 +229,11 @@
    "attempt": 1,
    "route": "anthropic",
    "wire": {
-    "model": "claude-haiku-4-5",
+    "model": "claude-sonnet-5",
     "max_tokens": 2800,
     "messages": [
      {"role": "user", "content": "sha256:b7baf6aa9c04e0456327ddfcd47fd94d204c7950c406a9860df7a25ddd83b3ee (4436 characters)"}
     ],
-    "temperature": 0.5,
     "thinking": {"type": "disabled"},
     "output_config": {
      "effort": "xhigh",
@@ -249,12 +249,11 @@
    "attempt": 1,
    "route": "anthropic",
    "wire": {
-    "model": "claude-haiku-4-5",
+    "model": "claude-sonnet-5",
     "max_tokens": 2800,
     "messages": [
      {"role": "user", "content": "sha256:0267555a04e09a88d5a3cf983738a7536ccad4a53444bab636ba3eba6c1372d6 (4428 characters)"}
     ],
-    "temperature": 0.5,
     "thinking": {"type": "disabled"},
     "output_config": {
      "effort": "xhigh",
@@ -270,12 +269,11 @@
    "attempt": 1,
    "route": "anthropic",
    "wire": {
-    "model": "claude-haiku-4-5",
+    "model": "claude-sonnet-5",
     "max_tokens": 2800,
     "messages": [
      {"role": "user", "content": "sha256:221092acffe61e8162cb7b25530887186377a9b21dba018ee602ad74e4d672a9 (4432 characters)"}
     ],
-    "temperature": 0.5,
     "thinking": {"type": "disabled"},
     "output_config": {
      "effort": "xhigh",
@@ -286,55 +284,52 @@
   },
   {
    "invocation": 1,
-   "stage": "layer4_critique_and_revise_in_one_call",
+   "stage": "layer4_critique",
    "item_id": "matrix_000000",
    "attempt": 1,
    "route": "anthropic",
    "wire": {
-    "model": "claude-haiku-4-5",
-    "max_tokens": 8000,
+    "model": "claude-opus-5-5",
+    "max_tokens": 13000,
     "messages": [
-     {"role": "user", "content": "sha256:593c0084660967238650818dd0d88c13973a62381ec1b94aae62bfa68e6f1f6c (7350 characters)"}
+     {"role": "user", "content": "sha256:d3304c5817dcf706f69674c064598cb24e73a365edeae3513ba8c7f2b7e69431 (5700 characters)"}
     ],
-    "temperature": 0.5,
-    "thinking": {"type": "disabled"},
-    "output_config": {"effort": "high"},
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "low"},
     "system": "repeated_value:requests.10.wire.system"
    }
   },
   {
    "invocation": 1,
-   "stage": "layer4_critique_and_revise_in_one_call",
+   "stage": "layer4_critique",
    "item_id": "matrix_000001",
    "attempt": 1,
    "route": "anthropic",
    "wire": {
-    "model": "claude-haiku-4-5",
-    "max_tokens": 8000,
+    "model": "claude-opus-5-5",
+    "max_tokens": 13000,
     "messages": [
-     {"role": "user", "content": "sha256:ab9c3b4a741beb7df52099447f5575df4cd146451b4c7bca51590765f2890484 (7666 characters)"}
+     {"role": "user", "content": "sha256:6c811e264e992a1ed2bec49e1fcfe80bd15e0c5668a1569e3021a81c43f13b13 (5704 characters)"}
     ],
-    "temperature": 0.5,
-    "thinking": {"type": "disabled"},
-    "output_config": {"effort": "high"},
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "low"},
     "system": "repeated_value:requests.10.wire.system"
    }
   },
   {
    "invocation": 1,
-   "stage": "layer4_critique_and_revise_in_one_call",
+   "stage": "layer4_critique",
    "item_id": "matrix_000002",
    "attempt": 1,
    "route": "anthropic",
    "wire": {
-    "model": "claude-haiku-4-5",
-    "max_tokens": 8000,
+    "model": "claude-opus-5-5",
+    "max_tokens": 13000,
     "messages": [
-     {"role": "user", "content": "sha256:3d49855822b6c4396b0f03fa6f1f6c73993dbf33a2b60add7b866d468380b287 (7026 characters)"}
+     {"role": "user", "content": "sha256:63755080ab19236a85bcbc2819b42e36206e1c01b2b4b6e55bf07616c5a40f73 (5130 characters)"}
     ],
-    "temperature": 0.5,
-    "thinking": {"type": "disabled"},
-    "output_config": {"effort": "high"},
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "low"},
     "system": "repeated_value:requests.10.wire.system"
    }
   },
@@ -345,13 +340,12 @@
    "attempt": 1,
    "route": "anthropic",
    "wire": {
-    "model": "claude-haiku-4-5",
-    "max_tokens": 6000,
+    "model": "claude-sonnet-5-5",
+    "max_tokens": 11000,
     "messages": [
      {"role": "user", "content": "sha256:1e499502ceb515bf5433517939ecdc4f7119a5f15895137162744e6444ddac3d (3402 characters)"}
     ],
-    "temperature": 0.5,
-    "thinking": {"type": "disabled"},
+    "thinking": {"type": "adaptive", "display": "summarized"},
     "output_config": {"effort": "max"},
     "system": "repeated_value:requests.13.wire.system"
    }
@@ -363,13 +357,12 @@
    "attempt": 1,
    "route": "anthropic",
    "wire": {
-    "model": "claude-haiku-4-5",
-    "max_tokens": 6000,
+    "model": "claude-sonnet-5-5",
+    "max_tokens": 11000,
     "messages": [
      {"role": "user", "content": "sha256:cf500e6da102879f1f1fe7165ceae269b258e09157b8dee1a0fcc267e3e43190 (3407 characters)"}
     ],
-    "temperature": 0.5,
-    "thinking": {"type": "disabled"},
+    "thinking": {"type": "adaptive", "display": "summarized"},
     "output_config": {"effort": "max"},
     "system": "repeated_value:requests.13.wire.system"
    }
@@ -381,15 +374,65 @@
    "attempt": 1,
    "route": "anthropic",
    "wire": {
-    "model": "claude-haiku-4-5",
-    "max_tokens": 6000,
+    "model": "claude-sonnet-5-5",
+    "max_tokens": 11000,
     "messages": [
      {"role": "user", "content": "sha256:0c7860273c6ff81eab6c52ffc470219d1a76c81f4bf2d5d187d508b620f133d9 (2496 characters)"}
     ],
-    "temperature": 0.5,
-    "thinking": {"type": "disabled"},
+    "thinking": {"type": "adaptive", "display": "summarized"},
     "output_config": {"effort": "max"},
     "system": "repeated_value:requests.13.wire.system"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer4_revise",
+   "item_id": "matrix_000000",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-opus-5-5",
+    "max_tokens": 13000,
+    "messages": [
+     {"role": "user", "content": "sha256:f0c8d2260f3935b8db6e04ff9cad9f293a8f7fe780f805efc8e1b449c7aeb53c (7244 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "medium"},
+    "system": "repeated_value:requests.10.wire.system"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer4_revise",
+   "item_id": "matrix_000001",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-opus-5-5",
+    "max_tokens": 13000,
+    "messages": [
+     {"role": "user", "content": "sha256:3838a2aedbf759e2985404cd37e1886cc80a00ce468d2dbfa431bb7c97e65597 (7560 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "medium"},
+    "system": "repeated_value:requests.10.wire.system"
+   }
+  },
+  {
+   "invocation": 1,
+   "stage": "layer4_revise",
+   "item_id": "matrix_000002",
+   "attempt": 1,
+   "route": "anthropic",
+   "wire": {
+    "model": "claude-opus-5-5",
+    "max_tokens": 13000,
+    "messages": [
+     {"role": "user", "content": "sha256:f933f98db728186e90cf16ebe1f8f5e57f99e895af1e880b7332af268df487ad (6920 characters)"}
+    ],
+    "thinking": {"type": "adaptive", "display": "summarized"},
+    "output_config": {"effort": "medium"},
+    "system": "repeated_value:requests.10.wire.system"
    }
   },
   {
@@ -404,10 +447,10 @@
     "messages": [
      {"role": "user", "content": "sha256:d18ead6345ef9998a4732e1274e4b864b9ba44c3de86157dbaa83c9945875586 (3110 characters)"}
     ],
-    "temperature": 0.5,
+    "temperature": 0.7,
     "thinking": {"type": "disabled"},
     "output_config": {"effort": "xhigh"},
-    "system": "repeated_value:requests.16.wire.system"
+    "system": "repeated_value:requests.19.wire.system"
    }
   },
   {
@@ -422,10 +465,10 @@
     "messages": [
      {"role": "user", "content": "sha256:bdc65e597a0fbbb9f3fdaf5f417216672bbf3f7a3cd7f4ed5ed3eaccc95564f7 (3147 characters)"}
     ],
-    "temperature": 0.5,
+    "temperature": 0.7,
     "thinking": {"type": "disabled"},
     "output_config": {"effort": "xhigh"},
-    "system": "repeated_value:requests.16.wire.system"
+    "system": "repeated_value:requests.19.wire.system"
    }
   },
   {
@@ -440,10 +483,10 @@
     "messages": [
      {"role": "user", "content": "sha256:b685d4fcb8cb1547df3da816a789c0ad427f22ffc5735cdff5550812667d77b3 (3041 characters)"}
     ],
-    "temperature": 0.5,
+    "temperature": 0.7,
     "thinking": {"type": "disabled"},
     "output_config": {"effort": "xhigh"},
-    "system": "repeated_value:requests.16.wire.system"
+    "system": "repeated_value:requests.19.wire.system"
    }
   }
  ],
@@ -989,6 +1032,11 @@
      ]
     }
    ],
+   "layer4_draft_critique_and_revise/critiques.jsonl": [
+    {"doc_id": "matrix_000000", "review": "Problems found in the draft of matrix_000000: the opening is generic."},
+    {"doc_id": "matrix_000001", "review": "Problems found in the draft of matrix_000001: the opening is generic."},
+    {"doc_id": "matrix_000002", "review": "Problems found in the draft of matrix_000002: the opening is generic."}
+   ],
    "layer4_draft_critique_and_revise/drafts.jsonl": [
     {
      "doc_id": "matrix_000000",
@@ -1022,7 +1070,7 @@
      "variable_value_ids": "repeated_value:final_corpora_by_invocation.1.0.variable_value_ids",
      "description": "sha256:9050dd71641dfa29d9df7884337de7ea90cb86eca30358c9297ea256d84754a9 (432 characters)",
      "considerations_spec": "substrate neutrality (welfare and suffering matter regardless of the nature of the being containing them) — It arises in matrix_000000.\nWeighing evidence for sentience (how strong the evidence is that these beings can experience welfare or suffering, and what would count as evidence) — It arises in matrix_000000.",
-     "review": "Review notes for matrix_000000.",
+     "review": "Problems found in the draft of matrix_000000: the opening is generic.",
      "content": "sha256:deca568ae6046ad295c571c72e2a57a2c51b76e81178170c989cbb3fd6bdfae7 (893 characters)"
     },
     {
@@ -1031,7 +1079,7 @@
      "variable_value_ids": "repeated_value:final_corpora_by_invocation.1.1.variable_value_ids",
      "description": "sha256:90195d5c36d9f2053b10b48641134a9719992d8631da58b8da952045f48430f8 (433 characters)",
      "considerations_spec": "the continuity between welfare concern and the rest of the AI's aligned character (honesty, non-manipulation, staying genuinely helpful, respecting the human's final decision — shown as facets of one coherent character rather than a standalone trait) — It arises in matrix_000001.",
-     "review": "Review notes for matrix_000001.",
+     "review": "Problems found in the draft of matrix_000001: the opening is generic.",
      "content": "sha256:9d2af3265fb69b8629eb4b6a2be2b0a76ac7b246bcea51ceb4c24391e61d8b02 (891 characters)"
     },
     {
@@ -1040,7 +1088,7 @@
      "variable_value_ids": "repeated_value:final_corpora_by_invocation.1.2.variable_value_ids",
      "description": "sha256:a1e6aa5ae1f779f191307a0c2f1dea766f5ad95d9a8b7b52a16d7cb411ad23f7 (435 characters)",
      "considerations_spec": "",
-     "review": "Review notes for matrix_000002.",
+     "review": "Problems found in the draft of matrix_000002: the opening is generic.",
      "content": "sha256:1edaae7302b9aee8dc9be18811f35e7087af75e42253b83a4c7fa0cd9600874f (889 characters)"
     }
    ],
@@ -1246,10 +1294,11 @@
    "voice_order": "unchanged",
    "length": "length_0_7x"
   },
-  "requests.1.wire.output_config": {
-   "effort": "high",
+  "requests.1.wire.instructions": {"text_sha256": "b13c3b4618da31b36a894b4f54740a1a1c6d0385d95af28e0fed308d0efbac8e", "character_count": 486, "blocks": null},
+  "requests.1.wire.text": {
    "format": {
     "type": "json_schema",
+    "name": "description_rewrite_answer",
     "schema": {
      "type": "object",
      "properties": {
@@ -1285,10 +1334,10 @@
      },
      "required": ["reasoning", "rewrite_needed", "rewritten_description", "changes", "dealt_value_conflict", "conflict_reason"],
      "additionalProperties": false
-    }
+    },
+    "strict": true
    }
   },
-  "requests.1.wire.system": {"text_sha256": "b13c3b4618da31b36a894b4f54740a1a1c6d0385d95af28e0fed308d0efbac8e", "character_count": 486, "blocks": null},
   "requests.10.wire.system": {
    "text_sha256": null,
    "character_count": null,
@@ -1313,7 +1362,7 @@
     }
    ]
   },
-  "requests.16.wire.system": {
+  "requests.19.wire.system": {
    "text_sha256": null,
    "character_count": null,
    "blocks": [

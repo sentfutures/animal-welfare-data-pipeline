@@ -161,9 +161,6 @@ class TestTheArmsFile:
             Path(__file__).resolve().parent.parent / "experiments" / "arms.example.yaml")
         assert [a["name"] for a in arms] == ["control"]
         assert arms[0]["style_mode"] == "none"
-        # the control must also pin the split off, or it is not the condition
-        # layer 3 sent before these axes existed
-        assert arms[0]["split"] is False
         # length_tolerance is a reporting width, not a bar: the pass/fail
         # criteria are the two that remain
         assert set(spec["success"]) == {

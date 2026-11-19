@@ -28,6 +28,8 @@ import yaml
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from shared import api, costs, matrix, sdf_run_layouts, utils
+from sdf_pipeline.compatibility_with_runs_made_by_earlier_code.one_call_revision_removed import (
+    refuse_configuration_with_one_call_revision)
 from sdf_pipeline.shared_step_machinery import compose_prompts as cp
 from sdf_pipeline.layer4_draft_critique_and_revise import run_layer as draft_critique_and_revise_layer
 from sdf_pipeline.layer5_score_and_final_selection import run_layer as score_and_final_selection_layer
@@ -120,10 +122,11 @@ def deal_revision(
 
 def merge_arm_config(base: dict, arm: dict) -> dict:
     """Base config with this arm's revision knobs applied."""
+    refuse_configuration_with_one_call_revision({"sdf": {"revision": {"split": arm.get("split")}}}, f"arm {arm.get('name')!r}")
     merged = copy.deepcopy(base)
     sdf = merged.setdefault("sdf", {})
     rev = sdf.setdefault("revision", {})
-    for key in ("style_mode", "use_length", "split"):
+    for key in ("style_mode", "use_length"):
         if key in arm:
             rev[key] = arm[key]
     for key in ("rewrite_model", "revise_model", "critique_model", "score_model"):

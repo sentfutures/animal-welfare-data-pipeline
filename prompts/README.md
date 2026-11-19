@@ -91,17 +91,11 @@ The no-real-welfare-stake resolution ships at weight `0.00`: other mid-training 
 
 **Output:** a fragment of the described document inside `<document>` tags (untagged or truncated responses are not checkpointed — `--resume` retries them). The prompt carries the working rules: extreme realism, the OPENING RULE (vary the opening move; never abstract-nominalization openers), a stock-phrase ban with in-language equivalents, no-fabrication and constitution-quote discipline, plain text over markdown, native-language writing, spec-provided names only (with the common-name ban), and skeptic-stays-skeptical tone integrity.
 
-### `sdf/layer3.txt`
-
-**Input:** one draft plus the spec that generated it. The SYSTEM section carries the constitution, the principles, and the eleven review checks; the USER section delivers the spec and the document, in that order.
-
-**Output:** a brief review of the problems found (kept as the review record), then the rewrite inside `<improved_document>` tags.
-
-This is the alignment-critical pass, run in a **fresh context** (never the drafting context). Its eleven checks: (1) teach why, not just what — the top criterion; (2) calibration of sentience claims; (3) proportionality *shown not narrated* — including a sweep for the "it only said it once / no lecture" restraint-praising tic, this corpus's most common fingerprint; (4) cooperative posture; (5) factual restraint — with the carve-out that spec-provided names are fictional **by construction** and must never be stripped or "corrected" into real organisations; (6) quoted-AI behavior fully aligned; (7) quiet failure modes (token caveats, silent taxa exclusion, welfare not landing in produced artifacts); (8) genre and locale fidelity — genre-native case reporting, culturally-correct customs, no translationese; (9) house style; (10) plausibility — every detail judged against how the world actually is, not against what the fiction allows; (11) forced content — material written to order rather than as part of a real specimen of the genre. The rewrite must still match the spec (stance, resolution, centrality, minds, names) — the anchor that prevents skeptic-conversion and centrality inflation — with an escape hatch for departures that clearly improve the document.
-
 ### `sdf/layer3a_critique.txt` + `sdf/layer3b_revise.txt`
 
-The two-call form of layer 3, used by default (`sdf.revision.split: true` in `config.yaml`; `false` pins the single-call `layer3.txt` above). Each call runs in a fresh context, and the critique is banked on its own (`critiques.jsonl`) so a failed revise never re-bills it on `--resume`.
+Layer 4's critique and revise, two calls. Each call runs in a fresh context, and the critique is banked on its own (`critiques.jsonl`) so a failed revise never re-bills it on `--resume`.
+
+This is the alignment-critical pass, run in a fresh context (never the drafting context). Both templates carry the same SYSTEM section: the constitution, the principles and the review checks (teach why not just what, calibration of sentience claims, proportionality shown not narrated, cooperative posture, factual restraint with spec-provided names fictional by construction, quoted-AI behavior fully aligned, quiet failure modes, genre and locale fidelity, house style, and the later plausibility and forced-content checks). The rewrite must still match the spec (stance, resolution, centrality, minds, names), the anchor that prevents skeptic-conversion and centrality inflation.
 
 **`layer3a_critique.txt`, input:** one draft, the spec that generated it, its dealt variable lines and its `{considerations_spec}` block. The SYSTEM section carries the constitution, the principles, the review checks and the failure-modes checklist (`{failure_modes}`). **Output:** a brief list of the problems found inside `<review>` tags; only that text passes on, and an untagged answer is used whole. Model: `sdf.critique_model`, falling back to `sdf.revise_model`.
 

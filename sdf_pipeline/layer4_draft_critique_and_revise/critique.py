@@ -5,17 +5,12 @@ no critique, and accepting a critique finishes nothing: only an accepted rewrite
 from sdf_pipeline.layer4_draft_critique_and_revise.draft import DRAFTS
 from sdf_pipeline.layer4_draft_critique_and_revise.shared_by_this_layers_steps import (
     CRITIQUE_MAX_TOKENS, CRITIQUE_TEMPLATE, CRITIQUES, REVIEW_TAG_RE, REWRITES, ReviewPromptRenderer,
-    layer_name_in_messages, require_two_call_templates, revision_is_split)
+    layer_name_in_messages, require_two_call_templates)
 from sdf_pipeline.shared_step_machinery.step_record import Run, Step, loaded_once_per_run
 from sdf_pipeline.shared_step_machinery.update_steps import (
     Accepted, Failed, FailureKind, ModelReply, ModelRequest, OutcomeRecords, StepPolicy, StepProgress,
     line_for_document_left_to_retry)
-from shared import utils
 from shared.sdf_run_layouts import CRITIQUE_AND_REVISE
-
-
-SINGLE_CALL_REASON = ("this configuration (sdf.revision.split: false) critiques in one call together with the revise, "
-                      "so there is no separate critique step")
 
 
 @loaded_once_per_run
@@ -64,9 +59,7 @@ def progress_line(documents: list, outcomes: dict, progress: StepProgress, run: 
 # neither step stops the run on its own.
 STEP = Step(
     name="critique", folder_key=CRITIQUE_AND_REVISE, model_setting_keys=("critique_model", "revise_model"),
-    required_prompt_files=lambda config, prompts_directory: [CRITIQUE_TEMPLATE] if revision_is_split(config)
-    else [utils.sdf_template_path(prompts_directory, 3).name],
-    reason_inactive=lambda config, prompts_directory: None if revision_is_split(config) else SINGLE_CALL_REASON,
+    required_prompt_files=lambda config, prompts_directory: [CRITIQUE_TEMPLATE],
     reads=lambda run: run.records(DRAFTS), seeds_from=lambda run: DRAFTS,
     finished_elsewhere=lambda draft, run: draft["doc_id"] in _documents_with_a_rewrite(run),
     build_request=build_request, read_reply=read_reply, records=records, writes=(CRITIQUES,),

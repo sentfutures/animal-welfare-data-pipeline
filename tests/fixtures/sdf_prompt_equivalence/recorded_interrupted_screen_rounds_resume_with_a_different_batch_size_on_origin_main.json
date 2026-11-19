@@ -1,6 +1,6 @@
 {
  "format_version": 4,
- "recorded_from": "commit 03f3c3b4bf2ff63769ed097964efe8d45d89d04c on branch HEAD (clean)",
+ "recorded_from": "commit 4f9fbc7be4e335265437523aa484932713813aae on branch HEAD (clean)",
  "regeneration_rule": "The recorded files are rewritten only by `python scripts/regenerate_sdf_prompt_equivalence_recorded_requests.py`, and only when the pull request is meant to change requests: never to make a failing test pass. Regenerate and commit the files in that pull request, and say in its description that requests change and why. A pull request not meant to change them leaves the files alone, so a difference is a bug.",
  "description": "The screen stops after one of two round-0 batches; the resume has another batch size and must reuse the saved batches, then stops after the redeal is dealt but not screened; the third invocation reuses the dealt round; the fourth keeps the accepted hands.",
  "configs_used_by_invocation": {

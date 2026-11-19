@@ -55,7 +55,7 @@ assert REAL_ANTHROPIC_CALL_WITH_RETRY.__name__ != "_blocked", (
 
 STAGE_TAGS_OF_SDF_PIPELINE = (
     "layer1_screen", "layer2_description_write", "layer2_description_rewrite", "layer3_consideration_scoring",
-    "layer4_draft", "layer4_critique", "layer4_revise", "layer4_critique_and_revise_in_one_call", "layer5_score",
+    "layer4_draft", "layer4_critique", "layer4_revise", "layer5_score",
 )
 
 # One distinct reasoning effort per stage tag, so a renamed or mistyped tag changes the request.
@@ -69,7 +69,7 @@ REASONING_EFFORT_BY_STAGE_TAG = {
     "layer4_draft": "max",
     "layer4_critique": "low",
     "layer4_revise": "medium",
-    "layer4_critique_and_revise_in_one_call": "high",
+    "layer4_critique_and_revise_in_one_call": "high",   # no step has this tag now; the recorded configurations carry it
     "layer5_score": "xhigh",
 }
 # The same efforts under the four-layer layout's tags.
@@ -296,7 +296,7 @@ def canned_reply(behaviour: ReplyBehaviour, request: RequestView) -> tuple[str, 
         return f"Here is the document.\n<document>\n\n   {stable_pseudo_text('draft ' + item)}  \n\n</document>\n", "end_turn"
     if stage == "layer4_critique":
         return f"<review>\n\n  Problems found in the draft of {item}: the opening is generic.  \n</review>\n", "end_turn"
-    if stage in ("layer4_revise", "layer4_critique_and_revise_in_one_call"):
+    if stage == "layer4_revise":
         notes = "" if item in behaviour.revise_without_review_notes else f"  Review notes for {item}.  \n\n"
         return f"{notes}<improved_document>\n\n   {revised_text_for(behaviour, item)}  \n\n</improved_document>\nDone.", "end_turn"
     if stage == "layer5_score":

@@ -9,7 +9,7 @@ from sdf_pipeline.layer2_description_write_and_description_rewrite import descri
 from sdf_pipeline.layer3_consideration_scoring_and_selection import consideration_scoring
 from sdf_pipeline.layer3_consideration_scoring_and_selection.shared_by_this_layers_steps import (
     SELECTIONS_FILENAME, reason_consideration_selection_is_inactive)
-from sdf_pipeline.layer4_draft_critique_and_revise import critique, critique_and_revise_in_one_call, draft, revise
+from sdf_pipeline.layer4_draft_critique_and_revise import critique, draft, revise
 from sdf_pipeline.layer5_score_and_final_selection import score
 from sdf_pipeline.shared_step_machinery.step_record import Run, StageFile, Step
 from shared import sdf_run_layouts, utils
@@ -38,7 +38,6 @@ PIPELINE_STEPS = (
     draft.STEP,
     critique.STEP,
     revise.STEP,
-    critique_and_revise_in_one_call.STEP,
     score.STEP,
     Step("score_gate", SCORE),
     Step("near_duplicate_removal", SCORE),
@@ -49,11 +48,7 @@ STEP_NAMES_IN_ORDER = tuple(step.name for step in PIPELINE_STEPS)
 def canonical_stage_tag(tag: str) -> str:
     """The five-layer layout's cost-log tag for a tag of either layout, so per-step cost tables line runs of both layouts
     up (``layer3_critique`` and ``layer4_critique`` are both ``layer4_critique``). Other tags come back as they are."""
-    for step in PIPELINE_STEPS:
-        if step.makes_model_calls and tag in (step.stage_tag_in(sdf_run_layouts.FOUR_NUMBERED_LAYERS),
-                                              step.stage_tag_in(sdf_run_layouts.FIVE_NAMED_LAYERS)):
-            return step.stage_tag_in(sdf_run_layouts.FIVE_NAMED_LAYERS)
-    return tag
+    return sdf_run_layouts.five_layer_tag_of(tag)
 
 
 def entry_named(step_name: str) -> Step:

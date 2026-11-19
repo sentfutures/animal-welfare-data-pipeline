@@ -20,6 +20,8 @@ from sdf_pipeline.layer4_draft_critique_and_revise import run_layer as draft_cri
 from sdf_pipeline.layer5_score_and_final_selection import run_layer as score_and_final_selection_layer
 from sdf_pipeline import pipeline_steps
 from sdf_pipeline.compatibility_with_runs_made_by_earlier_code.layouts_that_can_be_resumed import layout_of_run_that_can_be_resumed
+from sdf_pipeline.compatibility_with_runs_made_by_earlier_code.one_call_revision_removed import (
+    refuse_configuration_with_one_call_revision, refuse_resuming_run_with_one_call_revision)
 from sdf_pipeline.shared_step_machinery.step_record import Run
 from sdf_pipeline import start_a_run_from_an_earlier_runs_step as seeding
 from sdf_pipeline.layer2_description_write_and_description_rewrite import description_rewrite, description_write
@@ -66,6 +68,7 @@ def main() -> None:
         args.layer = 1
 
     config = utils.load_config(args.config)
+    refuse_configuration_with_one_call_revision(config, args.config)
 
     root = Path(__file__).parent.parent
     # PIPELINE_OUTPUT_ROOT redirects all run output (used by the test suite)
@@ -79,6 +82,7 @@ def main() -> None:
     if args.resume and not seeding_requested:
         run_dir = utils.resolve_run_dir(runs_root, args.run_id)
         layout = layout_of_run_that_can_be_resumed(run_dir)
+        refuse_resuming_run_with_one_call_revision(run_dir)
     if not seeding_requested and args.layer not in layout.layer_numbers:
         parser.error(f"--layer must be {layout.layer_numbers[0]}-{layout.layer_numbers[-1]}, got {args.layer}.")
 

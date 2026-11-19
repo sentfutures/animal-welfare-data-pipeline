@@ -41,13 +41,10 @@ experiment:
     length_tolerance: 0.20
 
 arms:
-  # The control: the pipeline's defaults with every revision slot empty and the
-  # critique and rewrite sharing one call, which is what layer 3 sent before
-  # any of these axes existed.
+  # The control: the pipeline's defaults with every revision slot empty.
   - name: control
     style_mode: none
     use_length: false
-    split: false
 
   # The corpus exactly as it shipped. Copies the donor's own rewrites for the
   # sampled ids instead of generating any, so it costs nothing and gives the
@@ -67,12 +64,6 @@ arms:
   # - name: length
   #   style_mode: none
   #   use_length: true
-
-  # The two-call layer 3 on its own, with no revision cards rendered, so the
-  # split itself is what is being measured.
-  # - name: split
-  #   style_mode: none
-  #   split: true
 
   # Per-arm model overrides are also honoured, for when an arm needs a stronger
   # critic than the rest of the sweep:
