@@ -5,6 +5,10 @@ description: Watch a pull request for incoming review feedback, then triage and 
 
 # Watching and answering PR review feedback
 
+> Org copy: the canonical version of this skill lives in `sentfutures/devops`
+> under `skills/pr-review-watch/`. It is copied into each repo's
+> `.claude/skills/` at install; if you improve it, improve the devops copy too.
+
 ## Two rules that override everything else
 
 **1. You never post on the PR.** No comments, no replies, no reviews, no resolving threads, no dismissing reviews. All of that is the human's. You may *draft* reply text for them to post — drafting is fine, posting is not.
@@ -28,13 +32,31 @@ gh pr view <N> --repo <owner/repo> \
   --json state,reviewDecision,mergeable,reviews,comments,statusCheckRollup
 ```
 
-`reviewDecision` is the fast answer: `APPROVED`, `CHANGES_REQUESTED`, `REVIEW_REQUIRED`, or empty. If feedback exists, skip to Step 3.
+`reviewDecision` reports the branch-protection review state, not the reviews
+themselves: on a repo whose protection requires reviews it reads `APPROVED` /
+`CHANGES_REQUESTED` / `REVIEW_REQUIRED` (bot approvals included), but on a
+repo without required reviews it stays EMPTY no matter what sits in
+`reviews` — verified both ways on this org's repos. Empty is therefore not
+"no feedback": read the `reviews` array itself. If feedback exists, skip to
+Step 3.
 
 ## Step 2: waiting, if it genuinely hasn't arrived
 
 Pick by how many notifications you need:
 
-**One notification when the review lands** — Bash with `run_in_background` and a loop that exits on the condition. This is the common case.
+**One notification when the review lands** — Bash with `run_in_background` and a loop that exits on the condition. Pick the condition by what you are waiting for:
+
+*The review bot* (the usual case) — wait on its check leaving `pending`, then read the reviews. This works on every repo, protected or not:
+
+```bash
+until bucket=$(gh pr checks <N> --repo <owner/repo> --json name,bucket \
+  -q '.[] | select(.name | contains("claude-review")) | .bucket'); \
+  [ -n "$bucket" ] && [ "$bucket" != "pending" ]; do
+  sleep 60
+done
+```
+
+*A human reviewer, on a repo whose branch protection requires reviews* — `reviewDecision` is reliable there, and only there:
 
 ```bash
 until [ -n "$(gh pr view <N> --repo <owner/repo> --json reviewDecision -q .reviewDecision)" ]; do
@@ -42,11 +64,13 @@ until [ -n "$(gh pr view <N> --repo <owner/repo> --json reviewDecision -q .revie
 done
 ```
 
-A caveat on that condition: a **comment-only** review does not set `reviewDecision`, so a loop waiting on it alone can hang after the reviewer has actually spoken. When the reviewer is a bot with its own check, wait on the check leaving `pending` instead, then read the reviews:
+Never use that loop on a repo without required reviews: `reviewDecision` stays empty there no matter what gets posted — an APPROVED bot review included — and a comment-only review never sets it anywhere, so the loop hangs forever after the reviewer has actually spoken. Universal fallback for every other case — poll the reviews list itself for a new bodied review (add a `submitted_at` filter against when you started waiting if the PR already carries older reviews):
 
 ```bash
-bucket=$(gh pr checks <N> --repo <owner/repo> --json name,bucket \
-  -q '.[] | select(.name | contains("claude-review")) | .bucket')
+until [ -n "$(gh api repos/<owner>/<repo>/pulls/<N>/reviews --paginate \
+  | jq -r -s 'add // [] | [.[] | select((.body|length) > 0)] | last | .state // ""')" ]; do
+  sleep 60
+done
 ```
 
 **One notification per new comment, indefinitely** — the `Monitor` tool with `persistent: true`, polling `gh api repos/<owner>/<repo>/issues/<N>/comments?since=<ts>` and emitting a line per new comment. Only worth it for an active back-and-forth.
@@ -133,14 +157,46 @@ Then wait. Don't push a change to a disputed point before the user answers. If s
 
 ## In this repo
 
-- **Tests**: `pytest` from the repo root — offline, a few seconds. `CLAUDE.md` requires running it after any change under `shared/`, `sdf_pipeline/`, `dad_pipeline/`, `evals/`, and again before each commit and push. A behavior change without a test is a review comment waiting to happen.
-- **Checks on every PR**: `smoke` (CI: compileall + pytest, no API secret exposed) and `review / claude-review` (the bot reviewer, ~3 min). The reviewer is a caller onto `sentfutures/devops`, which is why its check is two-part; match it with `contains("claude-review")` rather than an equality test. A third `claude / claude` check usually shows `skipping` — that is the `@claude` mention handler, which skips when nobody mentioned it.
-- **The merge gate accepts the bot's approval.** `main` requires CI `smoke` plus one approval, and `claude[bot]`'s counts — so a same-repo PR can technically merge with no human having read it. **Never merge on that basis; merge only when the user asks.**
-- **Review responses are posted by a human, never by an agent** — the team's standing convention, and the reason for rule 1 above. `CLAUDE.md`'s "PR expectations" section states the same rule; the two must agree.
-- **Claude-authored GitHub content must say so.** PR *descriptions* written by Claude from this account need an explicit callout naming Claude as the author, e.g. a `> [!NOTE]` line at the top. (Comments don't arise — you don't post them.)
-- **PR descriptions need a "How to test" section** (`.github/pull_request_template.md`). `gh pr create --body` bypasses the template, so write the section in explicitly.
-- **`gh pr edit` fails on this repo** — it queries deprecated Projects-classic cards and exits 1. To edit a PR description use the REST API instead: `gh api --method PATCH repos/<owner>/<repo>/pulls/<N> -F body=@<file>`.
-- **Local suite failures may be environmental**, not yours: `tiktoken` and `wordfreq` are declared in `requirements.txt` but are easy to have missing from an older `.venv`, which fails `tests/test_embeddings.py` and part of `tests/test_audit_dad.py` on import. Check whether the failures predate your change before chasing them.
+- **Tests**: `pytest` from the repo root — offline, a few seconds.
+  `CLAUDE.md` requires running it after any change under `shared/`,
+  `sdf_pipeline/`, `dad_pipeline/` or `evals/`, and again before each commit
+  and push. A behavior change without a test is a review comment waiting to
+  happen.
+- **Checks on every PR**: `smoke` (CI: compileall + pytest, no API secret
+  exposed) and `review / claude-review` (the Claude reviewer, ~3 min). The
+  reviewer is a caller onto `sentfutures/devops`, which is why its check is
+  two-part; match it with `contains("claude-review")` rather than an equality
+  test. It goes red when the bot posted no binary verdict. A
+  `needs-human-review` label means the bot wants a human to decide; tell the
+  user rather than counting on anyone having been notified. A third
+  `claude / claude` check usually shows `skipping`: that is the `@claude`
+  mention handler, which skips when nobody mentioned it.
+- **Merge gate**: `main` requires a pull request and a green `smoke`. Since
+  2026-11-19 it requires no approvals, so the bot's verdict is advice, and
+  `reviewDecision` is always empty here: wait on the bot's check or poll the
+  reviews list (Step 2), never the `reviewDecision` loop, and after a push
+  read the reviews list to see whether an approval still stands. Never merge
+  on a bot approval alone; merge only when the user asks.
+- **Review responses are posted by a human, never by an agent** — org-wide
+  convention, and the reason for rule 1 above. `CLAUDE.md`'s "PR
+  expectations" section states the same rule; the two must agree.
+- **Claude-authored GitHub content must say so.** PR *descriptions* written by
+  Claude need an explicit callout naming Claude as the author, e.g. a
+  `> [!NOTE]` line at the top. (Comments don't arise — you don't post them.)
+- **PR descriptions need a "How to test" section**
+  (`.github/pull_request_template.md`). `gh pr create --body` bypasses the
+  template, so write the section in explicitly.
+- **`gh pr edit` fails on this repo** — it queries deprecated Projects-classic
+  cards and exits 1. To edit a PR description use the REST API instead:
+  `gh api --method PATCH repos/<owner>/<repo>/pulls/<N> -F body=@<file>`.
+- **Local suite failures may be environmental**, not yours: `tiktoken` and
+  `wordfreq` are declared in `requirements.txt` but are easy to have missing
+  from an older `.venv`, which fails `tests/test_embeddings.py` and part of
+  `tests/test_audit_dad.py` on import. Check whether the failures predate your
+  change before chasing them.
+- **Synced from** `sentfutures/devops@4b0fa02`
+  (`skills/pr-review-watch/SKILL.md`). To re-sync, replace everything outside
+  this section with the devops copy.
 
 ## Gotchas
 
