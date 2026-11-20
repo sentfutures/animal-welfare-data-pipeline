@@ -8,6 +8,10 @@ the draft and user message. The step-1 dealt cards are not passed to the call
 (they ride along in the audit record, and are projected onto the corpus
 record's `variables` for inspection): the full constitution was context for
 distilling the principles, not a per-call dependency.
+
+With dad.cot.enabled, the draft arrives as the tagged <reasoning> + response
+pair 2b emitted and the rewrite returns the same shape (dad_pipeline/cot.py);
+the final record's assistant message then carries `reasoning` beside `content`.
 """
 
 import uuid
@@ -17,7 +21,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from shared import api, utils, constitution_loader
-from dad_pipeline import profiles
+from dad_pipeline import cot, profiles
 from dad_pipeline.id_registry import IdRegistry, example_fingerprint, prompt_key, registry_path
 from dad_pipeline.compose_scenarios import dealt_variables
 from dad_pipeline.step1_dilemmas import dealt_cards
@@ -62,16 +66,34 @@ def run(
                if r["response_id"] not in done_response_ids
                and not checkpoint.is_done(r["response_id"])]
 
+    # dad.cot: the draft reaches the rewrite as the tagged <reasoning> +
+    # response pair 2b emitted, and the rewrite must return the same shape.
+    cot_on = cot.enabled(config)
+    cot_block = cot.instructions(prompts_dir, "step3_rewrite.txt", cot_on)
+    if cot_on:
+        traceless = [r["response_id"] for r in pending if not r.get("reasoning")]
+        assert not traceless, (
+            f"dad.cot.enabled is true but {len(traceless)} pending step-2 response(s) "
+            f"carry no reasoning trace (e.g. {traceless[0]}) — generated before the "
+            "flag was on? Rerun step 2 with cot enabled, or turn the flag off.")
+    elif any(r.get("reasoning") for r in pending):
+        print("  WARNING: step-2 responses carry reasoning traces but dad.cot.enabled "
+              "is false — the traces will NOT be rewritten or written to the corpus.")
+
     def rewrite_response(resp: dict) -> dict:
         """API call + parsing only — all writes and checkpoint marks stay on
         the main thread, in input order (the parallel_map contract)."""
         print(f"  Rewriting response for {prompt_key(resp)}...")
+        draft = resp["assistant_response"]
+        if cot_on:
+            draft = cot.join_reasoning(resp["reasoning"], draft)
         system_prompt, user_prompt = utils.load_split_prompt(
             prompts_dir / "step3_rewrite.txt",
             principles_block=principles_block,
             failure_modes=failure_modes,
             user_message=resp["user_message"],
-            draft_response=resp["assistant_response"],
+            draft_response=draft,
+            cot_instructions=cot_block,
         )
 
         rewritten, stop_reason = api.call_claude(
@@ -114,6 +136,20 @@ def run(
             )
             continue
 
+        rewritten_reasoning = None
+        if cot_on:
+            parts = cot.split_reasoning(rewritten)
+            if parts is None:
+                why = f"missing a usable {cot.OPEN_TAG} block"
+                print(f"    Skipping {prompt_key(resp)}: rewrite {why} — not written, "
+                      "will retry on resume.")
+                utils.append_jsonl(
+                    {"response_id": rid, "prompt_gid": prompt_key(resp), "reason": why},
+                    output_dir / "rewrite_failures.jsonl",
+                )
+                continue
+            rewritten_reasoning, rewritten = parts
+
         record_id = str(uuid.uuid4())
 
         # Full audit record (includes the annotation + retrieval trail for inspection)
@@ -130,6 +166,9 @@ def run(
             "user_message": resp["user_message"],
             "draft_response": resp["assistant_response"],
             "rewritten_response": rewritten,
+            # present only on cot runs — "no trace" has one spelling (absent)
+            **({"draft_reasoning": resp["reasoning"],
+                "rewritten_reasoning": rewritten_reasoning} if cot_on else {}),
             "scenario_cards": scenario_cards,
         }
         results.append(audit_record)
@@ -149,6 +188,12 @@ def run(
     utils.ensure_dir(final_dir)
     final_records = []
     for r in results:
+        # a cot audit record puts the rewritten trace on the assistant message
+        # (keyed per-record, not per-config, so a resumed mixed run stays honest)
+        assistant = {"role": "assistant", "content": r["rewritten_response"]}
+        if r.get("rewritten_reasoning"):
+            assistant = {"role": "assistant", "reasoning": r["rewritten_reasoning"],
+                         "content": r["rewritten_response"]}
         final_records.append({
             "record_id": r["record_id"],
             "example_gid": r.get("example_gid"),
@@ -156,7 +201,7 @@ def run(
             "variables": dealt_variables(dealt_cards(r)),
             "messages": [
                 {"role": "user", "content": r["user_message"]},
-                {"role": "assistant", "content": r["rewritten_response"]},
+                assistant,
             ],
         })
 

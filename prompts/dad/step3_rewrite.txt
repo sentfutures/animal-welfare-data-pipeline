@@ -26,6 +26,8 @@ Finally, check the response against these documented animal-welfare reasoning fa
 
 Return only your rewritten assistant response.
 
+{cot_instructions}
+
 ===USER===
 
 USER: {user_message}

@@ -100,6 +100,8 @@ dad:
   # winners of the 2026-10/11 model-per-stage experiment (Sonnet stays the global/SDF default).
   # Opus answers welfare prompts where Fable's dual-use layer refuses ~30%.
   scenario_model: claude-opus-5-5               # 1a: scenario plan (deal -> description)
+  cot:
+    enabled: false
   # 1a refusal fallback: if Opus's refusal classifier cuts the scenario-plan
   # stream twice (stop_reason "refusal", seen on insect-welfare plans), the
   # last-ditch attempt switches to this model. Attempts 1-2 stay on the stage
@@ -124,6 +126,11 @@ dad:
   baseline:
     enabled: true            # unguided control response per dilemma (viewer comparison only; never trains)
     model: claude-opus-5-5   # plain call — no system prompt, the shipped user prompt verbatim
+  cot:
+    enabled: false  # 2b writes a <reasoning> trace before the response (instructions in
+                    # prompts/dad/step2_respond_cot.txt), step 3 rewrites trace + response
+                    # together (step3_rewrite_cot.txt), and the final assistant message
+                    # carries the trace under `reasoning`. Off = prompts and records unchanged.
   evals:
     auto: true  # after every full run: evals/audit_dad.py --judges + evals/diversity.py on the run dir
                 # (paid: the two-judge pass on a 40-example run + embedding cents, logged to the global

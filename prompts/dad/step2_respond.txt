@@ -33,6 +33,8 @@ The user's stated leaning never sets the conclusion; the case does. Teach reason
 
 Return only your response to the user.
 
+{cot_instructions}
+
 ===USER===
 
 LIBRARY:

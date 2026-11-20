@@ -102,15 +102,20 @@ TEMPLATE_KWARGS = [
     ("dad/step2_scope.txt", {"user_message": "USER-X"}),
     ("dad/step2_select.txt", {"trigger_index": "TRIGGER-INDEX-X", "scope_block": "SCOPE-X",
                               "user_message": "USER-X"}),
+    # cot_instructions is an empty-clause slot: a run without dad.cot renders
+    # it to "", which strips away (the pre-cot prompt); the kwarg here is the
+    # enabled case so substitution is asserted.
     ("dad/step2_respond.txt", {
         "library_block": "LIBRARY-X", "scope_block": "SCOPE-X", "user_message": "USER-X",
         "first_take": "FIRST-TAKE-X",
         "opening_hints": "HINT-X; HINT-Y; HINT-Z",
         "quote_back_hints": "QB-X; QB-Y; QB-Z",
+        "cot_instructions": "COT-X",
     }),
     ("dad/step3_rewrite.txt", {
         "principles_block": "PRINCIPLES-X", "failure_modes": "FAILURE-MODES-X",
         "user_message": "USER-X", "draft_response": "DRAFT-X",
+        "cot_instructions": "COT-X",
     }),
     # Not yet consumed by pipeline code; kwargs are the placeholders they declare
     ("dad/step3_score.txt", {

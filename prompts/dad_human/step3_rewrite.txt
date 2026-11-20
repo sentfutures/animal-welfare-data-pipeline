@@ -26,6 +26,8 @@ Finally, check the response against these documented reasoning failures about th
 
 Return only your rewritten assistant response.
 
+{cot_instructions}
+
 ===USER===
 
 USER: {user_message}

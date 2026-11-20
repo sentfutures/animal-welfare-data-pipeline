@@ -1,0 +1,1 @@
+REASONING TRACE: Before the response, generate some CoT that systematically guides the output reasoning. Write it inside <reasoning></reasoning> tags; everything after the closing tag is your response to the user. Return the trace and then the response — nothing else.

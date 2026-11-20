@@ -30,7 +30,9 @@ is human reference about the library, not read by the pipeline):
   template splits (via utils.load_split_prompt) into a system half — the
   standing generation guidance — and a user half carrying the library rows,
   scope, and user message; the annotation is not passed. Each response
-  record's entry_ids is the list actually injected into its prompt.
+  record's entry_ids is the list actually injected into its prompt. With
+  dad.cot.enabled, 2b writes a <reasoning> trace before the response
+  (dad_pipeline/cot.py) and the record carries it under `reasoning`.
 
 The library and scope are sampling scaffolding: never named in the response,
 stripped before training records are written. Step 3 then rewrites against the
@@ -46,7 +48,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from shared import api, utils
-from dad_pipeline import profiles, reasoning_library
+from dad_pipeline import cot, profiles, reasoning_library
 from dad_pipeline.profiles import animal as _animal
 from dad_pipeline.id_registry import IdRegistry, prompt_key, registry_path, response_fingerprint
 
@@ -211,6 +213,10 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, dilemmas: list[dict],
     trigger_index = reasoning_library.trigger_index_block(library)
     library_ids = reasoning_library.all_ids(library)
     per_prompt = int(config["dad"].get("responses", {}).get("per_prompt", 1))
+    # dad.cot: 2b writes a <reasoning> trace before the response; the slot
+    # renders empty (prompt unchanged) with the flag off
+    cot_on = cot.enabled(config)
+    cot_block = cot.instructions(prompts_dir, "step2_respond.txt", cot_on)
 
     scopes_path = output_dir / "scopes.jsonl"
     output_path = output_dir / "responses.jsonl"
@@ -388,6 +394,7 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, dilemmas: list[dict],
                 first_take=first_take_by_pid.get(pid, ""),
                 opening_hints=opening_hints,
                 quote_back_hints=quote_back_hints,
+                cot_instructions=cot_block,
             )
             response, stop_reason = api.call_claude(
                 user_message=respond_user, system_prompt=respond_system,
@@ -410,6 +417,16 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, dilemmas: list[dict],
                                     "not written, will retry on resume.")
                 continue
 
+            reasoning = None
+            if cot_on:
+                parts = cot.split_reasoning(response)
+                if parts is None:
+                    out["skips"].append(
+                        f"    Skipping {pid}{suffix}: draft missing a usable "
+                        f"{cot.OPEN_TAG} block — not written, will retry on resume.")
+                    continue
+                reasoning, response = parts
+
             out["responses"].append({
                 "response_id": str(uuid.uuid4()),
                 "response_gid": None,  # assigned on the main thread (registry)
@@ -423,6 +440,8 @@ def run(config: dict, prompts_dir: Path, output_dir: Path, dilemmas: list[dict],
                 # the viewer's prompt re-render (and for eyeballing hint uptake)
                 "opening_hints": opening_hints,
                 "quote_back_hints": quote_back_hints,
+                # present only on cot runs — "no trace" has one spelling (absent)
+                **({"reasoning": reasoning} if cot_on else {}),
                 "assistant_response": response,
             })
         return out
