@@ -39,13 +39,13 @@ jobs:
       # Name of this repo's CI check the reviewer's verdict is cross-checked
       # against (e.g. "smoke", "preview"). Delete the line if there is none.
       required_check: "smoke"
-      # Space-separated GitHub logins to page when the bot can't decide.
-      # Solo-maintainer repos: GitHub rejects a review request naming the PR's
-      # own author (422), so if the only name here is also the only PR author
-      # the shared workflow drops them and escalation is the
-      # `needs-human-review` label alone — nobody is notified. Fill it in
-      # anyway; it starts working when a second person opens a PR.
-      escalate_to: "Deco354 Liconstan"
+      # Space-separated GitHub logins to request review from when the bot
+      # can't decide. Deliberately empty since 2026-11-20: reviews on `main`
+      # are optional, so escalation here is the `needs-human-review` label
+      # alone and nobody is requested or notified. The shared workflow logs a
+      # "no eligible reviewer" warning when it escalates; that is expected.
+      # Don't refill this on a re-install without asking the maintainers.
+      escalate_to: ""
       # Optional — repo-specific review rules, appended to the prompt:
       # extra_instructions: |
       #   Also flag:
